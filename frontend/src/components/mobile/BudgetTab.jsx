@@ -1,6 +1,9 @@
-import React from 'react';
+import { useConstruction } from '../../context/ConstructionContext';
 
-const BudgetTab = ({ expenses, totalBudget, totalSpent, remainingBudget, budgetPercent, formatCurrency }) => {
+const BudgetTab = () => {
+    const { dashboardData, budgetStats, formatCurrency } = useConstruction();
+    const { expenses } = dashboardData;
+    const { totalBudget, totalSpent, remainingBudget, budgetPercent } = budgetStats;
     return (
         <div className="space-y-6">
             <h2 className="text-xl font-bold text-gray-800">Budget Management</h2>
@@ -55,8 +58,8 @@ const BudgetTab = ({ expenses, totalBudget, totalSpent, remainingBudget, budgetP
                                 <div className="flex justify-between items-start">
                                     <div className="flex gap-3 items-center">
                                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl ${expense.expense_type === 'MATERIAL' ? 'bg-blue-50 text-blue-500' :
-                                                expense.expense_type === 'LABOR' ? 'bg-orange-50 text-orange-500' :
-                                                    expense.expense_type === 'FEES' ? 'bg-purple-50 text-purple-500' : 'bg-gray-50 text-gray-400'
+                                            expense.expense_type === 'LABOR' ? 'bg-orange-50 text-orange-500' :
+                                                expense.expense_type === 'FEES' ? 'bg-purple-50 text-purple-500' : 'bg-gray-50 text-gray-400'
                                             }`}>
                                             {expense.expense_type === 'MATERIAL' ? '📦' :
                                                 expense.expense_type === 'LABOR' ? '👷' :
@@ -66,8 +69,8 @@ const BudgetTab = ({ expenses, totalBudget, totalSpent, remainingBudget, budgetP
                                             <p className="font-semibold text-gray-900">{expense.title}</p>
                                             <div className="flex items-center gap-2">
                                                 <span className={`text-[10px] font-bold uppercase ${expense.expense_type === 'MATERIAL' ? 'text-blue-600' :
-                                                        expense.expense_type === 'LABOR' ? 'text-orange-600' :
-                                                            expense.expense_type === 'FEES' ? 'text-purple-600' : 'text-gray-400'
+                                                    expense.expense_type === 'LABOR' ? 'text-orange-600' :
+                                                        expense.expense_type === 'FEES' ? 'text-purple-600' : 'text-gray-400'
                                                     }`}>
                                                     {expense.expense_type || 'Material'}
                                                 </span>

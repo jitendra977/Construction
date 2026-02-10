@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
-import { dashboardService } from '../../services/api';
+import { useConstruction } from '../../context/ConstructionContext';
 
-const DesktopRooms = ({ rooms, floors = [], onDataRefresh }) => {
+const DesktopRooms = () => {
+    const { dashboardData, refreshData } = useConstruction();
+    const { rooms, floors = [] } = dashboardData;
     const [updating, setUpdating] = useState(null);
 
     const handleStatusChange = async (roomId, newStatus) => {
         setUpdating(roomId);
         try {
             await dashboardService.updateRoom(roomId, { status: newStatus });
-            if (onDataRefresh) onDataRefresh();
+            refreshData();
         } catch (error) {
             console.error("Failed to update room status", error);
             alert("Failed to update room status");
@@ -81,7 +82,7 @@ const DesktopRooms = ({ rooms, floors = [], onDataRefresh }) => {
                         We couldn't find any floor records. Please ensure the database is seeded or add a new floor.
                     </p>
                     <button
-                        onClick={() => onDataRefresh()}
+                        onClick={() => refreshData()}
                         className="mt-6 px-4 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-800"
                     >
                         Try Refreshing View ↻

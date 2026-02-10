@@ -1,6 +1,9 @@
-import React from 'react';
+import { useConstruction } from '../../context/ConstructionContext';
 
-const DesktopBudget = ({ expenses, totalBudget, totalSpent, remainingBudget, budgetPercent, formatCurrency }) => {
+const DesktopBudget = () => {
+    const { dashboardData, budgetStats, formatCurrency } = useConstruction();
+    const { expenses } = dashboardData;
+    const { totalBudget, totalSpent, remainingBudget, budgetPercent } = budgetStats;
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">

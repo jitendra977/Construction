@@ -37,6 +37,8 @@ INSTALLED_APPS = [
     'apps.tasks',
     'apps.finance',
     'apps.resources',
+    'apps.estimator',
+    'apps.permits',
 ]
 
 MIDDLEWARE = [

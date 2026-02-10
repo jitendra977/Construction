@@ -1,6 +1,34 @@
-import React from 'react';
+import { useState } from 'react';
+import { useConstruction } from '../../context/ConstructionContext';
+import { constructionService } from '../../services/api';
+import Modal from '../common/Modal';
 
-const RoomsTab = ({ rooms, floors = [], onDataRefresh, onAddRoom }) => {
+const RoomsTab = () => {
+    const { dashboardData, refreshData } = useConstruction();
+    const { rooms, floors = [] } = dashboardData;
+    const [isRoomModalOpen, setIsRoomModalOpen] = useState(false);
+    const [roomFormData, setRoomFormData] = useState({});
+    const [savingRoom, setSavingRoom] = useState(false);
+
+    const handleOpenRoomModal = () => {
+        setRoomFormData({ floor: floors[0]?.id, status: 'NOT_STARTED' });
+        setIsRoomModalOpen(true);
+    };
+
+    const handleRoomSubmit = async (e) => {
+        e.preventDefault();
+        setSavingRoom(true);
+        try {
+            await constructionService.createRoom(roomFormData);
+            setIsRoomModalOpen(false);
+            refreshData();
+        } catch (error) {
+            console.error("Failed to create room", error);
+            alert("Failed to create room");
+        } finally {
+            setSavingRoom(false);
+        }
+    };
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center mb-2">
@@ -16,7 +44,7 @@ const RoomsTab = ({ rooms, floors = [], onDataRefresh, onAddRoom }) => {
                     <h3 className="font-bold text-gray-900">No Floors Found</h3>
                     <p className="text-sm text-gray-500 mt-1">We couldn't load any floor data. Try refreshing below.</p>
                     <button
-                        onClick={() => onDataRefresh()}
+                        onClick={() => refreshData()}
                         className="mt-4 text-indigo-600 text-sm font-bold"
                     >
                         Refresh Data ↻
@@ -73,11 +101,78 @@ const RoomsTab = ({ rooms, floors = [], onDataRefresh, onAddRoom }) => {
             )}
 
             <button
-                onClick={onAddRoom}
+                onClick={handleOpenRoomModal}
                 className="w-full py-4 bg-white text-indigo-600 rounded-xl border-2 border-dashed border-indigo-100 font-bold hover:bg-indigo-50 transition-colors shadow-sm"
             >
                 + Add New Room
             </button>
+
+            {/* Room Modal */}
+            <Modal
+                isOpen={isRoomModalOpen}
+                onClose={() => setIsRoomModalOpen(false)}
+                title="Add New Room"
+            >
+                <form onSubmit={handleRoomSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Room Name</label>
+                        <input
+                            type="text"
+                            value={roomFormData.name || ''}
+                            onChange={(e) => setRoomFormData({ ...roomFormData, name: e.target.value })}
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                            placeholder="e.g. Master Bedroom"
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Floor</label>
+                        <select
+                            value={roomFormData.floor || ''}
+                            onChange={(e) => setRoomFormData({ ...roomFormData, floor: e.target.value })}
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                            required
+                        >
+                            <option value="">Select Floor</option>
+                            {floors.map(f => (
+                                <option key={f.id} value={f.id}>{f.name}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Area (sqft)</label>
+                            <input
+                                type="number"
+                                value={roomFormData.area_sqft || ''}
+                                onChange={(e) => setRoomFormData({ ...roomFormData, area_sqft: e.target.value })}
+                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                                placeholder="0"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Budget Allocation</label>
+                            <input
+                                type="number"
+                                value={roomFormData.budget_allocation || ''}
+                                onChange={(e) => setRoomFormData({ ...roomFormData, budget_allocation: e.target.value })}
+                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                                placeholder="0"
+                            />
+                        </div>
+                    </div>
+
+                    <button
+                        type="submit"
+                        disabled={savingRoom}
+                        className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold shadow-lg disabled:opacity-50"
+                    >
+                        {savingRoom ? 'Creating...' : 'Create Room'}
+                    </button>
+                </form>
+            </Modal>
         </div>
     );
 };

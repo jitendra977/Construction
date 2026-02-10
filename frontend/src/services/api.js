@@ -124,7 +124,7 @@ export const dashboardService = {
     // Dashboard Data - Aggregated
     getDashboardData: async () => {
         try {
-            const [projects, rooms, tasks, phases, expenses, floors, materials, contractors, budgetCategories, suppliers, transactions] = await Promise.all([
+            const [projects, rooms, tasks, phases, expenses, floors, materials, contractors, budgetCategories, suppliers, transactions, permits] = await Promise.all([
                 api.get('/projects/'),
                 api.get('/rooms/'),
                 api.get('/tasks/'),
@@ -136,6 +136,7 @@ export const dashboardService = {
                 api.get('/budget-categories/'),
                 api.get('/suppliers/'),
                 api.get('/material-transactions/'),
+                api.get('/permits/steps/'),
             ]);
 
             return {
@@ -150,6 +151,7 @@ export const dashboardService = {
                 budgetCategories: budgetCategories.data,
                 suppliers: suppliers.data,
                 transactions: transactions.data,
+                permits: permits.data,
             };
         } catch (error) {
             console.error("Error fetching dashboard data:", error);
@@ -193,6 +195,37 @@ export const constructionService = {
         await api.delete(`/tasks/${id}/`);
     },
     reorderPhases: (order) => api.post('/phases/reorder/', { order }),
+
+    // Task Media
+    uploadTaskMedia: async (data) => {
+        const response = await api.post('/task-media/', data, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+        return response.data;
+    },
+    deleteTaskMedia: async (id) => {
+        await api.delete(`/task-media/${id}/`);
+    },
+};
+
+export const calculatorService = {
+    calculateWall: (data) => api.post('/estimator/wall/', data),
+    calculateConcrete: (data) => api.post('/estimator/concrete/', data),
+};
+
+export const permitService = {
+    getSteps: () => api.get('/permits/steps/'),
+    createStep: (data) => api.post('/permits/steps/', data),
+    updateStep: (id, data) => api.put(`/permits/steps/${id}/`, data),
+    deleteStep: (id) => api.delete(`/permits/steps/${id}/`),
+
+    getDocuments: () => api.get('/permits/documents/'),
+    createDocument: (data) => api.post('/permits/documents/', data, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+    deleteDocument: (id) => api.delete(`/permits/documents/${id}/`),
 };
 
 export default api;

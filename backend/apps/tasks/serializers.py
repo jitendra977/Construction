@@ -1,7 +1,12 @@
 from rest_framework import serializers
-from .models import Task, TaskUpdate
+from .models import Task, TaskUpdate, TaskMedia
 from apps.core.serializers import ConstructionPhaseSerializer, RoomSerializer
 from apps.resources.serializers import ContractorSerializer
+
+class TaskMediaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TaskMedia
+        fields = '__all__'
 
 class TaskUpdateSerializer(serializers.ModelSerializer):
     class Meta:
@@ -14,6 +19,7 @@ class TaskSerializer(serializers.ModelSerializer):
     assigned_to_detail = ContractorSerializer(source='assigned_to', read_only=True)
     
     updates = TaskUpdateSerializer(many=True, read_only=True)
+    media = TaskMediaSerializer(many=True, read_only=True)
 
     class Meta:
         model = Task

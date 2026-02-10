@@ -9,7 +9,7 @@ from rest_framework.routers import DefaultRouter
 
 from apps.accounts.views import UserViewSet
 from apps.core.views import HouseProjectViewSet, ConstructionPhaseViewSet, RoomViewSet, FloorViewSet
-from apps.tasks.views import TaskViewSet, TaskUpdateViewSet
+from apps.tasks.views import TaskViewSet, TaskUpdateViewSet, TaskMediaViewSet
 from apps.finance.views import BudgetCategoryViewSet, ExpenseViewSet, PaymentViewSet
 from apps.resources.views import ContractorViewSet, MaterialViewSet, DocumentViewSet, SupplierViewSet, MaterialTransactionViewSet
 
@@ -21,6 +21,7 @@ router.register(r'floors', FloorViewSet)
 router.register(r'rooms', RoomViewSet)
 router.register(r'tasks', TaskViewSet)
 router.register(r'updates', TaskUpdateViewSet)
+router.register(r'task-media', TaskMediaViewSet)
 router.register(r'budget-categories', BudgetCategoryViewSet)
 router.register(r'expenses', ExpenseViewSet)
 router.register(r'payments', PaymentViewSet)
@@ -34,6 +35,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1/auth/', include('apps.accounts.urls')), # Auth endpoints
     path('api/v1/', include(router.urls)),       # Main API
+    path('api/v1/estimator/', include('apps.estimator.urls')),
+    path('api/v1/permits/', include('apps.permits.urls')),
 ]
 
 # Serve media files in development

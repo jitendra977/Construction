@@ -1,6 +1,13 @@
 import React from 'react';
+import { NavLink } from 'react-router-dom';
 
-const DesktopSidebar = ({ user, activeView, setActiveView, onLogout, navItems }) => {
+const DesktopSidebar = ({ user, onLogout, navItems }) => {
+    const linkClasses = ({ isActive }) =>
+        `w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left font-medium transition-all ${isActive
+            ? 'bg-indigo-50 text-indigo-700 shadow-sm'
+            : 'text-gray-600 hover:bg-gray-50'
+        }`;
+
     return (
         <aside className="w-64 bg-white border-r border-gray-200 flex flex-col fixed h-full z-10">
             <div className="p-6 border-b border-gray-100">
@@ -10,20 +17,38 @@ const DesktopSidebar = ({ user, activeView, setActiveView, onLogout, navItems })
                 <p className="text-xs text-gray-500 mt-1">Construction Manager</p>
             </div>
 
-            <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-                {navItems.map((item) => (
-                    <button
-                        key={item.id}
-                        onClick={() => setActiveView(item.id)}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left font-medium transition-all ${activeView === item.id
-                            ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                            : 'text-gray-600 hover:bg-gray-50'
-                            }`}
-                    >
-                        <span className="text-xl">{item.icon}</span>
-                        <span>{item.label}</span>
-                    </button>
-                ))}
+            <nav className="flex-1 px-4 py-4 space-y-6 overflow-y-auto">
+                <div>
+                    <p className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Overview</p>
+                    <div className="space-y-1">
+                        {navItems.filter(item => ['home', 'budget', 'photos', 'estimator'].includes(item.id)).map((item) => (
+                            <NavLink
+                                key={item.id}
+                                to={`/dashboard/desktop/${item.id}`}
+                                className={linkClasses}
+                            >
+                                <span className="text-xl">{item.icon}</span>
+                                <span>{item.label}</span>
+                            </NavLink>
+                        ))}
+                    </div>
+                </div>
+
+                <div>
+                    <p className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Construction Journey</p>
+                    <div className="space-y-1">
+                        {navItems.filter(item => ['rooms', 'permits', 'manage'].includes(item.id)).map((item) => (
+                            <NavLink
+                                key={item.id}
+                                to={`/dashboard/desktop/${item.id}`}
+                                className={linkClasses}
+                            >
+                                <span className="text-xl">{item.icon}</span>
+                                <span>{item.label}</span>
+                            </NavLink>
+                        ))}
+                    </div>
+                </div>
             </nav>
 
             <div className="p-4 border-t border-gray-100">
