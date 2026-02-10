@@ -1,25 +1,26 @@
 from django.contrib import admin
-from .models import BudgetCategory, Expense, Payment
+from .models import BudgetCategory, Expense, Payment, FundingSource
 
 @admin.register(BudgetCategory)
 class BudgetCategoryAdmin(admin.ModelAdmin):
     list_display = ('name', 'allocation')
     search_fields = ('name',)
 
-class PaymentInline(admin.TabularInline):
-    model = Payment
-    extra = 0
-
 @admin.register(Expense)
 class ExpenseAdmin(admin.ModelAdmin):
-    list_display = ('title', 'amount', 'category', 'date', 'is_paid', 'paid_to')
-    list_filter = ('category', 'is_paid', 'date', 'phase')
-    search_fields = ('title', 'paid_to')
+    list_display = ('title', 'amount', 'expense_type', 'category', 'date', 'paid_to', 'is_paid', 'funding_source')
+    list_filter = ('expense_type', 'category', 'is_paid', 'date', 'funding_source')
+    search_fields = ('title', 'paid_to', 'notes')
     date_hierarchy = 'date'
-    inlines = [PaymentInline]
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
-    list_display = ('expense', 'amount', 'date', 'method')
+    list_display = ('expense', 'amount', 'date', 'method', 'reference_id')
     list_filter = ('method', 'date')
-    search_fields = ('expense__title', 'reference_id')
+    search_fields = ('reference_id',)
+
+@admin.register(FundingSource)
+class FundingSourceAdmin(admin.ModelAdmin):
+    list_display = ('name', 'source_type', 'amount', 'interest_rate', 'received_date')
+    list_filter = ('source_type', 'received_date')
+    search_fields = ('name', 'notes')

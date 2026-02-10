@@ -20,7 +20,8 @@ export const ConstructionProvider = ({ children }) => {
         budgetCategories: [],
         suppliers: [],
         floors: [],
-        permitSteps: []
+        permitSteps: [],
+        funding: []
     });
 
     // Fetch all dashboard data
@@ -72,18 +73,51 @@ export const ConstructionProvider = ({ children }) => {
         ];
     }, [dashboardData, formatCurrency]);
 
-    // Budget Stats
+    // Budget & Funding Stats
     const budgetStats = useMemo(() => {
         const totalBudget = dashboardData.project ? Number(dashboardData.project.total_budget) : 0;
         const totalSpent = dashboardData.expenses.reduce((acc, exp) => acc + Number(exp.amount), 0);
-        const remainingBudget = totalBudget - totalSpent;
+
+        // Funding calculations
+        const fundingSources = dashboardData.funding || [];
+        const totalFunded = fundingSources.reduce((acc, f) => acc + Number(f.amount), 0);
+
+        // Categorize debt vs capital
+        const totalDebt = fundingSources
+            .filter(f => f.source_type === 'LOAN' || f.source_type === 'BORROWED')
+            .reduce((acc, f) => acc + Number(f.amount), 0);
+
+        const ownCapital = fundingSources
+            .filter(f => f.source_type === 'OWN_MONEY')
+            .reduce((acc, f) => acc + Number(f.amount), 0);
+
+        const remainingBudget = Math.max(0, totalBudget - totalSpent);
         const budgetPercent = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
+
+        // Liquidity: Money actually received and available to spend
+        const availableCash = Math.max(0, totalFunded - totalSpent);
+
+        // Coverage: How much of the total project budget is secured by funding
+        const fundingCoverage = totalBudget > 0 ? (totalFunded / totalBudget) * 100 : 0;
+
+        // Debt to Equity Ratio
+        let dte = '0';
+        if (ownCapital > 0) dte = (totalDebt / ownCapital).toFixed(2);
+        else if (totalDebt > 0) dte = 'High';
 
         return {
             totalBudget,
             totalSpent,
             remainingBudget,
-            budgetPercent
+            budgetPercent,
+            totalFunded,
+            totalDebt,
+            ownCapital,
+            fundingCoverage,
+            availableCash,
+            debtToEquity: dte,
+            isOverBudget: totalSpent > totalBudget,
+            isUnderFunded: totalFunded < totalSpent // True if we spent more than we actually have (credit/overdraft situation)
         };
     }, [dashboardData]);
 
@@ -94,6 +128,7 @@ export const ConstructionProvider = ({ children }) => {
                 id: `task-${t.id}`,
                 title: t.title,
                 message: `Task "${t.title}" is ${t.status.toLowerCase()}`,
+                rawDate: new Date(t.updated_at),
                 time: new Date(t.updated_at).toLocaleDateString(),
                 icon: '🔧'
             })),
@@ -101,10 +136,11 @@ export const ConstructionProvider = ({ children }) => {
                 id: `exp-${e.id}`,
                 title: e.title,
                 message: `Paid ${formatCurrency(e.amount)} for ${e.title}`,
+                rawDate: new Date(e.date),
                 time: new Date(e.date).toLocaleDateString(),
                 icon: '💵'
             }))
-        ].sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 5);
+        ].sort((a, b) => b.rawDate - a.rawDate).slice(0, 5);
         return activities;
     }, [dashboardData, formatCurrency]);
 

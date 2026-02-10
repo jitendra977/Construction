@@ -10,7 +10,7 @@ from rest_framework.routers import DefaultRouter
 from apps.accounts.views import UserViewSet
 from apps.core.views import HouseProjectViewSet, ConstructionPhaseViewSet, RoomViewSet, FloorViewSet
 from apps.tasks.views import TaskViewSet, TaskUpdateViewSet, TaskMediaViewSet
-from apps.finance.views import BudgetCategoryViewSet, ExpenseViewSet, PaymentViewSet
+from apps.finance.views import BudgetCategoryViewSet, ExpenseViewSet, PaymentViewSet, FundingSourceViewSet
 from apps.resources.views import ContractorViewSet, MaterialViewSet, DocumentViewSet, SupplierViewSet, MaterialTransactionViewSet
 
 router = DefaultRouter()
@@ -25,6 +25,7 @@ router.register(r'task-media', TaskMediaViewSet)
 router.register(r'budget-categories', BudgetCategoryViewSet)
 router.register(r'expenses', ExpenseViewSet)
 router.register(r'payments', PaymentViewSet)
+router.register(r'funding-sources', FundingSourceViewSet)
 router.register(r'contractors', ContractorViewSet)
 router.register(r'suppliers', SupplierViewSet)
 router.register(r'materials', MaterialViewSet)

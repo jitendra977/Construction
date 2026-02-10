@@ -82,6 +82,7 @@ class Material(models.Model):
     category = models.CharField(max_length=50, blank=True, help_text="e.g., Civil, Plumbing, Electrical")
     unit = models.CharField(max_length=10, choices=UNIT_CHOICES)
     supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, null=True, blank=True, related_name='materials')
+    budget_category = models.ForeignKey('finance.BudgetCategory', on_delete=models.SET_NULL, null=True, blank=True, related_name='materials')
     image = models.ImageField(upload_to='materials/', null=True, blank=True)
     
     quantity_estimated = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -122,6 +123,7 @@ class MaterialTransaction(models.Model):
     # Related entities
     supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, null=True, blank=True, related_name='material_transactions')
     expense = models.ForeignKey('finance.Expense', on_delete=models.SET_NULL, null=True, blank=True, related_name='material_transactions')
+    funding_source = models.ForeignKey('finance.FundingSource', on_delete=models.SET_NULL, null=True, blank=True, related_name='material_transactions')
     room = models.ForeignKey('core.Room', on_delete=models.SET_NULL, null=True, blank=True, related_name='material_usage')
     
     notes = models.TextField(blank=True)
@@ -133,7 +135,48 @@ class MaterialTransaction(models.Model):
         if not is_new:
             old_transaction = MaterialTransaction.objects.get(pk=self.pk)
         
+        # Auto-create Expense for Stock IN if not already linked
+        if is_new and self.transaction_type == 'IN' and not self.expense:
+            from django.apps import apps
+            Expense = apps.get_model('finance', 'Expense')
+            
+            # Determine category: prioritize transaction category (if added), then material category, else Misc
+            # For now, we take from material.budget_category
+            category = self.material.budget_category
+            if not category:
+                BudgetCategory = apps.get_model('finance', 'BudgetCategory')
+                category, _ = BudgetCategory.objects.get_or_create(name="Miscellaneous Materials", defaults={'allocation': 0})
+
+            new_expense = Expense.objects.create(
+                title=f"Purchase: {self.quantity} {self.material.get_unit_display()} {self.material.name}",
+                amount=self.quantity * (self.unit_price or 0),
+                expense_type='MATERIAL',
+                category=category,
+                supplier=self.supplier,
+                funding_source=self.funding_source,
+                date=self.date,
+                paid_to=self.supplier.name if self.supplier else "Cash Purchase",
+                is_paid=True, # Assuming paid if recorded in stock
+                notes=f"Auto-generated from Material Transaction #{self.id}"
+            )
+            self.expense = new_expense
+        elif not is_new and self.expense and self.transaction_type == 'IN':
+            # Sync existing expense if transaction details changed
+            exp = self.expense
+            exp.amount = self.quantity * (self.unit_price or 0)
+            exp.funding_source = self.funding_source
+            exp.supplier = self.supplier
+            exp.date = self.date
+            exp.save()
+
         super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        # If this transaction auto-created an expense, we might want to delete it
+        # Only delete if it's explicitly linked and wasn't manually detached
+        if self.expense and self.transaction_type == 'IN':
+            self.expense.delete()
+        super().delete(*args, **kwargs)
         
         # Update Material Stock
         mat = self.material

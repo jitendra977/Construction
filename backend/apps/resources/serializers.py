@@ -5,15 +5,15 @@ class SupplierSerializer(serializers.ModelSerializer):
     class Meta:
         model = Supplier
         fields = '__all__'
-
 class ContractorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contractor
         fields = '__all__'
 
 class MaterialSerializer(serializers.ModelSerializer):
-    status = serializers.SerializerMethodField()
+    budget_category_name = serializers.CharField(source='budget_category.name', read_only=True)
     supplier_name = serializers.CharField(source='supplier.name', read_only=True)
+    status = serializers.SerializerMethodField()
 
     class Meta:
         model = Material
@@ -28,6 +28,7 @@ class MaterialTransactionSerializer(serializers.ModelSerializer):
     material_name = serializers.CharField(source='material.name', read_only=True)
     room_name = serializers.CharField(source='room.name', read_only=True)
     supplier_name = serializers.CharField(source='supplier.name', read_only=True)
+    funding_source_name = serializers.CharField(source='funding_source.name', read_only=True)
 
     class Meta:
         model = MaterialTransaction

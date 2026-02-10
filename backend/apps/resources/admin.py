@@ -3,27 +3,28 @@ from .models import Supplier, Contractor, Material, MaterialTransaction, Documen
 
 @admin.register(Supplier)
 class SupplierAdmin(admin.ModelAdmin):
-    list_display = ('name', 'category', 'phone', 'pan_number', 'is_active')
+    list_display = ('name', 'contact_person', 'phone', 'category', 'is_active')
     list_filter = ('category', 'is_active')
-    search_fields = ('name', 'pan_number', 'contact_person')
+    search_fields = ('name', 'contact_person', 'phone', 'pan_number')
 
 @admin.register(Contractor)
 class ContractorAdmin(admin.ModelAdmin):
-    list_display = ('name', 'role', 'phone', 'is_active')
+    list_display = ('name', 'role', 'phone', 'rate', 'is_active')
     list_filter = ('role', 'is_active')
-    search_fields = ('name', 'phone')
+    search_fields = ('name', 'phone', 'skills')
 
 @admin.register(Material)
 class MaterialAdmin(admin.ModelAdmin):
-    list_display = ('name', 'category', 'current_stock', 'unit', 'min_stock_level')
-    list_filter = ('category',)
+    list_display = ('name', 'category', 'unit', 'current_stock', 'min_stock_level', 'avg_cost_per_unit')
+    list_filter = ('category', 'unit')
     search_fields = ('name',)
 
 @admin.register(MaterialTransaction)
 class MaterialTransactionAdmin(admin.ModelAdmin):
-    list_display = ('material', 'transaction_type', 'quantity', 'date')
-    list_filter = ('transaction_type', 'date')
-    search_fields = ('material__name', 'notes')
+    list_display = ('material', 'transaction_type', 'quantity', 'unit_price', 'date', 'supplier')
+    list_filter = ('transaction_type', 'date', 'material')
+    search_fields = ('notes',)
+    date_hierarchy = 'date'
 
 @admin.register(Document)
 class DocumentAdmin(admin.ModelAdmin):

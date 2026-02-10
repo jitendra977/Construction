@@ -118,13 +118,19 @@ export const dashboardService = {
     deleteMaterialTransaction: (id) => api.delete(`/material-transactions/${id}/`),
     getDocuments: (type) => api.get(`/documents/${type ? `?document_type=${type}` : ''}`),
 
+    // Funding
+    getFundingSources: () => api.get('/funding-sources/'),
+    createFundingSource: (data) => api.post('/funding-sources/', data),
+    updateFundingSource: (id, data) => api.patch(`/funding-sources/${id}/`, data),
+    deleteFundingSource: (id) => api.delete(`/funding-sources/${id}/`),
+
     // Aggregated Dashboard Data
     getContractors: () => api.get('/contractors/'),
 
     // Dashboard Data - Aggregated
     getDashboardData: async () => {
         try {
-            const [projects, rooms, tasks, phases, expenses, floors, materials, contractors, budgetCategories, suppliers, transactions, permits] = await Promise.all([
+            const [projects, rooms, tasks, phases, expenses, floors, materials, contractors, budgetCategories, suppliers, transactions, permits, funding] = await Promise.all([
                 api.get('/projects/'),
                 api.get('/rooms/'),
                 api.get('/tasks/'),
@@ -137,6 +143,7 @@ export const dashboardService = {
                 api.get('/suppliers/'),
                 api.get('/material-transactions/'),
                 api.get('/permits/steps/'),
+                api.get('/funding-sources/'),
             ]);
 
             return {
@@ -152,6 +159,7 @@ export const dashboardService = {
                 suppliers: suppliers.data,
                 transactions: transactions.data,
                 permits: permits.data,
+                funding: funding.data,
             };
         } catch (error) {
             console.error("Error fetching dashboard data:", error);
