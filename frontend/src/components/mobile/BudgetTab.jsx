@@ -1,9 +1,20 @@
+import React, { useState } from 'react';
 import { useConstruction } from '../../context/ConstructionContext';
+import ExpenseDetailModal from '../common/ExpenseDetailModal';
 
 const BudgetTab = () => {
     const { dashboardData, budgetStats, formatCurrency } = useConstruction();
     const { expenses } = dashboardData;
     const { totalBudget, totalSpent, remainingBudget, budgetPercent } = budgetStats;
+
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+    const [selectedExpenseId, setSelectedExpenseId] = useState(null);
+
+    const handleViewDetail = (id) => {
+        setSelectedExpenseId(id);
+        setIsDetailModalOpen(true);
+    };
+
     return (
         <div className="space-y-6">
             <h2 className="text-xl font-bold text-gray-800">Budget Management</h2>
@@ -48,13 +59,17 @@ const BudgetTab = () => {
                 </div>
 
                 <div className="space-y-3">
-                    {expenses.length === 0 ? (
+                    {expenses && expenses.length === 0 ? (
                         <div className="text-center py-8 bg-gray-50 rounded-xl">
                             <p className="text-gray-500">No expenses recorded yet.</p>
                         </div>
                     ) : (
-                        expenses.map((expense) => (
-                            <div key={expense.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-3">
+                        expenses?.map((expense) => (
+                            <div
+                                key={expense.id}
+                                onClick={() => handleViewDetail(expense.id)}
+                                className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-3 active:scale-95 transition-transform"
+                            >
                                 <div className="flex justify-between items-start">
                                     <div className="flex gap-3 items-center">
                                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl ${expense.expense_type === 'MATERIAL' ? 'bg-blue-50 text-blue-500' :
@@ -79,9 +94,14 @@ const BudgetTab = () => {
                                             </div>
                                         </div>
                                     </div>
-                                    <span className="font-bold text-red-600">
-                                        -{formatCurrency(expense.amount)}
-                                    </span>
+                                    <div className="text-right">
+                                        <span className="font-bold text-red-600 block">
+                                            -{formatCurrency(expense.amount)}
+                                        </span>
+                                        {Number(expense.balance_due) > 0 && (
+                                            <span className="text-[10px] text-amber-600 font-black uppercase">Partial</span>
+                                        )}
+                                    </div>
                                 </div>
                                 {expense.paid_to && (
                                     <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 rounded-lg w-fit">
@@ -98,6 +118,12 @@ const BudgetTab = () => {
             <button className="fixed bottom-20 right-4 bg-gradient-to-r from-red-500 to-pink-600 text-white p-4 rounded-full shadow-lg shadow-red-500/30 hover:scale-105 transition-transform">
                 <span className="text-2xl">+</span>
             </button>
+
+            <ExpenseDetailModal
+                isOpen={isDetailModalOpen}
+                onClose={() => setIsDetailModalOpen(false)}
+                expenseId={selectedExpenseId}
+            />
         </div>
     );
 };

@@ -1,4 +1,5 @@
 from django.db import models
+from decimal import Decimal
 
 class Supplier(models.Model):
     """
@@ -94,9 +95,30 @@ class Material(models.Model):
     
     avg_cost_per_unit = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
 
+    @property
+    def current_stock_calculated(self):
+        """
+        Dynamically calculate stock from transactions to verify against current_stock field.
+        """
+        from django.db.models import Sum
+        in_qty = self.transactions.filter(transaction_type='IN').aggregate(total=Sum('quantity'))['total'] or 0
+        out_qty = self.transactions.filter(transaction_type__in=['OUT', 'WASTAGE']).aggregate(total=Sum('quantity'))['total'] or 0
+        return in_qty - out_qty
+
+    def recalculate_stock(self):
+        """
+        Audit method to reset stock and totals from transaction history.
+        """
+        from django.db.models import Sum, Avg
+        self.quantity_purchased = self.transactions.filter(transaction_type='IN').aggregate(total=Sum('quantity'))['total'] or 0
+        self.quantity_used = self.transactions.filter(transaction_type__in=['OUT', 'WASTAGE']).aggregate(total=Sum('quantity'))['total'] or 0
+        self.current_stock = self.quantity_purchased - self.quantity_used
+        
+        # Recalculate average cost
+        self.avg_cost_per_unit = self.transactions.filter(transaction_type='IN').aggregate(avg=Avg('unit_price'))['avg'] or 0
+        self.save()
+
     def save(self, *args, **kwargs):
-        # In a real system, current_stock should be calculated from Transactions
-        # But we keep this for legacy/direct updates if needed
         self.current_stock = self.quantity_purchased - self.quantity_used
         super().save(*args, **kwargs)
 
@@ -126,6 +148,7 @@ class MaterialTransaction(models.Model):
     funding_source = models.ForeignKey('finance.FundingSource', on_delete=models.SET_NULL, null=True, blank=True, related_name='material_transactions')
     room = models.ForeignKey('core.Room', on_delete=models.SET_NULL, null=True, blank=True, related_name='material_usage')
     
+    purpose = models.CharField(max_length=200, blank=True, help_text="e.g., Ground Floor Slab, Kitchen Walls")
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -135,62 +158,105 @@ class MaterialTransaction(models.Model):
         if not is_new:
             old_transaction = MaterialTransaction.objects.get(pk=self.pk)
         
-        # Auto-create Expense for Stock IN if not already linked
-        if is_new and self.transaction_type == 'IN' and not self.expense:
+        # 1. Update Linked Expense for Stock IN
+        if self.transaction_type == 'IN':
             from django.apps import apps
             Expense = apps.get_model('finance', 'Expense')
             
-            # Determine category: prioritize transaction category (if added), then material category, else Misc
-            # For now, we take from material.budget_category
-            category = self.material.budget_category
-            if not category:
-                BudgetCategory = apps.get_model('finance', 'BudgetCategory')
-                category, _ = BudgetCategory.objects.get_or_create(name="Miscellaneous Materials", defaults={'allocation': 0})
+            if is_new and not self.expense:
+                # Auto-create Expense
+                category = self.material.budget_category
+                if not category:
+                    BudgetCategory = apps.get_model('finance', 'BudgetCategory')
+                    category, _ = BudgetCategory.objects.get_or_create(name="Miscellaneous Materials", defaults={'allocation': 0})
 
-            new_expense = Expense.objects.create(
-                title=f"Purchase: {self.quantity} {self.material.get_unit_display()} {self.material.name}",
-                amount=self.quantity * (self.unit_price or 0),
-                expense_type='MATERIAL',
-                category=category,
-                supplier=self.supplier,
-                funding_source=self.funding_source,
-                date=self.date,
-                paid_to=self.supplier.name if self.supplier else "Cash Purchase",
-                is_paid=True, # Assuming paid if recorded in stock
-                notes=f"Auto-generated from Material Transaction #{self.id}"
-            )
-            self.expense = new_expense
-        elif not is_new and self.expense and self.transaction_type == 'IN':
-            # Sync existing expense if transaction details changed
-            exp = self.expense
-            exp.amount = self.quantity * (self.unit_price or 0)
-            exp.funding_source = self.funding_source
-            exp.supplier = self.supplier
-            exp.date = self.date
-            exp.save()
+                new_expense = Expense(
+                    title=f"Purchase: {self.quantity} {self.material.get_unit_display()} {self.material.name}",
+                    amount=self.quantity * (self.unit_price or 0),
+                    expense_type='MATERIAL',
+                    category=category,
+                    material=self.material,
+                    quantity=self.quantity,
+                    unit_price=self.unit_price,
+                    supplier=self.supplier,
+                    funding_source=self.funding_source,
+                    date=self.date,
+                    paid_to=self.supplier.name if self.supplier else "Cash Purchase",
+                    is_paid=True,
+                    notes=f"Auto-generated from Material Transaction"
+                )
+                new_expense._from_transaction = True
+                new_expense.save()
+                self.expense = new_expense
+            elif self.expense:
+                # Sync existing expense
+                exp = self.expense
+                exp.amount = self.quantity * (self.unit_price or 0)
+                exp.material = self.material
+                exp.quantity = self.quantity
+                exp.unit_price = self.unit_price
+                exp.funding_source = self.funding_source
+                exp.supplier = self.supplier
+                exp.date = self.date
+                exp._from_transaction = True
+                exp.save()
 
+        # 2. Adjust Material Stock (Atomic-ish)
+        mat = self.material
+        
+        # Reverse old transaction impact if updating
+        if not is_new:
+            if old_transaction.transaction_type == 'IN':
+                mat.quantity_purchased -= old_transaction.quantity
+            elif old_transaction.transaction_type in ['OUT', 'WASTAGE']:
+                mat.quantity_used -= old_transaction.quantity
+            elif old_transaction.transaction_type == 'RETURN':
+                mat.quantity_purchased += old_transaction.quantity # Return means we had it, now we don't
+
+        # Apply new/updated transaction impact
+        if self.transaction_type == 'IN':
+            mat.quantity_purchased += self.quantity
+            # Update Average Cost on Purchase
+            if self.unit_price:
+                # Simple weighted average
+                total_purchased = mat.quantity_purchased
+                if total_purchased > 0:
+                    current_avg = mat.avg_cost_per_unit or Decimal('0')
+                    # Note: This is an approximation if history isn't perfectly clean
+                    # In a real ERP we'd use (Total Cost in Stock + New Cost) / Total Quantity in Stock
+                    # But for simplicity, we use (Total Purchased * Avg + New * NewPrice) / New Total Purchased
+                    # This approximates historical average cost
+                    new_avg = ((mat.quantity_purchased - self.quantity) * current_avg + (self.quantity * self.unit_price)) / total_purchased
+                    mat.avg_cost_per_unit = new_avg
+        elif self.transaction_type in ['OUT', 'WASTAGE']:
+            # Negative Stock Guard
+            current_available = mat.quantity_purchased - mat.quantity_used
+            if self.quantity > current_available:
+                from django.core.exceptions import ValidationError
+                raise ValidationError(f"Insufficient stock! Available: {current_available} {mat.get_unit_display()}, Requested: {self.quantity}")
+                
+            mat.quantity_used += self.quantity
+        elif self.transaction_type == 'RETURN':
+            mat.quantity_purchased -= self.quantity
+
+        mat.save()
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        # If this transaction auto-created an expense, we might want to delete it
-        # Only delete if it's explicitly linked and wasn't manually detached
-        if self.expense and self.transaction_type == 'IN':
-            self.expense.delete()
-        super().delete(*args, **kwargs)
-        
-        # Update Material Stock
+        # Reverse stock adjustment before deleting
         mat = self.material
         if self.transaction_type == 'IN':
-            mat.quantity_purchased += self.quantity
-            if not is_new: mat.quantity_purchased -= old_transaction.quantity
-        elif self.transaction_type == 'OUT' or self.transaction_type == 'WASTAGE':
-            mat.quantity_used += self.quantity
-            if not is_new: mat.quantity_used -= old_transaction.quantity
-        elif self.transaction_type == 'RETURN':
             mat.quantity_purchased -= self.quantity
-            if not is_new: mat.quantity_purchased += old_transaction.quantity
+            # If it's a purchase, optionally delete linked expense
+            if self.expense:
+                self.expense.delete()
+        elif self.transaction_type in ['OUT', 'WASTAGE']:
+            mat.quantity_used -= self.quantity
+        elif self.transaction_type == 'RETURN':
+            mat.quantity_purchased += self.quantity
             
         mat.save()
+        super().delete(*args, **kwargs)
 
     def __str__(self):
         return f"{self.transaction_type} - {self.quantity} {self.material.name}"

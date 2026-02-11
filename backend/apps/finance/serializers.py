@@ -1,7 +1,13 @@
 from rest_framework import serializers
-from .models import BudgetCategory, Expense, Payment, FundingSource
+from .models import BudgetCategory, Expense, Payment, FundingSource, FundingTransaction
+
+class FundingTransactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FundingTransaction
+        fields = '__all__'
 
 class FundingSourceSerializer(serializers.ModelSerializer):
+    transactions = FundingTransactionSerializer(many=True, read_only=True)
     class Meta:
         model = FundingSource
         fields = '__all__'
@@ -19,6 +25,9 @@ class ExpenseSerializer(serializers.ModelSerializer):
     funding_source_name = serializers.CharField(source='funding_source.name', read_only=True)
     payments = PaymentSerializer(many=True, read_only=True)
     material_transaction = serializers.SerializerMethodField()
+    total_paid = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    balance_due = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    status = serializers.CharField(read_only=True)
 
     class Meta:
         model = Expense

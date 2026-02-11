@@ -14,9 +14,26 @@ class ContractorViewSet(viewsets.ModelViewSet):
     queryset = Contractor.objects.all()
     serializer_class = ContractorSerializer
 
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
 class MaterialViewSet(viewsets.ModelViewSet):
     queryset = Material.objects.all()
     serializer_class = MaterialSerializer
+
+    @action(detail=True, methods=['post'])
+    def recalculate_stock(self, request, pk=None):
+        material = self.get_object()
+        material.recalculate_stock()
+        serializer = self.get_serializer(material)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['post'])
+    def recalculate_all(self, request):
+        materials = Material.objects.all()
+        for material in materials:
+            material.recalculate_stock()
+        return Response({"status": "All stock levels recalculated successfully."})
 
 class MaterialTransactionViewSet(viewsets.ModelViewSet):
     queryset = MaterialTransaction.objects.all()

@@ -1,4 +1,5 @@
 from django.db import models
+from decimal import Decimal
 from apps.core.models import ConstructionPhase
 from apps.resources.models import Document
 
@@ -33,6 +34,12 @@ class Expense(models.Model):
     expense_type = models.CharField(max_length=20, choices=EXPENSE_TYPE_CHOICES, default='MATERIAL')
     category = models.ForeignKey(BudgetCategory, on_delete=models.PROTECT, related_name='expenses')
     phase = models.ForeignKey(ConstructionPhase, on_delete=models.SET_NULL, null=True, blank=True, related_name='expenses')
+    
+    # Inventory Integration
+    material = models.ForeignKey('resources.Material', on_delete=models.SET_NULL, null=True, blank=True, related_name='expenses')
+    quantity = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    unit_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    
     supplier = models.ForeignKey('resources.Supplier', on_delete=models.SET_NULL, null=True, blank=True, related_name='expenses')
     contractor = models.ForeignKey('resources.Contractor', on_delete=models.SET_NULL, null=True, blank=True, related_name='expenses')
     funding_source = models.ForeignKey('FundingSource', on_delete=models.SET_NULL, null=True, blank=True, related_name='expenses')
@@ -46,22 +53,41 @@ class Expense(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
 
+    @property
+    def total_paid(self):
+        return sum(payment.amount for payment in self.payments.all())
+
+    @property
+    def balance_due(self):
+        return self.amount - self.total_paid
+
+    @property
+    def status(self):
+        paid = self.total_paid
+        if paid >= self.amount:
+            return 'PAID'
+        elif paid > 0:
+            return 'PARTIAL'
+        else:
+            return 'UNPAID'
+
     def __str__(self):
-        return f"{self.title} - Rs. {self.amount}"
+        return f"{self.title} - Rs. {self.amount} ({self.status})"
 
 class Payment(models.Model):
     """
     Record of payments made (could be installments).
     """
     PAYMENT_METHOD_CHOICES = [
-        ('CASH', 'Cash'),
-        ('BANK_TRANSFER', 'Bank Transfer'),
-        ('CHECK', 'Check'),
-        ('UPI', 'UPI/Digital'),
+        ('CASH', 'Nagad (Cash)'),
+        ('BANK_TRANSFER', 'Bank / ConnectIPS'),
+        ('QR', 'eSewa/Khalti/Fonepay (QR)'),
+        ('CHECK', 'Cheque'),
         ('OTHER', 'Other'),
     ]
 
     expense = models.ForeignKey(Expense, on_delete=models.CASCADE, related_name='payments')
+    funding_source = models.ForeignKey('FundingSource', on_delete=models.SET_NULL, null=True, blank=True, related_name='payments')
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     date = models.DateField()
     method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES)
@@ -74,15 +100,27 @@ class FundingSource(models.Model):
     Tracks where the money for the project is coming from.
     """
     SOURCE_TYPE_CHOICES = [
-        ('OWN_MONEY', 'Own Money / Savings'),
-        ('LOAN', 'Bank Loan'),
-        ('BORROWED', 'Borrowed from Friends/Family'),
+        ('OWN_MONEY', 'Personal Savings / Own Money (Nagad/Bachat)'),
+        ('LOAN', 'Bank Loan (Karja)'),
+        ('BORROWED', 'Borrowed from Friends/Family (Saapathi)'),
         ('OTHER', 'Other Source'),
     ]
 
     name = models.CharField(max_length=200, help_text="e.g. Nabil Bank Loan, Father's help")
     source_type = models.CharField(max_length=20, choices=SOURCE_TYPE_CHOICES, default='OWN_MONEY')
-    amount = models.DecimalField(max_digits=12, decimal_places=2, help_text="Total amount from this source")
+    amount = models.DecimalField(max_digits=12, decimal_places=2, help_text="Total allocation from this source")
+    current_balance = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), help_text="Remaining available balance")
+    default_payment_method = models.CharField(
+        max_length=20, 
+        choices=[
+            ('CASH', 'Cash (Nagad)'),
+            ('BANK_TRANSFER', 'Bank Transfer (ConnectIPS)'),
+            ('CHECK', 'Cheque (Check)'),
+            ('UPI', 'QR / Mobile Banking (eSewa/Khalti)'),
+            ('OTHER', 'Other'),
+        ],
+        default='CASH'
+    )
     interest_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, help_text="Annual interest rate if applicable (%)")
     received_date = models.DateField()
     notes = models.TextField(blank=True)
@@ -90,5 +128,43 @@ class FundingSource(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def save(self, *args, **kwargs):
+        is_new = self.id is None
+        if is_new:
+            self.current_balance = self.amount
+        super().save(*args, **kwargs)
+        
+        if is_new:
+            FundingTransaction.objects.create(
+                funding_source=self,
+                amount=self.amount,
+                transaction_type='CREDIT',
+                date=self.received_date,
+                description="Initial Funding Allocation"
+            )
+
     def __str__(self):
-        return f"{self.name} - Rs. {self.amount}"
+        return f"{self.name} (Bal: Rs. {self.current_balance})"
+
+class FundingTransaction(models.Model):
+    """
+    History of money entering or leaving a funding source.
+    """
+    TRANSACTION_TYPE_CHOICES = [
+        ('CREDIT', 'Credit (Top-up/Addition)'),
+        ('DEBIT', 'Debit (Payment/Expense)'),
+    ]
+
+    funding_source = models.ForeignKey(FundingSource, on_delete=models.CASCADE, related_name='transactions')
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPE_CHOICES)
+    date = models.DateField()
+    description = models.CharField(max_length=255)
+    
+    # Optional link to a specific payment
+    payment = models.ForeignKey('Payment', on_delete=models.SET_NULL, null=True, blank=True, related_name='funding_transactions')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.transaction_type}: Rs. {self.amount} - {self.description}"

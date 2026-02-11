@@ -75,6 +75,7 @@ export const ConstructionProvider = ({ children }) => {
 
     // Budget & Funding Stats
     const budgetStats = useMemo(() => {
+        const { expenses } = dashboardData;
         const totalBudget = dashboardData.project ? Number(dashboardData.project.total_budget) : 0;
         const totalSpent = dashboardData.expenses.reduce((acc, exp) => acc + Number(exp.amount), 0);
 
@@ -100,10 +101,28 @@ export const ConstructionProvider = ({ children }) => {
         // Coverage: How much of the total project budget is secured by funding
         const fundingCoverage = totalBudget > 0 ? (totalFunded / totalBudget) * 100 : 0;
 
+        // Inventory Valuation: Current Stock * Average Cost
+        const inventoryValue = dashboardData.materials.reduce((acc, m) => {
+            return acc + (Number(m.current_stock) * Number(m.avg_cost_per_unit || 0));
+        }, 0);
+
         // Debt to Equity Ratio
         let dte = '0';
         if (ownCapital > 0) dte = (totalDebt / ownCapital).toFixed(2);
         else if (totalDebt > 0) dte = 'High';
+
+        // Category breakdown
+        const categories = (dashboardData.budgetCategories || []).map(cat => {
+            const spentInCat = expenses
+                .filter(e => e.category === cat.id)
+                .reduce((acc, e) => acc + Number(e.amount), 0);
+            return {
+                ...cat,
+                spent: spentInCat,
+                percent: cat.allocation > 0 ? (spentInCat / cat.allocation) * 100 : 0,
+                remaining: Math.max(0, cat.allocation - spentInCat)
+            };
+        });
 
         return {
             totalBudget,
@@ -114,10 +133,12 @@ export const ConstructionProvider = ({ children }) => {
             totalDebt,
             ownCapital,
             fundingCoverage,
+            inventoryValue,
             availableCash,
             debtToEquity: dte,
             isOverBudget: totalSpent > totalBudget,
-            isUnderFunded: totalFunded < totalSpent // True if we spent more than we actually have (credit/overdraft situation)
+            isUnderFunded: totalFunded < totalSpent,
+            categories // New field
         };
     }, [dashboardData]);
 

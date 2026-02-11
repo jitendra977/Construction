@@ -2,13 +2,17 @@ import React, { useState } from 'react';
 import { dashboardService } from '../../../services/api';
 import Modal from '../../common/Modal';
 import { useConstruction } from '../../../context/ConstructionContext';
+import ExpenseDetailModal from '../../common/ExpenseDetailModal';
 
 const StockTab = ({ searchQuery = '' }) => {
     const { dashboardData, refreshData } = useConstruction();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
-    const [formData, setFormData] = useState({});
+    const [formData, setFormData] = useState({ transaction_type: 'IN', quantity: '', purpose: '' });
     const [loading, setLoading] = useState(false);
+    const [actionLoading, setActionLoading] = useState(false);
+    const [selectedExpenseId, setSelectedExpenseId] = useState(null);
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
     const filteredTransactions = dashboardData.transactions?.filter(t =>
         t.material_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -24,14 +28,15 @@ const StockTab = ({ searchQuery = '' }) => {
             setFormData({
                 transaction_type: 'OUT',
                 date: new Date().toISOString().split('T')[0],
-                quantity: 1
+                quantity: 1,
+                unit_price: 0
             });
         }
         setIsModalOpen(true);
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm(`Are you sure you want to cancel this Stock Transaction? This will revert the material stock.`)) return;
+        if (!window.confirm(`⚠️ VOID TRANSACTION: Are you sure?\n\nThis will REVERSE the stock level change and DELETE any auto-generated expenses. This action cannot be undone.`)) return;
         try {
             await dashboardService.deleteMaterialTransaction(id);
             refreshData();
@@ -140,7 +145,20 @@ const StockTab = ({ searchQuery = '' }) => {
                                         <div className="flex flex-col">
                                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">{t.unit_name || ''}</span>
                                             {t.transaction_type === 'IN' && t.unit_price > 0 && (
-                                                <span className="text-[9px] text-gray-400">@Rs.{t.unit_price}</span>
+                                                <div className="flex items-center gap-1 group/price">
+                                                    <span className="text-[9px] text-gray-400">@Rs.{t.unit_price}</span>
+                                                    {t.expense && (
+                                                        <button
+                                                            onClick={() => {
+                                                                setSelectedExpenseId(t.expense);
+                                                                setIsDetailModalOpen(true);
+                                                            }}
+                                                            className="text-[8px] font-black text-indigo-500 uppercase bg-indigo-50 px-1 rounded opacity-0 group-hover/price:opacity-100 transition-opacity whitespace-nowrap"
+                                                        >
+                                                            View Bill
+                                                        </button>
+                                                    )}
+                                                </div>
                                             )}
                                         </div>
                                     </div>
@@ -190,12 +208,37 @@ const StockTab = ({ searchQuery = '' }) => {
                                     className="w-full rounded-xl border-white shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none bg-white font-bold text-gray-700"
                                     required
                                 >
-                                    <option value="IN">Stock IN (Purchase)</option>
-                                    <option value="OUT">Stock OUT (Usage)</option>
-                                    <option value="RETURN">RETURN to Supplier</option>
-                                    <option value="WASTAGE">WASTAGE/Loss</option>
+                                    <option value="IN">Purchase (Stock In)</option>
+                                    <option value="OUT">Consumption (Stock Usage)</option>
+                                    <option value="RETURN">Supplier Return</option>
+                                    <option value="WASTAGE">Wastage / Loss</option>
                                 </select>
                             </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4">
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-1">Purpose / Location</label>
+                            <input
+                                type="text"
+                                value={formData.purpose || ''}
+                                onChange={e => setFormData({ ...formData, purpose: e.target.value })}
+                                className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none"
+                                placeholder="e.g. Ground Floor Slab, Boundary Wall..."
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4">
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-1">Additional Notes</label>
+                            <textarea
+                                value={formData.notes || ''}
+                                onChange={e => setFormData({ ...formData, notes: e.target.value })}
+                                className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none h-20"
+                                placeholder="Any extra details..."
+                            />
                         </div>
                     </div>
 
@@ -309,6 +352,12 @@ const StockTab = ({ searchQuery = '' }) => {
                     </div>
                 </form>
             </Modal>
+
+            <ExpenseDetailModal
+                isOpen={isDetailModalOpen}
+                onClose={() => setIsDetailModalOpen(false)}
+                expenseId={selectedExpenseId}
+            />
         </div>
     );
 };

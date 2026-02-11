@@ -1,6 +1,6 @@
 from rest_framework import viewsets
-from .models import BudgetCategory, Expense, Payment, FundingSource
-from .serializers import BudgetCategorySerializer, ExpenseSerializer, PaymentSerializer, FundingSourceSerializer
+from .models import BudgetCategory, Expense, Payment, FundingSource, FundingTransaction
+from .serializers import BudgetCategorySerializer, ExpenseSerializer, PaymentSerializer, FundingSourceSerializer, FundingTransactionSerializer
 
 class FundingSourceViewSet(viewsets.ModelViewSet):
     queryset = FundingSource.objects.all()
@@ -17,3 +17,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
 class PaymentViewSet(viewsets.ModelViewSet):
     queryset = Payment.objects.all()
     serializer_class = PaymentSerializer
+
+class FundingTransactionViewSet(viewsets.ModelViewSet):
+    queryset = FundingTransaction.objects.all()
+    serializer_class = FundingTransactionSerializer

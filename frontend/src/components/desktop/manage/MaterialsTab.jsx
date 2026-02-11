@@ -9,6 +9,7 @@ const MaterialsTab = ({ searchQuery = '' }) => {
     const [editingItem, setEditingItem] = useState(null);
     const [formData, setFormData] = useState({});
     const [loading, setLoading] = useState(false);
+    const [actionLoading, setActionLoading] = useState(null);
 
     const filteredMaterials = dashboardData.materials?.filter(m =>
         m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -32,6 +33,18 @@ const MaterialsTab = ({ searchQuery = '' }) => {
             refreshData();
         } catch (error) {
             alert("Delete failed.");
+        }
+    };
+
+    const handleRecalculate = async (id) => {
+        setActionLoading(id);
+        try {
+            await dashboardService.recalculateMaterialStock(id);
+            refreshData();
+        } catch (error) {
+            alert("Recalculation failed.");
+        } finally {
+            setActionLoading(null);
         }
     };
 
@@ -60,12 +73,32 @@ const MaterialsTab = ({ searchQuery = '' }) => {
         <div className="space-y-4">
             <div className="flex justify-between items-center mb-2">
                 <p className="text-sm text-gray-500">Track raw material inventory levels and reorder thresholds.</p>
-                <button
-                    onClick={() => handleOpenModal()}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors shadow-sm"
-                >
-                    + Add New Material
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={async () => {
+                            if (window.confirm("Audit all stock levels from transaction history?")) {
+                                setActionLoading('ALL');
+                                try {
+                                    await dashboardService.recalculateAllMaterialsStock();
+                                    refreshData();
+                                } catch (error) {
+                                    alert("Bulk audit failed.");
+                                } finally {
+                                    setActionLoading(null);
+                                }
+                            }
+                        }}
+                        className="px-4 py-2 text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 font-medium transition-colors border border-indigo-100"
+                    >
+                        {actionLoading === 'ALL' ? 'Auditing...' : 'Audit All Stock'}
+                    </button>
+                    <button
+                        onClick={() => handleOpenModal()}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors shadow-sm"
+                    >
+                        + Add New Material
+                    </button>
+                </div>
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -74,6 +107,7 @@ const MaterialsTab = ({ searchQuery = '' }) => {
                         <tr className="bg-gray-50 border-b border-gray-100">
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Material & category</th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Inventory Health</th>
+                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Avg. Cost</th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Available Stock</th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Actions</th>
                         </tr>
@@ -112,18 +146,38 @@ const MaterialsTab = ({ searchQuery = '' }) => {
                                             </div>
                                         </div>
                                     </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <div className="text-sm font-black text-gray-900 leading-none">Rs. {m.avg_cost_per_unit || '0.00'}</div>
+                                        <div className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter mt-1">Per {m.unit}</div>
+                                    </td>
                                     <td className="px-6 py-4">
-                                        <div className="flex items-baseline gap-1">
-                                            <span className={`text-lg font-black ${isLow ? 'text-red-600' : 'text-gray-900'}`}>
-                                                {m.current_stock}
-                                            </span>
-                                            <span className="text-[10px] font-bold text-gray-400 uppercase">{m.unit}</span>
+                                        <div className="flex flex-col">
+                                            <div className="flex items-baseline gap-1">
+                                                <span className={`text-lg font-black ${isLow ? 'text-red-600' : 'text-gray-900'}`}>
+                                                    {m.current_stock}
+                                                </span>
+                                                <span className="text-[10px] font-bold text-gray-400 uppercase">{m.unit}</span>
+                                            </div>
+                                            <div className="text-[10px] font-bold text-indigo-500 mt-0.5">
+                                                Total Value: Rs. {(parseFloat(m.current_stock) * (m.avg_cost_per_unit || 0)).toLocaleString()}
+                                            </div>
+                                            <div className="text-[10px] text-gray-400 font-medium italic mt-0.5">Min level: {m.min_stock_level}</div>
                                         </div>
-                                        <div className="text-[10px] text-gray-400 font-medium italic">Min level: {m.min_stock_level}</div>
                                     </td>
                                     <td className="px-6 py-4 text-right space-x-3">
+                                        <button
+                                            onClick={() => handleRecalculate(m.id)}
+                                            disabled={actionLoading === m.id}
+                                            className={`font-extrabold text-[9px] uppercase transition-all px-1.5 py-0.5 rounded border ${actionLoading === m.id
+                                                ? 'bg-gray-100 text-gray-400 border-gray-100'
+                                                : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 border-transparent hover:border-indigo-100'
+                                                }`}
+                                            title="Recalculate stock from transaction history"
+                                        >
+                                            {actionLoading === m.id ? 'Auditing...' : 'Audit Stock'}
+                                        </button>
                                         <button onClick={() => handleOpenModal(m)} className="text-indigo-600 hover:text-indigo-900 font-semibold text-sm">Edit</button>
-                                        <button onClick={() => handleDelete(m.id)} className="text-red-500 hover:text-red-700 font-semibold text-sm opacity-0 group-hover:opacity-100 transition-opacity">Delete</button>
+                                        <button onClick={() => handleDelete(m.id)} className="text-red-400 hover:text-red-700 font-semibold text-sm opacity-0 group-hover:opacity-100 transition-opacity">Delete</button>
                                     </td>
                                 </tr>
                             );

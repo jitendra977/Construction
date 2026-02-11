@@ -96,6 +96,11 @@ export const dashboardService = {
     updateExpense: (id, data) => api.patch(`/expenses/${id}/`, data),
     deleteExpense: (id) => api.delete(`/expenses/${id}/`),
 
+    // Payments
+    getPayments: () => api.get('/payments/'),
+    createPayment: (data) => api.post('/payments/', data),
+    deletePayment: (id) => api.delete(`/payments/${id}/`),
+
     // Resources
     getSuppliers: () => api.get('/suppliers/'),
     createSupplier: (data) => api.post('/suppliers/', data),
@@ -106,6 +111,8 @@ export const dashboardService = {
     createMaterial: (data) => api.post('/materials/', data),
     updateMaterial: (id, data) => api.patch(`/materials/${id}/`, data),
     deleteMaterial: (id) => api.delete(`/materials/${id}/`),
+    recalculateMaterialStock: (id) => api.post(`/materials/${id}/recalculate_stock/`),
+    recalculateAllMaterialsStock: () => api.post(`/materials/recalculate_all/`),
 
     getContractors: () => api.get('/contractors/'),
     createContractor: (data) => api.post('/contractors/', data),
@@ -123,6 +130,7 @@ export const dashboardService = {
     createFundingSource: (data) => api.post('/funding-sources/', data),
     updateFundingSource: (id, data) => api.patch(`/funding-sources/${id}/`, data),
     deleteFundingSource: (id) => api.delete(`/funding-sources/${id}/`),
+    createFundingTransaction: (data) => api.post('/funding-transactions/', data),
 
     // Aggregated Dashboard Data
     getContractors: () => api.get('/contractors/'),
