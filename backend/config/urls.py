@@ -9,6 +9,7 @@ from rest_framework.routers import DefaultRouter
 
 from apps.accounts.views import UserViewSet
 from apps.core.views import HouseProjectViewSet, ConstructionPhaseViewSet, RoomViewSet, FloorViewSet
+from apps.core.gallery_views import GalleryViewSet
 from apps.tasks.views import TaskViewSet, TaskUpdateViewSet, TaskMediaViewSet
 from apps.finance.views import BudgetCategoryViewSet, ExpenseViewSet, PaymentViewSet, FundingSourceViewSet, FundingTransactionViewSet
 from apps.resources.views import ContractorViewSet, MaterialViewSet, DocumentViewSet, SupplierViewSet, MaterialTransactionViewSet
@@ -32,6 +33,7 @@ router.register(r'suppliers', SupplierViewSet)
 router.register(r'materials', MaterialViewSet)
 router.register(r'material-transactions', MaterialTransactionViewSet)
 router.register(r'documents', DocumentViewSet)
+router.register(r'gallery', GalleryViewSet, basename='gallery')
 
 urlpatterns = [
     path('admin/', admin.site.urls),

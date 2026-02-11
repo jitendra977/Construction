@@ -2,6 +2,9 @@ from rest_framework import serializers
 from .models import HouseProject, ConstructionPhase, Room, Floor
 
 class HouseProjectSerializer(serializers.ModelSerializer):
+    category_allocation_total = serializers.ReadOnlyField()
+    budget_health = serializers.ReadOnlyField()
+
     class Meta:
         model = HouseProject
         fields = '__all__'

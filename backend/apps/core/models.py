@@ -24,6 +24,26 @@ class HouseProject(models.Model):
         verbose_name = "House Project Configuration"
         verbose_name_plural = "House Project Configuration"
 
+    @property
+    def category_allocation_total(self):
+        from apps.finance.models import BudgetCategory
+        return sum(cat.allocation for cat in BudgetCategory.objects.all())
+
+    @property
+    def budget_health(self):
+        total_allocated = self.category_allocation_total
+        if total_allocated > self.total_budget:
+            return {
+                "status": "OVER_ALLOCATED",
+                "excess": total_allocated - self.total_budget,
+                "percent": (total_allocated / self.total_budget) * 100
+            }
+        return {
+            "status": "HEALTHY",
+            "excess": 0,
+            "percent": (total_allocated / self.total_budget) * 100 if self.total_budget > 0 else 0
+        }
+
 class ConstructionPhase(models.Model):
     """
     Major phases of Nepali construction.
@@ -42,8 +62,12 @@ class ConstructionPhase(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     order = models.PositiveIntegerField(default=0, help_text="Order of execution")
     description = models.TextField(blank=True)
-    
     estimated_budget = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+
+    # Documentation and Proof of Work
+    naksa_file = models.FileField(upload_to='phases/naksa/', null=True, blank=True, help_text="Blueprints/Naksa for this phase")
+    structure_design = models.FileField(upload_to='phases/structure/', null=True, blank=True, help_text="Structural design documents")
+    completion_photo = models.ImageField(upload_to='phases/completion/', null=True, blank=True, help_text="Photo proof after phase completion")
 
     class Meta:
         ordering = ['order']

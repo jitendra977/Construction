@@ -10,11 +10,18 @@ const MaterialsTab = ({ searchQuery = '' }) => {
     const [formData, setFormData] = useState({});
     const [loading, setLoading] = useState(false);
     const [actionLoading, setActionLoading] = useState(null);
+    const [showLowStockOnly, setShowLowStockOnly] = useState(false);
 
-    const filteredMaterials = dashboardData.materials?.filter(m =>
-        m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        m.category?.toLowerCase().includes(searchQuery.toLowerCase())
-    ) || [];
+    const filteredMaterials = (dashboardData.materials || []).filter(m => {
+        const matchesSearch = m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            m.category_name?.toLowerCase().includes(searchQuery.toLowerCase());
+
+        if (showLowStockOnly) {
+            const isLow = Number(m.current_stock) <= Number(m.min_stock_level);
+            return matchesSearch && isLow;
+        }
+        return matchesSearch;
+    });
 
     const handleOpenModal = (item = null) => {
         setEditingItem(item);
@@ -48,6 +55,20 @@ const MaterialsTab = ({ searchQuery = '' }) => {
         }
     };
 
+    const handleAuditAll = async () => {
+        if (window.confirm("Audit all stock levels from transaction history?")) {
+            setActionLoading('ALL');
+            try {
+                await dashboardService.recalculateAllMaterialsStock();
+                refreshData();
+            } catch (error) {
+                alert("Bulk audit failed.");
+            } finally {
+                setActionLoading(null);
+            }
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -64,84 +85,81 @@ const MaterialsTab = ({ searchQuery = '' }) => {
     };
 
     const getStockPercentage = (current, min) => {
-        if (!min || min === 0) return 100;
-        const val = (parseFloat(current) / (parseFloat(min) * 2)) * 100;
-        return Math.min(val, 100);
+        if (Number(current) <= 0) return 0;
+        if (Number(current) <= Number(min)) return 30; // Critical zone
+        return Math.min(100, (Number(current) / (Number(min) * 5)) * 100);
     };
 
     return (
         <div className="space-y-4">
-            <div className="flex justify-between items-center mb-2">
-                <p className="text-sm text-gray-500">Track raw material inventory levels and reorder thresholds.</p>
-                <div className="flex gap-2">
+            {/* Controls Bar */}
+            <div className="flex flex-col md:flex-row gap-4 justify-between items-center mb-6">
+                <div className="flex items-center gap-4 w-full md:w-auto">
                     <button
-                        onClick={async () => {
-                            if (window.confirm("Audit all stock levels from transaction history?")) {
-                                setActionLoading('ALL');
-                                try {
-                                    await dashboardService.recalculateAllMaterialsStock();
-                                    refreshData();
-                                } catch (error) {
-                                    alert("Bulk audit failed.");
-                                } finally {
-                                    setActionLoading(null);
-                                }
-                            }
-                        }}
-                        className="px-4 py-2 text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 font-medium transition-colors border border-indigo-100"
+                        onClick={() => setShowLowStockOnly(!showLowStockOnly)}
+                        className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 border shadow-sm ${showLowStockOnly
+                                ? 'bg-red-50 border-red-200 text-red-600 ring-2 ring-red-100'
+                                : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50'
+                            }`}
+                    >
+                        <span className={`w-2 h-2 rounded-full ${showLowStockOnly ? 'bg-red-500 animate-pulse' : 'bg-gray-300'}`}></span>
+                        Low Stock Only
+                    </button>
+                    <button
+                        onClick={handleAuditAll}
+                        disabled={actionLoading === 'ALL'}
+                        className="px-4 py-2 bg-white border border-gray-100 text-indigo-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-50 transition-all shadow-sm flex items-center gap-2"
                     >
                         {actionLoading === 'ALL' ? 'Auditing...' : 'Audit All Stock'}
                     </button>
-                    <button
-                        onClick={() => handleOpenModal()}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors shadow-sm"
-                    >
-                        + Add New Material
-                    </button>
                 </div>
+                <button
+                    onClick={() => handleOpenModal()}
+                    className="w-full md:w-auto px-6 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+                >
+                    + Add New Material
+                </button>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <table className="w-full text-left border-collapse">
                     <thead>
-                        <tr className="bg-gray-50 border-b border-gray-100">
-                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Material & category</th>
-                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Inventory Health</th>
-                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Avg. Cost</th>
-                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Available Stock</th>
-                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Actions</th>
+                        <tr className="bg-gray-50/50 border-b border-gray-100">
+                            <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Material & Category</th>
+                            <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Inventory Health</th>
+                            <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">Avg. Cost</th>
+                            <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Current Stock</th>
+                            <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                         {filteredMaterials.map(m => {
-                            const isLow = parseFloat(m.current_stock) <= parseFloat(m.min_stock_level);
+                            const isLow = Number(m.current_stock) <= Number(m.min_stock_level);
+                            const percent = getStockPercentage(m.current_stock, m.min_stock_level);
+
                             return (
-                                <tr key={m.id} className="hover:bg-gray-50 transition-colors group">
+                                <tr key={m.id} className="hover:bg-gray-50/50 transition-all group">
                                     <td className="px-6 py-4">
-                                        <div className="flex flex-col">
-                                            <div className="font-bold text-gray-900 leading-tight">{m.name}</div>
-                                            <div className="flex gap-1.5 mt-0.5">
-                                                <div className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">{m.category || 'Uncategorized'}</div>
-                                                {m.budget_category_name && (
-                                                    <div className="text-[10px] text-indigo-500 font-black uppercase tracking-widest border-l border-gray-200 pl-1.5">
-                                                        {m.budget_category_name}
-                                                    </div>
-                                                )}
-                                            </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="text-sm font-black text-gray-900">{m.name}</div>
+                                            {isLow && (
+                                                <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-[8px] font-black uppercase rounded border border-red-200 animate-pulse tracking-tighter">
+                                                    Critical Stock
+                                                </span>
+                                            )}
                                         </div>
+                                        <div className="text-[10px] text-gray-400 font-bold uppercase tracking-tight mt-0.5">Category: {m.category_name || 'General'}</div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <div className="w-full max-w-[120px] space-y-1.5">
-                                            <div className="flex justify-between items-center text-[10px] font-bold">
-                                                <span className={isLow ? 'text-red-500' : 'text-green-600'}>
-                                                    {isLow ? 'REORDER NOW' : 'HEALTHY'}
-                                                </span>
-                                                <span className="text-gray-400">{Math.round(getStockPercentage(m.current_stock, m.min_stock_level))}%</span>
+                                        <div className="max-w-[120px]">
+                                            <div className="flex justify-between items-center text-[9px] font-bold mb-1">
+                                                <span className={isLow ? 'text-red-500' : 'text-gray-400'}>{isLow ? 'RE-ORDER NOW' : 'HEALTHY'}</span>
+                                                <span className="text-gray-400">{Math.round(percent)}%</span>
                                             </div>
-                                            <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                                            <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden shadow-inner">
                                                 <div
-                                                    className={`h-full rounded-full transition-all duration-500 ${isLow ? 'bg-red-500' : 'bg-green-500'}`}
-                                                    style={{ width: `${getStockPercentage(m.current_stock, m.min_stock_level)}%` }}
+                                                    className={`h-full rounded-full transition-all duration-700 ${isLow ? 'bg-red-500' : 'bg-indigo-500'}`}
+                                                    style={{ width: `${percent}%` }}
                                                 />
                                             </div>
                                         </div>
@@ -184,7 +202,7 @@ const MaterialsTab = ({ searchQuery = '' }) => {
                         })}
                         {filteredMaterials.length === 0 && (
                             <tr>
-                                <td colSpan="4" className="px-6 py-10 text-center text-gray-400 italic text-sm">No materials found matching your search.</td>
+                                <td colSpan="5" className="px-6 py-10 text-center text-gray-400 italic text-sm">No materials found.</td>
                             </tr>
                         )}
                     </tbody>
@@ -248,7 +266,7 @@ const MaterialsTab = ({ searchQuery = '' }) => {
                                     <option key={c.id} value={c.id}>{c.name}</option>
                                 ))}
                             </select>
-                            <p className="text-[10px] text-gray-400 mt-1 italic">Determines which budget line item is docked when buying this material.</p>
+                            <p className="text-[10px] text-gray-400 mt-1 italic">Determines which budget line item is docked.</p>
                         </div>
                     </div>
                     <div className="flex justify-end gap-3 mt-8">
@@ -262,4 +280,5 @@ const MaterialsTab = ({ searchQuery = '' }) => {
         </div>
     );
 };
+
 export default MaterialsTab;

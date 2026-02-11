@@ -55,7 +55,10 @@ export const ConstructionProvider = ({ children }) => {
 
     // Computed Stats
     const stats = useMemo(() => {
-        const { project, expenses, phases } = dashboardData;
+        const project = dashboardData.project;
+        const expenses = dashboardData.expenses || [];
+        const phases = dashboardData.phases || [];
+
         if (!phases.length) return [];
 
         const totalPhases = phases.length;
@@ -75,9 +78,9 @@ export const ConstructionProvider = ({ children }) => {
 
     // Budget & Funding Stats
     const budgetStats = useMemo(() => {
-        const { expenses } = dashboardData;
+        const expenses = dashboardData.expenses || [];
         const totalBudget = dashboardData.project ? Number(dashboardData.project.total_budget) : 0;
-        const totalSpent = dashboardData.expenses.reduce((acc, exp) => acc + Number(exp.amount), 0);
+        const totalSpent = expenses.reduce((acc, exp) => acc + Number(exp.amount), 0);
 
         // Funding calculations
         const fundingSources = dashboardData.funding || [];
@@ -124,6 +127,10 @@ export const ConstructionProvider = ({ children }) => {
             };
         });
 
+        const lowStockItems = (dashboardData.materials || []).filter(m =>
+            Number(m.current_stock) <= Number(m.min_stock_level)
+        );
+
         return {
             totalBudget,
             totalSpent,
@@ -138,7 +145,9 @@ export const ConstructionProvider = ({ children }) => {
             debtToEquity: dte,
             isOverBudget: totalSpent > totalBudget,
             isUnderFunded: totalFunded < totalSpent,
-            categories // New field
+            categories,
+            lowStockItems,
+            projectHealth: dashboardData.project?.budget_health || { status: 'UNKNOWN' }
         };
     }, [dashboardData]);
 
@@ -153,7 +162,7 @@ export const ConstructionProvider = ({ children }) => {
                 time: new Date(t.updated_at).toLocaleDateString(),
                 icon: '🔧'
             })),
-            ...dashboardData.expenses.slice(0, 3).map(e => ({
+            ...(dashboardData.expenses || []).slice(0, 3).map(e => ({
                 id: `exp-${e.id}`,
                 title: e.title,
                 message: `Paid ${formatCurrency(e.amount)} for ${e.title}`,

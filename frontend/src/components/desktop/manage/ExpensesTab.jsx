@@ -151,11 +151,21 @@ const ExpensesTab = ({ searchQuery = '' }) => {
 
             {/* Budget Utilization per Category */}
             <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm mb-6">
-                <div className="flex justify-between items-end mb-4">
+                <div className="flex justify-between items-start mb-4">
                     <div>
                         <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Budget Utilization per Category</h3>
                         <p className="text-[10px] text-gray-400 font-medium italic">How much of the allocated Rs. {formatCurrency(budgetStats.totalBudget)} is used?</p>
                     </div>
+
+                    {budgetStats.projectHealth?.status === 'OVER_ALLOCATED' && (
+                        <div className="bg-red-50 border border-red-100 px-3 py-1.5 rounded-lg flex items-center gap-2 animate-pulse">
+                            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                            <div className="flex flex-col">
+                                <span className="text-[9px] font-black text-red-600 uppercase tracking-tighter leading-none">Budget Warning</span>
+                                <span className="text-[8px] text-red-500 font-bold">Categories exceed total budget by Rs. {formatCurrency(budgetStats.projectHealth.excess)}</span>
+                            </div>
+                        </div>
+                    )}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4">
                     {budgetStats.categories?.map(cat => (
@@ -169,8 +179,8 @@ const ExpensesTab = ({ searchQuery = '' }) => {
                             <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
                                 <div
                                     className={`h-full rounded-full transition-all duration-700 ${cat.percent > 100 ? 'bg-red-500' :
-                                            cat.percent > 90 ? 'bg-orange-500' :
-                                                'bg-indigo-500'
+                                        cat.percent > 90 ? 'bg-orange-500' :
+                                            'bg-indigo-500'
                                         }`}
                                     style={{ width: `${Math.min(100, cat.percent)}%` }}
                                 />
@@ -434,19 +444,34 @@ const ExpensesTab = ({ searchQuery = '' }) => {
                     )}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">Category</label>
+                            <label className="block text-sm font-semibold text-gray-700 mb-1">Construction Phase</label>
                             <select
-                                value={formData.category || ''}
-                                onChange={e => setFormData({ ...formData, category: e.target.value })}
-                                className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none appearance-none bg-white"
-                                required
+                                value={formData.phase || ''}
+                                onChange={e => setFormData({ ...formData, phase: e.target.value })}
+                                className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none appearance-none bg-white font-medium"
                             >
-                                <option value="">Select Category</option>
-                                {dashboardData.budgetCategories?.map(c => (
-                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                <option value="">Entire Project (General)</option>
+                                {dashboardData.phases?.map(p => (
+                                    <option key={p.id} value={p.id}>{p.name}</option>
                                 ))}
                             </select>
                         </div>
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-1">Target Room / Area</label>
+                            <select
+                                value={formData.room || ''}
+                                onChange={e => setFormData({ ...formData, room: e.target.value })}
+                                className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none appearance-none bg-white font-medium"
+                            >
+                                <option value="">General Project Area</option>
+                                {dashboardData.rooms?.map(r => (
+                                    <option key={r.id} value={r.id}>{r.name} ({r.floor_name})</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Paid To (Vendor/Person)</label>
                             {formData.expense_type === 'MATERIAL' ? (
@@ -486,6 +511,20 @@ const ExpensesTab = ({ searchQuery = '' }) => {
                                     placeholder="Who was paid?"
                                 />
                             )}
+                        </div>
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-1">Category</label>
+                            <select
+                                value={formData.category || ''}
+                                onChange={e => setFormData({ ...formData, category: e.target.value })}
+                                className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none appearance-none bg-white"
+                                required
+                            >
+                                <option value="">Select Category</option>
+                                {dashboardData.budgetCategories?.map(c => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                ))}
+                            </select>
                         </div>
                     </div>
                     <div className="bg-gray-50/50 p-5 rounded-2xl border border-gray-100">

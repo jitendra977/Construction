@@ -124,6 +124,7 @@ export const dashboardService = {
     updateMaterialTransaction: (id, data) => api.patch(`/material-transactions/${id}/`, data),
     deleteMaterialTransaction: (id) => api.delete(`/material-transactions/${id}/`),
     getDocuments: (type) => api.get(`/documents/${type ? `?document_type=${type}` : ''}`),
+    getGallery: (groupBy = 'category') => api.get(`/gallery/?group_by=${groupBy}`),
 
     // Funding
     getFundingSources: () => api.get('/funding-sources/'),

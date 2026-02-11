@@ -5,7 +5,7 @@ import { constructionService, permitService } from '../../services/api';
 import { useConstruction } from '../../context/ConstructionContext';
 
 const DesktopHome = () => {
-    const { dashboardData, stats, recentActivities, formatCurrency, refreshData, updatePhase } = useConstruction();
+    const { dashboardData, stats, budgetStats, recentActivities, formatCurrency, refreshData, updatePhase } = useConstruction();
 
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [selectedPhase, setSelectedPhase] = useState(null);
@@ -102,7 +102,6 @@ const DesktopHome = () => {
                 phase: selectedPhase.id,
                 status: 'PENDING',
                 priority: 'MEDIUM',
-                // Assuming defaults for other fields or backend handles them
             });
             setIsTaskModalOpen(false);
             refreshData();
@@ -130,9 +129,7 @@ const DesktopHome = () => {
 
         setLoading(true);
         try {
-            // Determine order: last order + 1
             const maxOrder = dashboardData.permits?.reduce((max, step) => Math.max(max, step.order), 0) || 0;
-
             await permitService.createStep({
                 title: newPermitTitle,
                 status: 'PENDING',
@@ -161,16 +158,18 @@ const DesktopHome = () => {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 overflow-x-hidden">
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {stats.map((stat, index) => (
-                    <div key={index} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+                {stats.filter(s => s.title !== 'Master Budget').map((stat, index) => (
+                    <div key={index} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm font-medium text-gray-500 mb-1">{stat.title}</p>
-                                <h3 className="text-2xl font-bold text-gray-900">{stat.value}</h3>
-                                <div className={`inline-flex items-center mt-2 px-2.5 py-0.5 rounded-full text-xs font-medium ${stat.trend === 'up' ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-600'}`}>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{stat.title}</p>
+                                <h3 className="text-xl font-black text-gray-900 leading-none">
+                                    {stat.title.toLowerCase().includes('count') ? stat.value : `Rs. ${stat.value}`}
+                                </h3>
+                                <div className={`inline-flex items-center mt-2 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tighter ${stat.trend === 'up' ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-600'}`}>
                                     <span>{stat.change}</span>
                                 </div>
                             </div>
@@ -180,38 +179,107 @@ const DesktopHome = () => {
                         </div>
                     </div>
                 ))}
+                {/* Special Master Budget Card */}
+                {stats.find(s => s.title === 'Master Budget') && (
+                    <div className="bg-indigo-600 rounded-2xl shadow-lg shadow-indigo-100 p-6 relative overflow-hidden group">
+                        <div className="absolute -right-4 -bottom-4 text-8xl opacity-10 rotate-12 transition-transform group-hover:scale-110">🏗️</div>
+                        <p className="text-[10px] font-black text-indigo-100 uppercase tracking-widest mb-1">Master Budget</p>
+                        <h3 className="text-xl font-black text-white leading-none">
+                            Rs. {stats.find(s => s.title === 'Master Budget').value}
+                        </h3>
+                        <div className="mt-3 flex items-center gap-2">
+                            <div className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
+                                <div className="h-full bg-white rounded-full" style={{ width: `${budgetStats.budgetPercent}%` }} />
+                            </div>
+                            <span className="text-[10px] font-black text-white">{budgetStats.budgetPercent}%</span>
+                        </div>
+                    </div>
+                )}
             </div>
+
+            {/* Action Required Section */}
+            {(budgetStats.lowStockItems?.length > 0 || budgetStats.projectHealth?.status === 'OVER_ALLOCATED') && (
+                <div className="bg-white rounded-2xl border border-red-100 shadow-sm overflow-hidden animate-fadeIn">
+                    <div className="bg-red-50/50 px-6 py-3 border-b border-red-100 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xl">⚠️</span>
+                            <h2 className="text-sm font-black text-red-900 uppercase tracking-widest">Action Required</h2>
+                        </div>
+                        <span className="text-[10px] font-bold text-red-500 bg-red-100 px-2 py-0.5 rounded-full uppercase">Professional Audit Alert</span>
+                    </div>
+                    <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Low Stock Items */}
+                        {budgetStats.lowStockItems?.length > 0 && (
+                            <div className="space-y-3">
+                                <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Critical Inventory Level</h3>
+                                <div className="space-y-2">
+                                    {budgetStats.lowStockItems.slice(0, 3).map(item => (
+                                        <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-black text-gray-900">{item.name}</span>
+                                                <span className="text-[10px] text-red-600 font-bold uppercase tracking-tight">Stock: {item.current_stock} {item.unit} (Min: {item.min_stock_level})</span>
+                                            </div>
+                                            <button className="text-[10px] font-black text-indigo-600 bg-white border border-indigo-100 px-3 py-1 rounded-lg shadow-sm hover:bg-indigo-50">Buy Now</button>
+                                        </div>
+                                    ))}
+                                    {budgetStats.lowStockItems.length > 3 && (
+                                        <p className="text-[10px] text-gray-400 italic pl-1">+ {budgetStats.lowStockItems.length - 3} more items need attention</p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Budget Validation */}
+                        {budgetStats.projectHealth?.status === 'OVER_ALLOCATED' && (
+                            <div className="space-y-3">
+                                <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Budget Integrity Warning</h3>
+                                <div className="p-4 bg-orange-50 rounded-2xl border border-orange-100 flex items-start gap-3">
+                                    <div className="text-2xl">💰</div>
+                                    <div className="flex flex-col">
+                                        <span className="text-sm font-black text-orange-900">Allocation Overflow</span>
+                                        <p className="text-xs text-orange-800 mt-0.5 leading-relaxed">
+                                            Category allocations exceed your master budget by <span className="font-black">Rs. {formatCurrency(budgetStats.projectHealth.excess)}</span>. Check the Expenses tab to rebalance.
+                                        </p>
+                                        <div className="h-1.5 w-full bg-orange-200/50 rounded-full mt-3 overflow-hidden">
+                                            <div className="h-full bg-orange-500 rounded-full" style={{ width: '100%' }}></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Left Column: Construction Journey */}
                 <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                         <div className="flex justify-between items-center mb-6">
                             <div>
-                                <h2 className="text-lg font-bold text-gray-900">Construction Journey</h2>
-                                <p className="text-xs text-gray-500">Track and manage your build phases</p>
+                                <h2 className="text-[12px] font-black text-gray-400 uppercase tracking-[0.2em]">Construction Journey</h2>
+                                <h1 className="text-lg font-black text-gray-900">Project Timeline & Phases</h1>
                             </div>
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={expandAll}
-                                    className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2 py-1 rounded transition-colors"
+                                    className="text-[9px] font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2 py-1 rounded-md transition-colors"
                                 >
                                     Expand All
                                 </button>
                                 <button
                                     onClick={collapseAll}
-                                    className="text-[10px] font-bold uppercase tracking-wider text-gray-500 hover:text-gray-700 bg-gray-100 px-2 py-1 rounded transition-colors"
+                                    className="text-[9px] font-black uppercase tracking-widest text-gray-500 hover:text-gray-700 bg-gray-50 px-2 py-1 rounded-md transition-colors"
                                 >
                                     Collapse All
                                 </button>
                                 <button
                                     onClick={focusActive}
-                                    className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2 py-1 rounded transition-colors"
+                                    className="text-[9px] font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2 py-1 rounded-md transition-colors border border-indigo-100 shadow-sm"
                                     title="Collapse all except in-progress phases"
                                 >
                                     Focus Running
                                 </button>
-                                <span className="ml-2 text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded border border-gray-100">Manage Mode</span>
                             </div>
                         </div>
                         {/* Advanced Construction Timeline */}
@@ -231,7 +299,7 @@ const DesktopHome = () => {
                                     const isPermitInProgress = !allApproved && anyInProgress;
 
                                     return (
-                                        <div className={`absolute top-0 left-0 -ml-1.5 mt-6 w-11 h-11 rounded-full border-4 flex items-center justify-center font-bold text-sm z-10 transition-all duration-500 ${isPermitCompleted ? 'bg-green-500 border-green-50 text-white shadow-[0_0_15px_rgba(34,197,94,0.3)] ring-4 ring-green-50' :
+                                        <div className={`absolute top-0 left-0 -ml-1.5 mt-6 w-11 h-11 rounded-full border-4 flex items-center justify-center font-black text-sm z-10 transition-all duration-500 ${isPermitCompleted ? 'bg-green-500 border-green-50 text-white shadow-[0_0_15px_rgba(34,197,94,0.3)] ring-4 ring-green-50' :
                                             isPermitInProgress ? 'bg-blue-600 border-blue-50 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] scale-110 animate-pulse ring-4 ring-blue-50' :
                                                 'bg-white border-gray-100 text-gray-400 shadow-sm'
                                             }`}>
@@ -240,23 +308,23 @@ const DesktopHome = () => {
                                     );
                                 })()}
 
-                                <div className="ml-16 bg-blue-50 border border-blue-100 rounded-2xl p-4 transition-all duration-300 hover:shadow-md hover:border-blue-200 overflow-hidden">
+                                <div className="ml-16 bg-blue-50/50 border border-blue-100 rounded-2xl p-4 transition-all duration-300 hover:shadow-md hover:border-blue-200 overflow-hidden">
                                     <div className="flex justify-between items-center mb-2">
                                         <div
                                             className="flex items-center gap-3 cursor-pointer select-none"
                                             onClick={() => setShowPermits(!showPermits)}
                                         >
-                                            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-xl shadow-sm">
+                                            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-xl shadow-sm border border-blue-50">
                                                 📜
                                             </div>
                                             <div>
                                                 <div className="flex items-center gap-2">
-                                                    <h3 className="font-bold text-blue-900">Municipal Permits (Naksha Pass)</h3>
-                                                    <span className={`text-xs text-blue-400 transition-transform duration-200 ${showPermits ? 'rotate-180' : ''}`}>
+                                                    <h3 className="font-black text-blue-900 tracking-tight uppercase text-xs">Municipal Permits & Approvals</h3>
+                                                    <span className={`text-[10px] text-blue-400 transition-transform duration-200 ${showPermits ? 'rotate-180' : ''}`}>
                                                         ▼
                                                     </span>
                                                 </div>
-                                                <p className="text-sm text-blue-700">Official Nagar Palika Process</p>
+                                                <p className="text-[10px] text-blue-700 font-bold uppercase tracking-tighter mt-0.5">Nagar Palika Naksha Pass Process</p>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-3">
@@ -264,12 +332,9 @@ const DesktopHome = () => {
                                                 <>
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); setIsPermitModalOpen(true); }}
-                                                        className="text-xs font-semibold text-blue-600 bg-blue-100 px-2 py-1 rounded hover:bg-blue-200 transition-colors"
+                                                        className="text-[9px] font-black uppercase tracking-widest text-blue-600 bg-white border border-blue-100 px-2 py-1 rounded-md hover:bg-blue-50 transition-colors shadow-sm"
                                                     >
                                                         + Add Step
-                                                    </button>
-                                                    <button className="text-xs font-semibold text-blue-600 hover:underline" onClick={(e) => { e.stopPropagation(); (document.querySelector('button[key="permits"]') || { click: () => { } }).click(); }}>
-                                                        Manage Documents →
                                                     </button>
                                                 </>
                                             )}
@@ -283,23 +348,23 @@ const DesktopHome = () => {
                                                 const isInProgress = step.status === 'IN_PROGRESS';
 
                                                 return (
-                                                    <div key={step.id} className="group bg-white rounded-lg p-3 border border-blue-100 shadow-sm flex items-center justify-between transition-all hover:border-blue-300">
+                                                    <div key={step.id} className="group bg-white rounded-xl p-3 border border-blue-100 shadow-sm flex items-center justify-between transition-all hover:border-blue-300">
                                                         <div className="flex items-center gap-3">
-                                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${isApproved ? 'bg-green-100 text-green-600' :
+                                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-[10px] ${isApproved ? 'bg-green-100 text-green-600' :
                                                                 isInProgress ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'
                                                                 }`}>
                                                                 {step.order}
                                                             </div>
                                                             <div>
-                                                                <p className={`font-medium text-sm ${isApproved ? 'text-green-800' : 'text-gray-900'}`}>{step.title}</p>
-                                                                <p className="text-xs text-gray-500">{step.description}</p>
+                                                                <p className={`font-black text-sm tracking-tight ${isApproved ? 'text-green-800' : 'text-gray-900'}`}>{step.title}</p>
+                                                                <p className="text-[10px] text-gray-400 font-medium italic">{step.description}</p>
                                                             </div>
                                                         </div>
                                                         <div className="flex items-center gap-2">
                                                             <select
                                                                 value={step.status}
                                                                 onChange={(e) => handlePermitStatusChange(step.id, e.target.value)}
-                                                                className="text-xs font-semibold border-gray-200 rounded-md focus:ring-blue-500 focus:border-blue-500 py-1 pl-2 pr-6 bg-gray-50"
+                                                                className="text-[10px] font-black uppercase tracking-tighter border-gray-100 rounded-lg focus:ring-blue-500 focus:border-blue-500 py-1 pl-2 pr-6 bg-gray-50 outline-none"
                                                             >
                                                                 <option value="PENDING">Pending</option>
                                                                 <option value="IN_PROGRESS">In Progress</option>
@@ -308,7 +373,7 @@ const DesktopHome = () => {
                                                             </select>
                                                             <button
                                                                 onClick={() => handleDeletePermitStep(step.id)}
-                                                                className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity px-2"
+                                                                className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity px-2 text-xl font-light"
                                                                 title="Delete Step"
                                                             >
                                                                 ×
@@ -317,9 +382,6 @@ const DesktopHome = () => {
                                                     </div>
                                                 );
                                             })}
-                                            {(!dashboardData.permits || dashboardData.permits.length === 0) && (
-                                                <div className="text-sm text-blue-400 italic text-center py-2">No permit steps found. Click 'Add Step' to create one.</div>
-                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -340,7 +402,7 @@ const DesktopHome = () => {
                                         <div className={`absolute left-8 -top-12 h-12 w-[3px] -translate-x-1/2 transition-all duration-1000 ${phase.status !== 'NOT_STARTED' ? 'bg-gradient-to-b from-indigo-500 to-indigo-600 shadow-[0_0_10px_rgba(99,102,241,0.3)]' : 'bg-gray-50'}`}></div>
 
                                         {/* Phase Connector Node */}
-                                        <div className={`absolute top-0 left-0 -ml-1.5 mt-6 w-11 h-11 rounded-full border-4 flex items-center justify-center font-bold text-sm z-10 transition-all duration-500 ${isCompleted ? 'bg-green-500 border-green-50 text-white shadow-[0_0_15px_rgba(34,197,94,0.3)] ring-4 ring-green-50' :
+                                        <div className={`absolute top-0 left-0 -ml-1.5 mt-6 w-11 h-11 rounded-full border-4 flex items-center justify-center font-black text-sm z-10 transition-all duration-500 ${isCompleted ? 'bg-green-500 border-green-50 text-white shadow-[0_0_15px_rgba(34,197,94,0.3)] ring-4 ring-green-50' :
                                             isInProgress ? 'bg-indigo-600 border-indigo-50 text-white shadow-[0_0_20px_rgba(79,70,229,0.4)] scale-110 animate-pulse ring-4 ring-indigo-50' :
                                                 'bg-white border-gray-100 text-gray-400 shadow-sm'
                                             }`}>
@@ -357,10 +419,10 @@ const DesktopHome = () => {
                                                 <div className="flex-1">
                                                     <div className="flex items-center gap-3 mb-1">
                                                         <div className="flex items-center gap-2">
-                                                            <h3 className={`font-bold text-lg ${isInProgress ? 'text-indigo-900' : 'text-gray-900'}`}>
+                                                            <h3 className={`font-black text-lg tracking-tight ${isInProgress ? 'text-indigo-900' : 'text-gray-900'}`}>
                                                                 {phase.name}
                                                             </h3>
-                                                            <span className={`text-xs text-gray-400 transition-transform duration-300 ${expandedPhases.has(phase.id) ? 'rotate-180' : ''}`}>
+                                                            <span className={`text-[10px] text-gray-400 transition-transform duration-300 ${expandedPhases.has(phase.id) ? 'rotate-180' : ''}`}>
                                                                 ▼
                                                             </span>
                                                         </div>
@@ -368,42 +430,11 @@ const DesktopHome = () => {
                                                             <span className="animate-pulse w-2 h-2 bg-indigo-500 rounded-full"></span>
                                                         )}
                                                     </div>
-                                                    <p className="text-sm text-gray-500 leading-relaxed max-w-2xl">{phase.description}</p>
-
-
-                                                    {/* Phase Dates - Only show if expanded */}
-                                                    {expandedPhases.has(phase.id) && (
-                                                        <div className="flex flex-wrap gap-4 mt-3 text-xs animate-fadeIn" onClick={(e) => e.stopPropagation()}>
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="font-medium text-gray-600">Start:</span>
-                                                                <input
-                                                                    type="date"
-                                                                    value={phase.start_date || ''}
-                                                                    onChange={(e) => {
-                                                                        updatePhase(phase.id, { start_date: e.target.value || null })
-                                                                            .catch(err => console.error('Failed to update start date', err));
-                                                                    }}
-                                                                    className="border-gray-200 rounded-lg px-2 py-1 text-xs focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                                                />
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="font-medium text-gray-600">End:</span>
-                                                                <input
-                                                                    type="date"
-                                                                    value={phase.end_date || ''}
-                                                                    onChange={(e) => {
-                                                                        updatePhase(phase.id, { end_date: e.target.value || null })
-                                                                            .catch(err => console.error('Failed to update end date', err));
-                                                                    }}
-                                                                    className="border-gray-200 rounded-lg px-2 py-1 text-xs focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    )}
+                                                    <p className="text-sm text-gray-500 leading-relaxed max-w-2xl font-medium">{phase.description}</p>
 
                                                     {/* Progress Bar */}
                                                     <div className="mt-4 flex items-center gap-3 w-full max-w-md">
-                                                        <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                                        <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden shadow-inner">
                                                             <div
                                                                 className={`h-full rounded-full transition-all duration-1000 ease-out ${isCompleted ? 'bg-green-500' :
                                                                     isInProgress ? 'bg-indigo-500' : 'bg-gray-300'
@@ -411,19 +442,18 @@ const DesktopHome = () => {
                                                                 style={{ width: `${isCompleted ? 100 : progress}%` }}
                                                             />
                                                         </div>
-                                                        <span className="text-xs font-semibold text-gray-500 whitespace-nowrap">
+                                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">
                                                             {isCompleted ? '100% Done' : `${progress}% Complete`}
                                                         </span>
                                                     </div>
                                                 </div>
 
-                                                {/* Actions & Status */}
                                                 <div className="flex flex-col items-end gap-3 min-w-[140px]" onClick={(e) => e.stopPropagation()}>
                                                     <select
                                                         value={phase.status}
                                                         onChange={(e) => handleStatusChange(phase.id, e.target.value)}
-                                                        className={`text-xs font-bold uppercase tracking-wide border-0 rounded-lg py-1.5 px-3 cursor-pointer transition-colors ${isCompleted ? 'bg-green-50 text-green-700 hover:bg-green-100' :
-                                                            isInProgress ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100' :
+                                                        className={`text-[10px] font-black uppercase tracking-widest border-0 rounded-xl py-1.5 px-3 cursor-pointer transition-colors shadow-sm outline-none ${isCompleted ? 'bg-green-50 text-green-700 hover:bg-green-100' :
+                                                            isInProgress ? 'bg-indigo-600 text-white hover:bg-indigo-700' :
                                                                 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                                                             }`}
                                                     >
@@ -435,94 +465,47 @@ const DesktopHome = () => {
                                                     <div className="flex items-center gap-1">
                                                         <button
                                                             onClick={() => openAddTaskModal(phase)}
-                                                            title="Add Task"
-                                                            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-indigo-50 text-gray-400 hover:text-indigo-600 transition-colors"
+                                                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-50 hover:bg-indigo-50 text-gray-400 hover:text-indigo-600 transition-colors text-lg font-black"
                                                         >
                                                             +
                                                         </button>
                                                         <button
                                                             onClick={() => setDetailPhase(phase)}
-                                                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-50 hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 font-medium text-xs transition-colors"
+                                                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 font-black text-[10px] tracking-widest uppercase transition-colors"
                                                         >
-                                                            <span>Manage Tasks</span>
-                                                            <span className="text-lg leading-none">📋</span>
+                                                            Manage
                                                         </button>
                                                     </div>
                                                 </div>
                                             </div>
 
-                                            {/* Tasks List - Only shown if expanded */}
+                                            {/* Sub-Phases Grid */}
                                             {expandedPhases.has(phase.id) && (
-                                                <div className="bg-gray-50/50 border-t border-gray-100 p-4 animate-slideDown">
-                                                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                                        Sub-Phases & Tasks
-                                                        <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full text-[10px]">{phaseTasks.length}</span>
-                                                    </h4>
-
-                                                    {phaseTasks.length > 0 ? (
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                                            {phaseTasks.map(task => (
-                                                                <div
-                                                                    key={task.id}
-                                                                    className={`relative group/task flex items-start gap-3 p-3 rounded-xl border transition-all duration-200 ${task.status === 'COMPLETED'
-                                                                        ? 'bg-white/50 border-gray-100 hover:border-gray-200'
-                                                                        : 'bg-white border-gray-200 hover:border-indigo-300 hover:shadow-sm shadow-[0_1px_2px_rgba(0,0,0,0.02)]'
-                                                                        }`}
-                                                                >
-                                                                    <div className="pt-0.5">
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={task.status === 'COMPLETED'}
-                                                                            onChange={() => handleTaskToggle(task)}
-                                                                            className={`w-4 h-4 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer transition-all ${task.status === 'COMPLETED' ? 'text-green-500 focus:ring-green-500' : 'text-indigo-600'
-                                                                                }`}
-                                                                        />
-                                                                    </div>
-
-                                                                    <div className="flex-1 min-w-0">
-                                                                        <p className={`text-sm font-medium transition-colors ${task.status === 'COMPLETED' ? 'text-gray-400 line-through decoration-gray-300' : 'text-gray-700'
-                                                                            }`}>
-                                                                            {task.title}
-                                                                        </p>
-
-                                                                        {/* Media Count Badge */}
-                                                                        {task.media && task.media.length > 0 && (
-                                                                            <span className="inline-flex items-center gap-1 mt-1 text-[10px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded-full font-medium">
-                                                                                📷 {task.media.length}
-                                                                            </span>
-                                                                        )}
-
-                                                                        {task.priority && !task.status === 'COMPLETED' && (
-                                                                            <span className={`inline-block mt-1 ml-1 text-[10px] px-1.5 py-0.5 rounded font-medium ${task.priority === 'CRITICAL' ? 'bg-red-50 text-red-600' :
-                                                                                task.priority === 'HIGH' ? 'bg-orange-50 text-orange-600' :
-                                                                                    'bg-blue-50 text-blue-600'
-                                                                                }`}>
-                                                                                {task.priority}
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-
-                                                                    <button
-                                                                        onClick={() => handleDeleteTask(task.id)}
-                                                                        className="absolute top-2 right-2 text-gray-300 hover:text-red-500 opacity-0 group-hover/task:opacity-100 transition-opacity p-1 rounded-full hover:bg-red-50"
-                                                                        title="Delete Task"
-                                                                    >
-                                                                        ×
-                                                                    </button>
+                                                <div className="px-5 pb-5 bg-gray-50/30 border-t border-gray-50 animate-slideDown">
+                                                    <div className="pt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                                        {phaseTasks.map(task => (
+                                                            <div key={task.id} className="bg-white p-3 rounded-xl border border-gray-100 flex items-center justify-between group/task hover:border-indigo-200 transition-all">
+                                                                <div className="flex items-center gap-3">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={task.status === 'COMPLETED'}
+                                                                        onChange={() => handleTaskToggle(task)}
+                                                                        className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                                                    />
+                                                                    <span className={`text-xs font-bold tracking-tight ${task.status === 'COMPLETED' ? 'text-gray-300 line-through' : 'text-gray-700'}`}>
+                                                                        {task.title}
+                                                                    </span>
                                                                 </div>
-                                                            ))}
-                                                        </div>
-                                                    ) : (
-                                                        <div
-                                                            onClick={() => openAddTaskModal(phase)}
-                                                            className="flex flex-col items-center justify-center py-6 border-2 border-dashed border-gray-200 rounded-xl hover:border-indigo-300 hover:bg-indigo-50/10 cursor-pointer transition-all group/empty"
-                                                        >
-                                                            <div className="w-8 h-8 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center mb-2 group-hover/empty:bg-indigo-100 group-hover/empty:text-indigo-500 transition-colors">
-                                                                +
+                                                                <button onClick={() => handleDeleteTask(task.id)} className="text-gray-200 hover:text-red-400 font-light opacity-0 group-hover/task:opacity-100 transition-opacity">×</button>
                                                             </div>
-                                                            <p className="text-xs font-medium text-gray-500 group-hover/empty:text-indigo-600">Add first task</p>
-                                                        </div>
-                                                    )}
+                                                        ))}
+                                                        <button
+                                                            onClick={() => openAddTaskModal(phase)}
+                                                            className="p-3 border-2 border-dashed border-gray-100 rounded-xl text-gray-400 hover:text-indigo-500 hover:border-indigo-100 hover:bg-indigo-50/30 transition-all flex items-center justify-center gap-2"
+                                                        >
+                                                            <span className="text-xs font-black uppercase tracking-widest">+ New Item</span>
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
@@ -533,41 +516,36 @@ const DesktopHome = () => {
                     </div>
                 </div>
 
-                {/* Right Column: Recent Activity & Quick Actions */}
+                {/* Right Column: Activity & Quick Actions */}
                 <div className="space-y-6">
-                    {/* Quick Actions */}
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                        <h2 className="text-lg font-bold text-gray-900 mb-4">Quick Actions</h2>
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                        <h2 className="text-[12px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Quick Post</h2>
                         <div className="grid grid-cols-2 gap-3">
                             {[
-                                { title: 'Add Expense', icon: '💸', color: 'from-red-500 to-pink-600' },
-                                { title: 'Schedule', icon: '📅', color: 'from-blue-500 to-cyan-600' },
-                                { title: 'Materials', icon: '📦', color: 'from-green-500 to-emerald-600' },
-                                { title: 'Updates', icon: '📝', color: 'from-purple-500 to-indigo-600' },
-                            ].map((action, index) => (
-                                <button
-                                    key={index}
-                                    className={`p-3 rounded-xl bg-gradient-to-br ${action.color} text-white hover:shadow-lg transition-all transform hover:-translate-y-0.5 text-left`}
-                                >
-                                    <div className="text-2xl mb-1">{action.icon}</div>
-                                    <div className="font-medium text-sm">{action.title}</div>
+                                { title: 'EXPENSE', icon: '💸', color: 'bg-red-50 text-red-600 border-red-100' },
+                                { title: 'MATERIAL', icon: '📦', color: 'bg-green-50 text-green-600 border-green-100' },
+                                { title: 'PHOTO', icon: '📷', color: 'bg-blue-50 text-blue-600 border-blue-100' },
+                                { title: 'TASK', icon: '📋', color: 'bg-purple-50 text-purple-600 border-purple-100' },
+                            ].map((a, i) => (
+                                <button key={i} className={`p-4 rounded-2xl border flex flex-col items-center justify-center gap-2 hover:shadow-md transition-all ${a.color}`}>
+                                    <span className="text-2xl">{a.icon}</span>
+                                    <span className="text-[9px] font-black tracking-widest uppercase">{a.title}</span>
                                 </button>
                             ))}
                         </div>
                     </div>
 
-                    {/* Recent Activity */}
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                        <h2 className="text-lg font-bold text-gray-900 mb-4">Recent Activity</h2>
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                        <h2 className="text-[12px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Log Stream</h2>
                         <div className="space-y-4">
                             {recentActivities.map((activity) => (
-                                <div key={activity.id} className="flex gap-3 items-start">
-                                    <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-lg flex-shrink-0">
+                                <div key={activity.id} className="flex gap-4 items-start group">
+                                    <div className="w-8 h-8 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-lg flex-shrink-0 group-hover:bg-indigo-50 group-hover:border-indigo-100 transition-colors">
                                         {activity.icon}
                                     </div>
                                     <div className="min-w-0">
-                                        <p className="text-sm font-medium text-gray-900">{activity.message}</p>
-                                        <p className="text-xs text-gray-500 mt-0.5">{activity.time}</p>
+                                        <p className="text-xs font-bold text-gray-900 leading-tight">{activity.message}</p>
+                                        <p className="text-[10px] text-gray-400 font-medium italic mt-1">{activity.time}</p>
                                     </div>
                                 </div>
                             ))}
@@ -576,81 +554,44 @@ const DesktopHome = () => {
                 </div>
             </div>
 
-            {/* Add Task Modal */}
-            <Modal
-                isOpen={isTaskModalOpen}
-                onClose={() => setIsTaskModalOpen(false)}
-                title={`Add Task to ${selectedPhase?.name}`}
-            >
+            <Modal isOpen={isTaskModalOpen} onClose={() => setIsTaskModalOpen(false)} title={`Add Sub-Phase to ${selectedPhase?.name}`}>
                 <form onSubmit={handleAddTask} className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Task Title</label>
-                        <input
-                            type="text"
-                            value={newTaskTitle}
-                            onChange={(e) => setNewTaskTitle(e.target.value)}
-                            placeholder="e.g. Pour foundation concrete"
-                            className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border"
-                            autoFocus
-                        />
-                    </div>
-                    <div className="flex justify-end gap-3 mt-6">
-                        <button
-                            type="button"
-                            onClick={() => setIsTaskModalOpen(false)}
-                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={loading || !newTaskTitle.trim()}
-                            className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                        >
-                            {loading ? 'Adding...' : 'Add Task'}
+                    <input
+                        type="text"
+                        value={newTaskTitle}
+                        onChange={(e) => setNewTaskTitle(e.target.value)}
+                        placeholder="e.g. Ground Floor Slab Casting"
+                        className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none font-bold"
+                        autoFocus
+                    />
+                    <div className="flex justify-end gap-3">
+                        <button type="button" onClick={() => setIsTaskModalOpen(false)} className="px-6 py-2.5 text-xs font-black text-gray-400 uppercase tracking-widest">Cancel</button>
+                        <button type="submit" disabled={loading || !newTaskTitle.trim()} className="px-8 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-100">
+                            {loading ? 'Adding...' : 'Confirm Item'}
                         </button>
                     </div>
                 </form>
             </Modal>
 
-            {/* Add Permit Step Modal */}
-            <Modal
-                isOpen={isPermitModalOpen}
-                onClose={() => setIsPermitModalOpen(false)}
-                title="Add New Permit Step"
-            >
+            <Modal isOpen={isPermitModalOpen} onClose={() => setIsPermitModalOpen(false)} title="New Permit Step">
                 <form onSubmit={handleAddPermitStep} className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Step Title</label>
-                        <input
-                            type="text"
-                            value={newPermitTitle}
-                            onChange={(e) => setNewPermitTitle(e.target.value)}
-                            placeholder="e.g. Electrical Inspection"
-                            className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border"
-                            autoFocus
-                        />
-                    </div>
-                    <div className="flex justify-end gap-3 mt-6">
-                        <button
-                            type="button"
-                            onClick={() => setIsPermitModalOpen(false)}
-                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={loading || !newPermitTitle.trim()}
-                            className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                        >
-                            {loading ? 'Adding...' : 'Add Step'}
+                    <input
+                        type="text"
+                        value={newPermitTitle}
+                        onChange={(e) => setNewPermitTitle(e.target.value)}
+                        placeholder="e.g. Ward Clearance"
+                        className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-blue-500 p-3 border outline-none font-bold"
+                        autoFocus
+                    />
+                    <div className="flex justify-end gap-3">
+                        <button type="button" onClick={() => setIsPermitModalOpen(false)} className="px-6 py-2.5 text-xs font-black text-gray-400 uppercase tracking-widest">Cancel</button>
+                        <button type="submit" disabled={loading || !newPermitTitle.trim()} className="px-8 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-100">
+                            Create Step
                         </button>
                     </div>
                 </form>
             </Modal>
 
-            {/* Phase Detail Modal */}
             <PhaseDetailModal
                 isOpen={!!detailPhase}
                 onClose={() => setDetailPhase(null)}
