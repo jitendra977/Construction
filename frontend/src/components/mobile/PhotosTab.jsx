@@ -12,12 +12,11 @@ const PhotosTab = () => {
             try {
                 const response = await dashboardService.getGallery(groupBy);
                 // Prepend backend URL to relative paths
-                const backendUrl = 'http://localhost:8000';
                 const processedData = response.data.map(group => ({
                     ...group,
                     items: group.items.map(item => ({
                         ...item,
-                        url: item.url && item.url.startsWith('/') ? `${backendUrl}${item.url}` : item.url
+                        url: item.url || ''
                     }))
                 }));
                 setGroupedGallery(processedData);

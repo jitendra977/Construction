@@ -15,14 +15,12 @@ const DesktopPhotos = () => {
             try {
                 // Pass viewMode as group_by parameter to backend
                 const response = await dashboardService.getGallery(viewMode);
-                const backendUrl = 'http://localhost:8000';
-
                 // Process backend data directly
                 const processedData = response.data.map(group => ({
                     ...group,
                     items: group.items.map(item => ({
                         ...item,
-                        url: item.url ? (item.url.startsWith('http') ? item.url : `${backendUrl}${item.url}`) : '',
+                        url: item.url || '',
                         // Normalized fields
                         type: (item.media_type || 'IMAGE').toUpperCase()
                     }))

@@ -1,0 +1,6 @@
+#!/usr/bin/expect -f
+set timeout 10
+spawn ssh -o StrictHostKeyChecking=no jitendra@192.168.0.59 "cd ~/Construction && docker exec construction_frontend find /usr/share/nginx/html/media -type f"
+expect "password:"
+send "jitu9844\r"
+interact

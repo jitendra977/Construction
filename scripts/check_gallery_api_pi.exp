@@ -1,0 +1,6 @@
+#!/usr/bin/expect -f
+set timeout 10
+spawn ssh -o StrictHostKeyChecking=no jitendra@192.168.0.59 "curl -s http://localhost:8000/api/v1/gallery/"
+expect "password:"
+send "jitu9844\r"
+interact
