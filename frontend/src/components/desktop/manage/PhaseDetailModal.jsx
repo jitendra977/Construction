@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import Modal from '../../common/Modal';
-import { constructionService } from '../../../services/api';
+import { constructionService, getMediaUrl } from '../../../services/api';
 import { useConstruction } from '../../../context/ConstructionContext';
 
 const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
@@ -143,7 +143,7 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
                                     <div className="flex flex-col">
                                         <span className="text-xs font-black text-blue-900 uppercase">Blueprints (Naksa)</span>
                                         {phase.naksa_file ? (
-                                            <a href={phase.naksa_file} target="_blank" rel="noreferrer" className="text-[10px] text-blue-600 font-bold underline">View Blueprint</a>
+                                            <a href={getMediaUrl(phase.naksa_file)} target="_blank" rel="noreferrer" className="text-[10px] text-blue-600 font-bold underline">View Blueprint</a>
                                         ) : (
                                             <span className="text-[10px] text-blue-400 font-medium italic">Not Uploaded</span>
                                         )}
@@ -171,7 +171,7 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
                                     <div className="flex flex-col">
                                         <span className="text-xs font-black text-purple-900 uppercase">Structure Design</span>
                                         {phase.structure_design ? (
-                                            <a href={phase.structure_design} target="_blank" rel="noreferrer" className="text-[10px] text-purple-600 font-bold underline">View Design</a>
+                                            <a href={getMediaUrl(phase.structure_design)} target="_blank" rel="noreferrer" className="text-[10px] text-purple-600 font-bold underline">View Design</a>
                                         ) : (
                                             <span className="text-[10px] text-purple-400 font-medium italic">Not Uploaded</span>
                                         )}
@@ -389,7 +389,7 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
                                             onClick={() => phasePhotoRef.current.click()}
                                         >
                                             {phase.completion_photo ? (
-                                                <img src={phase.completion_photo} alt="Completion" className="w-full h-full object-cover" />
+                                                <img src={getMediaUrl(phase.completion_photo)} alt="Completion" className="w-full h-full object-cover" />
                                             ) : (
                                                 <>
                                                     <span className="text-2xl mb-1 group-hover:scale-110 transition-transform">📸</span>
@@ -446,7 +446,7 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
                                     <p className="text-xs text-gray-500 mt-1 font-medium italic">Project advanced on {new Date(phase.updated_at).toLocaleDateString()}</p>
                                     {phase.completion_photo && (
                                         <div className="mt-4 w-48 h-32 rounded-xl overflow-hidden shadow-md border-4 border-white rotate-2 hover:rotate-0 transition-transform">
-                                            <img src={phase.completion_photo} alt="Completion Proof" className="w-full h-full object-cover" />
+                                            <img src={getMediaUrl(phase.completion_photo)} alt="Completion Proof" className="w-full h-full object-cover" />
                                         </div>
                                     )}
                                 </div>
@@ -487,9 +487,9 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
                                         selectedTask.media.map((item) => (
                                             <div key={item.id} className="group relative rounded-xl overflow-hidden border border-gray-200 aspect-square shadow-sm hover:shadow-md transition-shadow bg-gray-50">
                                                 {item.media_type === 'VIDEO' ? (
-                                                    <video src={item.file} className="w-full h-full object-cover" controls />
+                                                    <video src={getMediaUrl(item.file)} className="w-full h-full object-cover" controls />
                                                 ) : (
-                                                    <img src={item.file} alt="Construction update" className="w-full h-full object-cover transform hover:scale-105 transition-transform duration-500" />
+                                                    <img src={getMediaUrl(item.file)} alt="Construction update" className="w-full h-full object-cover transform hover:scale-105 transition-transform duration-500" />
                                                 )}
 
                                                 <button

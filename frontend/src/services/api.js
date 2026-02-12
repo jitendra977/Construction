@@ -262,4 +262,18 @@ export const permitService = {
     deleteDocument: (id) => api.delete(`/permits/documents/${id}/`),
 };
 
+/**
+ * Helper to get the full URL for media files.
+ * In dev, prepends the backend server URL.
+ * In prod, keeps it relative since Nginx handles it.
+ */
+export const getMediaUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+
+    // API_URL might be "http://localhost:8000/api/v1" or just "/api/v1"
+    const base = API_URL.replace('/api/v1', '').replace(/\/$/, '');
+    return `${base}${url}`;
+};
+
 export default api;

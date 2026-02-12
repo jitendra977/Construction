@@ -1,0 +1,10 @@
+#!/usr/bin/expect -f
+set timeout 60
+spawn ssh -o StrictHostKeyChecking=no jitendra@192.168.0.59 "cd ~/Construction && sudo chown -R \$USER:\$USER . && sudo chmod -R 755 . && sudo find ./backend/media -type f -exec chmod 644 {} + && sudo find ./backend/media -type d -exec chmod 755 {} +"
+expect "password:"
+send "jitu9844\r"
+expect "password for jitendra:" {
+    send "jitu9844\r"
+}
+expect eof
+puts "\n✅ Permissions fixed on Raspberry Pi!"

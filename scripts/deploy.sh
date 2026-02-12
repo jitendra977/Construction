@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Deployment script for Illustration System
+# Deployment script for Construction System
 # This script pushes local changes to GitHub and triggers a deployment on the VPS.
 
 set -e
@@ -11,7 +11,7 @@ set -e
 # VPS SSH Details (Must be provided via environment variables)
 VPS_USER="${VPS_USER:-nishanaweb}"
 VPS_HOST="${VPS_HOST:-nishanaweb.cloud}"
-REMOTE_PROJECT_DIR="${REMOTE_PROJECT_DIR:-/home/nishanaweb/project/Illustration}"
+REMOTE_PROJECT_DIR="${REMOTE_PROJECT_DIR:-/home/nishanaweb/project/Construction}"
 BRANCH="deploy-server"                # The branch to deploy
 
 # ==========================================

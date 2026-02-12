@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { permitService } from '../../../services/api';
+import { permitService, getMediaUrl } from '../../../services/api';
 
 const DocumentVault = ({ onUpdate }) => {
     const [documents, setDocuments] = useState([]);
@@ -85,7 +85,7 @@ const DocumentVault = ({ onUpdate }) => {
                             {doc.file.endsWith('.pdf') ? (
                                 <span className="text-4xl">📄</span>
                             ) : (
-                                <img src={doc.file} alt={doc.title} className="w-full h-full object-cover" />
+                                <img src={getMediaUrl(doc.file)} alt={doc.title} className="w-full h-full object-cover" />
                             )}
                         </div>
                         <h4 className="font-medium text-gray-900 truncate" title={doc.title}>{doc.title}</h4>

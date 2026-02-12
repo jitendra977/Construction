@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Modal from '../common/Modal';
 import PhaseDetailModal from './manage/PhaseDetailModal';
-import { constructionService, permitService } from '../../services/api';
+import { constructionService, permitService, getMediaUrl } from '../../services/api';
 import { useConstruction } from '../../context/ConstructionContext';
 
 const DesktopHome = () => {
@@ -390,7 +390,7 @@ const DesktopHome = () => {
                                                         <div className="flex -space-x-2 overflow-hidden py-1">
                                                             {phase.completion_photo && (
                                                                 <img
-                                                                    src={phase.completion_photo}
+                                                                    src={getMediaUrl(phase.completion_photo)}
                                                                     alt="Completion"
                                                                     className="inline-block h-8 w-8 rounded-full ring-2 ring-white object-cover cursor-pointer hover:scale-110 transition-transform"
                                                                     title="Completion Photo"

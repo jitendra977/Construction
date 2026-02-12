@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { dashboardService } from '../../services/api';
+import { dashboardService, getMediaUrl } from '../../services/api';
 import { useConstruction } from '../../context/ConstructionContext';
 
 const DesktopPhotos = () => {
@@ -20,7 +20,7 @@ const DesktopPhotos = () => {
                     ...group,
                     items: group.items.map(item => ({
                         ...item,
-                        url: item.url || '',
+                        url: getMediaUrl(item.url),
                         // Normalized fields
                         type: (item.media_type || 'IMAGE').toUpperCase()
                     }))

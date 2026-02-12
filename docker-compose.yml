@@ -1,18 +1,6 @@
 version: '3.8'
 
 services:
-  db:
-    image: postgres:15-alpine
-    container_name: construction_db
-    volumes:
-      - postgres_data:/var/lib/postgresql/data/
-    environment:
-      - POSTGRES_DB=construction_db
-      - POSTGRES_USER=construction_user
-      - POSTGRES_PASSWORD=construction_password
-    networks:
-      - construction_network
-
   backend:
     build:
       context: ./backend
@@ -24,10 +12,10 @@ services:
       - "8000:8000"
     env_file:
       - ./backend/.env
-    depends_on:
-      - db
+    # db is external (mysql_db) on 'app-network'
     networks:
       - construction_network
+      - app_network
 
   frontend:
     build:
@@ -37,16 +25,19 @@ services:
     volumes:
       - media_data:/usr/share/nginx/html/media
     ports:
-      - "80:80"
+      - "8080:80" # Changed to 8080 to avoid conflict with Proxy Manager on port 80
     depends_on:
       - backend
     networks:
       - construction_network
+      - app_network
 
 networks:
   construction_network:
     driver: bridge
+  app_network:
+    external: true
+    name: app-network
 
 volumes:
-  postgres_data:
   media_data:

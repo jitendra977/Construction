@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { dashboardService } from '../../services/api';
+import { dashboardService, getMediaUrl } from '../../services/api';
 
 const PhotosTab = () => {
     const [groupedGallery, setGroupedGallery] = useState([]);
@@ -16,7 +16,7 @@ const PhotosTab = () => {
                     ...group,
                     items: group.items.map(item => ({
                         ...item,
-                        url: item.url || ''
+                        url: getMediaUrl(item.url)
                     }))
                 }));
                 setGroupedGallery(processedData);
