@@ -10,6 +10,9 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     postgresql-client \
+    default-libmysqlclient-dev \
+    build-essential \
+    pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
