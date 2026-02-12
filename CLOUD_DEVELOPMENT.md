@@ -35,7 +35,7 @@ Since all your containers (Backend, Frontend, and NPM) make sure they are on the
 #### 🅱️ Host 2: Backend (The API)
 *   **Domain**: `api.construction.nishanaweb.cloud`
 *   **Forward Hostname / IP**: `construction_backend` (Container Name)
-*   **Forward Port**: `8000`
+*   **Forward Port**: `8000` (Internal Container Port) - *Note: Host port is 8001, but inside the network we use 8000*
 *   **SSL**: Force SSL, HTTP/2.
 
 #### 🖼️ CRITICAL: Serve Media via Proxy Manager

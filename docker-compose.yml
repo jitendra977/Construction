@@ -9,7 +9,7 @@ services:
     volumes:
       - media_data:/app/media
     ports:
-      - "8000:8000"
+      - "8001:8000" # Changed to 8001 to avoid conflict with existing services
     env_file:
       - ./backend/.env
     # db is external (mysql_db) on 'app-network'
