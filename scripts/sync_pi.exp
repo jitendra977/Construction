@@ -1,0 +1,6 @@
+#!/usr/bin/expect -f
+set timeout 300
+spawn rsync -avz --exclude "node_modules" --exclude "venv" --exclude ".git" --exclude "db.sqlite3" --exclude "__pycache__" --exclude ".next" --exclude "dist" --exclude "scripts/*.exp" . jitendra@192.168.0.59:~/Construction/
+expect "password:"
+send "jitu9844\r"
+expect eof

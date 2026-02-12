@@ -1,15 +1,31 @@
 version: '3.8'
 
 services:
+  db:
+    image: postgres:15-alpine
+    container_name: construction_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_DB=construction_db
+      - POSTGRES_USER=construction_user
+      - POSTGRES_PASSWORD=construction_password
+    networks:
+      - construction_network
+
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: construction_backend
+    volumes:
+      - media_data:/app/media
     ports:
       - "8000:8000"
     env_file:
       - ./backend/.env
+    depends_on:
+      - db
     networks:
       - construction_network
 
@@ -28,3 +44,7 @@ services:
 networks:
   construction_network:
     driver: bridge
+
+volumes:
+  postgres_data:
+  media_data:

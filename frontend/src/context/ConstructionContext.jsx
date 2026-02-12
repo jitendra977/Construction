@@ -9,6 +9,7 @@ const ConstructionContext = createContext(null);
 export const ConstructionProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
     const [dashboardData, setDashboardData] = useState({
         project: null,
         rooms: [],
@@ -250,6 +251,9 @@ export const ConstructionProvider = ({ children }) => {
         updatePhaseStatus,
         updateTaskStatus,
         updatePermitStatus,
+        isCalculatorOpen,
+        setIsCalculatorOpen: (val) => setIsCalculatorOpen(val),
+        toggleCalculator: () => setIsCalculatorOpen(prev => !prev),
     };
 
     return (

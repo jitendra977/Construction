@@ -6,17 +6,17 @@ const ConcreteCalculator = () => {
         length: '',
         width: '',
         thickness: '',
-        grade: 'M20'
+        grade: 'M20',
+        structure_type: 'SLAB',
+        include_rebar: true
     });
     const [result, setResult] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
     const handleChange = (e) => {
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value
-        });
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        setFormData({ ...formData, [e.target.name]: value });
     };
 
     const handleCalculate = async (e) => {
@@ -28,105 +28,168 @@ const ConcreteCalculator = () => {
             setResult(response.data);
         } catch (err) {
             setError("Failed to calculate. Please check inputs.");
-            console.error(err);
         } finally {
             setLoading(false);
         }
     };
 
-    return (
-        <div className="bg-white p-4 rounded-lg shadow mb-4">
-            <h3 className="text-lg font-bold mb-4 text-gray-800">Concrete (Dhalan) Estimator</h3>
+    const structureIcons = {
+        'SLAB': '🏢',
+        'BEAM': '📏',
+        'COLUMN': '🏛️',
+        'FOOTING': '🧱'
+    };
 
-            <form onSubmit={handleCalculate} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+    return (
+        <div className="space-y-6 animate-in fade-in duration-500">
+            <div className="flex items-center gap-4 mb-2">
+                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl">🏗️</div>
+                <div>
+                    <h3 className="text-xl font-black text-gray-900 tracking-tight">Concrete & Rebar</h3>
+                    <p className="text-sm text-gray-500 font-medium">Calculate Dhalan materials for Slabs, Beams, and Columns</p>
+                </div>
+            </div>
+
+            <form onSubmit={handleCalculate} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">Length (ft)</label>
-                        <input
-                            type="number"
-                            name="length"
-                            value={formData.length}
-                            onChange={handleChange}
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
-                            required
-                        />
+                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Length</label>
+                        <div className="relative">
+                            <input
+                                type="number"
+                                name="length"
+                                value={formData.length}
+                                onChange={handleChange}
+                                placeholder="Feet"
+                                className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-emerald-500 focus:bg-white outline-none transition-all font-bold text-gray-800"
+                                required
+                            />
+                            <span className="absolute right-4 top-3.5 text-gray-400 text-sm font-bold">FT</span>
+                        </div>
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">Width (ft)</label>
-                        <input
-                            type="number"
-                            name="width"
-                            value={formData.width}
-                            onChange={handleChange}
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
-                            required
-                        />
+                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Width/Width</label>
+                        <div className="relative">
+                            <input
+                                type="number"
+                                name="width"
+                                value={formData.width}
+                                onChange={handleChange}
+                                placeholder="Feet"
+                                className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-emerald-500 focus:bg-white outline-none transition-all font-bold text-gray-800"
+                                required
+                            />
+                            <span className="absolute right-4 top-3.5 text-gray-400 text-sm font-bold">FT</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Thickness</label>
+                        <div className="relative">
+                            <input
+                                type="number"
+                                name="thickness"
+                                value={formData.thickness}
+                                onChange={handleChange}
+                                placeholder="Inches"
+                                className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-emerald-500 focus:bg-white outline-none transition-all font-bold text-gray-800"
+                                required
+                            />
+                            <span className="absolute right-4 top-3.5 text-gray-400 text-sm font-bold">IN</span>
+                        </div>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">Thickness (inch)</label>
-                        <input
-                            type="number"
-                            name="thickness"
-                            value={formData.thickness}
+                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Structure Type</label>
+                        <select
+                            name="structure_type"
+                            value={formData.structure_type}
                             onChange={handleChange}
-                            placeholder="e.g. 5 or 6"
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
-                            required
-                        />
+                            className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-emerald-500 focus:bg-white outline-none transition-all font-bold text-gray-800 appearance-none"
+                        >
+                            <option value="SLAB">Slab (Dhalan)</option>
+                            <option value="BEAM">Beam (Beam)</option>
+                            <option value="COLUMN">Column (Khamba)</option>
+                            <option value="FOOTING">Footing (Foundations)</option>
+                        </select>
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">Grade</label>
+                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Concrete Grade</label>
                         <select
                             name="grade"
                             value={formData.grade}
                             onChange={handleChange}
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
+                            className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-emerald-500 focus:bg-white outline-none transition-all font-bold text-gray-800 appearance-none"
                         >
-                            <option value="M20">M20 (1:1.5:3) - Standard Slab</option>
-                            <option value="M15">M15 (1:2:4) - PCC/Flooring</option>
-                            <option value="M10">M10 (1:3:6) - Rough Base</option>
+                            <option value="M20">M20 (1:1.5:3) - Standard House</option>
+                            <option value="M15">M15 (1:2:4) - Base PCC</option>
+                            <option value="M25">M25 (1:1:2) - Heavy Structure</option>
                         </select>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-3 p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+                    <input
+                        type="checkbox"
+                        name="include_rebar"
+                        checked={formData.include_rebar}
+                        onChange={handleChange}
+                        className="w-5 h-5 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                    />
+                    <div>
+                        <label className="text-sm font-black text-emerald-900 uppercase tracking-wider">Include Rebar (Rod) Estimation</label>
+                        <p className="text-[10px] text-emerald-600 font-bold">Automatically calculates approximate KG based on standard reinforcement ratios.</p>
                     </div>
                 </div>
 
                 <button
                     type="submit"
                     disabled={loading}
-                    className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400"
+                    className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-200 active:scale-[0.98] disabled:bg-gray-300 disabled:shadow-none"
                 >
-                    {loading ? 'Calculating...' : 'Calculate'}
+                    {loading ? 'Processing Physics...' : 'Calculate Concrete & Steel'}
                 </button>
             </form>
 
-            {error && <p className="text-red-500 mt-2 text-sm">{error}</p>}
-
             {result && (
-                <div className="mt-6 bg-gray-50 p-4 rounded-lg border border-gray-200">
-                    <h4 className="font-semibold text-gray-900 mb-2">Estimated Materials:</h4>
-                    <p className="text-sm text-gray-500 mb-2">Total Volume: {result.volume_m3} m³ ({result.slab_area_sqft} sq.ft area)</p>
+                <div className="mt-10 p-8 border-2 border-blue-500/20 rounded-[32px] bg-blue-50/10 animate-in slide-in-from-bottom-6 duration-700">
+                    <div className="flex justify-between items-center mb-8">
+                        <h4 className="text-sm font-black text-blue-900 uppercase tracking-[0.2em]">Material Breakdown</h4>
+                        <div className="px-4 py-1.5 bg-white rounded-full border border-blue-100 shadow-sm text-[10px] font-black text-blue-600 uppercase tracking-widest">
+                            {formData.structure_type} | {result.volume_m3} m³
+                        </div>
+                    </div>
 
-                    <div className="grid grid-cols-1 gap-3">
-                        <div className="bg-white p-3 rounded shadow-sm flex justify-between items-center">
-                            <span className="text-gray-600">Cement</span>
-                            <span className="text-lg font-bold text-gray-800">{result.cement_bags} <span className="text-sm font-normal">bags</span></span>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center">
+                            <span className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Cement</span>
+                            <span className="text-2xl font-black text-gray-900">{result.cement_bags}</span>
+                            <span className="text-[10px] font-bold text-gray-400">Bags</span>
                         </div>
-                        <div className="bg-white p-3 rounded shadow-sm flex justify-between items-center">
-                            <span className="text-gray-600">Sand</span>
-                            <div className="text-right">
-                                <span className="block text-lg font-bold text-yellow-600">{result.sand_cft} Cft</span>
-                                <span className="block text-xs text-gray-400">{result.sand_m3} m³</span>
-                            </div>
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center text-amber-600">
+                            <span className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Sand</span>
+                            <span className="text-2xl font-black">{result.sand_cft}</span>
+                            <span className="text-[10px] font-bold text-gray-400">Cft</span>
                         </div>
-                        <div className="bg-white p-3 rounded shadow-sm flex justify-between items-center">
-                            <span className="text-gray-600">Aggregate (Gitti)</span>
-                            <div className="text-right">
-                                <span className="block text-lg font-bold text-gray-700">{result.aggregate_cft} Cft</span>
-                                <span className="block text-xs text-gray-400">{result.aggregate_m3} m³</span>
-                            </div>
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center text-slate-700">
+                            <span className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Gitti</span>
+                            <span className="text-2xl font-black">{result.aggregate_cft}</span>
+                            <span className="text-[10px] font-bold text-gray-400">Cft</span>
                         </div>
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-blue-500/30 flex flex-col items-center text-blue-700 scale-105 shadow-md">
+                            <span className="text-xs font-black text-blue-400 uppercase tracking-widest mb-1">Steel Rod</span>
+                            <span className="text-2xl font-black">{result.rebar_kg}</span>
+                            <span className="text-[10px] font-bold text-blue-400">KG</span>
+                        </div>
+                    </div>
+
+                    <div className="mt-8 flex items-center justify-between px-4">
+                        <div className="flex items-center gap-2">
+                            <span className="w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-gray-100 shadow-sm">{structureIcons[formData.structure_type]}</span>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Area: {result.area_sqft} sq.ft</p>
+                        </div>
+                        <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-blue-100">Mix: {formData.grade}</p>
                     </div>
                 </div>
             )}

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8000/api/v1';
+const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
 const getAuthHeader = () => {
     const accessToken = localStorage.getItem('access_token');
@@ -234,6 +234,11 @@ export const constructionService = {
 export const calculatorService = {
     calculateWall: (data) => api.post('/estimator/wall/', data),
     calculateConcrete: (data) => api.post('/estimator/concrete/', data),
+    calculatePlaster: (data) => api.post('/estimator/plaster/', data),
+    calculateFlooring: (data) => api.post('/estimator/flooring/', data),
+    calculateBudget: (data) => api.post('/estimator/budget/', data),
+    getRates: () => api.get('/estimator/rates/'),
+    updateRate: (id, data) => api.patch(`/estimator/rates/${id}/`, data),
 };
 
 export const permitService = {

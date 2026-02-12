@@ -13,10 +13,7 @@ const BrickCalculator = () => {
     const [error, setError] = useState(null);
 
     const handleChange = (e) => {
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value
-        });
+        setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
     const handleCalculate = async (e) => {
@@ -28,66 +25,79 @@ const BrickCalculator = () => {
             setResult(response.data);
         } catch (err) {
             setError("Failed to calculate. Please check inputs.");
-            console.error(err);
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="bg-white p-4 rounded-lg shadow mb-4">
-            <h3 className="text-lg font-bold mb-4 text-gray-800">Brick Wall Estimator</h3>
+        <div className="space-y-6 animate-in fade-in duration-500">
+            <div className="flex items-center gap-4 mb-2">
+                <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center text-2xl">🧱</div>
+                <div>
+                    <h3 className="text-xl font-black text-gray-900 tracking-tight">Wall & Brickwork</h3>
+                    <p className="text-sm text-gray-500 font-medium">Calculate bricks, cement, and sand for masonry (Garo)</p>
+                </div>
+            </div>
 
-            <form onSubmit={handleCalculate} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+            <form onSubmit={handleCalculate} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">Length (ft)</label>
-                        <input
-                            type="number"
-                            name="length"
-                            value={formData.length}
-                            onChange={handleChange}
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
-                            required
-                        />
+                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Wall Length</label>
+                        <div className="relative">
+                            <input
+                                type="number"
+                                name="length"
+                                value={formData.length}
+                                onChange={handleChange}
+                                placeholder="Total Length"
+                                className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-emerald-500 focus:bg-white outline-none transition-all font-bold text-gray-800"
+                                required
+                            />
+                            <span className="absolute right-4 top-3.5 text-gray-400 text-sm font-bold">FT</span>
+                        </div>
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">Height (ft)</label>
-                        <input
-                            type="number"
-                            name="height"
-                            value={formData.height}
-                            onChange={handleChange}
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
-                            required
-                        />
+                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Wall Height</label>
+                        <div className="relative">
+                            <input
+                                type="number"
+                                name="height"
+                                value={formData.height}
+                                onChange={handleChange}
+                                placeholder="Total Height"
+                                className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-emerald-500 focus:bg-white outline-none transition-all font-bold text-gray-800"
+                                required
+                            />
+                            <span className="absolute right-4 top-3.5 text-gray-400 text-sm font-bold">FT</span>
+                        </div>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">Thickness</label>
+                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Wall Thickness</label>
                         <select
                             name="thickness"
                             value={formData.thickness}
                             onChange={handleChange}
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
+                            className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-emerald-500 focus:bg-white outline-none transition-all font-bold text-gray-800 appearance-none"
                         >
-                            <option value="9_INCH">9 inch (External)</option>
-                            <option value="4_INCH">4.5 inch (Partition)</option>
+                            <option value="9_INCH">9 inch (External Wall)</option>
+                            <option value="4_INCH">4.5 inch (Partition Wall)</option>
                         </select>
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">Mortar Ratio</label>
+                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Cement:Sand Ratio</label>
                         <select
                             name="ratio"
                             value={formData.ratio}
                             onChange={handleChange}
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
+                            className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-emerald-500 focus:bg-white outline-none transition-all font-bold text-gray-800 appearance-none"
                         >
-                            <option value="1:6">1:6 (Strong)</option>
-                            <option value="1:5">1:5</option>
-                            <option value="1:4">1:4 (Very Strong)</option>
+                            <option value="1:6">1:6 (Standard)</option>
+                            <option value="1:5">1:5 (Medium)</option>
+                            <option value="1:4">1:4 (Strong)</option>
                         </select>
                     </div>
                 </div>
@@ -95,35 +105,46 @@ const BrickCalculator = () => {
                 <button
                     type="submit"
                     disabled={loading}
-                    className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400"
+                    className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-200 active:scale-[0.98] disabled:bg-gray-300 disabled:shadow-none"
                 >
-                    {loading ? 'Calculating...' : 'Calculate'}
+                    {loading ? 'Processing...' : 'Calculate Materials'}
                 </button>
             </form>
 
-            {error && <p className="text-red-500 mt-2 text-sm">{error}</p>}
+            {error && (
+                <div className="p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl text-sm font-bold animate-shake">
+                    ⚠️ {error}
+                </div>
+            )}
 
             {result && (
-                <div className="mt-6 bg-gray-50 p-4 rounded-lg border border-gray-200">
-                    <h4 className="font-semibold text-gray-900 mb-2">Estimated Materials:</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-white p-3 rounded shadow-sm">
-                            <p className="text-xs text-gray-500">Bricks</p>
-                            <p className="text-xl font-bold text-red-600">{result.bricks} <span className="text-sm font-normal text-gray-600">pcs</span></p>
+                <div className="mt-10 p-8 border-2 border-emerald-500/20 rounded-[32px] bg-emerald-50/10 animate-in slide-in-from-bottom-6 duration-700">
+                    <h4 className="text-sm font-black text-emerald-900 uppercase tracking-[0.2em] mb-6 text-center">Estimation Result</h4>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center group hover:border-red-200 transition-colors">
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Bricks (Eeta)</p>
+                            <p className="text-3xl font-black text-red-600 tracking-tighter">{result.bricks.toLocaleString()}</p>
+                            <p className="text-xs font-bold text-gray-400 mt-1">Pieces</p>
                         </div>
-                        <div className="bg-white p-3 rounded shadow-sm">
-                            <p className="text-xs text-gray-500">Cement</p>
-                            <p className="text-xl font-bold text-gray-800">{result.cement_bags} <span className="text-sm font-normal text-gray-600">bags</span></p>
+
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center group hover:border-emerald-200 transition-colors">
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Cement (Jhula)</p>
+                            <p className="text-3xl font-black text-gray-900 tracking-tighter">{result.cement_bags}</p>
+                            <p className="text-xs font-bold text-gray-400 mt-1">Bags (50kg)</p>
                         </div>
-                        <div className="bg-white p-3 rounded shadow-sm col-span-2">
-                            <p className="text-xs text-gray-500">Sand</p>
-                            <div className="flex justify-between items-baseline">
-                                <p className="text-xl font-bold text-yellow-600">{result.sand_cft} <span className="text-sm font-normal text-gray-600">Cft</span></p>
-                                <p className="text-sm text-gray-500">({result.sand_m3} m³)</p>
-                            </div>
+
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center group hover:border-amber-200 transition-colors">
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Sand (Baluwa)</p>
+                            <p className="text-3xl font-black text-amber-600 tracking-tighter">{result.sand_cft}</p>
+                            <p className="text-xs font-bold text-gray-400 mt-1">Cubic Feet (Cft)</p>
                         </div>
                     </div>
-                    <p className="mt-2 text-xs text-gray-400 text-center">Based on standard Nepali brick size (230x110x55mm) with 10mm mortar.</p>
+
+                    <div className="mt-6 flex items-center justify-between px-4">
+                        <p className="text-[10px] font-bold text-gray-400">Wall Area: {result.wall_area_sqft} sq.ft</p>
+                        <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Standards: NS 2.30m x 1.10m Brick</p>
+                    </div>
                 </div>
             )}
         </div>

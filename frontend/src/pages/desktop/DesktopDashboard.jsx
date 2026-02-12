@@ -4,6 +4,8 @@ import { useConstruction } from '../../context/ConstructionContext';
 
 // Desktop Components
 import DesktopSidebar from '../../components/desktop/DesktopSidebar';
+import StandardCalculator from '../../components/common/StandardCalculator';
+import { Calculator } from 'lucide-react';
 
 function DesktopDashboard() {
     const navigate = useNavigate();
@@ -11,6 +13,9 @@ function DesktopDashboard() {
     const {
         user,
         loading,
+        isCalculatorOpen,
+        toggleCalculator,
+        setIsCalculatorOpen
     } = useConstruction();
 
     const handleLogout = async () => {
@@ -47,6 +52,34 @@ function DesktopDashboard() {
                     <Outlet />
                 </div>
             </main>
+
+            {/* Global Calculator Toggle Button */}
+            <button
+                onClick={toggleCalculator}
+                className={`fixed bottom-8 right-8 w-16 h-16 rounded-3xl flex items-center justify-center shadow-2xl transition-all duration-500 z-[100] group ${isCalculatorOpen
+                    ? 'bg-red-500 text-white rotate-45 hover:bg-red-600 scale-90'
+                    : 'bg-emerald-600 text-white hover:bg-emerald-700 hover:scale-110 hover:shadow-emerald-500/30'
+                    }`}
+            >
+                <Calculator size={28} className={isCalculatorOpen ? '' : 'group-hover:rotate-12 transition-transform'} />
+                {!isCalculatorOpen && (
+                    <span className="absolute right-full mr-4 px-4 py-2 bg-gray-900 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl opacity-0 group-hover:opacity-100 transition-all whitespace-nowrap pointer-events-none shadow-xl">
+                        Open Utility Hub
+                    </span>
+                )}
+            </button>
+
+            {/* Global Calculator Drawer */}
+            <div
+                className={`fixed top-[10%] right-8 bottom-[10%] w-[340px] z-[9999] transform transition-all duration-700 cubic-bezier(0.4, 0, 0.2, 1) ${isCalculatorOpen ? 'translate-x-0 opacity-100 scale-100' : 'translate-x-[calc(100%+64px)] opacity-0 scale-95'
+                    }`}
+            >
+                {isCalculatorOpen && (
+                    <div className="h-full shadow-[0_32px_80px_rgba(0,0,0,0.15)] rounded-[32px] overflow-hidden border border-white/20">
+                        <StandardCalculator onClose={() => setIsCalculatorOpen(false)} />
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
