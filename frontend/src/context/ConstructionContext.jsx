@@ -42,7 +42,9 @@ export const ConstructionProvider = ({ children }) => {
     useEffect(() => {
         const currentUser = authService.getCurrentUser();
         setUser(currentUser);
-        fetchData();
+        if (currentUser) {
+            fetchData();
+        }
     }, [fetchData]);
 
     // Currency formatter

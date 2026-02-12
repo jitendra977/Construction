@@ -54,7 +54,11 @@ api.interceptors.response.use(
                 localStorage.removeItem('access_token');
                 localStorage.removeItem('refresh_token');
                 localStorage.removeItem('user');
-                window.location.href = '/login?expired=true';
+
+                // Only redirect if not already on login
+                if (!window.location.pathname.startsWith('/login')) {
+                    window.location.href = '/login?expired=true';
+                }
                 return Promise.reject(refreshError);
             }
         }
