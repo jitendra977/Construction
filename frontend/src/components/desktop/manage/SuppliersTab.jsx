@@ -105,6 +105,14 @@ const SuppliersTab = ({ searchQuery = '' }) => {
                                             </svg>
                                             {s.phone}
                                         </div>
+                                        {s.email && (
+                                            <div className="text-gray-600 text-xs flex items-center gap-1 mt-1">
+                                                <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                                </svg>
+                                                {s.email}
+                                            </div>
+                                        )}
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 text-right space-x-3">
@@ -214,6 +222,29 @@ const SuppliersTab = ({ searchQuery = '' }) => {
                                 onChange={e => setFormData({ ...formData, phone: e.target.value })}
                                 className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none"
                                 required
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-1">Email Address</label>
+                            <input
+                                type="email"
+                                value={formData.email || ''}
+                                onChange={e => setFormData({ ...formData, email: e.target.value })}
+                                className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none"
+                                placeholder="supplier@example.com"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-1">Branch Location</label>
+                            <input
+                                type="text"
+                                value={formData.branch || ''}
+                                onChange={e => setFormData({ ...formData, branch: e.target.value })}
+                                className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none"
+                                placeholder="Main Branch"
                             />
                         </div>
                     </div>
