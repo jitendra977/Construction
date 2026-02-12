@@ -41,95 +41,96 @@ const PermitPage = () => {
     ];
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-            {/* Header Section */}
-            <div className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 shadow-xl">
-                <div className="max-w-7xl mx-auto px-6 py-8">
-                    <div className="flex items-center justify-between">
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 font-sans">
+            {/* Emerald Gradient Header (Dashboard Theme) */}
+            <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 shadow-xl pb-16 pt-8 px-6 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                    <span className="text-9xl">🏛️</span>
+                </div>
+
+                <div className="max-w-7xl mx-auto relative z-10">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
                         <div>
-                            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                                <span className="text-4xl">🏛️</span>
-                                Municipal Permits & Legal Documents
+                            <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-3">
+                                🏛️ Municipal Permits
                             </h1>
-                            <p className="text-indigo-100 mt-2 text-lg">
+                            <p className="text-emerald-100 mt-1 text-sm md:text-base font-medium opacity-90">
                                 Tulsipur Sub-Metropolitan City - Naksha Pass Management
                             </p>
                         </div>
-                        <div className="hidden md:flex items-center gap-3 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg border border-white/20">
-                            <svg className="w-5 h-5 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span className="text-white font-semibold">System Active</span>
-                        </div>
-                    </div>
 
-                    {/* Statistics Cards */}
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6">
-                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-                            <div className="text-white/70 text-xs font-semibold uppercase tracking-wide">Total Steps</div>
-                            <div className="text-3xl font-bold text-white mt-1">{stats.total}</div>
-                        </div>
-                        <div className="bg-green-500/20 backdrop-blur-sm rounded-xl p-4 border border-green-400/30">
-                            <div className="text-green-100 text-xs font-semibold uppercase tracking-wide">Approved</div>
-                            <div className="text-3xl font-bold text-green-50 mt-1">{stats.approved}</div>
-                        </div>
-                        <div className="bg-blue-500/20 backdrop-blur-sm rounded-xl p-4 border border-blue-400/30">
-                            <div className="text-blue-100 text-xs font-semibold uppercase tracking-wide">In Progress</div>
-                            <div className="text-3xl font-bold text-blue-50 mt-1">{stats.inProgress}</div>
-                        </div>
-                        <div className="bg-yellow-500/20 backdrop-blur-sm rounded-xl p-4 border border-yellow-400/30">
-                            <div className="text-yellow-100 text-xs font-semibold uppercase tracking-wide">Pending</div>
-                            <div className="text-3xl font-bold text-yellow-50 mt-1">{stats.pending}</div>
-                        </div>
-                        <div className="bg-purple-500/20 backdrop-blur-sm rounded-xl p-4 border border-purple-400/30">
-                            <div className="text-purple-100 text-xs font-semibold uppercase tracking-wide">Documents</div>
-                            <div className="text-3xl font-bold text-purple-50 mt-1">{stats.documents}</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Tabs Navigation */}
-            <div className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-10">
-                <div className="max-w-7xl mx-auto px-6">
-                    <div className="flex gap-1">
-                        {tabs.map((tab) => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={`px-6 py-4 font-semibold text-sm transition-all relative ${activeTab === tab.id
-                                        ? 'text-indigo-600 bg-indigo-50'
-                                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                                    }`}
-                            >
-                                <span className="flex items-center gap-2">
+                        {/* Tab Navigation (Glassmorphism) - Floating Design */}
+                        <div className="flex bg-white/10 backdrop-blur-md p-1.5 rounded-xl border border-white/20 shadow-lg">
+                            {tabs.map((tab) => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-bold uppercase tracking-wider transition-all duration-300 ${activeTab === tab.id
+                                        ? 'bg-white text-emerald-900 shadow-md transform scale-100'
+                                        : 'text-white/70 hover:text-white hover:bg-white/10'
+                                        }`}
+                                >
                                     <span className="text-lg">{tab.icon}</span>
-                                    {tab.label}
-                                </span>
-                                {activeTab === tab.id && (
-                                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-indigo-600 rounded-t-full"></div>
-                                )}
-                            </button>
-                        ))}
+                                    <span className="hidden sm:inline">{tab.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Local Stats Grid (Matching Dashboard Aesthetic) */}
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20">
+                            <div className="text-emerald-100 text-[10px] font-bold uppercase tracking-wider opacity-80">Total Steps</div>
+                            <div className="text-xl font-bold text-white mt-0.5">{stats.total}</div>
+                        </div>
+                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20">
+                            <div className="text-emerald-100 text-[10px] font-bold uppercase tracking-wider opacity-80">Approved</div>
+                            <div className="text-xl font-bold text-white mt-0.5 flex justify-between items-center text-emerald-300">
+                                {stats.approved}
+                                <span className="text-sm">✓</span>
+                            </div>
+                        </div>
+                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20">
+                            <div className="text-emerald-100 text-[10px] font-bold uppercase tracking-wider opacity-80">In Progress</div>
+                            <div className="text-xl font-bold text-white mt-0.5 flex justify-between items-center text-blue-300">
+                                {stats.inProgress}
+                                <span className="text-sm animate-pulse">●</span>
+                            </div>
+                        </div>
+                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20">
+                            <div className="text-emerald-100 text-[10px] font-bold uppercase tracking-wider opacity-80">Pending</div>
+                            <div className="text-xl font-bold text-white mt-0.5 flex justify-between items-center text-yellow-300">
+                                {stats.pending}
+                                <span className="text-sm">⏳</span>
+                            </div>
+                        </div>
+                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20">
+                            <div className="text-emerald-100 text-[10px] font-bold uppercase tracking-wider opacity-80">Documents</div>
+                            <div className="text-xl font-bold text-white mt-0.5 flex justify-between items-center">
+                                {stats.documents}
+                                <span className="text-sm">📁</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* Main Content Area */}
-            <div className="max-w-7xl mx-auto px-6 py-8">
+            {/* Main Content Area - Overlapping for modern look */}
+            <div className="max-w-7xl mx-auto px-6 -mt-6 pb-8 relative z-20">
                 {activeTab === 'tracker' && (
-                    <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
-                        <div className="flex items-center justify-between mb-6">
+                    <div className="bg-white rounded-2xl shadow-xl border border-gray-200/50 p-6">
+                        <div className="flex items-center justify-between mb-8">
                             <div>
-                                <h2 className="text-2xl font-bold text-gray-900">Permit Process Timeline</h2>
-                                <p className="text-gray-500 mt-1">Track your Naksha Pass application through all municipal steps</p>
+                                <h2 className="text-2xl font-black text-gray-900 tracking-tight">Permit Process Timeline</h2>
+                                <p className="text-gray-500 mt-1 font-medium">Track your Naksha Pass application through all municipal steps</p>
                             </div>
-                            <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
-                                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                <span className="text-sm font-semibold text-blue-800">
-                                    Progress: {stats.total > 0 ? Math.round((stats.approved / stats.total) * 100) : 0}%
+                            <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 border border-emerald-100 rounded-xl shadow-sm">
+                                <span className="relative flex h-3 w-3">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                                </span>
+                                <span className="text-sm font-bold text-emerald-800 tracking-wide">
+                                    {stats.total > 0 ? Math.round((stats.approved / stats.total) * 100) : 0}% Approved
                                 </span>
                             </div>
                         </div>
@@ -138,43 +139,42 @@ const PermitPage = () => {
                 )}
 
                 {activeTab === 'documents' && (
-                    <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
-                        <div className="mb-6">
-                            <h2 className="text-2xl font-bold text-gray-900">Legal Document Vault</h2>
-                            <p className="text-gray-500 mt-1">Securely store and manage all your construction-related legal documents</p>
+                    <div className="bg-white rounded-2xl shadow-xl border border-gray-200/50 p-6">
+                        <div className="mb-8">
+                            <h2 className="text-2xl font-black text-gray-900 tracking-tight">Legal Document Vault</h2>
+                            <p className="text-gray-500 mt-1 font-medium">Securely store and manage all your construction-related legal documents</p>
                         </div>
                         <DocumentVault onUpdate={fetchStats} />
                     </div>
                 )}
             </div>
 
-            {/* Help Section */}
-            <div className="max-w-7xl mx-auto px-6 pb-8">
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-200">
-                    <div className="flex items-start gap-4">
-                        <div className="flex-shrink-0 w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
-                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {/* Help Section - Modernized */}
+            <div className="max-w-7xl mx-auto px-6 pb-12">
+                <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-lg relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110"></div>
+                    <div className="flex flex-col md:flex-row items-center gap-6 relative z-10">
+                        <div className="flex-shrink-0 w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg transform -rotate-3 group-hover:rotate-0 transition-transform">
+                            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                         </div>
-                        <div className="flex-1">
-                            <h3 className="text-lg font-bold text-gray-900">Need Help with Permits?</h3>
-                            <p className="text-gray-600 mt-1 text-sm">
-                                Contact Tulsipur Sub-Metropolitan City Engineering Department: <strong>Phone: 082-520000</strong> |
-                                Office Hours: Sunday-Friday, 10:00 AM - 5:00 PM
+                        <div className="flex-1 text-center md:text-left">
+                            <h3 className="text-xl font-black text-gray-900 tracking-tight">Need Help with Permits?</h3>
+                            <p className="text-gray-600 mt-1 font-medium">
+                                Contact Tulsipur Sub-Metropolitan City Engineering Department: <span className="text-emerald-600 font-bold ml-1">082-520000</span>
                             </p>
-                            <div className="mt-3 flex flex-wrap gap-2">
-                                <span className="px-3 py-1 bg-white rounded-lg text-xs font-semibold text-gray-700 border border-gray-200">
-                                    📄 Required: Lalpurja, Nagrikta, Tax Clearance
-                                </span>
-                                <span className="px-3 py-1 bg-white rounded-lg text-xs font-semibold text-gray-700 border border-gray-200">
-                                    📐 Blueprint Approval: 7-15 days
-                                </span>
-                                <span className="px-3 py-1 bg-white rounded-lg text-xs font-semibold text-gray-700 border border-gray-200">
-                                    💰 Fees: Based on construction area
-                                </span>
+                            <div className="mt-4 flex flex-wrap justify-center md:justify-start gap-2">
+                                {['📄 Required: Lalpurja, Nagrikta', '📐 Approval: 7-15 days', '💰 Fees: Area Based'].map((pill, i) => (
+                                    <span key={i} className="px-3 py-1.5 bg-gray-50 rounded-lg text-[10px] font-bold text-gray-600 border border-gray-100 uppercase tracking-widest">
+                                        {pill}
+                                    </span>
+                                ))}
                             </div>
                         </div>
+                        <button className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-black uppercase tracking-widest transition-all shadow-md hover:shadow-lg active:scale-95">
+                            Official Guide
+                        </button>
                     </div>
                 </div>
             </div>
