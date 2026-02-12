@@ -38,37 +38,58 @@ class MaterialViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def email_supplier(self, request, pk=None):
         """
-        Send an email to the supplier to order this material.
-        Expects: { "quantity": <number> }
+        Send an email to a selected supplier to order this material.
+        Expects: { "quantity": <number>, "supplier_id": <number> }
         """
         from apps.core.email_utils import send_material_order_email
+        from apps.resources.models import Supplier
         from rest_framework import status
         
         material = self.get_object()
         quantity = request.data.get('quantity', material.min_stock_level)
+        supplier_id = request.data.get('supplier_id')
+        
+        # Get supplier - either from request or from material default
+        if supplier_id:
+            try:
+                supplier = Supplier.objects.get(id=supplier_id)
+            except Supplier.DoesNotExist:
+                return Response(
+                    {"error": f"Supplier with ID {supplier_id} not found"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        elif material.supplier:
+            supplier = material.supplier
+        else:
+            return Response(
+                {"error": "Please select a supplier or assign one to this material"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
         # Validation
-        if not material.supplier:
+        if not supplier.email:
             return Response(
-                {"error": "This material has no supplier assigned"},
+                {"error": f"Supplier '{supplier.name}' has no email address"},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        if not material.supplier.email:
-            return Response(
-                {"error": f"Supplier '{material.supplier.name}' has no email address"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Send email
+        # Send email using the selected/default supplier
         try:
+            # Temporarily set supplier for email template
+            original_supplier = material.supplier
+            material.supplier = supplier
+            
             success = send_material_order_email(material, quantity, request.user.email)
+            
+            # Restore original supplier
+            material.supplier = original_supplier
+            
             if success:
                 return Response({
                     "success": True,
-                    "message": f"Order email sent to {material.supplier.name} ({material.supplier.email})",
-                    "supplier": material.supplier.name,
-                    "supplier_email": material.supplier.email,
+                    "message": f"Order email sent to {supplier.name} ({supplier.email})",
+                    "supplier": supplier.name,
+                    "supplier_email": supplier.email,
                     "material": material.name,
                     "quantity": quantity
                 })
@@ -82,7 +103,6 @@ class MaterialViewSet(viewsets.ModelViewSet):
                 {"error": str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
 
 class MaterialTransactionViewSet(viewsets.ModelViewSet):
     queryset = MaterialTransaction.objects.all()

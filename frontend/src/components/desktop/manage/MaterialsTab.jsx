@@ -13,6 +13,7 @@ const MaterialsTab = ({ searchQuery = '' }) => {
     const [showLowStockOnly, setShowLowStockOnly] = useState(false);
     const [emailModalOpen, setEmailModalOpen] = useState(false);
     const [selectedMaterial, setSelectedMaterial] = useState(null);
+    const [selectedSupplier, setSelectedSupplier] = useState(null);
     const [emailQuantity, setEmailQuantity] = useState('');
 
     const filteredMaterials = (dashboardData.materials || []).filter(m => {
@@ -95,17 +96,22 @@ const MaterialsTab = ({ searchQuery = '' }) => {
 
     const handleOpenEmailModal = (material) => {
         setSelectedMaterial(material);
+        setSelectedSupplier(material.supplier || null);
         setEmailQuantity(material.min_stock_level || '10');
         setEmailModalOpen(true);
     };
 
     const handleSendEmail = async () => {
-        if (!selectedMaterial) return;
+        if (!selectedMaterial || !selectedSupplier) {
+            alert('❌ Please select a supplier');
+            return;
+        }
         setActionLoading(`email_${selectedMaterial.id}`);
         try {
-            const response = await dashboardService.emailSupplier(selectedMaterial.id, emailQuantity);
+            const response = await dashboardService.emailSupplier(selectedMaterial.id, emailQuantity, selectedSupplier);
             alert(`✅ ${response.message}`);
             setEmailModalOpen(false);
+            setSelectedSupplier(null);
         } catch (error) {
             const errorMsg = error.response?.data?.error || 'Failed to send email';
             alert(`❌ ${errorMsg}`);
@@ -207,19 +213,17 @@ const MaterialsTab = ({ searchQuery = '' }) => {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-right space-x-3">
-                                        {m.supplier_email && (
-                                            <button
-                                                onClick={() => handleOpenEmailModal(m)}
-                                                disabled={actionLoading === `email_${m.id}`}
-                                                className={`font-extrabold text-[9px] uppercase transition-all px-2 py-1 rounded border ${actionLoading === `email_${m.id}`
-                                                    ? 'bg-gray-100 text-gray-400 border-gray-100'
-                                                    : 'text-green-600 hover:bg-green-50 border-green-200 hover:border-green-300 bg-green-50/50'
-                                                    }`}
-                                                title={`Email ${m.supplier_name}`}
-                                            >
-                                                {actionLoading === `email_${m.id}` ? '📧 Sending...' : '📧 Email'}
-                                            </button>
-                                        )}
+                                        <button
+                                            onClick={() => handleOpenEmailModal(m)}
+                                            disabled={actionLoading === `email_${m.id}`}
+                                            className={`font-extrabold text-[9px] uppercase transition-all px-2 py-1 rounded border ${actionLoading === `email_${m.id}`
+                                                ? 'bg-gray-100 text-gray-400 border-gray-100'
+                                                : 'text-green-600 hover:bg-green-50 border-green-200 hover:border-green-300 bg-green-50/50'
+                                                }`}
+                                            title="Order from Supplier"
+                                        >
+                                            {actionLoading === `email_${m.id}` ? '📧 Sending...' : '📧 Order'}
+                                        </button>
                                         <button
                                             onClick={() => handleRecalculate(m.id)}
                                             disabled={actionLoading === m.id}
@@ -319,11 +323,11 @@ const MaterialsTab = ({ searchQuery = '' }) => {
             <Modal
                 isOpen={emailModalOpen}
                 onClose={() => setEmailModalOpen(false)}
-                title={`📧 Email Supplier: ${selectedMaterial?.supplier_name || ''}`}
+                title={`📧 Order Material: ${selectedMaterial?.name || ''}`}
             >
                 <div className="space-y-4 p-4">
                     <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4">
-                        <h4 className="text-sm font-bold text-indigo-900 mb-2">Order Details</h4>
+                        <h4 className="text-sm font-bold text-indigo-900 mb-2">Material Details</h4>
                         <div className="space-y-1 text-sm">
                             <div className="flex justify-between">
                                 <span className="text-gray-600">Material:</span>
@@ -334,14 +338,30 @@ const MaterialsTab = ({ searchQuery = '' }) => {
                                 <span className="font-bold text-red-600">{selectedMaterial?.current_stock} {selectedMaterial?.unit}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-gray-600">Supplier:</span>
-                                <span className="font-bold text-gray-900">{selectedMaterial?.supplier_name}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">Email:</span>
-                                <span className="font-mono text-xs text-indigo-600">{selectedMaterial?.supplier_email}</span>
+                                <span className="text-gray-600">Min Level:</span>
+                                <span className="text-gray-600">{selectedMaterial?.min_stock_level} {selectedMaterial?.unit}</span>
                             </div>
                         </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Select Supplier *</label>
+                        <select
+                            value={selectedSupplier || ''}
+                            onChange={(e) => setSelectedSupplier(Number(e.target.value))}
+                            className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none bg-white"
+                            required
+                        >
+                            <option value="">Choose a supplier...</option>
+                            {(dashboardData.suppliers || [])
+                                .filter(s => s.email)
+                                .map(s => (
+                                    <option key={s.id} value={s.id}>
+                                        {s.name} ({s.email})
+                                    </option>
+                                ))}
+                        </select>
+                        <p className="text-xs text-gray-500 mt-1">Only suppliers with email addresses are shown</p>
                     </div>
 
                     <div>
