@@ -88,12 +88,6 @@ const MaterialsTab = ({ searchQuery = '' }) => {
         }
     };
 
-    const getStockPercentage = (current, min) => {
-        if (Number(current) <= 0) return 0;
-        if (Number(current) <= Number(min)) return 30; // Critical zone
-        return Math.min(100, (Number(current) / (Number(min) * 5)) * 100);
-    };
-
     const handleOpenEmailModal = (material) => {
         setSelectedMaterial(material);
         setSelectedSupplier(material.supplier || null);
@@ -112,7 +106,7 @@ const MaterialsTab = ({ searchQuery = '' }) => {
             alert(`✅ ${response.message}`);
             setEmailModalOpen(false);
             setSelectedSupplier(null);
-            refreshData(); // Refresh to show pending order
+            refreshData();
         } catch (error) {
             const errorMsg = error.response?.data?.error || 'Failed to send email';
             alert(`❌ ${errorMsg}`);
@@ -137,15 +131,12 @@ const MaterialsTab = ({ searchQuery = '' }) => {
         }
     };
 
-    // Calculate pending stock for each material
     const pendingTransactions = (dashboardData.material_transactions || []).filter(t => t.status === 'PENDING');
 
-    // Group pending by material ID
     const pendingStockMap = pendingTransactions.reduce((acc, t) => {
         acc[t.material] = (acc[t.material] || 0) + Number(t.quantity);
         return acc;
     }, {});
-
 
     return (
         <div className="space-y-4">
@@ -178,188 +169,262 @@ const MaterialsTab = ({ searchQuery = '' }) => {
                 </button>
             </div>
 
-                                            className={`font-extrabold text-[9px] uppercase transition-all px-2 py-1 rounded border ${actionLoading === `email_${m.id}`
-                                                ? 'bg-gray-100 text-gray-400 border-gray-100'
-                                                : 'text-green-600 hover:bg-green-50 border-green-200 hover:border-green-300 bg-green-50/50'
-                                                }`}
-                                            title="Order from Supplier"
-                                        >
-                                            {actionLoading === `email_${m.id}` ? '📧 Sending...' : '📧 Order'}
-                                        </button>
-                                        <button
-                                            onClick={() => handleRecalculate(m.id)}
-                                            disabled={actionLoading === m.id}
-                                            className={`font-extrabold text-[9px] uppercase transition-all px-1.5 py-0.5 rounded border ${actionLoading === m.id
-                                                ? 'bg-gray-100 text-gray-400 border-gray-100'
-                                                : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 border-transparent hover:border-indigo-100'
-                                                }`}
-                                            title="Recalculate stock from transaction history"
-                                        >
-                                            {actionLoading === m.id ? 'Auditing...' : 'Audit Stock'}
-                                        </button>
-                                        <button onClick={() => handleOpenModal(m)} className="text-indigo-600 hover:text-indigo-900 font-semibold text-sm">Edit</button>
-                                        <button onClick={() => handleDelete(m.id)} className="text-red-400 hover:text-red-700 font-semibold text-sm opacity-0 group-hover:opacity-100 transition-opacity">Delete</button>
-                                    </td >
-                                </tr >
-                            );
-                        })}
-{
-    filteredMaterials.length === 0 && (
-        <tr>
-            <td colSpan="5" className="px-6 py-10 text-center text-gray-400 italic text-sm">No materials found.</td>
-        </tr>
-    )
-}
-                    </tbody >
-                </table >
-            </div >
+            {/* Pending Orders Section */}
+            {pendingTransactions.length > 0 && (
+                <div className="mb-8 overflow-hidden rounded-2xl border border-orange-200 bg-orange-50/30">
+                    <div className="bg-orange-100/50 px-6 py-3 flex justify-between items-center border-b border-orange-200">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xl">🚛</span>
+                            <h3 className="text-sm font-bold text-orange-900 uppercase tracking-wider">Pending Orders (In-Transit)</h3>
+                        </div>
+                        <span className="bg-orange-200 text-orange-900 px-2 py-0.5 rounded-full text-[10px] font-black uppercase">
+                            {pendingTransactions.length} Pending
+                        </span>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead className="bg-orange-50 text-[10px] font-black uppercase text-orange-900 border-b border-orange-100">
+                                <tr>
+                                    <th className="px-6 py-3">Material</th>
+                                    <th className="px-6 py-3">Supplier</th>
+                                    <th className="px-6 py-3">Qty Ordered</th>
+                                    <th className="px-6 py-3">Order Date</th>
+                                    <th className="px-6 py-3 text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-orange-100">
+                                {pendingTransactions.map(t => (
+                                    <tr key={t.id} className="hover:bg-orange-100/30 transition-colors">
+                                        <td className="px-6 py-4 font-bold text-gray-900 text-sm">{t.material_name}</td>
+                                        <td className="px-6 py-4 text-xs font-semibold text-gray-600">{t.supplier_name}</td>
+                                        <td className="px-6 py-4 text-sm">
+                                            <span className="font-black text-orange-600">{t.quantity}</span>
+                                        </td>
+                                        <td className="px-6 py-4 text-xs text-gray-500 font-mono">{t.date}</td>
+                                        <td className="px-6 py-4 text-right">
+                                            <button
+                                                onClick={() => handleReceiveOrder(t.id)}
+                                                disabled={actionLoading === `receive_${t.id}`}
+                                                className="bg-green-600 hover:bg-green-700 text-white text-[10px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm transition-all flex items-center gap-2 ml-auto"
+                                            >
+                                                {actionLoading === `receive_${t.id}` ? '⌛ Processing...' : (
+                                                    <><span className="text-xs">📦</span> Confirm Received</>
+                                                )}
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
 
-    <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`${editingItem ? 'Edit' : 'Add'} Material`}>
-        <form onSubmit={handleSubmit} className="space-y-4 p-1">
-            <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-1">
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Material Name</label>
-                    <input
-                        type="text"
-                        value={formData.name || ''}
-                        onChange={e => setFormData({ ...formData, name: e.target.value })}
-                        className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none"
-                        placeholder="e.g. OPC Cement"
-                        required
-                    />
-                </div>
-                <div className="col-span-1">
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Stocking Unit</label>
-                    <select
-                        value={formData.unit || 'BORA'}
-                        onChange={e => setFormData({ ...formData, unit: e.target.value })}
-                        className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none bg-white appearance-none"
-                        required
-                    >
-                        <option value="BORA">Bora (Sack)</option>
-                        <option value="TIPPER">Tipper</option>
-                        <option value="KG">Kilogram (Kg)</option>
-                        <option value="SQFT">Sq. Ft.</option>
-                        <option value="BUNDLE">Bundle</option>
-                        <option value="TRUCK">Truck</option>
-                        <option value="PCS">Pieces (Pcs)</option>
-                    </select>
-                </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-                <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Minimum Alert Level</label>
-                    <input
-                        type="number"
-                        value={formData.min_stock_level || 0}
-                        onChange={e => setFormData({ ...formData, min_stock_level: e.target.value })}
-                        className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none"
-                        placeholder="0"
-                    />
-                    <p className="text-[10px] text-gray-400 mt-1 italic">Triggers visual alerts when stock falls below this.</p>
-                </div>
-                <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Budget Category (For Financials)</label>
-                    <select
-                        value={formData.budget_category || ''}
-                        onChange={e => setFormData({ ...formData, budget_category: e.target.value })}
-                        className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none bg-white appearance-none font-bold text-indigo-600"
-                        required
-                    >
-                        <option value="">Select Category</option>
-                        {dashboardData.budgetCategories?.map(c => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                    </select>
-                    <p className="text-[10px] text-gray-400 mt-1 italic">Determines which budget line item is docked.</p>
-                </div>
-            </div>
-            <div className="flex justify-end gap-3 mt-8">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700">Cancel</button>
-                <button type="submit" disabled={loading} className="px-8 py-2.5 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 disabled:opacity-50 transition-all">
-                    {loading ? 'Saving...' : (editingItem ? 'Update Material' : 'Create Material')}
-                </button>
-            </div>
-        </form>
-    </Modal>
+            <div className="bg-white rounded-3xl border border-gray-100 shadow-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead className="bg-[#1e293b] text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                            <tr>
+                                <th className="px-6 py-4">Material (सामाग्री)</th>
+                                <th className="px-6 py-4">Status / Alert</th>
+                                <th className="px-6 py-4 text-center">Current Stock</th>
+                                <th className="px-6 py-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                            {filteredMaterials.map(m => {
+                                const isLow = Number(m.current_stock) <= Number(m.min_stock_level);
+                                const pendingQty = pendingStockMap[m.id] || 0;
 
-{/* Email Supplier Modal */ }
-<Modal
-    isOpen={emailModalOpen}
-    onClose={() => setEmailModalOpen(false)}
-    title={`📧 Order Material: ${selectedMaterial?.name || ''}`}
->
-    <div className="space-y-4 p-4">
-        <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4">
-            <h4 className="text-sm font-bold text-indigo-900 mb-2">Material Details</h4>
-            <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                    <span className="text-gray-600">Material:</span>
-                    <span className="font-bold text-gray-900">{selectedMaterial?.name}</span>
-                </div>
-                <div className="flex justify-between">
-                    <span className="text-gray-600">Current Stock:</span>
-                    <span className="font-bold text-red-600">{selectedMaterial?.current_stock} {selectedMaterial?.unit}</span>
-                </div>
-                <div className="flex justify-between">
-                    <span className="text-gray-600">Min Level:</span>
-                    <span className="text-gray-600">{selectedMaterial?.min_stock_level} {selectedMaterial?.unit}</span>
+                                return (
+                                    <tr key={m.id} className="hover:bg-gray-50/80 transition-all duration-200 group">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-xl font-bold text-indigo-600 overflow-hidden shrink-0 border border-indigo-100/50">
+                                                    {m.image ? (
+                                                        <img src={m.image} alt={m.name} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        m.name.charAt(0)
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <div className="font-bold text-gray-900 text-sm flex items-center gap-2">
+                                                        {m.name}
+                                                        {pendingQty > 0 && (
+                                                            <span className="bg-orange-100 text-orange-600 text-[8px] px-1.5 py-0.5 rounded-full border border-orange-200 animate-pulse">
+                                                                🚛 INCOMING: {pendingQty}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-[10px] uppercase font-black text-gray-400 flex items-center gap-2">
+                                                        <span>{m.budget_category_name || 'General'}</span>
+                                                        <span className="w-1 h-1 bg-gray-300 rounded-full" />
+                                                        <span>{m.unit}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-wrap gap-2">
+                                                {isLow && (
+                                                    <span className="bg-red-50 text-red-600 text-[9px] font-black px-2 py-0.5 rounded-full border border-red-100 flex items-center gap-1 uppercase">
+                                                        <span className="w-1 h-1 bg-red-600 rounded-full animate-ping" />
+                                                        Low Stock Alert
+                                                    </span>
+                                                )}
+                                                <span className="bg-gray-50 text-gray-500 text-[9px] font-bold px-2 py-0.5 rounded-full border border-gray-100 uppercase">
+                                                    Min: {m.min_stock_level}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="text-center">
+                                                <div className={`text-sm font-black ${isLow ? 'text-red-600' : 'text-gray-900'}`}>
+                                                    {m.current_stock}
+                                                    <span className="text-[10px] font-bold text-gray-400 ml-1 uppercase">{m.unit}</span>
+                                                </div>
+                                                {pendingQty > 0 && (
+                                                    <div className="text-[9px] font-bold text-orange-600 mt-0.5 whitespace-nowrap">
+                                                        + {pendingQty} Expected
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-right space-x-3">
+                                            <button
+                                                onClick={() => handleOpenEmailModal(m)}
+                                                disabled={actionLoading === `email_${m.id}`}
+                                                className={`font-extrabold text-[9px] uppercase transition-all px-2 py-1 rounded border ${actionLoading === `email_${m.id}`
+                                                    ? 'bg-gray-100 text-gray-400 border-gray-100'
+                                                    : 'text-green-600 hover:bg-green-50 border-green-200 hover:border-green-300 bg-green-50/50'
+                                                    }`}
+                                                title="Order from Supplier"
+                                            >
+                                                {actionLoading === `email_${m.id}` ? '📧 Sending...' : '📧 Order'}
+                                            </button>
+                                            <button
+                                                onClick={() => handleRecalculate(m.id)}
+                                                disabled={actionLoading === m.id}
+                                                className={`font-extrabold text-[9px] uppercase transition-all px-1.5 py-0.5 rounded border ${actionLoading === m.id
+                                                    ? 'bg-gray-100 text-gray-400 border-gray-100'
+                                                    : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 border-transparent hover:border-indigo-100'
+                                                    }`}
+                                                title="Audit Stock"
+                                            >
+                                                {actionLoading === m.id ? 'Auditing...' : 'Audit Stock'}
+                                            </button>
+                                            <button onClick={() => handleOpenModal(m)} className="text-indigo-600 hover:text-indigo-900 font-semibold text-sm">Edit</button>
+                                            <button onClick={() => handleDelete(m.id)} className="text-red-400 hover:text-red-700 font-semibold text-sm opacity-0 group-hover:opacity-100 transition-opacity">Delete</button>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
                 </div>
             </div>
-        </div>
 
-        <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Select Supplier *</label>
-            <select
-                value={selectedSupplier || ''}
-                onChange={(e) => setSelectedSupplier(Number(e.target.value))}
-                className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none bg-white"
-                required
+            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`${editingItem ? 'Edit' : 'Add'} Material`}>
+                <form onSubmit={handleSubmit} className="space-y-4 p-1">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="col-span-1">
+                            <label className="block text-sm font-semibold text-gray-700 mb-1">Material Name</label>
+                            <input
+                                type="text"
+                                value={formData.name || ''}
+                                onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none"
+                                required
+                            />
+                        </div>
+                        <div className="col-span-1">
+                            <label className="block text-sm font-semibold text-gray-700 mb-1">Stocking Unit</label>
+                            <select
+                                value={formData.unit || 'BORA'}
+                                onChange={e => setFormData({ ...formData, unit: e.target.value })}
+                                className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none bg-white"
+                                required
+                            >
+                                <option value="BORA">Bora (Sack)</option>
+                                <option value="TIPPER">Tipper</option>
+                                <option value="KG">Kilogram (Kg)</option>
+                                <option value="PCS">Pieces (Pcs)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div className="flex justify-end gap-3 mt-8">
+                        <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700">Cancel</button>
+                        <button type="submit" disabled={loading} className="px-8 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50">
+                            {loading ? 'Saving...' : (editingItem ? 'Update' : 'Create')}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
+
+            {/* Email Supplier Modal */}
+            <Modal
+                isOpen={emailModalOpen}
+                onClose={() => setEmailModalOpen(false)}
+                title={`📧 Order Material: ${selectedMaterial?.name || ''}`}
             >
-                <option value="">Choose a supplier...</option>
-                {(dashboardData.suppliers || [])
-                    .filter(s => s.email)
-                    .map(s => (
-                        <option key={s.id} value={s.id}>
-                            {s.name} ({s.email})
-                        </option>
-                    ))}
-            </select>
-            <p className="text-xs text-gray-500 mt-1">Only suppliers with email addresses are shown</p>
-        </div>
+                <div className="space-y-4 p-4">
+                    <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4">
+                        <h4 className="text-sm font-bold text-indigo-900 mb-2">Material Details</h4>
+                        <div className="space-y-1 text-sm">
+                            <div className="flex justify-between">
+                                <span className="text-gray-600">Material:</span>
+                                <span className="font-bold text-gray-900">{selectedMaterial?.name}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-gray-600">Current Stock:</span>
+                                <span className="font-bold text-red-600">{selectedMaterial?.current_stock} {selectedMaterial?.unit}</span>
+                            </div>
+                        </div>
+                    </div>
 
-        <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Quantity to Order</label>
-            <input
-                type="number"
-                value={emailQuantity}
-                onChange={(e) => setEmailQuantity(e.target.value)}
-                className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none text-lg font-bold text-center"
-                placeholder="Enter quantity"
-                min="1"
-            />
-            <p className="text-xs text-gray-500 mt-1 text-center">This will be included in the email to the supplier</p>
-        </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Select Supplier *</label>
+                        <select
+                            value={selectedSupplier || ''}
+                            onChange={(e) => setSelectedSupplier(Number(e.target.value))}
+                            className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none bg-white"
+                            required
+                        >
+                            <option value="">Choose a supplier...</option>
+                            {(dashboardData.suppliers || [])
+                                .filter(s => s.email)
+                                .map(s => (
+                                    <option key={s.id} value={s.id}>
+                                        {s.name} ({s.email})
+                                    </option>
+                                ))}
+                        </select>
+                    </div>
 
-        <div className="flex justify-end gap-3 mt-6">
-            <button
-                type="button"
-                onClick={() => setEmailModalOpen(false)}
-                className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700"
-            >
-                Cancel
-            </button>
-            <button
-                onClick={handleSendEmail}
-                disabled={!emailQuantity || actionLoading}
-                className="px-8 py-2.5 bg-green-600 text-white rounded-xl font-bold shadow-lg shadow-green-200 hover:bg-green-700 disabled:opacity-50 transition-all flex items-center gap-2"
-            >
-                📧 Send Order Email
-            </button>
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Quantity to Order</label>
+                        <input
+                            type="number"
+                            value={emailQuantity}
+                            onChange={(e) => setEmailQuantity(e.target.value)}
+                            className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none text-lg font-bold text-center"
+                            min="1"
+                        />
+                    </div>
+
+                    <div className="flex justify-end gap-3 mt-6">
+                        <button type="button" onClick={() => setEmailModalOpen(false)} className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700">Cancel</button>
+                        <button
+                            onClick={handleSendEmail}
+                            disabled={!emailQuantity || actionLoading}
+                            className="px-8 py-2.5 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+                        >
+                            📧 Send Order Email
+                        </button>
+                    </div>
+                </div>
+            </Modal>
         </div>
-    </div>
-</Modal>
-        </div >
     );
 };
 
