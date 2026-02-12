@@ -60,6 +60,7 @@ function Login() {
                         <input
                             type="text"
                             id="username"
+                            autoComplete="username"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             required
@@ -79,6 +80,7 @@ function Login() {
                         <input
                             type="password"
                             id="password"
+                            autoComplete="current-password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required

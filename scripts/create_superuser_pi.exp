@@ -1,0 +1,17 @@
+#!/usr/bin/expect -f
+set timeout 30
+spawn ssh -o StrictHostKeyChecking=no jitendra@192.168.0.59 "cd ~/Construction && docker compose exec backend python manage.py createsuperuser --username admin --email admin@example.com --noinput"
+expect {
+    "password:" {
+        send "jitu9844\r"
+        exp_continue
+    }
+}
+spawn ssh -o StrictHostKeyChecking=no jitendra@192.168.0.59 "cd ~/Construction && docker compose exec backend python manage.py shell -c \"from django.contrib.auth import get_user_model; User = get_user_model(); u = User.objects.get(username='admin'); u.set_password('adminpass'); u.save()\""
+expect {
+    "password:" {
+        send "jitu9844\r"
+        exp_continue
+    }
+}
+expect eof
