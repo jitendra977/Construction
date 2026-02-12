@@ -25,13 +25,12 @@ function DesktopDashboard() {
     }
 
     const navItems = [
-        { id: 'home', icon: '🏠', label: 'Dashboard' },
-        { id: 'rooms', icon: '🚪', label: 'Rooms' },
-        { id: 'budget', icon: '💰', label: 'Budget & Expenses' },
-        { id: 'estimator', icon: '🧮', label: 'Estimator' },
-        { id: 'permits', icon: '📜', label: 'Permits' },
-        { id: 'manage', icon: '🛠️', label: 'Management' },
-        { id: 'photos', icon: '📸', label: 'Site Gallery' },
+        { id: 'home', icon: '🏠', label: 'Dashboard (ड्यासबोर्ड)' },
+        { id: 'budget', icon: '💰', label: 'Budget (बजेट)' },
+        { id: 'estimator', icon: '🧮', label: 'Estimator (इस्टिमेटर)' },
+        { id: 'permits', icon: '📜', label: 'Permits (नक्सा पास)' },
+        { id: 'manage', icon: '🛠️', label: 'Manage (व्यवस्थापन)' },
+        { id: 'photos', icon: '📸', label: 'Gallery (फोटो ग्यालरी)' },
     ];
 
     return (

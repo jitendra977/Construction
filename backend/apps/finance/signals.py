@@ -191,7 +191,8 @@ def expense_post_save(sender, instance, created, **kwargs):
                 supplier=instance.supplier,
                 expense=instance,
                 funding_source=instance.funding_source,
-                notes=f"Auto-generated from Expense: {instance.title}"
+                notes=f"Auto-generated from Expense: {instance.title}",
+                create_expense=True 
             )
 
 @receiver(post_delete, sender=Expense)

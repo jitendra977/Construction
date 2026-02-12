@@ -154,15 +154,15 @@ const ExpensesTab = ({ searchQuery = '' }) => {
                 <div className="flex justify-between items-start mb-4">
                     <div>
                         <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Budget Utilization per Category</h3>
-                        <p className="text-[10px] text-gray-400 font-medium italic">How much of the allocated Rs. {formatCurrency(budgetStats.totalBudget)} is used?</p>
+                        <p className="text-[10px] text-gray-400 font-medium italic">How much of the allocated {formatCurrency(budgetStats.totalBudget)} is used?</p>
                     </div>
 
                     {budgetStats.projectHealth?.status === 'OVER_ALLOCATED' && (
                         <div className="bg-red-50 border border-red-100 px-3 py-1.5 rounded-lg flex items-center gap-2 animate-pulse">
                             <div className="w-2 h-2 bg-red-500 rounded-full"></div>
                             <div className="flex flex-col">
-                                <span className="text-[9px] font-black text-red-600 uppercase tracking-tighter leading-none">Budget Warning</span>
-                                <span className="text-[8px] text-red-500 font-bold">Categories exceed total budget by Rs. {formatCurrency(budgetStats.projectHealth.excess)}</span>
+                                <span className="text-[9px] font-black text-red-600 uppercase tracking-tighter leading-none">बजेट चेतावनी (Budget Warning)</span>
+                                <span className="text-[8px] text-red-500 font-bold">विनियोजन रकमले कुल बजेटलाई {formatCurrency(budgetStats.projectHealth.excess)} ले नाघ्यो</span>
                             </div>
                         </div>
                     )}

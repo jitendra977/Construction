@@ -150,6 +150,7 @@ class MaterialTransaction(models.Model):
     
     purpose = models.CharField(max_length=200, blank=True, help_text="e.g., Ground Floor Slab, Kitchen Walls")
     notes = models.TextField(blank=True)
+    create_expense = models.BooleanField(default=True, help_text="Uncheck for Opening Stock or Gifts (No Expense created)")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):
@@ -159,7 +160,7 @@ class MaterialTransaction(models.Model):
             old_transaction = MaterialTransaction.objects.get(pk=self.pk)
         
         # 1. Update Linked Expense for Stock IN
-        if self.transaction_type == 'IN':
+        if self.transaction_type == 'IN' and self.create_expense:
             from django.apps import apps
             Expense = apps.get_model('finance', 'Expense')
             

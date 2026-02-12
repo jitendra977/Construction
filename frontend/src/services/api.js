@@ -91,6 +91,7 @@ export const dashboardService = {
     deleteBudgetCategory: (id) => api.delete(`/budget-categories/${id}/`),
 
     getBudgetStats: () => api.get('/expenses/'),
+    getBudgetOverview: () => api.get('/expenses/overview/'),
     getExpenses: () => api.get('/expenses/'),
     createExpense: (data) => api.post('/expenses/', data),
     updateExpense: (id, data) => api.patch(`/expenses/${id}/`, data),
@@ -124,6 +125,9 @@ export const dashboardService = {
     updateMaterialTransaction: (id, data) => api.patch(`/material-transactions/${id}/`, data),
     deleteMaterialTransaction: (id) => api.delete(`/material-transactions/${id}/`),
     getDocuments: (type) => api.get(`/documents/${type ? `?document_type=${type}` : ''}`),
+    createDocument: (formData) => api.post('/documents/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    }),
     getGallery: (groupBy = 'category') => api.get(`/gallery/?group_by=${groupBy}`),
 
     // Funding
@@ -237,6 +241,10 @@ export const permitService = {
     createStep: (data) => api.post('/permits/steps/', data),
     updateStep: (id, data) => api.put(`/permits/steps/${id}/`, data),
     deleteStep: (id) => api.delete(`/permits/steps/${id}/`),
+
+    // Attach/detach documents to permit steps
+    attachDocument: (stepId, documentId) => api.post(`/permits/steps/${stepId}/attach_document/`, { document_id: documentId }),
+    detachDocument: (stepId, documentId) => api.post(`/permits/steps/${stepId}/detach_document/`, { document_id: documentId }),
 
     getDocuments: () => api.get('/permits/documents/'),
     createDocument: (data) => api.post('/permits/documents/', data, {

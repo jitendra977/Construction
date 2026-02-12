@@ -32,7 +32,7 @@ class Expense(models.Model):
     title = models.CharField(max_length=200)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     expense_type = models.CharField(max_length=20, choices=EXPENSE_TYPE_CHOICES, default='MATERIAL')
-    category = models.ForeignKey(BudgetCategory, on_delete=models.PROTECT, related_name='expenses')
+    category = models.ForeignKey(BudgetCategory, on_delete=models.SET_NULL, null=True, blank=True, related_name='expenses')
     phase = models.ForeignKey(ConstructionPhase, on_delete=models.SET_NULL, null=True, blank=True, related_name='expenses')
     
     # Inventory Integration

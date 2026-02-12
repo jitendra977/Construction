@@ -37,7 +37,7 @@ const DesktopSidebar = ({ user, onLogout, navItems }) => {
                 <div>
                     <p className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Construction Journey</p>
                     <div className="space-y-1">
-                        {navItems.filter(item => ['rooms', 'permits', 'manage'].includes(item.id)).map((item) => (
+                        {navItems.filter(item => ['permits', 'manage'].includes(item.id)).map((item) => (
                             <NavLink
                                 key={item.id}
                                 to={`/dashboard/desktop/${item.id}`}

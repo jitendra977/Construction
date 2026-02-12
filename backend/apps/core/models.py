@@ -64,6 +64,23 @@ class ConstructionPhase(models.Model):
     description = models.TextField(blank=True)
     estimated_budget = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
 
+    # Municipal Permit Tracking
+    permit_required = models.BooleanField(default=False, help_text="Does this phase require municipal permit approval?")
+    permit_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('NOT_REQUIRED', 'Not Required'),
+            ('PENDING', 'Pending'),
+            ('IN_PROGRESS', 'In Progress'),
+            ('APPROVED', 'Approved'),
+            ('REJECTED', 'Rejected'),
+        ],
+        default='NOT_REQUIRED',
+        help_text="Status of municipal permit for this phase"
+    )
+    permit_date_issued = models.DateField(null=True, blank=True, help_text="Date when permit was approved")
+    permit_notes = models.TextField(blank=True, help_text="Notes about permit process, requirements, or issues")
+
     # Documentation and Proof of Work
     naksa_file = models.FileField(upload_to='phases/naksa/', null=True, blank=True, help_text="Blueprints/Naksa for this phase")
     structure_design = models.FileField(upload_to='phases/structure/', null=True, blank=True, help_text="Structural design documents")

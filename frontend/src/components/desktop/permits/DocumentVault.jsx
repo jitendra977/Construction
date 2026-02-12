@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { permitService } from '../../../services/api';
 
-const DocumentVault = () => {
+const DocumentVault = ({ onUpdate }) => {
     const [documents, setDocuments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
@@ -33,7 +33,8 @@ const DocumentVault = () => {
 
         try {
             await permitService.createDocument(formData);
-            fetchDocuments(); // Refresh list
+            fetchDocuments();
+            onUpdate?.();
         } catch (error) {
             console.error("Upload failed", error);
             alert("Failed to upload document");
@@ -47,6 +48,7 @@ const DocumentVault = () => {
         try {
             await permitService.deleteDocument(id);
             setDocuments(documents.filter(d => d.id !== id));
+            onUpdate?.();
         } catch (error) {
             console.error("Delete failed", error);
         }

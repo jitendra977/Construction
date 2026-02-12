@@ -14,6 +14,14 @@ class PermitStep(models.Model):
     date_issued = models.DateField(null=True, blank=True)
     notes = models.TextField(blank=True, null=True)
     order = models.PositiveIntegerField(default=0)
+    
+    # Document attachments for this permit step
+    documents = models.ManyToManyField(
+        'resources.Document',
+        blank=True,
+        related_name='permit_steps',
+        help_text='Documents required/submitted for this permit step'
+    )
 
     class Meta:
         ordering = ['order', 'id']
