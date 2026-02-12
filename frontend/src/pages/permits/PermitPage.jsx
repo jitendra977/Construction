@@ -41,7 +41,7 @@ const PermitPage = () => {
     ];
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 font-sans">
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 font-sans pb-32 md:pb-0">
             {/* Emerald Gradient Header (Dashboard Theme) */}
             <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 shadow-xl pb-16 pt-8 px-6 relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-10">

@@ -129,9 +129,26 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
                         </span>
                     </div>
 
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Description</h4>
-                        <p className="text-sm text-gray-600 leading-relaxed">{phase.description || "No description provided."}</p>
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-3">
+                        <div>
+                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Phase Name</h4>
+                            <input
+                                type="text"
+                                value={phase.name}
+                                onChange={(e) => updatePhase(phase.id, { name: e.target.value })}
+                                className="w-full text-sm font-bold text-gray-900 bg-gray-50 border-gray-100 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                            />
+                        </div>
+                        <div>
+                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Description</h4>
+                            <textarea
+                                value={phase.description || ''}
+                                onChange={(e) => updatePhase(phase.id, { description: e.target.value })}
+                                rows="3"
+                                className="w-full text-sm text-gray-600 bg-gray-50 border-gray-100 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                                placeholder="Describe the goals of this phase..."
+                            />
+                        </div>
                     </div>
 
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
@@ -245,6 +262,28 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
                         </div>
                     </div>
 
+                    {/* Danger Zone */}
+                    <div className="bg-red-50 p-4 rounded-xl border border-red-100">
+                        <h4 className="text-xs font-bold text-red-900 uppercase tracking-wider mb-2">Danger Zone</h4>
+                        <button
+                            onClick={async () => {
+                                if (window.confirm(`Are you sure you want to delete "${phase.name}"? This action cannot be undone.`)) {
+                                    try {
+                                        await constructionService.deletePhase(phase.id);
+                                        refreshData();
+                                        onClose();
+                                    } catch (err) {
+                                        console.error("Failed to delete phase", err);
+                                        alert("Failed to delete phase. Ensure there are no linked expenses or tasks.");
+                                    }
+                                }
+                            }}
+                            className="w-full py-2 bg-white text-red-600 text-[10px] font-black uppercase rounded-lg border border-red-200 hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                        >
+                            Delete Phase
+                        </button>
+                    </div>
+
                     {/* Sub Phases / Tasks Section */}
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 max-h-[400px] overflow-y-auto">
                         <div className="flex justify-between items-center mb-3">
@@ -329,7 +368,7 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
                                                     e.stopPropagation();
                                                     handleDeleteTask(task.id);
                                                 }}
-                                                className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 flex-shrink-0"
+                                                className="text-gray-300 hover:text-red-500 transition-opacity p-1 flex-shrink-0"
                                                 title="Delete Task"
                                             >
                                                 ×

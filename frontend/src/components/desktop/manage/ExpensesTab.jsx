@@ -204,7 +204,8 @@ const ExpensesTab = ({ searchQuery = '' }) => {
                 </button>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            {/* Desktop View: Table */}
+            <div className="hidden lg:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="bg-gray-50 border-b border-gray-100">
@@ -235,11 +236,6 @@ const ExpensesTab = ({ searchQuery = '' }) => {
                                             {e.expense_type}
                                         </span>
                                         <span className="text-[10px] text-gray-400 font-bold">#{e.category_name}</span>
-                                        {e.material && (
-                                            <span className="ml-1 text-[9px] font-bold text-gray-400 bg-gray-100 px-1 rounded">
-                                                Stock: {dashboardData.materials?.find(m => m.id === e.material)?.current_stock || 0}
-                                            </span>
-                                        )}
                                     </div>
                                 </td>
                                 <td className="px-6 py-4">
@@ -322,6 +318,86 @@ const ExpensesTab = ({ searchQuery = '' }) => {
                         )}
                     </tbody>
                 </table>
+            </div>
+
+            {/* Mobile View: Cards */}
+            <div className="lg:hidden space-y-4">
+                {filteredExpenses.map(e => (
+                    <div key={e.id} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex flex-col gap-4">
+                        <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{new Date(e.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                    <span className="w-1 h-1 bg-gray-300 rounded-full" />
+                                    <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest leading-none">#{e.category_name}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <h3 className="font-bold text-gray-900 text-base leading-tight">{e.title}</h3>
+                                    {e.material_transaction && (
+                                        <span className="px-1 py-0.5 bg-emerald-50 text-emerald-600 text-[8px] font-black uppercase rounded border border-emerald-100 tracking-tighter">Stock</span>
+                                    )}
+                                </div>
+                                {e.paid_to && <p className="text-[10px] text-gray-500 mt-1 font-bold">Paid to: {e.paid_to}</p>}
+                            </div>
+                            <div className="text-right">
+                                <div className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tight mb-2 inline-block ${e.status === 'PAID' ? 'bg-green-100 text-green-700' :
+                                    e.status === 'PARTIAL' ? 'bg-amber-100 text-amber-700' :
+                                        'bg-red-100 text-red-700'
+                                    }`}>
+                                    {e.status}
+                                </div>
+                                <div className="text-sm font-black text-gray-900 leading-none">{formatCurrency(e.amount)}</div>
+                                {Number(e.balance_due) > 0 && (
+                                    <div className="text-[9px] font-black text-red-500 mt-1 uppercase tracking-tighter">Due: {formatCurrency(e.balance_due)}</div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="col-span-2 grid grid-cols-2 gap-2">
+                                <button
+                                    onClick={() => handleViewDetail(e.id)}
+                                    className="py-2.5 bg-gray-50 text-gray-700 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2"
+                                >
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                    View Detail
+                                </button>
+                                {Number(e.balance_due) > 0 && (
+                                    <button
+                                        onClick={() => handleOpenPaymentModal(e)}
+                                        className={`py-2.5 text-white rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1 ${(() => {
+                                            const fs = dashboardData.funding?.find(f => f.id === e.funding_source);
+                                            return fs?.source_type === 'LOAN' ? 'bg-orange-600 shadow-orange-200' :
+                                                fs?.source_type === 'BORROWED' ? 'bg-purple-600 shadow-purple-200' :
+                                                    'bg-green-600 shadow-green-200';
+                                        })()}`}
+                                    >
+                                        Pay Dues
+                                    </button>
+                                )}
+                            </div>
+                            <button
+                                onClick={() => handleOpenModal(e)}
+                                className="py-2.5 bg-indigo-50 text-indigo-700 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2"
+                            >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-5M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>
+                                Edit
+                            </button>
+                            <button
+                                onClick={() => handleDelete(e.id)}
+                                className="py-2.5 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2"
+                            >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                ))}
+                {filteredExpenses.length === 0 && (
+                    <div className="py-10 text-center text-gray-400 italic bg-white rounded-2xl border-2 border-dashed border-gray-100">
+                        No expenses found matching your search.
+                    </div>
+                )}
             </div>
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`${editingItem ? 'Edit' : 'Add'} Expense`}>

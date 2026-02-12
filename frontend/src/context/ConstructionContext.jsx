@@ -224,12 +224,36 @@ export const ConstructionProvider = ({ children }) => {
         return updateTask(taskId, { status: newStatus });
     }, [updateTask]);
 
-    const updatePermitStatus = useCallback(async (stepId, newStatus) => {
+    const updatePermitStep = useCallback(async (stepId, updateData) => {
         try {
-            await permitService.updateStep(stepId, { status: newStatus });
+            await permitService.updateStep(stepId, updateData);
             await fetchData(true);
         } catch (error) {
             console.error("Failed to update permit status", error);
+            throw error;
+        }
+    }, [fetchData]);
+
+    const updatePermitStatus = useCallback(async (stepId, newStatus) => {
+        return updatePermitStep(stepId, { status: newStatus });
+    }, [updatePermitStep]);
+
+    const createPermitStep = useCallback(async (permitData) => {
+        try {
+            await permitService.createStep(permitData);
+            await fetchData(true);
+        } catch (error) {
+            console.error("Failed to create permit step", error);
+            throw error;
+        }
+    }, [fetchData]);
+
+    const deletePermitStep = useCallback(async (stepId) => {
+        try {
+            await permitService.deleteStep(stepId);
+            await fetchData(true);
+        } catch (error) {
+            console.error("Failed to delete permit step", error);
             throw error;
         }
     }, [fetchData]);
@@ -252,7 +276,10 @@ export const ConstructionProvider = ({ children }) => {
         updateTask,
         updatePhaseStatus,
         updateTaskStatus,
+        updatePermitStep,
         updatePermitStatus,
+        createPermitStep,
+        deletePermitStep,
         isCalculatorOpen,
         setIsCalculatorOpen: (val) => setIsCalculatorOpen(val),
         toggleCalculator: () => setIsCalculatorOpen(prev => !prev),

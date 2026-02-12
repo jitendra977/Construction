@@ -62,54 +62,102 @@ const RoomsManageTab = ({ searchQuery = '' }) => {
                 if (searchQuery && floorRooms.length === 0) return null;
 
                 return (
-                    <div key={floor.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                        <div className="bg-gray-50 px-6 py-3 border-b border-gray-100 flex justify-between items-center">
-                            <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                                <span className="bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded text-[10px] uppercase">Level {floor.level}</span>
-                                {floor.name}
-                            </h3>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white border border-gray-200 text-gray-500 uppercase">
+                    <div key={floor.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+                        <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-gray-50 to-white">
+                            <div className="flex flex-col">
+                                <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest leading-none mb-1">Level {floor.level}</span>
+                                <h3 className="font-bold text-gray-800 text-lg leading-tight uppercase tracking-tight">{floor.name}</h3>
+                            </div>
+                            <span className="text-[10px] font-black px-3 py-1 rounded-full bg-white border border-gray-200 text-gray-500 uppercase tracking-widest shadow-sm">
                                 {floorRooms.length} Rooms
                             </span>
                         </div>
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-white border-b border-gray-100">
-                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Room Name</th>
-                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Area</th>
-                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
-                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-50">
-                                {floorRooms.length > 0 ? (
-                                    floorRooms.map(r => (
-                                        <tr key={r.id} className="hover:bg-gray-50 transition-colors">
-                                            <td className="px-6 py-4 font-semibold text-gray-900">{r.name}</td>
-                                            <td className="px-6 py-4 text-gray-500 text-sm">{r.area_sqft || '-'} sqft</td>
-                                            <td className="px-6 py-4">
-                                                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${r.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                                                    r.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
-                                                        'bg-gray-100 text-gray-500'
-                                                    }`}>
-                                                    {r.status?.replace('_', ' ')}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 text-right space-x-3">
-                                                <button onClick={() => handleOpenModal(r)} className="text-indigo-600 hover:text-indigo-900 font-semibold text-sm">Edit</button>
-                                                <button onClick={() => handleDelete(r.id)} className="text-red-600 hover:text-red-900 font-semibold text-sm">Delete</button>
+
+                        {/* Desktop View: Table */}
+                        <div className="hidden lg:block">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-white border-b border-gray-100">
+                                        <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Room Name</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Area</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                    {floorRooms.length > 0 ? (
+                                        floorRooms.map(r => (
+                                            <tr key={r.id} className="hover:bg-gray-50 transition-colors">
+                                                <td className="px-6 py-4 font-semibold text-gray-900">{r.name}</td>
+                                                <td className="px-6 py-4 text-gray-500 text-sm">{r.area_sqft || '-'} sqft</td>
+                                                <td className="px-6 py-4">
+                                                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${r.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                                                        r.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
+                                                            'bg-gray-100 text-gray-500'
+                                                        }`}>
+                                                        {r.status?.replace('_', ' ')}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 text-right space-x-3">
+                                                    <button onClick={() => handleOpenModal(r)} className="text-indigo-600 hover:text-indigo-900 font-semibold text-sm">Edit</button>
+                                                    <button onClick={() => handleDelete(r.id)} className="text-red-600 hover:text-red-900 font-semibold text-sm">Delete</button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan="4" className="px-6 py-8 text-center text-gray-400 italic text-sm">
+                                                No rooms on this floor yet.
                                             </td>
                                         </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan="4" className="px-6 py-8 text-center text-gray-400 italic text-sm">
-                                            No rooms on this floor yet.
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Mobile View: Cards */}
+                        <div className="lg:hidden p-4 space-y-4">
+                            {floorRooms.length > 0 ? (
+                                floorRooms.map(r => (
+                                    <div key={r.id} className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100 group active:scale-[0.98] transition-all">
+                                        <div className="flex justify-between items-start mb-3">
+                                            <div>
+                                                <h4 className="font-bold text-gray-900 mb-1">{r.name}</h4>
+                                                <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h16M4 4l5 5m11-1V5m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
+                                                    {r.area_sqft || '-'} sqft Total Area
+                                                </div>
+                                            </div>
+                                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tight ${r.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                                                r.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
+                                                    'bg-gray-100 text-gray-500'
+                                                }`}>
+                                                {r.status?.replace('_', ' ')}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => handleOpenModal(r)}
+                                                className="flex-1 py-2 bg-indigo-50 text-indigo-600 rounded-lg text-[11px] font-bold hover:bg-indigo-100 transition-colors"
+                                            >
+                                                Edit Detail
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(r.id)}
+                                                className="px-3 py-2 bg-red-50 text-red-600 rounded-lg text-[11px] font-bold hover:bg-red-100 transition-colors"
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="py-6 text-center text-gray-400 italic text-sm">
+                                    No rooms on this floor yet.
+                                </div>
+                            )}
+                        </div>
                     </div>
                 );
             })}

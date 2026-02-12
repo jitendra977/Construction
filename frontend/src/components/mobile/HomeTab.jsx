@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useConstruction } from '../../context/ConstructionContext';
 import PhaseDetailModal from '../desktop/manage/PhaseDetailModal';
+import Modal from '../common/Modal';
 
 const HomeTab = () => {
     const {
         updateTaskStatus,
         updatePhaseStatus,
         updatePermitStatus,
+        updatePermitStep,
+        createPermitStep,
+        deletePermitStep,
         dashboardData,
         stats,
         recentActivities: recentUpdates,
@@ -17,6 +21,9 @@ const HomeTab = () => {
     const [showPermits, setShowPermits] = useState(false);
     const [isManageMode, setIsManageMode] = useState(false);
     const [detailPhase, setDetailPhase] = useState(null);
+    const [isPermitModalOpen, setIsPermitModalOpen] = useState(false);
+    const [newPermitTitle, setNewPermitTitle] = useState('');
+    const [permitLoading, setPermitLoading] = useState(false);
 
     // Default expand in-progress phases
     useEffect(() => {
@@ -68,6 +75,44 @@ const HomeTab = () => {
         }
     };
 
+    const handleCreatePermit = async (e) => {
+        e.preventDefault();
+        if (!newPermitTitle.trim()) return;
+        setPermitLoading(true);
+        try {
+            const maxOrder = dashboardData.permits?.reduce((max, step) => Math.max(max, step.order), 0) || 0;
+            await createPermitStep({
+                title: newPermitTitle,
+                status: 'PENDING',
+                order: maxOrder + 1,
+                description: 'Custom permit step'
+            });
+            setNewPermitTitle('');
+            setIsPermitModalOpen(false);
+        } catch (err) {
+            console.error("Failed to create permit step", err);
+        } finally {
+            setPermitLoading(false);
+        }
+    };
+
+    const handleDeleteStep = async (stepId) => {
+        if (!window.confirm("Are you sure you want to delete this step?")) return;
+        try {
+            await deletePermitStep(stepId);
+        } catch (err) {
+            console.error("Failed to delete step", err);
+        }
+    };
+
+    const handleTitleEdit = async (stepId, newTitle) => {
+        try {
+            await updatePermitStep(stepId, { title: newTitle });
+        } catch (err) {
+            console.error("Failed to update title", err);
+        }
+    };
+
     return (
         <div className="space-y-6">
             <PhaseDetailModal
@@ -76,40 +121,25 @@ const HomeTab = () => {
                 phase={detailPhase}
                 tasks={dashboardData.tasks.filter(t => t.phase === detailPhase?.id)}
             />
-            {/* Stats Cards - Horizontal Scroll */}
-            <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-                {stats.map((stat, index) => (
-                    <div
-                        key={index}
-                        className={`flex-shrink-0 w-32 bg-gradient-to-br ${stat.color} rounded-2xl p-4 shadow-md`}
-                    >
-                        <div className="text-3xl mb-2">{stat.icon}</div>
-                        <div className="text-2xl font-bold truncate">{stat.value}</div>
-                        <div className="text-xs text-white/80">{stat.title}</div>
-                    </div>
-                ))}
-            </div>
-
             {/* Construction Journey */}
+
             <section>
                 <div className="flex justify-between items-center mb-6">
-                    <div>
-                        <h2 className="text-xl font-bold text-gray-900">Construction Journey</h2>
-                        <div className="flex items-center gap-2 mt-1">
-                            <p className="text-xs text-gray-500">Official timeline</p>
-                            <span className="text-gray-300">•</span>
-                            <button
-                                onClick={() => setIsManageMode(!isManageMode)}
-                                className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full transition-colors ${isManageMode ? 'bg-indigo-600 text-white shadow-sm' : 'bg-gray-100 text-gray-400'}`}
-                            >
-                                {isManageMode ? 'Manage: ON' : 'Manage Mode'}
-                            </button>
-                        </div>
-                    </div>
-                    <div className="flex gap-2">
-                        <button onClick={expandAll} className="text-[10px] font-bold uppercase text-indigo-600 bg-indigo-50 px-2 py-1 rounded active:scale-95">Expand</button>
-                        <button onClick={collapseAll} className="text-[10px] font-bold uppercase text-gray-400 bg-gray-100 px-2 py-1 rounded active:scale-95">Hide</button>
-                    </div>
+                    <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">Project Timeline</h2>
+                    <button
+                        onClick={() => setIsManageMode(!isManageMode)}
+                        className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${isManageMode
+                            ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200 ring-4 ring-indigo-50 animate-pulse-subtle'
+                            : 'bg-white text-gray-500 border-2 border-gray-100 shadow-sm'
+                            }`}
+                    >
+                        <span className="text-sm">{isManageMode ? '🛠️' : '⚙️'}</span>
+                        {isManageMode ? 'Manage Mode On' : 'Manage Phases'}
+                    </button>
+                </div>
+                <div className="flex gap-2">
+                    <button onClick={expandAll} className="text-[10px] font-bold uppercase text-indigo-600 bg-indigo-50 px-2 py-1 rounded active:scale-95">Expand</button>
+                    <button onClick={collapseAll} className="text-[10px] font-bold uppercase text-gray-400 bg-gray-100 px-2 py-1 rounded active:scale-95">Hide</button>
                 </div>
 
                 <div className="relative space-y-8">
@@ -153,21 +183,48 @@ const HomeTab = () => {
                                         {showPermits && (
                                             <div className="mt-4 pt-4 border-l-2 border-blue-50 ml-1 pl-4 space-y-4 animate-slideDown">
                                                 {dashboardData.permits?.map(step => (
-                                                    <div key={step.id} className="flex items-center gap-3">
-                                                        <div
-                                                            className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all ${step.status === 'APPROVED' ? 'bg-green-500 text-white' : 'bg-gray-50 text-gray-400 border border-gray-100'} ${isManageMode ? 'cursor-pointer active:scale-90 shadow-sm' : ''}`}
-                                                            onClick={(e) => {
-                                                                if (isManageMode) {
-                                                                    e.stopPropagation();
-                                                                    handlePermitToggle(step);
-                                                                }
-                                                            }}
-                                                        >
-                                                            {step.status === 'APPROVED' ? '✓' : step.order}
+                                                    <div key={step.id} className="flex items-center justify-between gap-3 group">
+                                                        <div className="flex items-center gap-3 flex-1">
+                                                            <div
+                                                                className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all flex-shrink-0 ${step.status === 'APPROVED' ? 'bg-green-500 text-white' : 'bg-gray-50 text-gray-400 border border-gray-100'} ${isManageMode ? 'cursor-pointer active:scale-90 shadow-sm' : ''}`}
+                                                                onClick={(e) => {
+                                                                    if (isManageMode) {
+                                                                        e.stopPropagation();
+                                                                        handlePermitToggle(step);
+                                                                    }
+                                                                }}
+                                                            >
+                                                                {step.status === 'APPROVED' ? '✓' : step.order}
+                                                            </div>
+                                                            {isManageMode ? (
+                                                                <input
+                                                                    type="text"
+                                                                    value={step.title}
+                                                                    onChange={(e) => handleTitleEdit(step.id, e.target.value)}
+                                                                    className="text-xs font-semibold text-gray-700 bg-gray-50 border-gray-100 rounded px-2 py-1 outline-none focus:ring-1 focus:ring-blue-500 w-full"
+                                                                />
+                                                            ) : (
+                                                                <span className={`text-xs font-medium ${step.status === 'APPROVED' ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{step.title}</span>
+                                                            )}
                                                         </div>
-                                                        <span className={`text-xs font-medium ${step.status === 'APPROVED' ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{step.title}</span>
+                                                        {isManageMode && (
+                                                            <button
+                                                                onClick={() => handleDeleteStep(step.id)}
+                                                                className="text-gray-300 hover:text-red-500 p-1 opacity-100 group-hover:opacity-100 transition-opacity"
+                                                            >
+                                                                ×
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 ))}
+                                                {isManageMode && (
+                                                    <button
+                                                        onClick={() => setIsPermitModalOpen(true)}
+                                                        className="w-full py-2 bg-blue-50 text-blue-600 text-[10px] font-black uppercase rounded-lg border border-blue-100 active:bg-blue-100 transition-colors"
+                                                    >
+                                                        + Add Permit Step
+                                                    </button>
+                                                )}
                                             </div>
                                         )}
                                     </div>
@@ -261,9 +318,9 @@ const HomeTab = () => {
                                                         e.stopPropagation();
                                                         setDetailPhase(phase);
                                                     }}
-                                                    className="w-full py-2 mb-2 bg-indigo-50 text-indigo-600 text-[10px] font-bold uppercase rounded-lg border border-indigo-100 active:bg-indigo-100 transition-colors"
+                                                    className="w-full py-2 mb-2 bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase rounded-xl border-2 border-indigo-100 active:bg-indigo-200 transition-all shadow-sm flex items-center justify-center gap-2"
                                                 >
-                                                    + Edit Details / Add Media
+                                                    <span className="text-xs">✏️</span> Edit Phase & Tasks
                                                 </button>
                                             )}
                                             {phaseTasks.length > 0 ? (
@@ -347,6 +404,32 @@ const HomeTab = () => {
                     ))}
                 </div>
             </section>
+            {/* Permit Creation Modal */}
+            <Modal isOpen={isPermitModalOpen} onClose={() => setIsPermitModalOpen(false)} title="New Permit Step">
+                <form onSubmit={handleCreatePermit} className="space-y-4">
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Step Title</label>
+                        <input
+                            type="text"
+                            value={newPermitTitle}
+                            onChange={(e) => setNewPermitTitle(e.target.value)}
+                            placeholder="e.g. Ward Clearance, Electricity Deposit..."
+                            className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-gray-900"
+                            autoFocus
+                        />
+                    </div>
+                    <div className="flex gap-3">
+                        <button type="button" onClick={() => setIsPermitModalOpen(false)} className="flex-1 py-4 text-xs font-black text-gray-400 uppercase tracking-widest">Cancel</button>
+                        <button
+                            type="submit"
+                            disabled={permitLoading || !newPermitTitle.trim()}
+                            className="flex-1 py-4 bg-blue-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-100 disabled:opacity-50"
+                        >
+                            {permitLoading ? 'Wait...' : 'Create Step'}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
         </div>
     );
 };

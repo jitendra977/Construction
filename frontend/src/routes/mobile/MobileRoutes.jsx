@@ -3,7 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 
 // Mobile Components
 import HomeTab from '../../components/mobile/HomeTab';
-import RoomsTab from '../../components/mobile/RoomsTab';
+import MobileManage from '../../components/mobile/MobileManage';
 import BudgetTab from '../../components/mobile/BudgetTab';
 import PhotosTab from '../../components/mobile/PhotosTab';
 import EstimatorHub from '../../pages/estimator/EstimatorHub';
@@ -14,7 +14,7 @@ const MobileRoutes = () => {
         <Routes>
             <Route index element={<Navigate to="home" replace />} />
             <Route path="home" element={<HomeTab />} />
-            <Route path="rooms" element={<RoomsTab />} />
+            <Route path="manage" element={<MobileManage />} />
             <Route path="budget" element={<BudgetTab />} />
             <Route path="estimator" element={<EstimatorHub />} />
             <Route path="permits" element={<PermitPage />} />
@@ -24,5 +24,6 @@ const MobileRoutes = () => {
         </Routes>
     );
 };
+
 
 export default MobileRoutes;

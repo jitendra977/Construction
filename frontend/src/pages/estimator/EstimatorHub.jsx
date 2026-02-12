@@ -19,7 +19,7 @@ const EstimatorHub = () => {
     ];
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 font-sans">
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 font-sans pb-32 md:pb-0">
             {/* Emerald Gradient Header (Dashboard Theme) */}
             <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 shadow-xl pb-24 pt-12 px-6 relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-8 opacity-10 transform translate-x-12 -translate-y-12">
@@ -37,27 +37,29 @@ const EstimatorHub = () => {
             </div>
 
             {/* Floating Tabs Navigation */}
-            <div className="max-w-5xl mx-auto px-6 -mt-10 relative z-30">
-                <div className="bg-white/10 backdrop-blur-xl p-2 rounded-2xl border border-white/20 shadow-2xl flex flex-wrap md:flex-nowrap gap-2">
-                    {tabs.map((tab) => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 ${activeTab === tab.id
-                                ? 'bg-white text-emerald-900 shadow-lg transform scale-[1.02]'
-                                : 'text-white hover:bg-white/10'
-                                }`}
-                        >
-                            <span className="text-xl">{tab.icon}</span>
-                            <span className="hidden sm:inline">{tab.label}</span>
-                        </button>
-                    ))}
+            <div className="max-w-7xl mx-auto px-6 -mt-10 relative z-30">
+                <div className="max-w-5xl mx-auto">
+                    <div className="bg-white/10 backdrop-blur-xl p-2 rounded-2xl border border-white/20 shadow-2xl flex flex-wrap md:flex-nowrap gap-2">
+                        {tabs.map((tab) => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 ${activeTab === tab.id
+                                    ? 'bg-white text-emerald-900 shadow-lg transform scale-[1.02]'
+                                    : 'text-white hover:bg-white/10'
+                                    }`}
+                            >
+                                <span className="text-xl">{tab.icon}</span>
+                                <span className="hidden sm:inline">{tab.label}</span>
+                            </button>
+                        ))}
+                    </div>
                 </div>
             </div>
 
             {/* Main Content Area */}
-            <div className="max-w-5xl mx-auto px-6 py-12 relative z-20">
-                <div className="bg-white rounded-[32px] shadow-2xl border border-gray-100 overflow-hidden min-h-[500px]">
+            <div className="max-w-7xl mx-auto px-6 py-12 relative z-20">
+                <div className="max-w-5xl mx-auto bg-white rounded-[32px] shadow-2xl border border-gray-100 overflow-hidden min-h-[500px]">
                     <div className="p-8 md:p-12">
                         {activeTab === 'budget' && <StructuralBudgetEstimator />}
                         {activeTab === 'data' && <DataTab />}

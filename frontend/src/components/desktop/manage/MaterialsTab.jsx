@@ -4,7 +4,7 @@ import Modal from '../../common/Modal';
 import { useConstruction } from '../../../context/ConstructionContext';
 
 const MaterialsTab = ({ searchQuery = '' }) => {
-    const { dashboardData, refreshData } = useConstruction();
+    const { dashboardData, refreshData, formatCurrency } = useConstruction();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
     const [formData, setFormData] = useState({});
@@ -221,7 +221,8 @@ const MaterialsTab = ({ searchQuery = '' }) => {
             )}
 
             <div className="bg-white rounded-3xl border border-gray-100 shadow-xl overflow-hidden">
-                <div className="overflow-x-auto">
+                {/* Desktop View: Table */}
+                <div className="hidden lg:block overflow-x-auto">
                     <table className="w-full text-left">
                         <thead className="bg-[#1e293b] text-[10px] font-black uppercase text-gray-400 tracking-wider">
                             <tr>
@@ -257,7 +258,7 @@ const MaterialsTab = ({ searchQuery = '' }) => {
                                                         )}
                                                     </div>
                                                     <div className="text-[10px] uppercase font-black text-gray-400 flex items-center gap-2">
-                                                        <span>{m.budget_category_name || 'General'}</span>
+                                                        <span>{m.category_name || 'General'}</span>
                                                         <span className="w-1 h-1 bg-gray-300 rounded-full" />
                                                         <span>{m.unit}</span>
                                                     </div>
@@ -313,14 +314,95 @@ const MaterialsTab = ({ searchQuery = '' }) => {
                                             >
                                                 {actionLoading === m.id ? 'Auditing...' : 'Audit Stock'}
                                             </button>
-                                            <button onClick={() => handleOpenModal(m)} className="text-indigo-600 hover:text-indigo-900 font-semibold text-sm">Edit</button>
-                                            <button onClick={() => handleDelete(m.id)} className="text-red-400 hover:text-red-700 font-semibold text-sm opacity-0 group-hover:opacity-100 transition-opacity">Delete</button>
+                                            <button onClick={() => handleOpenModal(m)} className="text-indigo-600 hover:text-indigo-900 font-bold text-[10px] uppercase tracking-wider">Edit</button>
+                                            <button onClick={() => handleDelete(m.id)} className="text-red-400 hover:text-red-700 font-bold text-[10px] uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity">Delete</button>
                                         </td>
                                     </tr>
                                 );
                             })}
                         </tbody>
                     </table>
+                </div>
+
+                {/* Mobile View: Cards */}
+                <div className="lg:hidden p-4 space-y-4">
+                    {filteredMaterials.map(m => {
+                        const isLow = Number(m.current_stock) <= Number(m.min_stock_level);
+                        const pendingQty = pendingStockMap[m.id] || 0;
+
+                        return (
+                            <div key={m.id} className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-xl font-bold text-indigo-600 overflow-hidden shadow-sm">
+                                            {m.image ? (
+                                                <img src={m.image} alt={m.name} className="w-full h-full object-cover" />
+                                            ) : (
+                                                m.name.charAt(0)
+                                            )}
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-gray-900 text-base leading-tight">
+                                                {m.name}
+                                            </h3>
+                                            <div className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-0.5">
+                                                {m.category_name}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Available</div>
+                                        <div className={`text-lg font-black leading-none ${isLow ? 'text-red-600' : 'text-gray-900'}`}>
+                                            {m.current_stock}
+                                            <span className="text-xs font-bold text-gray-400 ml-1">{m.unit}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {(isLow || pendingQty > 0) && (
+                                    <div className="flex flex-wrap gap-2 mb-4">
+                                        {isLow && (
+                                            <span className="bg-red-50 text-red-600 text-[9px] font-black px-2 py-1 rounded-lg border border-red-100 uppercase tracking-tight">
+                                                Low Stock Alert
+                                            </span>
+                                        )}
+                                        {pendingQty > 0 && (
+                                            <span className="bg-orange-50 text-orange-600 text-[9px] font-black px-2 py-1 rounded-lg border border-orange-100 uppercase tracking-tight">
+                                                🚛 {pendingQty} INCOMING
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+
+                                <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-gray-100">
+                                    <button
+                                        onClick={() => handleOpenEmailModal(m)}
+                                        className="py-2.5 bg-green-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1.5"
+                                    >
+                                        📧 Order
+                                    </button>
+                                    <button
+                                        onClick={() => handleRecalculate(m.id)}
+                                        className="py-2.5 bg-indigo-50 text-indigo-700 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                                    >
+                                        Audit Stock
+                                    </button>
+                                    <button
+                                        onClick={() => handleOpenModal(m)}
+                                        className="py-2.5 bg-gray-50 text-gray-600 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                                    >
+                                        Edit
+                                    </button>
+                                    <button
+                                        onClick={() => handleDelete(m.id)}
+                                        className="py-2.5 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
 

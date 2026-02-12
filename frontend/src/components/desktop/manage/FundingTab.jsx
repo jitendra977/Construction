@@ -125,64 +125,146 @@ const FundingTab = ({ searchQuery = '' }) => {
                 </button>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            {/* Desktop View: Table */}
+            <div className="hidden lg:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="bg-gray-50 border-b border-gray-100">
-                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Source & Type</th>
-                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Total Amount</th>
-                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Available Balance</th>
-                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Interest / Cost</th>
-                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Actions</th>
+                            <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Source Name</th>
+                            <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Total Amount</th>
+                            <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Current Balance</th>
+                            <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
-                        {filteredFunding.map(f => (
-                            <tr key={f.id} className="hover:bg-gray-50 transition-colors group">
-                                <td className="px-6 py-4">
-                                    <div className="flex flex-col gap-1.5">
-                                        <div className="font-bold text-gray-900 leading-tight">{f.name}</div>
-                                        {getSourceTypeBadge(f.source_type)}
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="text-lg font-black text-gray-900">{formatCurrency(f.amount)}</div>
-                                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Total Allocation</div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className={`text-lg font-black ${Number(f.current_balance) < Number(f.amount) * 0.1 ? 'text-red-600' : 'text-emerald-600'}`}>{formatCurrency(f.current_balance)}</div>
-                                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Available Balance</div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    {f.source_type === 'LOAN' || f.source_type === 'BORROWED' ? (
-                                        <div className="space-y-1">
-                                            <div className="text-sm font-bold text-red-500">{f.interest_rate}% Interest</div>
-                                            <div className="text-[10px] text-gray-400 font-medium">Monthly: {formatCurrency((f.amount * (f.interest_rate / 100)) / 12)} approx.</div>
+                        {filteredFunding.map(f => {
+                            const percent = f.amount > 0 ? (f.current_balance / f.amount) * 100 : 0;
+                            return (
+                                <tr key={f.id} className="hover:bg-gray-50 transition-colors group">
+                                    <td className="px-6 py-4">
+                                        <div className="flex flex-col">
+                                            <span className="font-bold text-gray-900 leading-tight">{f.name}</span>
+                                            <span className={`text-[9px] font-black uppercase tracking-tighter mt-1 inline-block px-1.5 py-0.5 rounded ${f.source_type === 'OWN_MONEY' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                                                f.source_type === 'LAXMI_B' ? 'bg-blue-50 text-blue-600 border border-blue-100' :
+                                                    f.source_type === 'LOAN' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                                                        'bg-gray-50 text-gray-600 border border-gray-100'
+                                                }`}>
+                                                {f.source_type?.replace('_', ' ')}
+                                            </span>
                                         </div>
-                                    ) : (
-                                        <div className="text-sm text-emerald-600 font-bold italic">Zero Cost Capital</div>
-                                    )}
-                                </td>
-                                <td className="px-6 py-4 text-right space-x-3">
-                                    <button
-                                        onClick={() => handleOpenTopUp(f)}
-                                        className="text-orange-600 hover:text-orange-900 font-semibold text-sm"
-                                    >
-                                        Top-up
-                                    </button>
-                                    <button onClick={() => setViewingHistory(f)} className="text-emerald-600 hover:text-emerald-900 font-semibold text-sm">History</button>
-                                    <button onClick={() => handleOpenModal(f)} className="text-indigo-600 hover:text-indigo-900 font-semibold text-sm">Edit</button>
-                                    <button onClick={() => handleDelete(f.id)} className="text-red-500 hover:text-red-700 font-semibold text-sm opacity-0 group-hover:opacity-100 transition-opacity">Delete</button>
-                                </td>
-                            </tr>
-                        ))}
+                                    </td>
+                                    <td className="px-6 py-4 font-black text-gray-900">{formatCurrency(f.amount)}</td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex flex-col">
+                                            <div className="flex justify-between items-baseline mb-1">
+                                                <span className="text-sm font-black text-indigo-600">{formatCurrency(f.current_balance)}</span>
+                                                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">{Math.round(percent)}% LEFT</span>
+                                            </div>
+                                            <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                                                <div
+                                                    className={`h-full transition-all duration-700 ${percent < 20 ? 'bg-red-500' : percent < 50 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                                                    style={{ width: `${percent}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button onClick={() => setViewingHistory(f)} className="text-emerald-600 hover:text-emerald-900 font-bold text-[10px] uppercase tracking-wider">Manage</button>
+                                            <button onClick={() => handleOpenModal(f)} className="text-indigo-600 hover:text-indigo-900 font-bold text-[10px] uppercase tracking-wider">Edit</button>
+                                            <button onClick={() => handleDelete(f.id)} className="text-red-500 hover:text-red-700 font-bold text-[10px] uppercase tracking-wider">Delete</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            );
+                        })}
                         {filteredFunding.length === 0 && (
                             <tr>
-                                <td colSpan="4" className="px-6 py-10 text-center text-gray-400 italic text-sm">No funding sources found.</td>
+                                <td colSpan="4" className="px-6 py-10 text-center text-gray-400 italic">No funding sources found.</td>
                             </tr>
                         )}
                     </tbody>
                 </table>
+            </div>
+
+            {/* Mobile View: Cards */}
+            <div className="lg:hidden space-y-4">
+                {filteredFunding.map(f => {
+                    const percent = f.amount > 0 ? (f.current_balance / f.amount) * 100 : 0;
+                    return (
+                        <div key={f.id} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex flex-col gap-4">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded leading-none ${f.source_type === 'OWN_MONEY' ? 'bg-emerald-50 text-emerald-600' :
+                                            f.source_type === 'LAXMI_B' ? 'bg-blue-50 text-blue-600' :
+                                                f.source_type === 'LOAN' ? 'bg-amber-50 text-amber-600' :
+                                                    'bg-gray-50 text-gray-600'
+                                            }`}>
+                                            {f.source_type?.replace('_', ' ')}
+                                        </span>
+                                        {f.default_payment_method && (
+                                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest px-1.5 py-0.5 bg-gray-50 rounded leading-none">{f.default_payment_method}</span>
+                                        )}
+                                    </div>
+                                    <h3 className="font-bold text-gray-900 text-base leading-tight">{f.name}</h3>
+                                </div>
+                                <div className="text-right">
+                                    <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Total Limit</div>
+                                    <div className="text-sm font-black text-gray-900 leading-none">{formatCurrency(f.amount)}</div>
+                                </div>
+                            </div>
+
+                            <div className="bg-gray-50 rounded-2xl p-4">
+                                <div className="flex justify-between items-end mb-2">
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter leading-none mb-1">Available Balance</span>
+                                        <span className="text-lg font-black text-indigo-600 leading-none">
+                                            {formatCurrency(f.current_balance)}
+                                        </span>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className={`text-[10px] font-black uppercase tracking-tight ${percent < 20 ? 'text-red-500' : 'text-emerald-600'}`}>
+                                            {Math.round(percent)}% REMAINING
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="w-full bg-white h-2 rounded-full overflow-hidden border border-gray-100 p-0.5">
+                                    <div
+                                        className={`h-full rounded-full transition-all duration-1000 ${percent < 20 ? 'bg-red-500' : percent < 50 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                                        style={{ width: `${percent}%` }}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2">
+                                <button
+                                    onClick={() => setViewingHistory(f)}
+                                    className="py-2.5 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm shadow-emerald-200"
+                                >
+                                    Manage
+                                </button>
+                                <button
+                                    onClick={() => handleOpenModal(f)}
+                                    className="py-2.5 bg-indigo-50 text-indigo-700 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all"
+                                >
+                                    Edit
+                                </button>
+                                <button
+                                    onClick={() => handleDelete(f.id)}
+                                    className="py-2.5 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all"
+                                >
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    );
+                })}
+                {filteredFunding.length === 0 && (
+                    <div className="py-10 text-center text-gray-400 italic bg-white rounded-2xl border-2 border-dashed border-gray-100">
+                        No funding sources found.
+                    </div>
+                )}
             </div>
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`${editingItem ? 'Edit' : 'Add'} Funding Source`}>

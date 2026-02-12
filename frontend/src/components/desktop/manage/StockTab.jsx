@@ -87,7 +87,8 @@ const StockTab = ({ searchQuery = '' }) => {
                 </button>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            {/* Desktop View: Table */}
+            <div className="hidden lg:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="bg-gray-50 border-b border-gray-100">
@@ -169,18 +170,87 @@ const StockTab = ({ searchQuery = '' }) => {
                                         className="text-red-500 hover:text-red-700 font-bold text-[10px] uppercase opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 ml-auto"
                                     >
                                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                        Void Entry
+                                        Void
                                     </button>
                                 </td>
                             </tr>
                         ))}
-                        {filteredTransactions.length === 0 && (
-                            <tr>
-                                <td colSpan="4" className="px-6 py-10 text-center text-gray-400 italic text-sm">No transactions found matching your search.</td>
-                            </tr>
-                        )}
                     </tbody>
                 </table>
+            </div>
+
+            {/* Mobile View: Cards */}
+            <div className="lg:hidden space-y-4">
+                {filteredTransactions.map(t => (
+                    <div key={t.id} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex flex-col gap-4">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded leading-none mb-2 inline-block border ${getTypeColor(t.transaction_type)}`}>
+                                    {t.transaction_type === 'IN' ? 'Stock Inbound' : t.transaction_type === 'OUT' ? 'Stock Consumed' : t.transaction_type}
+                                </span>
+                                <h3 className="font-bold text-gray-900 text-base leading-tight">{t.material_name}</h3>
+                                <div className="text-[10px] text-gray-500 font-medium mt-1">
+                                    {new Date(t.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Quantity</div>
+                                <div className={`text-xl font-black leading-none ${t.transaction_type === 'IN' ? 'text-green-600' : 'text-gray-900'}`}>
+                                    {t.transaction_type === 'IN' ? '+' : '-'}{t.quantity}
+                                    <span className="text-xs font-bold text-gray-400 ml-1 uppercase">{t.unit_name}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {(t.supplier_name || t.room_name || t.funding_source_name) && (
+                            <div className="bg-gray-50 rounded-xl p-3 space-y-2">
+                                {t.supplier_name && (
+                                    <div className="flex items-center gap-2 text-[10px] font-bold text-gray-600">
+                                        <span className="text-gray-400 uppercase tracking-tight">Supplier:</span>
+                                        <span>{t.supplier_name}</span>
+                                    </div>
+                                )}
+                                {t.room_name && (
+                                    <div className="flex items-center gap-2 text-[10px] font-bold text-gray-600">
+                                        <span className="text-gray-400 uppercase tracking-tight">Purpose:</span>
+                                        <span>{t.room_name}</span>
+                                    </div>
+                                )}
+                                {t.funding_source_name && (
+                                    <div className="flex items-center gap-2 text-[10px] font-bold text-indigo-600">
+                                        <span className="text-indigo-300 uppercase tracking-tight">Paid via:</span>
+                                        <span>{t.funding_source_name}</span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        <div className="flex gap-2">
+                            {t.expense && (
+                                <button
+                                    onClick={() => {
+                                        setSelectedExpenseId(t.expense);
+                                        setIsDetailModalOpen(true);
+                                    }}
+                                    className="flex-1 py-2.5 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-bold active:scale-95 transition-all"
+                                >
+                                    View Bill
+                                </button>
+                            )}
+                            <button
+                                onClick={() => handleDelete(t.id)}
+                                className="flex-1 py-2.5 bg-red-50 text-red-600 rounded-xl text-xs font-bold active:scale-95 transition-all"
+                            >
+                                Void Entry
+                            </button>
+                        </div>
+                    </div>
+                ))}
+                {filteredTransactions.length === 0 && (
+                    <div className="py-10 text-center text-gray-400 italic bg-white rounded-2xl border-2 border-dashed border-gray-100">
+                        No transactions found matching your search.
+                    </div>
+                )}
             </div>
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Register Stock Movement">

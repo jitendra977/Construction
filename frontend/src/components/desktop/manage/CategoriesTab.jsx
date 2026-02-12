@@ -57,7 +57,8 @@ const CategoriesTab = ({ searchQuery = '' }) => {
                 </button>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            {/* Desktop View: Table */}
+            <div className="hidden lg:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="bg-gray-50 border-b border-gray-100">
@@ -123,6 +124,78 @@ const CategoriesTab = ({ searchQuery = '' }) => {
                         )}
                     </tbody>
                 </table>
+            </div>
+
+            {/* Mobile View: Cards */}
+            <div className="lg:hidden space-y-4">
+                {filteredCategories.map(c => {
+                    const categoryExpenses = dashboardData.expenses?.filter(e => e.category === c.id) || [];
+                    const spent = categoryExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
+                    const percent = c.allocation > 0 ? Math.min((spent / c.allocation) * 100, 100) : 0;
+                    const isOverBudget = spent > c.allocation;
+
+                    return (
+                        <div key={c.id} className={`bg-white rounded-2xl p-4 border shadow-sm transition-all ${isOverBudget ? 'border-red-100 shadow-red-50' : 'border-gray-100'}`}>
+                            <div className="flex justify-between items-start mb-4">
+                                <div>
+                                    <h3 className="font-bold text-gray-900 leading-tight mb-1 uppercase tracking-tight">{c.name}</h3>
+                                    <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{categoryExpenses.length} Transactions Recorded</div>
+                                </div>
+                                {isOverBudget && (
+                                    <div className="bg-red-50 text-red-600 px-2 py-1 rounded-lg text-[10px] font-black animate-pulse border border-red-100">
+                                        OVER BUDGET
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="bg-gray-50 rounded-2xl p-4 mb-4">
+                                <div className="flex justify-between items-end mb-2">
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter leading-none mb-1">Spent Amount</span>
+                                        <span className={`text-lg font-black leading-none ${isOverBudget ? 'text-red-600' : 'text-gray-900'}`}>
+                                            Rs. {spent.toLocaleString()}
+                                        </span>
+                                    </div>
+                                    <div className="text-right flex flex-col">
+                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter leading-none mb-1">Total Allocation</span>
+                                        <span className="text-sm font-bold text-gray-600 leading-none">Rs. {Number(c.allocation).toLocaleString()}</span>
+                                    </div>
+                                </div>
+
+                                <div className="w-full bg-white h-2 rounded-full overflow-hidden border border-gray-100 p-0.5">
+                                    <div
+                                        className={`h-full rounded-full transition-all duration-1000 ${isOverBudget ? 'bg-red-500 shadow-sm shadow-red-200' : percent > 80 ? 'bg-orange-400' : 'bg-emerald-500'}`}
+                                        style={{ width: `${percent}%` }}
+                                    />
+                                </div>
+                                <div className="flex justify-between mt-1 text-[9px] font-black">
+                                    <span className={isOverBudget ? 'text-red-500' : 'text-emerald-600'}>{percent.toFixed(1)}% USED</span>
+                                    <span className="text-gray-400 uppercase tracking-widest">Budget Status</span>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <button
+                                    onClick={() => handleOpenModal(c)}
+                                    className="py-2.5 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-all"
+                                >
+                                    Edit Category
+                                </button>
+                                <button
+                                    onClick={() => handleDelete(c.id)}
+                                    className="py-2.5 bg-red-50 text-red-600 rounded-xl text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-all"
+                                >
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    );
+                })}
+                {filteredCategories.length === 0 && (
+                    <div className="py-10 text-center text-gray-400 italic bg-white rounded-2xl border-2 border-dashed border-gray-100">
+                        No categories found matching your search.
+                    </div>
+                )}
             </div>
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`${editingItem ? 'Edit' : 'Add'} Category`}>

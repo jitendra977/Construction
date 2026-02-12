@@ -132,8 +132,8 @@ const DesktopManage = () => {
 
                 {/* Main Content Card */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-h-[600px]">
-                    {/* Tabs Navigation */}
-                    <div className="border-b border-gray-100 bg-gray-50/50 sticky top-0 z-30 backdrop-blur-sm">
+                    {/* Tabs Navigation - Sticky */}
+                    <div className="border-b border-gray-100 bg-gray-50/50 sticky top-0 z-30 backdrop-blur-md">
                         <div className="flex overflow-x-auto no-scrollbar px-2">
                             {tabs.map((tab) => (
                                 <button

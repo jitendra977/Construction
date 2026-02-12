@@ -109,8 +109,8 @@ const DesktopPhotos = () => {
             </div>
 
             {/* Main Content Area - Overlapping for modern look */}
-            <div className="flex-1 overflow-y-auto px-6 md:px-8 -mt-6 pb-20 relative z-20">
-                <div className="max-w-7xl mx-auto">
+            <div className="flex-1 overflow-y-auto -mt-6 pb-20 relative z-20">
+                <div className="max-w-7xl mx-auto px-6 md:px-8">
                     {loading ? (
                         <div className="flex justify-center py-20">
                             <div className="animate-spin rounded-full h-12 w-12 border-4 border-slate-500 border-t-transparent"></div>

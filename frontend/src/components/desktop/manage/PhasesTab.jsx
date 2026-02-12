@@ -19,7 +19,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useConstruction } from '../../../context/ConstructionContext';
 
-const SortableRow = ({ phase, onEdit, onDelete }) => {
+const SortableCard = ({ phase, onEdit, onDelete }) => {
     const {
         attributes,
         listeners,
@@ -33,21 +33,94 @@ const SortableRow = ({ phase, onEdit, onDelete }) => {
         transform: CSS.Transform.toString(transform),
         transition,
         zIndex: isDragging ? 100 : 'auto',
-        position: 'relative',
-        backgroundColor: isDragging ? '#f9fafb' : 'transparent',
     };
 
     return (
-        <tr ref={setNodeRef} style={style} className={`hover:bg-gray-50 transition-colors ${isDragging ? 'shadow-lg' : ''}`}>
-            <td className="px-6 py-4 font-medium text-gray-900 cursor-move" {...attributes} {...listeners}>
-                <div className="flex items-center gap-2">
-                    <span className="text-gray-400">☰</span>
-                    {phase.order}
+        <div ref={setNodeRef} style={style} className={`bg-white rounded-2xl p-4 border border-gray-100 shadow-sm mb-3 transition-all ${isDragging ? 'shadow-xl scale-[1.02] border-indigo-200' : ''}`}>
+            <div className="flex justify-between items-start mb-3">
+                <div className="flex items-center gap-3">
+                    <div className="cursor-move p-2 -ml-2 text-gray-400 hover:text-indigo-600 active:scale-125 transition-all" {...attributes} {...listeners}>
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8h16M4 16h16" />
+                        </svg>
+                    </div>
+                    <div>
+                        <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Phase {phase.order}</div>
+                        <h3 className="font-bold text-gray-900">{phase.name}</h3>
+                    </div>
+                </div>
+                <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${phase.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                    phase.status === 'IN_PROGRESS' ? 'bg-indigo-100 text-indigo-700' :
+                        phase.status === 'HALTED' ? 'bg-red-100 text-red-700' :
+                            'bg-gray-100 text-gray-500'
+                    }`}>
+                    {phase.status}
+                </span>
+            </div>
+
+            <div className="flex justify-between items-center bg-gray-50 rounded-xl p-3 mb-3">
+                <div>
+                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Est. Budget</div>
+                    <div className="text-sm font-black text-gray-900">Rs. {Number(phase.estimated_budget).toLocaleString()}</div>
+                </div>
+                <div className="text-right">
+                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Timeline</div>
+                    <div className="text-[11px] font-bold text-gray-600">
+                        {phase.start_date ? new Date(phase.start_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'TBD'} -
+                        {phase.end_date ? new Date(phase.end_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'TBD'}
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex gap-2">
+                <button
+                    onClick={() => onEdit(phase)}
+                    className="flex-1 py-2.5 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-bold hover:bg-indigo-100 transition-colors"
+                >
+                    Edit Details
+                </button>
+                <button
+                    onClick={() => onDelete(phase.id)}
+                    className="px-4 py-2.5 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100 transition-colors"
+                >
+                    Delete
+                </button>
+            </div>
+        </div>
+    );
+};
+
+const SortableRow = ({ phase, onEdit, onDelete }) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id: phase.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 10 : 'auto',
+    };
+
+    return (
+        <tr ref={setNodeRef} style={style} className={`hover:bg-gray-50 transition-colors ${isDragging ? 'bg-indigo-50 shadow-lg relative' : ''}`}>
+            <td className="px-6 py-4">
+                <div className="flex items-center gap-3">
+                    <div className="cursor-move p-1 text-gray-400 hover:text-indigo-600" {...attributes} {...listeners}>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8h16M4 16h16" />
+                        </svg>
+                    </div>
+                    <span className="font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded text-xs">{phase.order}</span>
                 </div>
             </td>
             <td className="px-6 py-4 text-gray-700 font-semibold">{phase.name}</td>
             <td className="px-6 py-4">
-                <span className={`px-3 py-1 rounded-full text-xs font-bold ${phase.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${phase.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
                     phase.status === 'IN_PROGRESS' ? 'bg-indigo-100 text-indigo-700' :
                         phase.status === 'HALTED' ? 'bg-red-100 text-red-700' :
                             'bg-gray-100 text-gray-500'
@@ -55,7 +128,7 @@ const SortableRow = ({ phase, onEdit, onDelete }) => {
                     {phase.status}
                 </span>
             </td>
-            <td className="px-6 py-4 text-gray-900 font-medium">Rs. {Number(phase.estimated_budget).toLocaleString()}</td>
+            <td className="px-6 py-4 font-bold text-gray-900 text-sm">Rs. {Number(phase.estimated_budget).toLocaleString()}</td>
             <td className="px-6 py-4 text-right space-x-3">
                 <button onClick={() => onEdit(phase)} className="text-indigo-600 hover:text-indigo-900 font-semibold text-sm">Edit</button>
                 <button onClick={() => onDelete(phase.id)} className="text-red-600 hover:text-red-900 font-semibold text-sm">Delete</button>
@@ -130,17 +203,19 @@ const PhasesTab = ({ searchQuery = '' }) => {
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center mb-2">
-                <p className="text-sm text-gray-500">Manage construction timeline and budget allocation per phase.</p>
+                <p className="text-sm text-gray-500 hidden sm:block">Manage construction timeline and budget allocation per phase.</p>
+                <div className="sm:hidden" /> {/* Spacer for mobile */}
                 <button
                     onClick={() => handleOpenModal()}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors shadow-sm"
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors shadow-sm text-sm"
                 >
                     + Add New Phase
                 </button>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                {/* Desktop View: Table */}
+                <div className="hidden lg:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-gray-50 border-b border-gray-100">
@@ -164,8 +239,22 @@ const PhasesTab = ({ searchQuery = '' }) => {
                             )}
                         </tbody>
                     </table>
-                </DndContext>
-            </div>
+                </div>
+
+                {/* Mobile View: Vertically Stacked List */}
+                <div className="lg:hidden">
+                    <SortableContext items={filteredPhases.map(p => p.id)} strategy={verticalListSortingStrategy}>
+                        {filteredPhases.map(p => (
+                            <SortableCard key={p.id} phase={p} onEdit={handleOpenModal} onDelete={handleDelete} />
+                        ))}
+                    </SortableContext>
+                    {filteredPhases.length === 0 && (
+                        <div className="py-10 text-center text-gray-400 italic bg-white rounded-2xl border-2 border-dashed border-gray-100">
+                            No phases found matching your search.
+                        </div>
+                    )}
+                </div>
+            </DndContext>
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`${editingItem ? 'Edit' : 'Add'} Phase`}>
                 <form onSubmit={handleSubmit} className="space-y-4 p-1">

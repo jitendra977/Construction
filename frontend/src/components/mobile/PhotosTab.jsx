@@ -4,7 +4,7 @@ import { dashboardService, getMediaUrl } from '../../services/api';
 const PhotosTab = () => {
     const [groupedGallery, setGroupedGallery] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [groupBy, setGroupBy] = useState('category');
+    const [groupBy, setGroupBy] = useState('timeline');
 
     useEffect(() => {
         const fetchGallery = async () => {
@@ -47,11 +47,10 @@ const PhotosTab = () => {
                     onChange={(e) => setGroupBy(e.target.value)}
                     className="bg-gray-100 rounded-lg px-3 py-1 text-sm font-medium outline-none border-none"
                 >
-                    <option value="none">All Media</option>
-                    <option value="phase">By Phase</option>
-                    <option value="task">By Task</option>
-                    <option value="engineering">Engineering</option>
-                    <option value="category">Others</option>
+                    <option value="timeline">Timeline</option>
+                    <option value="phases">By Phase</option>
+                    <option value="blueprints">Engineering</option>
+                    <option value="permits">Documents</option>
                 </select>
             </div>
 
@@ -66,9 +65,9 @@ const PhotosTab = () => {
             ) : (
                 <div className="space-y-8">
                     {groupedGallery.map((group) => (
-                        <div key={group.group} className="space-y-3">
+                        <div key={group.groupName} className="space-y-3">
                             <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider px-1">
-                                {group.group} ({group.items.length})
+                                {group.groupName} ({group.items.length})
                             </h3>
                             <div className="grid grid-cols-2 gap-3">
                                 {group.items.map((item) => (
@@ -80,7 +79,7 @@ const PhotosTab = () => {
                                         }}
                                         className="aspect-square bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 relative group active:scale-95 transition-transform"
                                     >
-                                        {item.file_type === 'IMAGE' ? (
+                                        {item.media_type === 'IMAGE' ? (
                                             <img
                                                 src={item.url}
                                                 alt={item.title}
@@ -88,7 +87,7 @@ const PhotosTab = () => {
                                             />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center bg-gray-50">
-                                                <FileIcon type={item.file_type} />
+                                                <FileIcon type={item.media_type} />
                                             </div>
                                         )}
                                         <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/60 to-transparent">
