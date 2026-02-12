@@ -34,6 +34,8 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: construction_frontend
+    volumes:
+      - media_data:/usr/share/nginx/html/media
     ports:
       - "80:80"
     depends_on:
