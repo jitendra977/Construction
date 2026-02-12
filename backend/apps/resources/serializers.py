@@ -13,6 +13,7 @@ class ContractorSerializer(serializers.ModelSerializer):
 class MaterialSerializer(serializers.ModelSerializer):
     budget_category_name = serializers.CharField(source='budget_category.name', read_only=True)
     supplier_name = serializers.CharField(source='supplier.name', read_only=True)
+    supplier_email = serializers.CharField(source='supplier.email', read_only=True)
     status = serializers.SerializerMethodField()
 
     class Meta:

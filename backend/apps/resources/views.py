@@ -34,6 +34,55 @@ class MaterialViewSet(viewsets.ModelViewSet):
         for material in materials:
             material.recalculate_stock()
         return Response({"status": "All stock levels recalculated successfully."})
+    
+    @action(detail=True, methods=['post'])
+    def email_supplier(self, request, pk=None):
+        """
+        Send an email to the supplier to order this material.
+        Expects: { "quantity": <number> }
+        """
+        from apps.core.email_utils import send_material_order_email
+        from rest_framework import status
+        
+        material = self.get_object()
+        quantity = request.data.get('quantity', material.min_stock_level)
+        
+        # Validation
+        if not material.supplier:
+            return Response(
+                {"error": "This material has no supplier assigned"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not material.supplier.email:
+            return Response(
+                {"error": f"Supplier '{material.supplier.name}' has no email address"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Send email
+        try:
+            success = send_material_order_email(material, quantity, request.user.email)
+            if success:
+                return Response({
+                    "success": True,
+                    "message": f"Order email sent to {material.supplier.name} ({material.supplier.email})",
+                    "supplier": material.supplier.name,
+                    "supplier_email": material.supplier.email,
+                    "material": material.name,
+                    "quantity": quantity
+                })
+            else:
+                return Response(
+                    {"error": "Failed to send email. Please check email configuration."},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
 
 class MaterialTransactionViewSet(viewsets.ModelViewSet):
     queryset = MaterialTransaction.objects.all()

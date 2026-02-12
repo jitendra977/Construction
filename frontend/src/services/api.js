@@ -117,6 +117,7 @@ export const dashboardService = {
     updateMaterial: (id, data) => api.patch(`/materials/${id}/`, data),
     deleteMaterial: (id) => api.delete(`/materials/${id}/`),
     recalculateMaterialStock: (id) => api.post(`/materials/${id}/recalculate_stock/`),
+    emailSupplier: (id, quantity) => api.post(`/materials/${id}/email_supplier/`, { quantity }).then(res => res.data),
     recalculateAllMaterialsStock: () => api.post(`/materials/recalculate_all/`),
 
     getContractors: () => api.get('/contractors/'),

@@ -11,6 +11,9 @@ const MaterialsTab = ({ searchQuery = '' }) => {
     const [loading, setLoading] = useState(false);
     const [actionLoading, setActionLoading] = useState(null);
     const [showLowStockOnly, setShowLowStockOnly] = useState(false);
+    const [emailModalOpen, setEmailModalOpen] = useState(false);
+    const [selectedMaterial, setSelectedMaterial] = useState(null);
+    const [emailQuantity, setEmailQuantity] = useState('');
 
     const filteredMaterials = (dashboardData.materials || []).filter(m => {
         const matchesSearch = m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -90,6 +93,27 @@ const MaterialsTab = ({ searchQuery = '' }) => {
         return Math.min(100, (Number(current) / (Number(min) * 5)) * 100);
     };
 
+    const handleOpenEmailModal = (material) => {
+        setSelectedMaterial(material);
+        setEmailQuantity(material.min_stock_level || '10');
+        setEmailModalOpen(true);
+    };
+
+    const handleSendEmail = async () => {
+        if (!selectedMaterial) return;
+        setActionLoading(`email_${selectedMaterial.id}`);
+        try {
+            const response = await dashboardService.emailSupplier(selectedMaterial.id, emailQuantity);
+            alert(`✅ ${response.message}`);
+            setEmailModalOpen(false);
+        } catch (error) {
+            const errorMsg = error.response?.data?.error || 'Failed to send email';
+            alert(`❌ ${errorMsg}`);
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
     return (
         <div className="space-y-4">
             {/* Controls Bar */}
@@ -98,8 +122,8 @@ const MaterialsTab = ({ searchQuery = '' }) => {
                     <button
                         onClick={() => setShowLowStockOnly(!showLowStockOnly)}
                         className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 border shadow-sm ${showLowStockOnly
-                                ? 'bg-red-50 border-red-200 text-red-600 ring-2 ring-red-100'
-                                : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50'
+                            ? 'bg-red-50 border-red-200 text-red-600 ring-2 ring-red-100'
+                            : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50'
                             }`}
                     >
                         <span className={`w-2 h-2 rounded-full ${showLowStockOnly ? 'bg-red-500 animate-pulse' : 'bg-gray-300'}`}></span>
@@ -183,6 +207,19 @@ const MaterialsTab = ({ searchQuery = '' }) => {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-right space-x-3">
+                                        {m.supplier_email && (
+                                            <button
+                                                onClick={() => handleOpenEmailModal(m)}
+                                                disabled={actionLoading === `email_${m.id}`}
+                                                className={`font-extrabold text-[9px] uppercase transition-all px-2 py-1 rounded border ${actionLoading === `email_${m.id}`
+                                                    ? 'bg-gray-100 text-gray-400 border-gray-100'
+                                                    : 'text-green-600 hover:bg-green-50 border-green-200 hover:border-green-300 bg-green-50/50'
+                                                    }`}
+                                                title={`Email ${m.supplier_name}`}
+                                            >
+                                                {actionLoading === `email_${m.id}` ? '📧 Sending...' : '📧 Email'}
+                                            </button>
+                                        )}
                                         <button
                                             onClick={() => handleRecalculate(m.id)}
                                             disabled={actionLoading === m.id}
@@ -276,6 +313,67 @@ const MaterialsTab = ({ searchQuery = '' }) => {
                         </button>
                     </div>
                 </form>
+            </Modal>
+
+            {/* Email Supplier Modal */}
+            <Modal
+                isOpen={emailModalOpen}
+                onClose={() => setEmailModalOpen(false)}
+                title={`📧 Email Supplier: ${selectedMaterial?.supplier_name || ''}`}
+            >
+                <div className="space-y-4 p-4">
+                    <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4">
+                        <h4 className="text-sm font-bold text-indigo-900 mb-2">Order Details</h4>
+                        <div className="space-y-1 text-sm">
+                            <div className="flex justify-between">
+                                <span className="text-gray-600">Material:</span>
+                                <span className="font-bold text-gray-900">{selectedMaterial?.name}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-gray-600">Current Stock:</span>
+                                <span className="font-bold text-red-600">{selectedMaterial?.current_stock} {selectedMaterial?.unit}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-gray-600">Supplier:</span>
+                                <span className="font-bold text-gray-900">{selectedMaterial?.supplier_name}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-gray-600">Email:</span>
+                                <span className="font-mono text-xs text-indigo-600">{selectedMaterial?.supplier_email}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Quantity to Order</label>
+                        <input
+                            type="number"
+                            value={emailQuantity}
+                            onChange={(e) => setEmailQuantity(e.target.value)}
+                            className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none text-lg font-bold text-center"
+                            placeholder="Enter quantity"
+                            min="1"
+                        />
+                        <p className="text-xs text-gray-500 mt-1 text-center">This will be included in the email to the supplier</p>
+                    </div>
+
+                    <div className="flex justify-end gap-3 mt-6">
+                        <button
+                            type="button"
+                            onClick={() => setEmailModalOpen(false)}
+                            className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleSendEmail}
+                            disabled={!emailQuantity || actionLoading}
+                            className="px-8 py-2.5 bg-green-600 text-white rounded-xl font-bold shadow-lg shadow-green-200 hover:bg-green-700 disabled:opacity-50 transition-all flex items-center gap-2"
+                        >
+                            📧 Send Order Email
+                        </button>
+                    </div>
+                </div>
             </Modal>
         </div>
     );
