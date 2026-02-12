@@ -244,13 +244,35 @@ docker exec construction_backend python manage.py loaddata data_dump.json
 
 ---
 
+## 🏗️ Architecture: Understanding File Storage
+
+### 📂 Media Files (User Uploads)
+- **Storage Location**: `construction_frontend` container (Nginx)
+- **Volume**: `media_data:/usr/share/nginx/html/media`
+- **Why?**: Nginx efficiently serves static files directly
+- **Access**: Proxied through `api.construction.nishanaweb.cloud/media/`
+  - Requests to `/media/` on the API domain are forwarded to the frontend container
+
+### 📄 Static Files (CSS/JS for Admin Panel)
+- **Storage Location**: `construction_backend` container (Django)
+- **Path**: `/app/staticfiles`
+- **Why?**: Django Admin needs these files
+- **Served By**: Whitenoise (middleware in Django)
+- **Access**: Direct from `api.construction.nishanaweb.cloud/static/`
+
+### 🔄 Why This Setup?
+Django generates user uploads (e.g., blueprints, photos) which need to be served efficiently. By storing them in the Nginx container and proxying requests, we get:
+1. **Performance**: Nginx is optimized for serving files
+2. **Simplicity**: No separate file server needed
+3. **Persistence**: Volume survives container restarts
+
+---
+
 ## 📝 Important Notes
 
 1. **Port Mapping**: The backend uses `8001:8000` to avoid conflicts with other services on port 8000.
-2. **Media Files**: Stored in the frontend container, proxied through the backend domain.
-3. **Static Files**: Served by Whitenoise directly from the backend.
-4. **Network**: All containers must be on the `app-network` to communicate.
-5. **Root URL**: `https://api.construction.nishanaweb.cloud/` will show "Not Found" - this is normal. The API has no homepage.
+2. **Network**: All containers must be on the `app-network` to communicate via container names.
+3. **Root URL**: `https://api.construction.nishanaweb.cloud/` will show "Not Found" - this is normal. The API has no homepage.
 
 ---
 
