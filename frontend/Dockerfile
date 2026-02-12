@@ -12,6 +12,8 @@ RUN bun install
 COPY . .
 
 # Build the app
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
 RUN bun run build
 
 # Production stage with Nginx

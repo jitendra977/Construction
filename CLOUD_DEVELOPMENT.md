@@ -64,7 +64,11 @@ Since you are using an existing MySQL container, you must create the new databas
 
 Run this command on your server:
 ```bash
-docker exec -it mysql_db mysql -u nishanaweb -pM3IF00UrzSZEEnZkp5lk -e "CREATE DATABASE IF NOT EXISTS construction_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+# 1. Create Database
+docker exec -it mysql_db mysql -u root -pM3IF00UrzSZEEnZkp5lk -e "CREATE DATABASE IF NOT EXISTS construction_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+# 2. Grant Permissions (CRITICAL FIX for Access Denied Error)
+docker exec -it mysql_db mysql -u root -pM3IF00UrzSZEEnZkp5lk -e "GRANT ALL PRIVILEGES ON construction_db.* TO 'nishanaweb'@'%'; FLUSH PRIVILEGES;"
 ```
 
 ---
