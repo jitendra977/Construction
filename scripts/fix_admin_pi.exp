@@ -1,0 +1,15 @@
+#!/usr/bin/expect -f
+set timeout 30
+
+# Securely set the password using a single command to avoid spawn issues
+spawn ssh -o StrictHostKeyChecking=no jitendra@192.168.0.59 "cd ~/Construction && docker compose exec -T backend python manage.py shell -c \"from django.contrib.auth import get_user_model; User = get_user_model(); u = User.objects.get(username='admin'); u.set_password('adminpass'); u.save(); print('Password set successfully for admin')\""
+expect {
+    "password:" {
+        send "jitu9844\r"
+        exp_continue
+    }
+    "Password set successfully" {
+        puts "Success: Admin password updated."
+    }
+    eof
+}

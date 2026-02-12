@@ -1,0 +1,11 @@
+#!/usr/bin/expect -f
+set timeout 30
+spawn ssh -o StrictHostKeyChecking=no jitendra@192.168.0.59 "cd ~/Construction && docker compose exec -T backend ls -l /app/data_dump.json"
+expect "password:"
+send "jitu9844\r"
+expect eof
+
+spawn ssh -o StrictHostKeyChecking=no jitendra@192.168.0.59 "cd ~/Construction && docker compose exec -T backend python manage.py loaddata data_dump.json"
+expect "password:"
+send "jitu9844\r"
+expect eof

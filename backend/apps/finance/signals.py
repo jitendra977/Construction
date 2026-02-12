@@ -22,6 +22,8 @@ def payment_post_save(sender, instance, created, **kwargs):
     When a payment is recorded or updated, if the expense has a funding source,
     debit that funding source and record/update a transaction.
     """
+    if kwargs.get('raw'):
+        return
     expense = instance.expense
     # Use payment-level override if set, otherwise fallback to expense default
     funding_source = instance.funding_source or expense.funding_source
@@ -124,6 +126,8 @@ def funding_transaction_post_save(sender, instance, created, **kwargs):
     """
     Handle balance updates for manual funding transactions (not linked to a payment).
     """
+    if kwargs.get('raw'):
+        return
     if created and not instance.payment:
         # Avoid double-processing the initial allocation
         if "Initial" in instance.description:
@@ -158,6 +162,8 @@ def expense_post_save(sender, instance, created, **kwargs):
     """
     Sync Expense with MaterialTransaction for Stock In.
     """
+    if kwargs.get('raw'):
+        return
     # Guard against recursion if triggered by MaterialTransaction.save()
     if getattr(instance, '_from_transaction', False):
         return
