@@ -1,178 +1,259 @@
-# 🏗️ Construction Project: Manual Operations & Cloud Guide
+# 🏗️ Construction Project: Complete Deployment Guide
 
-This guide contains **every command** required to develop and deploy the Construction Project manually. This version is specifically configured for your **Nginx Proxy Manager** setup with **Separate Subdomains** and **MySQL Database**.
-
----
-
-## 💻 1. Local Development (Mac)
-
-### 1.1 Terminal 1: Backend (Django)
-```bash
-cd /Volumes/Programming/FINAL-PROJECT/FULL-STACK/Construction/backend
-python manage.py runserver
-```
-
-### 1.2 Terminal 2: Frontend (Vite/React)
-```bash
-cd /Volumes/Programming/FINAL-PROJECT/FULL-STACK/Construction/frontend
-bun run dev
-```
+This is the **single, complete guide** to deploy the Construction Project to production on `nishanaweb.cloud` with **Nginx Proxy Manager** and **External MySQL Database**.
 
 ---
 
-## ☁️ 2. Cloud Server Setup (nishanaweb.cloud)
+## 📋 Prerequisites
 
-### 2.1 Nginx Proxy Manager (Docker Network Setup)
-Since all your containers (Backend, Frontend, and NPM) make sure they are on the same network (`app-network`).
-
-#### 🅰️ Host 1: Frontend (The Website)
-*   **Domain**: `construction.nishanaweb.cloud`
-*   **Forward Hostname / IP**: `construction_frontend` (Container Name)
-*   **Forward Port**: `80`
-*   **SSL**: Force SSL, HTTP/2.
-*   **Websockets**: On.
-
-#### 🅱️ Host 2: Backend (The API)
-*   **Domain**: `api.construction.nishanaweb.cloud`
-*   **Forward Hostname / IP**: `construction_backend` (Container Name)
-*   **Forward Port**: `8000` (Internal Container Port) - *Note: Host port is 8001, but inside the network we use 8000*
-*   **SSL**: Force SSL, HTTP/2.
-
-#### 🖼️ CRITICAL: Serve Media via Proxy Manager
-The media files live in the Frontend container. We must tell the Backend Proxy to fetch them from there.
-
-1.  Edit **Host 2** (`api.construction...`).
-2.  **Custom Locations** tab -> "Add Location".
-3.  **Define Location**: `/media/`
-4.  **Forward Hostname / IP**: `construction_frontend`  <-- **THIS IS KEY**
-5.  **Forward Port**: `80`
-6.  Gear Icon (⚙️): `proxy_set_header Host $host;`
-7.  **Save**.
-
-#### 📂 Advanced: Upload Limits
-1.  Edit **Host 2**.
-2.  **Advanced** tab:
-    ```nginx
-    client_max_body_size 50M;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    ```
+Before starting, ensure you have:
+1. A server running Docker and Docker Compose
+2. Nginx Proxy Manager installed and accessible
+3. An existing MySQL container (`mysql_db`) on the `app-network`
+4. DNS records pointing to your server:
+   - `construction.nishanaweb.cloud` → Your Server IP
+   - `api.construction.nishanaweb.cloud` → Your Server IP
 
 ---
 
-### 2.2 Database Initialization
-Since you are using an existing MySQL container, you must create the new database for this project.
+## 🗄️ Step 1: Database Setup
 
-Run this command on your server:
+SSH into your server and create the database:
+
 ```bash
-# 1. Create Database
+ssh nishanaweb@nishanaweb.cloud
+
+# Create the database
 docker exec -it mysql_db mysql -u root -pM3IF00UrzSZEEnZkp5lk -e "CREATE DATABASE IF NOT EXISTS construction_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
-# 2. Grant Permissions (CRITICAL FIX for Access Denied Error)
+# Grant permissions to nishanaweb user
 docker exec -it mysql_db mysql -u root -pM3IF00UrzSZEEnZkp5lk -e "GRANT ALL PRIVILEGES ON construction_db.* TO 'nishanaweb'@'%'; FLUSH PRIVILEGES;"
 ```
 
 ---
 
-## 📋 3. Cloud Configuration (.env Manuals)
+## 🔧 Step 2: Environment Configuration
 
-### 🔴 Step 3.1: Backend Cloud Config
-Run: `nano ~/project/Construction/backend/.env`
-Paste the following (updated with your MySQL and Email settings):
+### Backend Configuration
+
+Create `~/project/Construction/backend/.env`:
+
+```bash
+nano ~/project/Construction/backend/.env
+```
+
+Paste this content:
 
 ```ini
-# Django Core Settings
-SECRET_KEY=your-secure-production-key
+# Django Core
+SECRET_KEY=your-secure-production-key-change-this
 DEBUG=False
 SECURE_SSL_REDIRECT=False
 ALLOWED_HOSTS=api.construction.nishanaweb.cloud,construction.nishanaweb.cloud,localhost
 
-# MySQL Database Settings (EXTERNAL DB)
+# MySQL Database (External Container)
 DB_ENGINE=django.db.backends.mysql
 DB_NAME=construction_db
 DB_USER=nishanaweb
 DB_PASSWORD=M3IF00UrzSZEEnZkp5lk
-# IMPORTANT: This must match the CONTAINER NAME of your existing MySQL service
-DB_HOST=mysql_db 
+DB_HOST=mysql_db
 DB_PORT=3306
 
-# CORS & CSRF Settings
+# CORS & CSRF
 CORS_ALLOW_ALL_ORIGINS=False
 CORS_ALLOWED_ORIGINS=https://construction.nishanaweb.cloud,https://api.construction.nishanaweb.cloud
 CSRF_TRUSTED_ORIGINS=https://api.construction.nishanaweb.cloud,https://construction.nishanaweb.cloud
 
-# Email Settings (Using Gmail SMTP)
+# Email (Gmail)
 EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
 EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
 EMAIL_USE_TLS=True
-EMAIL_HOST_USER=jitendrakhadka444@gmail.com
-EMAIL_HOST_PASSWORD=xpjo wrpg akxt tlik
-DEFAULT_FROM_EMAIL=jitendrakhadka444@gmail.com
+EMAIL_HOST_USER=your-email@gmail.com
+EMAIL_HOST_PASSWORD=your-app-password
+DEFAULT_FROM_EMAIL=your-email@gmail.com
 
-# File Upload Settings
+# File Upload (50MB)
 FILE_UPLOAD_MAX_MEMORY_SIZE=52428800
 DATA_UPLOAD_MAX_MEMORY_SIZE=52428800
 ```
 
-### 🔵 Step 3.2: Frontend Cloud Config
-Run: `nano ~/project/Construction/frontend/.env`
+### Frontend Configuration
+
+```bash
+nano ~/project/Construction/frontend/.env
+```
+
+Paste this:
+
 ```ini
 VITE_API_URL=https://api.construction.nishanaweb.cloud/api/v1
 ```
 
 ---
 
-## 🚀 4. Manual Deployment Process
+## 🌐 Step 3: Nginx Proxy Manager Configuration
 
-### Step 1: Push Local Work (On Mac)
+Login to your Nginx Proxy Manager dashboard.
+
+### 🅰️ Host 1: Frontend (construction.nishanaweb.cloud)
+
+1. **Add Proxy Host**
+2. **Details Tab**:
+   - Domain: `construction.nishanaweb.cloud`
+   - Scheme: `http`
+   - Forward Hostname/IP: `construction_frontend`
+   - Forward Port: `80`
+   - ✅ Websockets Support
+   - ✅ Block Common Exploits
+3. **SSL Tab**:
+   - ✅ Request a new SSL Certificate
+   - ✅ Force SSL
+   - ✅ HTTP/2 Support
+   - ✅ HSTS Enabled
+4. **Save**
+
+### 🅱️ Host 2: Backend (api.construction.nishanaweb.cloud)
+
+1. **Add Proxy Host**
+2. **Details Tab**:
+   - Domain: `api.construction.nishanaweb.cloud`
+   - Scheme: `http`
+   - Forward Hostname/IP: `construction_backend`
+   - Forward Port: `8000`
+   - ✅ Block Common Exploits
+3. **SSL Tab**:
+   - ✅ Request a new SSL Certificate
+   - ✅ Force SSL
+   - ✅ HTTP/2 Support
+4. **Custom Locations Tab** → Add Location:
+   - **Location**: `/media/`
+   - **Forward Hostname/IP**: `construction_frontend`
+   - **Forward Port**: `80`
+   - **Scheme**: `http`
+5. **Advanced Tab** (paste this):
+   ```nginx
+   client_max_body_size 50M;
+   proxy_set_header Host $host;
+   proxy_set_header X-Real-IP $remote_addr;
+   proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+   proxy_set_header X-Forwarded-Proto $scheme;
+   proxy_read_timeout 300;
+   proxy_connect_timeout 300;
+   proxy_send_timeout 300;
+   ```
+6. **Save**
+
+---
+
+## 🚀 Step 4: Deploy the Application
+
+### On Your Local Machine:
+
 ```bash
+cd /Volumes/Programming/FINAL-PROJECT/FULL-STACK/Construction
 git add .
-git commit -m "mysql-backend-update"
+git commit -m "production-deployment"
 git push origin main
 ```
 
-### Step 2: Update Server (Via SSH)
+### On Your Server:
+
 ```bash
 ssh nishanaweb@nishanaweb.cloud
 cd ~/project/Construction
+
+# Pull latest code
 git pull origin main
+
+# Build and start containers
+docker compose down
+docker compose build --no-cache
+docker compose up -d
+
+# Check containers are running
+docker compose ps
 ```
 
-### Step 3: Restart Docker (Via SSH)
+---
+
+## 👤 Step 5: Create Admin User
+
 ```bash
-# Rebuild ensures the new VITE_API_URL is baked into the frontend build
-docker compose down
+docker exec -it construction_backend python manage.py createsuperuser
+```
+
+Follow the prompts to create your admin account.
+
+---
+
+## ✅ Step 6: Verify Deployment
+
+1. **Frontend**: Visit `https://construction.nishanaweb.cloud`
+   - Should see the login page
+2. **Backend Admin**: Visit `https://api.construction.nishanaweb.cloud/admin/`
+   - Should see styled Django admin panel
+3. **Login Test**: Try logging in with your created user
+
+---
+
+## 🔄 Future Updates (After Initial Setup)
+
+When you make changes to the code:
+
+```bash
+# Local
+git add .
+git commit -m "your-changes"
+git push origin main
+
+# Server
+ssh nishanaweb@nishanaweb.cloud
+cd ~/project/Construction
+git pull origin main
 docker compose up --build -d
 ```
 
 ---
 
-## 🛡️ 5. Maintenance & Permissions
+## 🐛 Troubleshooting
 
-### 5.1 Fix Folder Permissions
+### Check Backend Logs
 ```bash
-sudo chown -R nishanaweb:nishanaweb ~/project/Construction
-find ~/project/Construction -type d -exec sudo chmod 755 {} +
-find ~/project/Construction -type f -exec sudo chmod 644 {} +
+docker compose logs --tail=50 backend
 ```
 
-### 5.2 Superuser Creation
+### Check Frontend Logs
 ```bash
+docker compose logs --tail=50 frontend
+```
+
+### Reset Database (⚠️ Deletes all data)
+```bash
+docker exec -it mysql_db mysql -u root -pM3IF00UrzSZEEnZkp5lk -e "DROP DATABASE construction_db;"
+docker exec -it mysql_db mysql -u root -pM3IF00UrzSZEEnZkp5lk -e "CREATE DATABASE construction_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+docker exec -it construction_backend python manage.py migrate
 docker exec -it construction_backend python manage.py createsuperuser
 ```
 
-### 5.3 MySQL Database Backup
-To backup your MySQL database:
+### Load Sample Data (Optional)
 ```bash
-docker exec mysql_db mysqldump -u nishanaweb -pM3IF00UrzSZEEnZkp5lk construction_db > backup.sql
+docker cp backend/data_dump.json construction_backend:/app/data_dump.json
+docker exec construction_backend python manage.py loaddata data_dump.json
 ```
 
 ---
 
-## 📝 Key Rules for This Setup
-1.  **External Database**: The project expects an existing container `mysql_db` on network `app-network`.
-    *   **I have configured `docker-compose.yml` to join `app-network` automatically.**
-    *   Ensure your existing MySQL container is actually running on this network.
-2.  **Email**: The system is now configured to send emails via Gmail.
-3.  **Large Files**: Upload limits have been increased to 50MB.
-4.  **SSL**: Let Nginx Proxy Manager handle SSL. `SECURE_SSL_REDIRECT` is False to avoid infinite loops behind the proxy.
+## 📝 Important Notes
+
+1. **Port Mapping**: The backend uses `8001:8000` to avoid conflicts with other services on port 8000.
+2. **Media Files**: Stored in the frontend container, proxied through the backend domain.
+3. **Static Files**: Served by Whitenoise directly from the backend.
+4. **Network**: All containers must be on the `app-network` to communicate.
+5. **Root URL**: `https://api.construction.nishanaweb.cloud/` will show "Not Found" - this is normal. The API has no homepage.
+
+---
+
+## ✨ Success!
+
+Your Construction Management System is now live and ready to use! 🎉
