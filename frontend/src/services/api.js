@@ -118,6 +118,7 @@ export const dashboardService = {
     deleteMaterial: (id) => api.delete(`/materials/${id}/`),
     recalculateMaterialStock: (id) => api.post(`/materials/${id}/recalculate_stock/`),
     emailSupplier: (id, quantity, supplierId) => api.post(`/materials/${id}/email_supplier/`, { quantity, supplier_id: supplierId }).then(res => res.data),
+    receiveMaterialOrder: (transactionId) => api.post(`/material-transactions/${transactionId}/receive_order/`).then(res => res.data),
     recalculateAllMaterialsStock: () => api.post(`/materials/recalculate_all/`),
 
     getContractors: () => api.get('/contractors/'),

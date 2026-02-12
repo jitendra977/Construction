@@ -99,23 +99,25 @@ class Material(models.Model):
     def current_stock_calculated(self):
         """
         Dynamically calculate stock from transactions to verify against current_stock field.
+        Only counts 'RECEIVED' transactions.
         """
         from django.db.models import Sum
-        in_qty = self.transactions.filter(transaction_type='IN').aggregate(total=Sum('quantity'))['total'] or 0
-        out_qty = self.transactions.filter(transaction_type__in=['OUT', 'WASTAGE']).aggregate(total=Sum('quantity'))['total'] or 0
+        in_qty = self.transactions.filter(transaction_type='IN', status='RECEIVED').aggregate(total=Sum('quantity'))['total'] or 0
+        out_qty = self.transactions.filter(transaction_type__in=['OUT', 'WASTAGE'], status='RECEIVED').aggregate(total=Sum('quantity'))['total'] or 0
         return in_qty - out_qty
 
     def recalculate_stock(self):
         """
         Audit method to reset stock and totals from transaction history.
+        Only counts 'RECEIVED' transactions.
         """
         from django.db.models import Sum, Avg
-        self.quantity_purchased = self.transactions.filter(transaction_type='IN').aggregate(total=Sum('quantity'))['total'] or 0
-        self.quantity_used = self.transactions.filter(transaction_type__in=['OUT', 'WASTAGE']).aggregate(total=Sum('quantity'))['total'] or 0
+        self.quantity_purchased = self.transactions.filter(transaction_type='IN', status='RECEIVED').aggregate(total=Sum('quantity'))['total'] or 0
+        self.quantity_used = self.transactions.filter(transaction_type__in=['OUT', 'WASTAGE'], status='RECEIVED').aggregate(total=Sum('quantity'))['total'] or 0
         self.current_stock = self.quantity_purchased - self.quantity_used
         
         # Recalculate average cost
-        self.avg_cost_per_unit = self.transactions.filter(transaction_type='IN').aggregate(avg=Avg('unit_price'))['avg'] or 0
+        self.avg_cost_per_unit = self.transactions.filter(transaction_type='IN', status='RECEIVED').aggregate(avg=Avg('unit_price'))['avg'] or 0
         self.save()
 
     def save(self, *args, **kwargs):
@@ -136,8 +138,15 @@ class MaterialTransaction(models.Model):
         ('WASTAGE', 'Wastage/Loss'),
     ]
 
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending Order'),
+        ('RECEIVED', 'Received'),
+        ('CANCELLED', 'Cancelled'),
+    ]
+
     material = models.ForeignKey(Material, on_delete=models.CASCADE, related_name='transactions')
     transaction_type = models.CharField(max_length=10, choices=TYPE_CHOICES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='RECEIVED')
     quantity = models.DecimalField(max_digits=10, decimal_places=2)
     unit_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     date = models.DateField()
@@ -160,7 +169,7 @@ class MaterialTransaction(models.Model):
             old_transaction = MaterialTransaction.objects.get(pk=self.pk)
         
         # 1. Update Linked Expense for Stock IN
-        if self.transaction_type == 'IN' and self.create_expense:
+        if self.transaction_type == 'IN' and self.create_expense and self.status == 'RECEIVED':
             from django.apps import apps
             Expense = apps.get_model('finance', 'Expense')
             
@@ -206,7 +215,7 @@ class MaterialTransaction(models.Model):
         mat = self.material
         
         # Reverse old transaction impact if updating
-        if not is_new:
+        if not is_new and old_transaction.status == 'RECEIVED':
             if old_transaction.transaction_type == 'IN':
                 mat.quantity_purchased -= old_transaction.quantity
             elif old_transaction.transaction_type in ['OUT', 'WASTAGE']:
@@ -214,49 +223,47 @@ class MaterialTransaction(models.Model):
             elif old_transaction.transaction_type == 'RETURN':
                 mat.quantity_purchased += old_transaction.quantity # Return means we had it, now we don't
 
-        # Apply new/updated transaction impact
-        if self.transaction_type == 'IN':
-            mat.quantity_purchased += self.quantity
-            # Update Average Cost on Purchase
-            if self.unit_price:
-                # Simple weighted average
-                total_purchased = mat.quantity_purchased
-                if total_purchased > 0:
-                    current_avg = mat.avg_cost_per_unit or Decimal('0')
-                    # Note: This is an approximation if history isn't perfectly clean
-                    # In a real ERP we'd use (Total Cost in Stock + New Cost) / Total Quantity in Stock
-                    # But for simplicity, we use (Total Purchased * Avg + New * NewPrice) / New Total Purchased
-                    # This approximates historical average cost
-                    new_avg = ((mat.quantity_purchased - self.quantity) * current_avg + (self.quantity * self.unit_price)) / total_purchased
-                    mat.avg_cost_per_unit = new_avg
-        elif self.transaction_type in ['OUT', 'WASTAGE']:
-            # Negative Stock Guard
-            current_available = mat.quantity_purchased - mat.quantity_used
-            if self.quantity > current_available:
-                from django.core.exceptions import ValidationError
-                raise ValidationError(f"Insufficient stock! Available: {current_available} {mat.get_unit_display()}, Requested: {self.quantity}")
-                
-            mat.quantity_used += self.quantity
-        elif self.transaction_type == 'RETURN':
-            mat.quantity_purchased -= self.quantity
+        # Apply new/updated transaction impact ONLY IF RECEIVED
+        if self.status == 'RECEIVED':
+            if self.transaction_type == 'IN':
+                mat.quantity_purchased += self.quantity
+                # Update Average Cost on Purchase
+                if self.unit_price:
+                    # Simple weighted average
+                    total_purchased = mat.quantity_purchased
+                    if total_purchased > 0:
+                        current_avg = mat.avg_cost_per_unit or Decimal('0')
+                        new_avg = ((mat.quantity_purchased - self.quantity) * current_avg + (self.quantity * self.unit_price)) / total_purchased
+                        mat.avg_cost_per_unit = new_avg
+            elif self.transaction_type in ['OUT', 'WASTAGE']:
+                # Negative Stock Guard
+                current_available = mat.quantity_purchased - mat.quantity_used
+                if self.quantity > current_available:
+                    from django.core.exceptions import ValidationError
+                    raise ValidationError(f"Insufficient stock! Available: {current_available} {mat.get_unit_display()}, Requested: {self.quantity}")
+                    
+                mat.quantity_used += self.quantity
+            elif self.transaction_type == 'RETURN':
+                mat.quantity_purchased -= self.quantity
 
         mat.save()
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        # Reverse stock adjustment before deleting
+        # Reverse stock adjustment before deleting IF it was RECEIVED
         mat = self.material
-        if self.transaction_type == 'IN':
-            mat.quantity_purchased -= self.quantity
-            # If it's a purchase, optionally delete linked expense
-            if self.expense:
-                self.expense.delete()
-        elif self.transaction_type in ['OUT', 'WASTAGE']:
-            mat.quantity_used -= self.quantity
-        elif self.transaction_type == 'RETURN':
-            mat.quantity_purchased += self.quantity
+        if self.status == 'RECEIVED':
+            if self.transaction_type == 'IN':
+                mat.quantity_purchased -= self.quantity
+                # If it's a purchase, optionally delete linked expense
+                if self.expense:
+                    self.expense.delete()
+            elif self.transaction_type in ['OUT', 'WASTAGE']:
+                mat.quantity_used -= self.quantity
+            elif self.transaction_type == 'RETURN':
+                mat.quantity_purchased += self.quantity
             
-        mat.save()
+            mat.save()
         super().delete(*args, **kwargs)
 
     def __str__(self):

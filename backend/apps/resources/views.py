@@ -85,9 +85,25 @@ class MaterialViewSet(viewsets.ModelViewSet):
             material.supplier = original_supplier
             
             if success:
+                # NEW: Create a Pending Transaction
+                from apps.resources.models import MaterialTransaction
+                from django.utils import timezone
+                
+                MaterialTransaction.objects.create(
+                    material=material,
+                    transaction_type='IN',
+                    status='PENDING',
+                    quantity=quantity,
+                    unit_price=material.avg_cost_per_unit, # Default to avg cost
+                    date=timezone.now().date(),
+                    supplier=supplier,
+                    notes=f"Order placed via email to {supplier.name}",
+                    create_expense=True # Will be created when status → RECEIVED
+                )
+
                 return Response({
                     "success": True,
-                    "message": f"Order email sent to {supplier.name} ({supplier.email})",
+                    "message": f"Order email sent to {supplier.name} ({supplier.email}). Added to Pending Orders.",
                     "supplier": supplier.name,
                     "supplier_email": supplier.email,
                     "material": material.name,
@@ -105,8 +121,39 @@ class MaterialViewSet(viewsets.ModelViewSet):
             )
 
 class MaterialTransactionViewSet(viewsets.ModelViewSet):
-    queryset = MaterialTransaction.objects.all()
+    queryset = MaterialTransaction.objects.all().order_by('-date', '-created_at')
     serializer_class = MaterialTransactionSerializer
+
+    @action(detail=True, methods=['post'])
+    def receive_order(self, request, pk=None):
+        """
+        Confirm receipt of a pending order.
+        """
+        from django.utils import timezone
+        from rest_framework import status
+
+        transaction = self.get_object()
+        if transaction.status != 'PENDING':
+            return Response(
+                {"error": "This transaction is not in PENDING status"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Optional: Allow updating quantity/price on receipt
+        if 'quantity' in request.data:
+            transaction.quantity = request.data['quantity']
+        if 'unit_price' in request.data:
+            transaction.unit_price = request.data['unit_price']
+        
+        transaction.status = 'RECEIVED'
+        transaction.date = timezone.now().date()
+        transaction.save() # This triggers stock update and expense creation
+        
+        return Response({
+            "success": True,
+            "message": f"Order received! Stock updated for {transaction.material.name}.",
+            "new_stock": transaction.material.current_stock
+        })
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['material', 'transaction_type']
 

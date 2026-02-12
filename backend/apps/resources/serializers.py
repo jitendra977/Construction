@@ -27,9 +27,9 @@ class MaterialSerializer(serializers.ModelSerializer):
 
 class MaterialTransactionSerializer(serializers.ModelSerializer):
     material_name = serializers.CharField(source='material.name', read_only=True)
-    room_name = serializers.CharField(source='room.name', read_only=True)
     supplier_name = serializers.CharField(source='supplier.name', read_only=True)
-    funding_source_name = serializers.CharField(source='funding_source.name', read_only=True)
+    transaction_type_display = serializers.CharField(source='get_transaction_type_display', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
 
     class Meta:
         model = MaterialTransaction
