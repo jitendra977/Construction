@@ -86,20 +86,32 @@ class MaterialViewSet(viewsets.ModelViewSet):
             
             if success:
                 # NEW: Create a Pending Transaction
-                from apps.resources.models import MaterialTransaction
+                from .models import MaterialTransaction
                 from django.utils import timezone
                 
-                MaterialTransaction.objects.create(
-                    material=material,
-                    transaction_type='IN',
-                    status='PENDING',
-                    quantity=quantity,
-                    unit_price=material.avg_cost_per_unit, # Default to avg cost
-                    date=timezone.now().date(),
-                    supplier=supplier,
-                    notes=f"Order placed via email to {supplier.name}",
-                    create_expense=True # Will be created when status → RECEIVED
-                )
+                try:
+                    MaterialTransaction.objects.create(
+                        material=material,
+                        transaction_type='IN',
+                        status='PENDING',
+                        quantity=quantity,
+                        unit_price=material.avg_cost_per_unit, # Default to avg cost
+                        date=timezone.now().date(),
+                        supplier=supplier,
+                        notes=f"Order placed via email to {supplier.name}",
+                        create_expense=True # Will be created when status → RECEIVED
+                    )
+                except Exception as tx_err:
+                    print(f"Failed to create pending transaction: {tx_err}")
+                    # We still return success for the email but mention the tracking failed
+                    return Response({
+                        "success": True,
+                        "message": f"Order email sent to {supplier.name}, but tracking record could not be created.",
+                        "supplier": supplier.name,
+                        "supplier_email": supplier.email,
+                        "material": material.name,
+                        "quantity": quantity
+                    })
 
                 return Response({
                     "success": True,

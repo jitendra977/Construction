@@ -131,7 +131,7 @@ const MaterialsTab = ({ searchQuery = '' }) => {
         }
     };
 
-    const pendingTransactions = (dashboardData.material_transactions || []).filter(t => t.status === 'PENDING');
+    const pendingTransactions = (dashboardData.transactions || []).filter(t => t.status === 'PENDING');
 
     const pendingStockMap = pendingTransactions.reduce((acc, t) => {
         acc[t.material] = (acc[t.material] || 0) + Number(t.quantity);
