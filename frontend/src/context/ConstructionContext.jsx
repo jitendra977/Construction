@@ -28,6 +28,7 @@ export const ConstructionProvider = ({ children }) => {
 
     // Fetch all dashboard data
     const fetchData = useCallback(async (silent = false) => {
+        if (!authService.isAuthenticated()) return;
         try {
             if (!silent) setLoading(true);
             const data = await dashboardService.getDashboardData();
@@ -39,12 +40,34 @@ export const ConstructionProvider = ({ children }) => {
         }
     }, []);
 
+    // Auth actions
+    const login = useCallback(async (username, password) => {
+        const result = await authService.login(username, password);
+        if (result.success) {
+            setUser(result.user);
+            fetchData();
+        }
+        return result;
+    }, [fetchData]);
+
+    const logout = useCallback(async () => {
+        await authService.logout();
+        setUser(null);
+        setDashboardData({
+            project: null, rooms: [], tasks: [], phases: [], expenses: [],
+            materials: [], contractors: [], budgetCategories: [], suppliers: [],
+            floors: [], permitSteps: [], funding: [], transactions: []
+        });
+    }, []);
+
     // Initialize on mount
     useEffect(() => {
         const currentUser = authService.getCurrentUser();
-        setUser(currentUser);
         if (currentUser) {
+            setUser(currentUser);
             fetchData();
+        } else {
+            setLoading(false);
         }
     }, [fetchData]);
 
@@ -276,6 +299,8 @@ export const ConstructionProvider = ({ children }) => {
         formatCurrency,
 
         // Actions
+        login,
+        logout,
         refreshData: (silent = true) => fetchData(silent),
         updatePhase,
         updateTask,

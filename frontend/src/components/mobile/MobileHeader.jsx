@@ -11,7 +11,7 @@ const MobileHeader = ({ project, stats, onLogout }) => {
             <div className="flex justify-between items-start mb-8 relative z-10">
                 <div>
                     <h1 className="text-2xl font-black text-white tracking-tight">{project?.name || 'Mero Ghar'}</h1>
-                    <p className="text-emerald-100 text-xs font-bold uppercase tracking-widest opacity-80 mt-1">Site Owner Dashboard</p>
+                    <p className="text-emerald-100 text-[10px] font-bold uppercase tracking-widest opacity-90 mt-1">Construction Manager</p>
                 </div>
                 <div className="flex gap-2">
                     <button className="p-2.5 bg-white/10 backdrop-blur-md rounded-xl text-white border border-white/20">

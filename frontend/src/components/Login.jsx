@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../services/auth';
+import { useConstruction } from '../context/ConstructionContext';
 
 function Login() {
     const [username, setUsername] = useState('');
@@ -10,19 +11,14 @@ function Login() {
     const navigate = useNavigate();
     const location = useLocation();
 
-    useEffect(() => {
-        const queryParams = new URLSearchParams(location.search);
-        if (queryParams.get('expired') === 'true') {
-            setError('Your session has expired. Please login again.');
-        }
-    }, [location]);
+    const { login } = useConstruction();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setLoading(true);
 
-        const result = await authService.login(username, password);
+        const result = await login(username, password);
 
         if (result.success) {
             navigate('/dashboard');

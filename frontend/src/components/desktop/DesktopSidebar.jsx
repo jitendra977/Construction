@@ -10,11 +10,23 @@ const DesktopSidebar = ({ user, onLogout, navItems }) => {
 
     return (
         <aside className="w-64 bg-white border-r border-gray-200 flex flex-col fixed h-full z-10">
-            <div className="p-6 border-b border-gray-100">
-                <h1 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
-                    Mero Ghar
-                </h1>
-                <p className="text-xs text-gray-500 mt-1">Construction Manager</p>
+            <div className="p-6 border-b border-gray-100 relative overflow-hidden group">
+                {/* Background Decoration */}
+                <div className="absolute -top-4 -right-4 w-20 h-20 bg-indigo-50/50 rounded-full blur-2xl group-hover:bg-indigo-100/50 transition-colors duration-500"></div>
+
+                <div className="flex items-center gap-3 relative z-10">
+                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200 shrink-0 transform group-hover:scale-110 transition-transform duration-500">
+                        <span className="text-xl">🏠</span>
+                    </div>
+                    <div>
+                        <h1 className="text-xl font-black bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent leading-none tracking-tight">
+                            Mero Ghar
+                        </h1>
+                        <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest mt-1 opacity-80">
+                            Construction Manager
+                        </p>
+                    </div>
+                </div>
             </div>
 
             <nav className="flex-1 px-4 py-4 space-y-6 overflow-y-auto">
