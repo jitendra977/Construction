@@ -1,11 +1,33 @@
-import React from 'react';
-import { StyleSheet, View, Text, ScrollView, RefreshControl, TouchableOpacity, StatusBar } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { StyleSheet, View, Text, ScrollView, RefreshControl, TouchableOpacity, StatusBar, Modal, SafeAreaView, Dimensions, Animated } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Calendar, ChevronRight, CheckCircle2, Circle, LayoutDashboard } from 'lucide-react-native';
+import { Calendar, ChevronRight, CheckCircle2, Circle, LayoutDashboard, Menu as MenuIcon, X, User, Settings, HelpCircle, LogOut, ChevronDown, ChevronUp } from 'lucide-react-native';
+
+const { width } = Dimensions.get('window');
 
 export default function DashboardScreen({ navigation }) {
-    const { dashboardData, loading, refreshData } = useAuth();
+    const { dashboardData, loading, refreshData, logout, user } = useAuth();
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isPermitsExpanded, setIsPermitsExpanded] = useState(false);
+    const slideAnim = useRef(new Animated.Value(-width * 0.6)).current;
+
+    useEffect(() => {
+        if (isMenuOpen) {
+            Animated.spring(slideAnim, {
+                toValue: 0,
+                useNativeDriver: true,
+                tension: 65,
+                friction: 9
+            }).start();
+        } else {
+            Animated.timing(slideAnim, {
+                toValue: -width * 0.6,
+                duration: 200,
+                useNativeDriver: true,
+            }).start();
+        }
+    }, [isMenuOpen]);
 
     if (!dashboardData) return null;
 
@@ -26,139 +48,240 @@ export default function DashboardScreen({ navigation }) {
     const totalBudget = totalFunding > 0 ? totalFunding : 1;
     const budgetPercent = (totalSpent / totalBudget) * 100;
 
-    // Funding Coverage (Arbitrary metric context or calculation?)
-    // User requested "47% Securing total project". Let's assume Total Project Cost is higher, 
-    // or maybe Funding / Total Budget if Total Budget known. 
-    // For now, let's keep it dynamic based on data if possible, or static structure if specific.
-    // Let's assume a "Target Budget" of 3 Cr for the example "1.50 Cr" context, 
-    // but better to just show "Funding vs Spent" or similar. 
-    // To match user's "47%", let's calculate Funding / Estimated Project Cost.
-    // If no estimated cost, we can't calc coverage. 
-    // Let's use a dummy huge number for "Total Project Value" or just show Funding % of something.
-    // Actually, "Funding Coverage" might mean (Funding / Budget) * 100.
-
     const formatCurrency = (val) => {
         if (val >= 10000000) return `Rs. ${(val / 10000000).toFixed(2)} Cr`;
         if (val >= 100000) return `Rs. ${(val / 100000).toFixed(2)} Lakh`;
         return `Rs. ${val.toLocaleString()}`;
     };
 
-    return (
-        <ScrollView
-            style={styles.container}
-            refreshControl={<RefreshControl refreshing={loading} onRefresh={refreshData} />}
-        >
-            <StatusBar barStyle="light-content" backgroundColor="#059669" />
-            <LinearGradient
-                colors={['#059669', '#047857']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.header}
-            >
-                {/* Background Icon */}
-                <View style={styles.headerBgIcon}>
-                    <LayoutDashboard color="rgba(255,255,255,0.1)" size={140} />
-                </View>
+    const handleLogout = async () => {
+        setIsMenuOpen(false);
+        await logout();
+    };
 
-                <View style={styles.headerContent}>
-                    {/* Project Title Removed as per request */}
-                    <Text style={styles.projectMeta}>{dashboardData.phases?.filter(p => p.status === 'COMPLETED').length} of {dashboardData.phases?.length} Phases Completed</Text>
-                </View>
-
-                {/* Mini Stats Carousel */}
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsContainer}>
-                    {/* Budget Util */}
-                    <View style={styles.miniStatCard}>
-                        <View style={styles.miniStatHeader}>
-                            <Text style={styles.miniStatLabel}>Budget Utilization</Text>
-                            <Text style={styles.miniStatValue}>{budgetPercent.toFixed(1)}%</Text>
-                        </View>
-                        <Text style={styles.miniStatSub}>{formatCurrency(totalSpent)} of {formatCurrency(totalFunding)}</Text>
-                        <View style={styles.miniProgressBg}>
-                            <View style={[styles.miniProgressFill, { width: `${Math.min(100, budgetPercent)}%`, backgroundColor: '#f59e0b' }]} />
-                        </View>
-                    </View>
-
-                    {/* Available Cash */}
-                    <View style={styles.miniStatCard}>
-                        <View style={styles.miniStatHeader}>
-                            <Text style={styles.miniStatLabel}>Available Cash</Text>
-                            <Circle size={12} color="#10b981" fill="#10b981" />
-                        </View>
-                        <Text style={[styles.miniStatValue, { color: '#10b981', marginTop: 4 }]}>{formatCurrency(availableCash)}</Text>
-                        <Text style={styles.miniStatSub}>Liquid Assets</Text>
-                    </View>
-
-                    {/* Stock Value */}
-                    <View style={styles.miniStatCard}>
-                        <View style={styles.miniStatHeader}>
-                            <Text style={styles.miniStatLabel}>Stock Value</Text>
-                            <LayoutDashboard size={12} color="#3b82f6" />
-                        </View>
-                        <Text style={[styles.miniStatValue, { color: '#3b82f6', marginTop: 4 }]}>{formatCurrency(stockValue)}</Text>
-                        <Text style={styles.miniStatSub}>{materials.length} Resource types</Text>
-                    </View>
-                </ScrollView>
-            </LinearGradient>
-
-            <View style={styles.section}>
-                <View style={styles.sectionHeaderRow}>
-                    <Text style={styles.sectionHeader}>Municipal Permits</Text>
-                    <View style={styles.phaseZeroBadge}>
-                        <Text style={styles.phaseZeroText}>Phase 0</Text>
-                    </View>
-                </View>
-                <View style={styles.permitCard}>
-                    {dashboardData.permitSteps?.map((step) => (
-                        <View key={step.id} style={styles.permitItem}>
-                            {step.status === 'APPROVED' ? (
-                                <CheckCircle2 color="#10b981" size={18} />
-                            ) : (
-                                <View style={styles.pendingDot} />
-                            )}
-                            <Text style={[styles.permitTitle, step.status === 'APPROVED' && styles.completedText]}>
-                                {step.title}
-                            </Text>
-                        </View>
-                    ))}
-                </View>
+    const MenuLink = ({ icon: Icon, label, onPress, danger }) => (
+        <TouchableOpacity style={styles.menuItem} onPress={onPress}>
+            <View style={[styles.menuIconContainer, danger && { backgroundColor: '#fee2e2' }]}>
+                <Icon size={20} color={danger ? '#dc2626' : '#4b5563'} />
             </View>
+            <Text style={[styles.menuItemText, danger && { color: '#dc2626' }]}>{label}</Text>
+        </TouchableOpacity>
+    );
 
-            <View style={styles.section}>
-                <View style={styles.sectionHeaderRow}>
-                    <Text style={styles.sectionHeader}>Construction Phases</Text>
+    return (
+        <View style={{ flex: 1 }}>
+            <ScrollView
+                style={styles.container}
+                refreshControl={<RefreshControl refreshing={loading} onRefresh={refreshData} />}
+            >
+                <StatusBar barStyle="light-content" backgroundColor="#059669" />
+                <LinearGradient
+                    colors={['#059669', '#047857']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.header}
+                >
+                    {/* Background Icon */}
+                    <View style={styles.headerBgIcon}>
+                        <LayoutDashboard color="rgba(255,255,255,0.1)" size={140} />
+                    </View>
+
+                    {/* Header Top Row */}
+                    <View style={styles.headerTop}>
+                        <TouchableOpacity onPress={() => setIsMenuOpen(true)} style={styles.menuButton}>
+                            <MenuIcon color="white" size={28} />
+                        </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.headerContent}>
+                        {/* Project Title Removed as per request */}
+                        <Text style={styles.projectMeta}>{dashboardData.phases?.filter(p => p.status === 'COMPLETED').length} of {dashboardData.phases?.length} Phases Completed</Text>
+                    </View>
+
+                    {/* Mini Stats Carousel */}
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsContainer}>
+                        {/* Budget Util */}
+                        <View style={styles.miniStatCard}>
+                            <View style={styles.miniStatHeader}>
+                                <Text style={styles.miniStatLabel}>Budget Utilization</Text>
+                                <Text style={styles.miniStatValue}>{budgetPercent.toFixed(1)}%</Text>
+                            </View>
+                            <Text style={styles.miniStatSub}>{formatCurrency(totalSpent)} of {formatCurrency(totalFunding)}</Text>
+                            <View style={styles.miniProgressBg}>
+                                <View style={[styles.miniProgressFill, { width: `${Math.min(100, budgetPercent)}%`, backgroundColor: '#f59e0b' }]} />
+                            </View>
+                        </View>
+
+                        {/* Available Cash */}
+                        <View style={styles.miniStatCard}>
+                            <View style={styles.miniStatHeader}>
+                                <Text style={styles.miniStatLabel}>Available Cash</Text>
+                                <Circle size={12} color="#10b981" fill="#10b981" />
+                            </View>
+                            <Text style={[styles.miniStatValue, { color: '#10b981', marginTop: 4 }]}>{formatCurrency(availableCash)}</Text>
+                            <Text style={styles.miniStatSub}>Liquid Assets</Text>
+                        </View>
+
+                        {/* Stock Value */}
+                        <View style={styles.miniStatCard}>
+                            <View style={styles.miniStatHeader}>
+                                <Text style={styles.miniStatLabel}>Stock Value</Text>
+                                <LayoutDashboard size={12} color="#3b82f6" />
+                            </View>
+                            <Text style={[styles.miniStatValue, { color: '#3b82f6', marginTop: 4 }]}>{formatCurrency(stockValue)}</Text>
+                            <Text style={styles.miniStatSub}>{materials.length} Resource types</Text>
+                        </View>
+                    </ScrollView>
+                </LinearGradient>
+
+                <View style={styles.section}>
+                    <View style={styles.sectionHeaderRow}>
+                        <Text style={styles.sectionHeader}>Construction Phases</Text>
+                        <TouchableOpacity
+                            style={styles.addPhaseButton}
+                            onPress={() => navigation.navigate('PhaseForm', { projectId: dashboardData.project?.id })}
+                        >
+                            <Text style={styles.addPhaseText}>+ Add Phase</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Phase 0: Municipal Permits */}
                     <TouchableOpacity
-                        style={styles.addPhaseButton}
-                        onPress={() => navigation.navigate('PhaseForm', { projectId: dashboardData.project?.id })}
-                    >
-                        <Text style={styles.addPhaseText}>+ Add Phase</Text>
-                    </TouchableOpacity>
-                </View>
-                {dashboardData.phases?.map((phase) => (
-                    <TouchableOpacity
-                        key={phase.id}
-                        style={styles.phaseCard}
-                        onPress={() => navigation.navigate('PhaseDetail', { phase })}
+                        style={[styles.phaseCard, styles.phase0Card]}
+                        onPress={() => setIsPermitsExpanded(!isPermitsExpanded)}
                     >
                         <View style={styles.phaseHeader}>
                             <View style={styles.phaseInfo}>
-                                <Text style={styles.phaseName}>{phase.name}</Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                                    <Text style={styles.phaseName}>Municipal Permits</Text>
+                                    <View style={styles.phaseZeroBadge}>
+                                        <Text style={styles.phaseZeroText}>Phase 0</Text>
+                                    </View>
+                                </View>
                                 <View style={styles.dateRow}>
-                                    <Calendar color="#6b7280" size={14} />
-                                    <Text style={styles.dateText}>{new Date(phase.start_date).toLocaleDateString()} - {new Date(phase.end_date).toLocaleDateString()}</Text>
+                                    <Text style={styles.dateText}>
+                                        {dashboardData.permits?.filter(p => p.status === 'APPROVED').length || 0} of {dashboardData.permits?.length || 0} Approved
+                                    </Text>
                                 </View>
                             </View>
-                            <View style={[styles.statusBadge, { backgroundColor: phase.status === 'COMPLETED' ? '#d1fae5' : '#fef3c7' }]}>
-                                <Text style={[styles.statusText, { color: phase.status === 'COMPLETED' ? '#059669' : '#d97706' }]}>
-                                    {phase.status}
+                            <View style={[styles.statusBadge, { backgroundColor: '#eef2ff' }]}>
+                                <Text style={[styles.statusText, { color: '#4338ca' }]}>
+                                    PRE-CONSTRUCTION
                                 </Text>
                             </View>
                         </View>
-                        <ChevronRight color="#d1d5db" size={20} />
+                        {isPermitsExpanded ? (
+                            <ChevronUp color="#d1d5db" size={20} />
+                        ) : (
+                            <ChevronRight color="#d1d5db" size={20} />
+                        )}
                     </TouchableOpacity>
-                ))}
-            </View>
-        </ScrollView>
+
+                    {/* Permit Details (Collapsible) */}
+                    {isPermitsExpanded && (
+                        <View style={styles.permitDetailsCard}>
+                            {dashboardData.permits?.map((step) => (
+                                <View key={step.id} style={styles.permitItem}>
+                                    {step.status === 'APPROVED' ? (
+                                        <CheckCircle2 color="#10b981" size={18} />
+                                    ) : (
+                                        <View style={styles.pendingDot} />
+                                    )}
+                                    <Text style={[styles.permitTitle, step.status === 'APPROVED' && styles.completedText]}>
+                                        {step.title}
+                                    </Text>
+                                </View>
+                            ))}
+                        </View>
+                    )}
+
+                    {/* Regular Construction Phases */}
+                    {dashboardData.phases?.map((phase) => (
+                        <TouchableOpacity
+                            key={phase.id}
+                            style={styles.phaseCard}
+                            onPress={() => navigation.navigate('PhaseDetail', { phase })}
+                        >
+                            <View style={styles.phaseHeader}>
+                                <View style={styles.phaseInfo}>
+                                    <Text style={styles.phaseName}>{phase.name}</Text>
+                                    <View style={styles.dateRow}>
+                                        <Calendar color="#6b7280" size={14} />
+                                        <Text style={styles.dateText}>{new Date(phase.start_date).toLocaleDateString()} - {new Date(phase.end_date).toLocaleDateString()}</Text>
+                                    </View>
+                                </View>
+                                <View style={[styles.statusBadge, { backgroundColor: phase.status === 'COMPLETED' ? '#d1fae5' : '#fef3c7' }]}>
+                                    <Text style={[styles.statusText, { color: phase.status === 'COMPLETED' ? '#059669' : '#d97706' }]}>
+                                        {phase.status}
+                                    </Text>
+                                </View>
+                            </View>
+                            <ChevronRight color="#d1d5db" size={20} />
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            </ScrollView>
+
+            {/* Side Menu Modal */}
+            <Modal
+                visible={isMenuOpen}
+                transparent={true}
+                animationType="none"
+                onRequestClose={() => setIsMenuOpen(false)}
+            >
+                <View style={styles.menuOverlay}>
+                    <Animated.View style={[styles.sideMenuContainer, { transform: [{ translateX: slideAnim }] }]}>
+                        <LinearGradient
+                            colors={['#059669', '#047857']}
+                            style={styles.menuHeader}
+                        >
+                            <View style={styles.menuHeaderTop}>
+                                <View style={styles.avatarCircle}>
+                                    <Text style={styles.avatarText}>{user?.username?.charAt(0).toUpperCase()}</Text>
+                                </View>
+                                <TouchableOpacity onPress={() => setIsMenuOpen(false)}>
+                                    <X color="white" size={24} />
+                                </TouchableOpacity>
+                            </View>
+                            <Text style={styles.menuUsername}>{user?.username || 'User'}</Text>
+                            <Text style={styles.menuEmail}>{user?.email || 'user@example.com'}</Text>
+                        </LinearGradient>
+
+                        <View style={styles.menuItems}>
+                            <MenuLink
+                                icon={User}
+                                label="Profile Details"
+                                onPress={() => {
+                                    setIsMenuOpen(false);
+                                    navigation.navigate('Profile');
+                                }}
+                            />
+                            <MenuLink
+                                icon={HelpCircle}
+                                label="Help & Support"
+                                onPress={() => setIsMenuOpen(false)}
+                            />
+                            <MenuLink
+                                icon={Settings}
+                                label="Settings"
+                                onPress={() => setIsMenuOpen(false)}
+                            />
+                            <View style={styles.divider} />
+                            <MenuLink
+                                icon={LogOut}
+                                label="Log Out"
+                                danger
+                                onPress={handleLogout}
+                            />
+                        </View>
+                        <View style={styles.menuFooter}>
+                            <Text style={styles.versionText}>Mero Ghar v1.0.0</Text>
+                        </View>
+                    </Animated.View>
+                    <TouchableOpacity style={styles.menuBackdrop} onPress={() => setIsMenuOpen(false)} />
+                </View>
+            </Modal>
+        </View>
     );
 }
 
@@ -176,9 +299,20 @@ const styles = StyleSheet.create({
         elevation: 5,
         overflow: 'hidden',
     },
+    headerTop: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 10,
+        zIndex: 10,
+        width: '100%',
+    },
+    menuButton: {
+        padding: 4,
+        marginLeft: -4,
+    },
     headerBgIcon: { position: 'absolute', bottom: -20, right: -20, opacity: 0.5 },
     headerContent: { zIndex: 1 },
-    projectTitle: { fontSize: 24, fontWeight: '800', color: 'white', marginBottom: 4 },
     projectMeta: { fontSize: 13, color: '#a7f3d0', fontWeight: '600', marginBottom: 20 },
 
     statsContainer: { gap: 10, paddingRight: 20 },
@@ -221,6 +355,21 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#e5e7eb',
     },
+    phase0Card: {
+        borderColor: '#4338ca',
+        borderWidth: 2,
+        backgroundColor: '#fafafa',
+    },
+    permitDetailsCard: {
+        backgroundColor: 'white',
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 12,
+        marginLeft: 8,
+        marginRight: 8,
+        borderLeftWidth: 3,
+        borderLeftColor: '#4338ca',
+    },
     phaseHeader: { flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     phaseInfo: { flex: 1 },
     phaseName: { fontSize: 16, fontWeight: 'bold', color: '#111827' },
@@ -230,4 +379,96 @@ const styles = StyleSheet.create({
     dateText: { fontSize: 12, color: '#6b7280', marginLeft: 6 },
     statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginLeft: 10 },
     statusText: { fontSize: 10, fontWeight: 'bold' },
+
+    // Menu Styles
+    menuOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+    },
+    menuBackdrop: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+    },
+    sideMenuContainer: {
+        width: width * 0.6, // 60% width
+        backgroundColor: 'white',
+        height: '100%',
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        bottom: 0,
+    },
+    menuHeader: {
+        padding: 24,
+        paddingTop: 60,
+    },
+    menuHeaderTop: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: 20,
+    },
+    avatarCircle: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        backgroundColor: 'white',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    avatarText: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#059669',
+    },
+    menuUsername: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: 'white',
+    },
+    menuEmail: {
+        fontSize: 14,
+        color: '#a7f3d0',
+    },
+    menuItems: {
+        padding: 20,
+    },
+    menuItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 14,
+    },
+    menuIconContainer: {
+        width: 36,
+        height: 36,
+        borderRadius: 8,
+        backgroundColor: '#f3f4f6',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 14,
+    },
+    menuItemText: {
+        fontSize: 16,
+        fontWeight: '500',
+        color: '#374151',
+    },
+    divider: {
+        height: 1,
+        backgroundColor: '#f3f4f6',
+        marginVertical: 10,
+    },
+    menuFooter: {
+        position: 'absolute',
+        bottom: 30,
+        left: 0,
+        right: 0,
+        alignItems: 'center',
+    },
+    versionText: {
+        fontSize: 12,
+        color: '#9ca3af',
+    },
 });
