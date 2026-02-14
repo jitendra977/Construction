@@ -39,7 +39,7 @@ class MaterialViewSet(viewsets.ModelViewSet):
     def email_supplier(self, request, pk=None):
         """
         Send an email to a selected supplier to order this material.
-        Expects: { "quantity": <number>, "supplier_id": <number> }
+        Expects: { "quantity": <number>, "supplier_id": <number>, "subject": <string>, "body": <string> }
         """
         from apps.core.email_utils import send_material_order_email
         from apps.resources.models import Supplier
@@ -48,6 +48,8 @@ class MaterialViewSet(viewsets.ModelViewSet):
         material = self.get_object()
         quantity = request.data.get('quantity', material.min_stock_level)
         supplier_id = request.data.get('supplier_id')
+        custom_subject = request.data.get('subject')
+        custom_body = request.data.get('body')
         
         # Get supplier - either from request or from material default
         if supplier_id:
@@ -79,7 +81,13 @@ class MaterialViewSet(viewsets.ModelViewSet):
             original_supplier = material.supplier
             material.supplier = supplier
             
-            success = send_material_order_email(material, quantity, request.user.email)
+            success = send_material_order_email(
+                material, 
+                quantity, 
+                request.user.email if request.user.is_authenticated else None,
+                custom_subject=custom_subject,
+                custom_body=custom_body
+            )
             
             # Restore original supplier
             material.supplier = original_supplier
@@ -98,20 +106,11 @@ class MaterialViewSet(viewsets.ModelViewSet):
                         unit_price=material.avg_cost_per_unit, # Default to avg cost
                         date=timezone.now().date(),
                         supplier=supplier,
-                        notes=f"Order placed via email to {supplier.name}",
+                        notes=f"Order placed via email to {supplier.name}. Subject: {custom_subject or 'N/A'}",
                         create_expense=True # Will be created when status → RECEIVED
                     )
                 except Exception as tx_err:
                     print(f"Failed to create pending transaction: {tx_err}")
-                    # We still return success for the email but mention the tracking failed
-                    return Response({
-                        "success": True,
-                        "message": f"Order email sent to {supplier.name}, but tracking record could not be created.",
-                        "supplier": supplier.name,
-                        "supplier_email": supplier.email,
-                        "material": material.name,
-                        "quantity": quantity
-                    })
 
                 return Response({
                     "success": True,

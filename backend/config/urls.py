@@ -8,7 +8,7 @@ from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 
 from apps.accounts.views import UserViewSet
-from apps.core.views import HouseProjectViewSet, ConstructionPhaseViewSet, RoomViewSet, FloorViewSet
+from apps.core.views import HouseProjectViewSet, ConstructionPhaseViewSet, RoomViewSet, FloorViewSet, DashboardDataView
 from apps.core.gallery_views import GalleryViewSet
 from apps.tasks.views import TaskViewSet, TaskUpdateViewSet, TaskMediaViewSet
 from apps.finance.views import BudgetCategoryViewSet, ExpenseViewSet, PaymentViewSet, FundingSourceViewSet, FundingTransactionViewSet
@@ -38,6 +38,7 @@ router.register(r'gallery', GalleryViewSet, basename='gallery')
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1/auth/', include('apps.accounts.urls')), # Auth endpoints
+    path('api/v1/dashboard/combined/', DashboardDataView.as_view(), name='dashboard-combined'),
     path('api/v1/', include(router.urls)),       # Main API
     path('api/v1/estimator/', include('apps.estimator.urls')),
     path('api/v1/permits/', include('apps.permits.urls')),

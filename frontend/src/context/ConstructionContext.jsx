@@ -22,7 +22,8 @@ export const ConstructionProvider = ({ children }) => {
         suppliers: [],
         floors: [],
         permitSteps: [],
-        funding: []
+        funding: [],
+        transactions: []
     });
 
     // Fetch all dashboard data
@@ -130,9 +131,13 @@ export const ConstructionProvider = ({ children }) => {
             };
         });
 
+        const transactions = dashboardData.transactions || [];
         const lowStockItems = (dashboardData.materials || []).filter(m =>
             Number(m.current_stock) <= Number(m.min_stock_level)
-        );
+        ).map(m => {
+            const pending = transactions.find(t => t.material === m.id && t.status === 'PENDING');
+            return { ...m, pendingTransaction: pending };
+        });
 
         return {
             totalBudget,

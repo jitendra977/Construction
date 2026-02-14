@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { dashboardService } from '../../../services/api';
 import Modal from '../../common/Modal';
+import SuccessModal from '../../common/SuccessModal';
 import { useConstruction } from '../../../context/ConstructionContext';
 
 const MaterialsTab = ({ searchQuery = '' }) => {
@@ -15,6 +16,9 @@ const MaterialsTab = ({ searchQuery = '' }) => {
     const [selectedMaterial, setSelectedMaterial] = useState(null);
     const [selectedSupplier, setSelectedSupplier] = useState(null);
     const [emailQuantity, setEmailQuantity] = useState('');
+    const [emailSubject, setEmailSubject] = useState('');
+    const [emailBody, setEmailBody] = useState('');
+    const [successModalInfo, setSuccessModalInfo] = useState({ isOpen: false, title: '', message: '', supplierName: '' });
 
     const filteredMaterials = (dashboardData.materials || []).filter(m => {
         const matchesSearch = m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -92,6 +96,8 @@ const MaterialsTab = ({ searchQuery = '' }) => {
         setSelectedMaterial(material);
         setSelectedSupplier(material.supplier || null);
         setEmailQuantity(material.min_stock_level || '10');
+        setEmailSubject(`Purchase Order: ${material.name} - Dream Home Construction`);
+        setEmailBody(`Please confirm availability and provide a quote for ${material.name}. We need this for our ongoing construction project.`);
         setEmailModalOpen(true);
     };
 
@@ -102,9 +108,20 @@ const MaterialsTab = ({ searchQuery = '' }) => {
         }
         setActionLoading(`email_${selectedMaterial.id}`);
         try {
-            const response = await dashboardService.emailSupplier(selectedMaterial.id, emailQuantity, selectedSupplier);
-            alert(`✅ ${response.message}`);
+            const response = await dashboardService.emailSupplier(
+                selectedMaterial.id,
+                emailQuantity,
+                selectedSupplier,
+                emailSubject,
+                emailBody
+            );
             setEmailModalOpen(false);
+            setSuccessModalInfo({
+                isOpen: true,
+                title: 'Order Sent Successfully! 📧',
+                message: response.message,
+                supplierName: response.supplier
+            });
             setSelectedSupplier(null);
             refreshData();
         } catch (error) {
@@ -121,7 +138,12 @@ const MaterialsTab = ({ searchQuery = '' }) => {
         setActionLoading(`receive_${transactionId}`);
         try {
             const response = await dashboardService.receiveMaterialOrder(transactionId);
-            alert(`✅ ${response.message}`);
+            setSuccessModalInfo({
+                isOpen: true,
+                title: 'Stock Updated! 📦',
+                message: response.message,
+                supplierName: response.supplier
+            });
             refreshData();
         } catch (error) {
             const errorMsg = error.response?.data?.error || 'Failed to confirm receipt';
@@ -489,23 +511,57 @@ const MaterialsTab = ({ searchQuery = '' }) => {
                             type="number"
                             value={emailQuantity}
                             onChange={(e) => setEmailQuantity(e.target.value)}
-                            className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none text-lg font-bold text-center"
+                            className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none text-lg font-black text-center"
                             min="1"
                         />
                     </div>
 
+                    <div className="space-y-4 pt-4 border-t border-gray-100">
+                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Email Composition</h4>
+
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 mb-1">Subject</label>
+                            <input
+                                type="text"
+                                value={emailSubject}
+                                onChange={(e) => setEmailSubject(e.target.value)}
+                                className="w-full rounded-lg border-gray-200 shadow-sm focus:ring-2 focus:ring-green-500 p-2 border outline-none text-sm font-medium"
+                                placeholder="Order Subject"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 mb-1">Message Body</label>
+                            <textarea
+                                value={emailBody}
+                                onChange={(e) => setEmailBody(e.target.value)}
+                                className="w-full rounded-lg border-gray-200 shadow-sm focus:ring-2 focus:ring-green-500 p-3 border outline-none text-sm min-h-[120px] leading-relaxed"
+                                placeholder="Write your custom message to the supplier..."
+                            />
+                        </div>
+                    </div>
+
                     <div className="flex justify-end gap-3 mt-6">
-                        <button type="button" onClick={() => setEmailModalOpen(false)} className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700">Cancel</button>
+                        <button type="button" onClick={() => setEmailModalOpen(false)} className="px-6 py-2.5 text-xs font-black text-gray-400 uppercase tracking-widest">Cancel</button>
                         <button
                             onClick={handleSendEmail}
-                            disabled={!emailQuantity || actionLoading}
-                            className="px-8 py-2.5 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+                            disabled={!emailQuantity || !selectedSupplier || actionLoading}
+                            className="px-8 py-2.5 bg-green-600 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-green-100 hover:bg-green-700 hover:-translate-y-0.5 transition-all flex items-center gap-2"
                         >
-                            📧 Send Order Email
+                            {actionLoading === `email_${selectedMaterial?.id}` ? 'Sending...' : '🚀 Send Custom Order'}
                         </button>
                     </div>
                 </div>
             </Modal>
+
+            {/* Success Reinforcement Modal */}
+            <SuccessModal
+                isOpen={successModalInfo.isOpen}
+                onClose={() => setSuccessModalInfo({ ...successModalInfo, isOpen: false })}
+                title={successModalInfo.title}
+                message={successModalInfo.message}
+                supplierName={successModalInfo.supplierName}
+            />
         </div>
     );
 };

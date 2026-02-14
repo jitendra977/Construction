@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import Modal from '../common/Modal';
+import SuccessModal from '../common/SuccessModal';
 import PhaseDetailModal from './manage/PhaseDetailModal';
-import { constructionService, permitService, getMediaUrl } from '../../services/api';
+import { constructionService, permitService, dashboardService, getMediaUrl } from '../../services/api';
 import { useConstruction } from '../../context/ConstructionContext';
 
 const DesktopHome = () => {
@@ -11,14 +12,82 @@ const DesktopHome = () => {
     const [selectedPhase, setSelectedPhase] = useState(null);
     const [newTaskTitle, setNewTaskTitle] = useState('');
     const [loading, setLoading] = useState(false);
+    const [detailPhase, setDetailPhase] = useState(null);
 
     // Permit State
     const [isPermitModalOpen, setIsPermitModalOpen] = useState(false);
     const [newPermitTitle, setNewPermitTitle] = useState('');
     const [showPermits, setShowPermits] = useState(false);
 
-    // Phase Detail State
-    const [detailPhase, setDetailPhase] = useState(null);
+    // Order State
+    const [orderModalOpen, setOrderModalOpen] = useState(false);
+    const [selectedOrderMaterial, setSelectedOrderMaterial] = useState(null);
+    const [selectedOrderSupplier, setSelectedOrderSupplier] = useState(null);
+    const [orderQuantity, setOrderQuantity] = useState('');
+    const [orderSubject, setOrderSubject] = useState('');
+    const [orderBody, setOrderBody] = useState('');
+    const [orderLoading, setOrderLoading] = useState(false);
+    const [successModalInfo, setSuccessModalInfo] = useState({ isOpen: false, title: '', message: '', supplierName: '' });
+
+    const handleOpenOrderModal = (material) => {
+        setSelectedOrderMaterial(material);
+        setSelectedOrderSupplier(material.supplier || null);
+        setOrderQuantity(material.min_stock_level || '10');
+        setOrderSubject(`Purchase Order: ${material.name} - Dream Home Construction`);
+        setOrderBody(`Please confirm availability and provide a quote for ${material.name}. We need this for our ongoing construction project.`);
+        setOrderModalOpen(true);
+    };
+
+    const handleSendOrder = async () => {
+        if (!selectedOrderMaterial || !selectedOrderSupplier) {
+            alert('❌ Please select a supplier');
+            return;
+        }
+        setOrderLoading(true);
+        try {
+            const response = await dashboardService.emailSupplier(
+                selectedOrderMaterial.id,
+                orderQuantity,
+                selectedOrderSupplier,
+                orderSubject,
+                orderBody
+            );
+            setOrderModalOpen(false);
+            setSuccessModalInfo({
+                isOpen: true,
+                title: 'Order Sent Successfully! 📧',
+                message: response.message,
+                supplierName: response.supplier
+            });
+            refreshData();
+        } catch (error) {
+            const errorMsg = error.response?.data?.error || 'Failed to send order email';
+            alert(`❌ ${errorMsg}`);
+        } finally {
+            setOrderLoading(false);
+        }
+    };
+
+    const handleReceiveOrder = async (transaction) => {
+        if (!window.confirm('Confirm receipt of these materials? This will add them to stock and create an expense.')) return;
+
+        setOrderLoading(true);
+        try {
+            const response = await dashboardService.receiveMaterialOrder(transaction.id);
+            setSuccessModalInfo({
+                isOpen: true,
+                title: 'Stock Updated! 📦',
+                message: response.message,
+                supplierName: response.supplier
+            });
+            refreshData();
+        } catch (error) {
+            const errorMsg = error.response?.data?.error || 'Failed to confirm receipt';
+            alert(`❌ ${errorMsg}`);
+        } finally {
+            setOrderLoading(false);
+        }
+    };
 
     // Collapsible Phases State
     const [expandedPhases, setExpandedPhases] = useState(new Set());
@@ -183,39 +252,82 @@ const DesktopHome = () => {
 
                     {/* Stats Grid inside Header */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {stats.filter(s => s.title !== 'Master Budget').map((stat, index) => (
-                            <div key={index} className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 hover:bg-white/20 transition-colors">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <div className="text-emerald-100 text-xs font-bold uppercase tracking-wide opacity-80">{stat.title}</div>
-                                        <div className="text-2xl font-bold text-white mt-1 leading-none">
-                                            {stat.title.toLowerCase().includes('count') ? stat.value : `Rs. ${stat.value}`}
-                                        </div>
+                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 hover:bg-white/20 transition-colors">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <div className="text-emerald-100 text-xs font-bold uppercase tracking-wide opacity-80">Budget Utilization</div>
+                                    <div className="text-2xl font-bold text-white mt-1 leading-none">
+                                        {budgetStats.budgetPercent.toFixed(1)}%
                                     </div>
-                                    <div className="text-2xl opacity-80">{stat.icon}</div>
                                 </div>
-                                <div className={`inline-flex items-center mt-2 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${stat.trend === 'up' ? 'bg-emerald-400/20 text-emerald-100' : 'bg-white/10 text-white/70'}`}>
-                                    {stat.change}
-                                </div>
+                                <div className="text-2xl opacity-80">💰</div>
                             </div>
-                        ))}
-                        {/* Master Budget Card */}
-                        {stats.find(s => s.title === 'Master Budget') && (
-                            <div className="bg-gradient-to-br from-indigo-500/80 to-purple-600/80 backdrop-blur-sm rounded-xl p-4 border border-white/20 relative overflow-hidden group">
-                                <div className="absolute -right-4 -bottom-4 text-6xl opacity-20 rotate-12 transition-transform group-hover:scale-110">💰</div>
-                                <div className="text-indigo-100 text-xs font-bold uppercase tracking-wide opacity-90">Master Budget</div>
-                                <div className="text-2xl font-bold text-white mt-1 leading-none">
-                                    Rs. {stats.find(s => s.title === 'Master Budget').value}
-                                </div>
-                                <div className="mt-3 flex items-center gap-2">
-                                    <div className="h-1.5 flex-1 bg-black/20 rounded-full overflow-hidden">
-                                        <div className="h-full bg-emerald-400 rounded-full shadow-[0_0_10px_rgba(52,211,153,0.5)]" style={{ width: `${budgetStats.budgetPercent}%` }} />
+                            <div className="mt-2 text-[10px] text-emerald-200 font-medium whitespace-nowrap overflow-hidden text-ellipsis">
+                                {formatCurrency(budgetStats.totalSpent)} of {formatCurrency(budgetStats.totalBudget)}
+                            </div>
+                        </div>
+
+                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 hover:bg-white/20 transition-colors">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <div className="text-emerald-100 text-xs font-bold uppercase tracking-wide opacity-80">Available Cash</div>
+                                    <div className="text-2xl font-bold text-white mt-1 leading-none">
+                                        {formatCurrency(budgetStats.availableCash)}
                                     </div>
-                                    <span className="text-[10px] font-bold text-white">{budgetStats.budgetPercent}% Used</span>
                                 </div>
+                                <div className="text-2xl opacity-80">💵</div>
                             </div>
-                        )}
+                            <div className={`inline-flex items-center mt-2 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${budgetStats.availableCash > 0 ? 'bg-emerald-400/20 text-emerald-100' : 'bg-red-400/20 text-red-100'}`}>
+                                {budgetStats.availableCash > 0 ? 'Liquid' : 'Cash Tight'}
+                            </div>
+                        </div>
+
+                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 hover:bg-white/20 transition-colors">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <div className="text-emerald-100 text-xs font-bold uppercase tracking-wide opacity-80">Stock Value</div>
+                                    <div className="text-2xl font-bold text-white mt-1 leading-none">
+                                        {formatCurrency(budgetStats.inventoryValue)}
+                                    </div>
+                                </div>
+                                <div className="text-2xl opacity-80">🏗️</div>
+                            </div>
+                            <div className="mt-2 text-[10px] text-emerald-200 font-medium">
+                                {dashboardData.materials?.length || 0} Resource types
+                            </div>
+                        </div>
+
+                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 hover:bg-white/20 transition-colors">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <div className="text-emerald-100 text-xs font-bold uppercase tracking-wide opacity-80">Funding Coverage</div>
+                                    <div className="text-2xl font-bold text-white mt-1 leading-none">
+                                        {budgetStats.fundingCoverage.toFixed(0)}%
+                                    </div>
+                                </div>
+                                <div className="text-2xl opacity-80">🛡️</div>
+                            </div>
+                            <div className="mt-2 text-[10px] text-emerald-200 font-medium">
+                                Securing total project
+                            </div>
+                        </div>
                     </div>
+                    {/* Master Budget Card */}
+                    {stats.find(s => s.title === 'Master Budget') && (
+                        <div className="bg-gradient-to-br from-indigo-500/80 to-purple-600/80 backdrop-blur-sm rounded-xl p-4 border border-white/20 relative overflow-hidden group">
+                            <div className="absolute -right-4 -bottom-4 text-6xl opacity-20 rotate-12 transition-transform group-hover:scale-110">💰</div>
+                            <div className="text-indigo-100 text-xs font-bold uppercase tracking-wide opacity-90">Master Budget</div>
+                            <div className="text-2xl font-bold text-white mt-1 leading-none">
+                                Rs. {stats.find(s => s.title === 'Master Budget').value}
+                            </div>
+                            <div className="mt-3 flex items-center gap-2">
+                                <div className="h-1.5 flex-1 bg-black/20 rounded-full overflow-hidden">
+                                    <div className="h-full bg-emerald-400 rounded-full shadow-[0_0_10px_rgba(52,211,153,0.5)]" style={{ width: `${budgetStats.budgetPercent}%` }} />
+                                </div>
+                                <span className="text-[10px] font-bold text-white">{budgetStats.budgetPercent}% Used</span>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -246,7 +358,22 @@ const DesktopHome = () => {
                                                     <span className="text-sm font-bold text-gray-900">{item.name}</span>
                                                     <span className="text-[10px] text-red-600 font-bold uppercase tracking-tight">Stock: {item.current_stock} {item.unit} (Min: {item.min_stock_level})</span>
                                                 </div>
-                                                <button className="text-[10px] font-bold text-red-600 bg-white border border-red-100 px-3 py-1.5 rounded-lg shadow-sm hover:bg-red-50 hover:text-red-700 transition-colors">Order Now</button>
+                                                {item.pendingTransaction ? (
+                                                    <button
+                                                        onClick={() => handleReceiveOrder(item.pendingTransaction)}
+                                                        className="text-[10px] font-bold text-green-600 bg-green-50 border border-green-100 px-3 py-1.5 rounded-lg shadow-sm hover:bg-green-100 transition-colors flex items-center gap-1.5"
+                                                    >
+                                                        <span>✅</span>
+                                                        Confirm Received
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleOpenOrderModal(item)}
+                                                        className="text-[10px] font-bold text-red-600 bg-white border border-red-100 px-3 py-1.5 rounded-lg shadow-sm hover:bg-red-50 hover:text-red-700 transition-colors"
+                                                    >
+                                                        Order Now
+                                                    </button>
+                                                )}
                                             </div>
                                         ))}
                                         {budgetStats.lowStockItems.length > 3 && (
@@ -501,7 +628,96 @@ const DesktopHome = () => {
             </div>
 
             {/* Modals */}
-            <Modal isOpen={isTaskModalOpen} onClose={() => setIsTaskModalOpen(false)} title={`Add Sub-Phase to ${selectedPhase?.name}`}>
+            {/* Direct Order Modal */}
+            <Modal
+                isOpen={orderModalOpen}
+                onClose={() => setOrderModalOpen(false)}
+                title={`📧 Order Material: ${selectedOrderMaterial?.name || ''}`}
+            >
+                <div className="space-y-4 p-4">
+                    <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4">
+                        <h4 className="text-sm font-bold text-indigo-900 mb-2">Material Details</h4>
+                        <div className="space-y-1 text-sm">
+                            <div className="flex justify-between">
+                                <span className="text-gray-600">Material:</span>
+                                <span className="font-bold text-gray-900">{selectedOrderMaterial?.name}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-gray-600">Current Stock:</span>
+                                <span className="font-bold text-red-600">{selectedOrderMaterial?.current_stock} {selectedOrderMaterial?.unit}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Select Supplier *</label>
+                        <select
+                            value={selectedOrderSupplier || ''}
+                            onChange={(e) => setSelectedOrderSupplier(Number(e.target.value))}
+                            className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none bg-white font-bold"
+                            required
+                        >
+                            <option value="">Choose a supplier...</option>
+                            {(dashboardData.suppliers || [])
+                                .filter(s => s.email)
+                                .map(s => (
+                                    <option key={s.id} value={s.id}>
+                                        {s.name} ({s.email})
+                                    </option>
+                                ))}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Quantity to Order</label>
+                        <input
+                            type="number"
+                            value={orderQuantity}
+                            onChange={(e) => setOrderQuantity(e.target.value)}
+                            className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none text-lg font-black text-center"
+                            min="1"
+                        />
+                    </div>
+
+                    <div className="space-y-4 pt-2 border-t border-gray-100">
+                        <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Email Content (अनुकूलन गर्नुहोस्)</h4>
+
+                        <div>
+                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Subject</label>
+                            <input
+                                type="text"
+                                value={orderSubject}
+                                onChange={(e) => setOrderSubject(e.target.value)}
+                                className="w-full rounded-lg border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-2 border outline-none text-sm font-medium"
+                                placeholder="Email Subject"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Custom Message / Notes</label>
+                            <textarea
+                                value={orderBody}
+                                onChange={(e) => setOrderBody(e.target.value)}
+                                className="w-full rounded-lg border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none text-sm min-h-[100px] leading-relaxed"
+                                placeholder="Add specific delivery instructions, deadlines, or site details..."
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3 mt-6">
+                        <button type="button" onClick={() => setOrderModalOpen(false)} className="px-6 py-2.5 text-xs font-black text-gray-400 uppercase tracking-widest">Cancel</button>
+                        <button
+                            onClick={handleSendOrder}
+                            disabled={!orderQuantity || !selectedOrderSupplier || orderLoading}
+                            className="px-8 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all flex items-center gap-2"
+                        >
+                            {orderLoading ? 'Sending...' : '🚀 Send Order Email'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            <Modal isOpen={isTaskModalOpen} onClose={() => setIsTaskModalOpen(false)} title={`Add Task to ${selectedPhase?.name}`}>
                 <form onSubmit={handleAddTask} className="space-y-4">
                     <input
                         type="text"
@@ -546,7 +762,15 @@ const DesktopHome = () => {
                 tasks={detailPhase ? dashboardData.tasks.filter(t => t.phase === detailPhase.id) : []}
                 onRefresh={refreshData}
             />
-        </div >
+            {/* Success Reinforcement Modal */}
+            <SuccessModal
+                isOpen={successModalInfo.isOpen}
+                onClose={() => setSuccessModalInfo({ ...successModalInfo, isOpen: false })}
+                title={successModalInfo.title}
+                message={successModalInfo.message}
+                supplierName={successModalInfo.supplierName}
+            />
+        </div>
     );
 };
 

@@ -117,7 +117,13 @@ export const dashboardService = {
     updateMaterial: (id, data) => api.patch(`/materials/${id}/`, data),
     deleteMaterial: (id) => api.delete(`/materials/${id}/`),
     recalculateMaterialStock: (id) => api.post(`/materials/${id}/recalculate_stock/`),
-    emailSupplier: (id, quantity, supplierId) => api.post(`/materials/${id}/email_supplier/`, { quantity, supplier_id: supplierId }).then(res => res.data),
+    emailSupplier: (materialId, quantity, supplierId, subject, body) =>
+        api.post(`/materials/${materialId}/email_supplier/`, {
+            quantity,
+            supplier_id: supplierId,
+            subject,
+            body
+        }).then(res => res.data),
     receiveMaterialOrder: (transactionId) => api.post(`/material-transactions/${transactionId}/receive_order/`).then(res => res.data),
     recalculateAllMaterialsStock: () => api.post(`/materials/recalculate_all/`),
 
@@ -149,42 +155,15 @@ export const dashboardService = {
     // Dashboard Data - Aggregated
     getDashboardData: async () => {
         try {
-            const [projects, rooms, tasks, phases, expenses, floors, materials, contractors, budgetCategories, suppliers, transactions, permits, funding] = await Promise.all([
-                api.get('/projects/'),
-                api.get('/rooms/'),
-                api.get('/tasks/'),
-                api.get('/phases/'),
-                api.get('/expenses/'),
-                api.get('/floors/'),
-                api.get('/materials/'),
-                api.get('/contractors/'),
-                api.get('/budget-categories/'),
-                api.get('/suppliers/'),
-                api.get('/material-transactions/'),
-                api.get('/permits/steps/'),
-                api.get('/funding-sources/'),
-            ]);
-
-            return {
-                project: projects.data[0] || null,
-                rooms: rooms.data,
-                tasks: tasks.data,
-                phases: phases.data,
-                expenses: expenses.data,
-                floors: floors.data,
-                materials: materials.data,
-                contractors: contractors.data,
-                budgetCategories: budgetCategories.data,
-                suppliers: suppliers.data,
-                transactions: transactions.data,
-                permits: permits.data,
-                funding: funding.data,
-            };
+            const response = await api.get('/dashboard/combined/');
+            return response.data;
         } catch (error) {
-            console.error("Error fetching dashboard data:", error);
+            console.error("Dashboard consolidated fetch failed, falling back to multi-fetch", error);
+            // Fallback to individual fetches if needed (optional, keeping it simple now)
             throw error;
         }
-    },
+    }
+    ,
 };
 
 export const constructionService = {
