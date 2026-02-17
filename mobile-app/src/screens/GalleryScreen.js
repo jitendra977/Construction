@@ -3,6 +3,7 @@ import { StyleSheet, View, Text, ScrollView, Image, TouchableOpacity, Dimensions
 import { LinearGradient } from 'expo-linear-gradient';
 import { Camera, Layers, FileText, Image as ImageIcon, X, Download } from 'lucide-react-native';
 import { dashboardService, getMediaUrl } from '../services/api';
+import storage from '../utils/storage';
 
 const { width } = Dimensions.get('window');
 
@@ -13,29 +14,96 @@ const TABS = [
     { id: 'permits', label: 'Permits', icon: FileText }, // Recurring icon for now
 ];
 
+import Skeleton from '../components/Skeleton';
+
+// Skeleton Loading Component
+const GallerySkeleton = () => (
+    <View style={{ flex: 1, backgroundColor: '#f3f4f6' }}>
+        <StatusBar barStyle="light-content" backgroundColor="#059669" />
+        {/* Header Skeleton */}
+        <View style={[styles.header, { height: 160 }]}>
+            <View style={{ marginBottom: 20 }}>
+                <Skeleton width={150} height={30} style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} />
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+                {[1, 2, 3, 4].map(i => (
+                    <Skeleton key={i} width={100} height={35} borderRadius={20} style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} />
+                ))}
+            </ScrollView>
+        </View>
+
+        {/* Content Skeleton */}
+        <View style={{ padding: 20 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 }}>
+                <Skeleton width={120} height={20} />
+                <Skeleton width={30} height={20} borderRadius={10} />
+            </View>
+
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {[1, 2, 3, 4, 5, 6].map(i => (
+                    <Skeleton key={i} width={(width - 48) / 3} height={(width - 48) / 3} borderRadius={8} />
+                ))}
+            </View>
+        </View>
+    </View>
+);
+
 export default function GalleryScreen() {
+    // 1. Hook
     const [activeTab, setActiveTab] = useState('timeline');
+    // 2. Hook
     const [galleryData, setGalleryData] = useState([]);
+    // 3. Hook
     const [loading, setLoading] = useState(true);
+    // 4. Hook
     const [lightboxItem, setLightboxItem] = useState(null);
+    // 5. Hook
+    const [error, setError] = useState(null);
 
     const fetchGallery = async () => {
         setLoading(true);
+        setError(null);
         try {
-            const data = await dashboardService.getGallery(activeTab);
-            // Transform data structure to match what UI expects if needed, 
-            // but mobile api likely returns same structure as web
-            setGalleryData(data);
-        } catch (error) {
-            console.error('Failed to load gallery:', error);
+            // Check if user is authenticated before fetching
+            const token = await storage.getItem('access_token');
+            if (!token) {
+                // User not authenticated, skip fetching
+                setLoading(false);
+                return;
+            }
+
+            console.log("Fetching gallery...");
+            // Create a timeout promise
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Request timed out')), 10000)
+            );
+
+            // Race the fetch against the timeout
+            const data = await Promise.race([
+                dashboardService.getGallery(activeTab),
+                timeoutPromise
+            ]);
+
+            console.log("Gallery fetched:", data ? data.length : 0);
+            setGalleryData(data || []);
+        } catch (err) {
+            // Only log if it's not an authentication error
+            if (err.response?.status !== 401) {
+                console.error('Failed to load gallery:', err);
+                setError('Failed to load gallery. Please check your connection.');
+            }
         } finally {
             setLoading(false);
         }
     };
 
+    // 6. Hook
     useEffect(() => {
         fetchGallery();
     }, [activeTab]);
+
+    // Conditional Return AFTER all hooks
+    if (loading && galleryData.length === 0 && !error) return <GallerySkeleton />;
 
     const renderTimelineItem = (item) => (
         <TouchableOpacity key={item.id} onPress={() => setLightboxItem(item)} style={styles.timelineItem}>
@@ -101,30 +169,44 @@ export default function GalleryScreen() {
             </LinearGradient>
 
             <View style={styles.content}>
-                {galleryData.map((group, index) => (
-                    <View key={index} style={styles.section}>
-                        <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionTitle}>
-                                {group.groupName === 'undefined' ? 'Uncategorized' : group.groupName}
-                            </Text>
-                            <View style={styles.countBadge}>
-                                <Text style={styles.countText}>{group.items.length}</Text>
+                {error ? (
+                    <View style={styles.centerContainer}>
+                        <Text style={styles.errorText}>{error}</Text>
+                        <TouchableOpacity style={styles.retryButton} onPress={fetchGallery}>
+                            <Text style={styles.retryText}>Retry</Text>
+                        </TouchableOpacity>
+                    </View>
+                ) : galleryData.length === 0 ? (
+                    <View style={styles.centerContainer}>
+                        <ImageIcon color="#d1d5db" size={48} />
+                        <Text style={styles.emptyText}>No images found in this section.</Text>
+                    </View>
+                ) : (
+                    galleryData.map((group, index) => (
+                        <View key={index} style={styles.section}>
+                            <View style={styles.sectionHeader}>
+                                <Text style={styles.sectionTitle}>
+                                    {group.groupName === 'undefined' ? 'Uncategorized' : group.groupName}
+                                </Text>
+                                <View style={styles.countBadge}>
+                                    <Text style={styles.countText}>{group.items.length}</Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.itemsContainer}>
+                                {activeTab === 'timeline' ? (
+                                    <View style={styles.masonryGrid}>
+                                        {group.items.map(renderTimelineItem)}
+                                    </View>
+                                ) : (
+                                    <View style={styles.cardGrid}>
+                                        {group.items.map(renderGridItem)}
+                                    </View>
+                                )}
                             </View>
                         </View>
-
-                        <View style={styles.itemsContainer}>
-                            {activeTab === 'timeline' ? (
-                                <View style={styles.masonryGrid}>
-                                    {group.items.map(renderTimelineItem)}
-                                </View>
-                            ) : (
-                                <View style={styles.cardGrid}>
-                                    {group.items.map(renderGridItem)}
-                                </View>
-                            )}
-                        </View>
-                    </View>
-                ))}
+                    ))
+                )}
                 <View style={{ height: 100 }} />
             </View>
 
@@ -217,5 +299,11 @@ const styles = StyleSheet.create({
     lightboxImage: { width: '100%', height: '100%' },
     lightboxMeta: { position: 'absolute', bottom: -60, left: 0, right: 0, padding: 20, alignItems: 'center' },
     lightboxTitle: { color: 'white', fontSize: 18, fontWeight: 'bold' },
-    lightboxSubtitle: { color: 'gray', fontSize: 14 }
+    lightboxSubtitle: { color: 'gray', fontSize: 14 },
+
+    centerContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60 },
+    errorText: { color: '#ef4444', marginBottom: 16 },
+    retryButton: { backgroundColor: '#059669', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
+    retryText: { color: 'white', fontWeight: 'bold' },
+    emptyText: { color: '#9ca3af', marginTop: 12, fontSize: 16 }
 });

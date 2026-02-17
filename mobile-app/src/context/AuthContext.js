@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { authService } from '../services/auth';
 import { dashboardService } from '../services/api';
+import storage from '../utils/storage';
 
 const AuthContext = createContext({});
 
@@ -25,10 +26,23 @@ export const AuthProvider = ({ children }) => {
 
     const fetchDashboardData = async () => {
         try {
+            // Check if user is authenticated before fetching
+            const token = await storage.getItem('access_token');
+            if (!token) {
+                // User not authenticated, skip fetching
+                return;
+            }
+
+            // Fetch fresh data from API
             const data = await dashboardService.getDashboardData();
+
+            // Update state
             setDashboardData(data);
         } catch (error) {
-            console.error('Failed to fetch dashboard data', error);
+            // Only log if it's not an authentication error
+            if (error.response?.status !== 401) {
+                console.error('Failed to fetch dashboard data', error);
+            }
         }
     };
 

@@ -12,11 +12,51 @@ const TABS = [
     { id: 'expenses', label: 'History', icon: List },
 ];
 
+import Skeleton from '../components/Skeleton';
+
+// Skeleton Loading Component
+const FinanceSkeleton = () => (
+    <View style={{ flex: 1, backgroundColor: '#f3f4f6' }}>
+        <StatusBar barStyle="light-content" backgroundColor="#059669" />
+        {/* Header Skeleton */}
+        <View style={[styles.header, { height: 180 }]}>
+            <View style={{ marginBottom: 20 }}>
+                <Skeleton width={180} height={30} style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} />
+            </View>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+                <Skeleton width={100} height={35} borderRadius={10} style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} />
+                <Skeleton width={100} height={35} borderRadius={10} style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} />
+            </View>
+        </View>
+
+        {/* Content Skeleton */}
+        <View style={{ padding: 20 }}>
+            {/* Stats Grid */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
+                {[1, 2, 3, 4].map(i => (
+                    <View key={i} style={{ width: (width - 52) / 2, padding: 16, backgroundColor: 'white', borderRadius: 16 }}>
+                        <Skeleton width={80} height={12} style={{ marginBottom: 8 }} />
+                        <Skeleton width={100} height={20} />
+                    </View>
+                ))}
+            </View>
+
+            {/* Progress Bar */}
+            <View style={{ backgroundColor: 'white', padding: 20, borderRadius: 16, marginBottom: 20 }}>
+                <Skeleton width={150} height={20} style={{ marginBottom: 16 }} />
+                <Skeleton width="100%" height={10} borderRadius={5} style={{ marginBottom: 10 }} />
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Skeleton width={60} height={12} />
+                    <Skeleton width={60} height={12} />
+                </View>
+            </View>
+        </View>
+    </View>
+);
+
 export default function FinanceScreen() {
     const { dashboardData, loading, refreshData } = useAuth();
     const [activeTab, setActiveTab] = useState('overview');
-
-    // if (!dashboardData) return null; // Removed early return to fix Hook rule violation
 
     // --- Financial Calculations (Mirroring Desktop) ---
     // Ensure safe access to arrays
@@ -51,6 +91,10 @@ export default function FinanceScreen() {
             return acc;
         }, []).sort((a, b) => b.spent - a.spent);
     }, [expenses]);
+
+    // Conditional returns MUST be after all hooks
+    if (loading && !dashboardData) return <FinanceSkeleton />;
+    if (!dashboardData) return null;
 
     const budgetPercent = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
 

@@ -24,7 +24,18 @@ const storage = {
         } else {
             await SecureStore.deleteItemAsync(key);
         }
+    },
+    // Alias for compatibility
+    removeItem: async (key) => {
+        if (isWeb) {
+            localStorage.removeItem(key);
+        } else {
+            await SecureStore.deleteItemAsync(key);
+        }
     }
 };
+
+// Handle CommonJS/ESM interop if something is trying to access .default
+storage.default = storage;
 
 export default storage;

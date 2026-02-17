@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "mobile-app",
-    "slug": "mobile-app",
+    "name": "Mero Ghar",
+    "slug": "mero-ghar",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,7 +16,14 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.construction.mobileapp",
+      "buildNumber": "1.0.0",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow app to access your camera to take photos of construction progress.",
+        "NSPhotoLibraryUsageDescription": "Allow app to access your photos to upload construction progress images.",
+        "NSMicrophoneUsageDescription": "Allow app to access your microphone for video recording."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -27,6 +34,11 @@
     },
     "plugins": [
       "expo-secure-store"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "e1995a83-9ce9-4fe0-a351-9ee1f0cd7151"
+      }
+    }
   }
 }

@@ -34,7 +34,13 @@ export const authService = {
                 });
             }
         } catch (error) {
-            console.error('Logout error:', error);
+            // Ignore API logout errors (400/401) as we are clearing local session anyway
+            if (error.response && (error.response.status === 400 || error.response.status === 401)) {
+                // Token already invalid or missing, safe to ignore
+                console.log('Logout API: Token already invalid');
+            } else {
+                console.error('Logout error:', error);
+            }
         } finally {
             await storage.deleteItem('access_token');
             await storage.deleteItem('refresh_token');

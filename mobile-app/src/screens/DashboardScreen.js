@@ -3,8 +3,49 @@ import { StyleSheet, View, Text, ScrollView, RefreshControl, TouchableOpacity, S
 import { useAuth } from '../context/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Calendar, ChevronRight, CheckCircle2, Circle, LayoutDashboard, Menu as MenuIcon, X, User, Settings, HelpCircle, LogOut, ChevronDown, ChevronUp } from 'lucide-react-native';
+import Skeleton from '../components/Skeleton';
 
 const { width } = Dimensions.get('window');
+
+// Skeleton Loading Component for Dashboard
+const DashboardSkeleton = () => (
+    <View style={{ flex: 1, backgroundColor: '#f3f4f6' }}>
+        <StatusBar barStyle="light-content" backgroundColor="#059669" />
+        {/* Header Skeleton */}
+        <View style={[styles.header, { height: 280 }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 }}>
+                <Skeleton width={30} height={30} borderRadius={15} style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} />
+                <Skeleton width={100} height={30} borderRadius={15} style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} />
+            </View>
+            <Skeleton width={200} height={20} style={{ marginBottom: 20, backgroundColor: 'rgba(255,255,255,0.2)' }} />
+
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+                <Skeleton width={160} height={100} borderRadius={12} style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} />
+                <Skeleton width={160} height={100} borderRadius={12} style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} />
+            </View>
+        </View>
+
+        {/* Content Skeleton */}
+        <View style={{ padding: 20 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 }}>
+                <Skeleton width={150} height={24} />
+                <Skeleton width={90} height={30} borderRadius={20} />
+            </View>
+
+            {[1, 2, 3].map(i => (
+                <View key={i} style={{ backgroundColor: 'white', padding: 18, borderRadius: 15, marginBottom: 12 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <View>
+                            <Skeleton width={120} height={20} style={{ marginBottom: 8 }} />
+                            <Skeleton width={180} height={14} />
+                        </View>
+                        <Skeleton width={20} height={20} borderRadius={10} />
+                    </View>
+                </View>
+            ))}
+        </View>
+    </View>
+);
 
 export default function DashboardScreen({ navigation }) {
     const { dashboardData, loading, refreshData, logout, user } = useAuth();
@@ -29,6 +70,7 @@ export default function DashboardScreen({ navigation }) {
         }
     }, [isMenuOpen]);
 
+    if (loading && !dashboardData) return <DashboardSkeleton />;
     if (!dashboardData) return null;
 
     // --- Financial Stats Calculation ---
@@ -220,6 +262,56 @@ export default function DashboardScreen({ navigation }) {
                         </TouchableOpacity>
                     ))}
                 </View>
+
+                {/* More Menu Section */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionHeader}>More Features</Text>
+                    <View style={styles.moreGrid}>
+                        <TouchableOpacity
+                            style={styles.moreCard}
+                            onPress={() => navigation.navigate('Suppliers')}
+                        >
+                            <View style={[styles.moreIcon, { backgroundColor: '#eef2ff' }]}>
+                                <Text style={{ fontSize: 24 }}>🏪</Text>
+                            </View>
+                            <Text style={styles.moreLabel}>Suppliers</Text>
+                            <Text style={styles.moreCount}>{dashboardData.suppliers?.length || 0}</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.moreCard}
+                            onPress={() => navigation.navigate('Contractors')}
+                        >
+                            <View style={[styles.moreIcon, { backgroundColor: '#fef3c7' }]}>
+                                <Text style={{ fontSize: 24 }}>👷</Text>
+                            </View>
+                            <Text style={styles.moreLabel}>Contractors</Text>
+                            <Text style={styles.moreCount}>{dashboardData.contractors?.length || 0}</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.moreCard}
+                            onPress={() => navigation.navigate('Permits')}
+                        >
+                            <View style={[styles.moreIcon, { backgroundColor: '#d1fae5' }]}>
+                                <Text style={{ fontSize: 24 }}>📋</Text>
+                            </View>
+                            <Text style={styles.moreLabel}>Permits</Text>
+                            <Text style={styles.moreCount}>{dashboardData.permits?.length || 0}</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.moreCard}
+                            onPress={() => navigation.navigate('Estimator')}
+                        >
+                            <View style={[styles.moreIcon, { backgroundColor: '#e0f2fe' }]}>
+                                <Text style={{ fontSize: 24 }}>📊</Text>
+                            </View>
+                            <Text style={styles.moreLabel}>Estimator</Text>
+                            <Text style={styles.moreCount}>Rates</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
             </ScrollView>
 
             {/* Side Menu Modal */}
@@ -332,6 +424,7 @@ const styles = StyleSheet.create({
     miniProgressFill: { height: '100%', borderRadius: 2 },
     section: { padding: 20 },
     sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
+    sectionHeader: { fontSize: 18, fontWeight: 'bold', color: '#111827' },
     phaseZeroBadge: { backgroundColor: '#4338ca', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
     phaseZeroText: { color: 'white', fontSize: 10, fontWeight: 'bold' },
     permitCard: { backgroundColor: 'white', borderRadius: 15, padding: 15, borderWidth: 1, borderColor: '#e5e7eb' },
@@ -428,6 +521,8 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: 'bold',
         color: 'white',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     menuEmail: {
         fontSize: 14,
@@ -470,5 +565,42 @@ const styles = StyleSheet.create({
     versionText: {
         fontSize: 12,
         color: '#9ca3af',
+    },
+
+    // More Menu Styles
+    moreGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 12,
+    },
+    moreCard: {
+        backgroundColor: 'white',
+        borderRadius: 12,
+        padding: 16,
+        alignItems: 'center',
+        width: '48%',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
+    },
+    moreIcon: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    moreLabel: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#1f2937',
+        marginBottom: 4,
+    },
+    moreCount: {
+        fontSize: 12,
+        color: '#6b7280',
     },
 });

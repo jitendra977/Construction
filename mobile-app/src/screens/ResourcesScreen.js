@@ -4,7 +4,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../context/AuthContext';
 import { Package, Truck, User, Search, Phone, Mail, Wrench, Briefcase, AlertTriangle } from 'lucide-react-native';
 
-// ...
 const TABS = [
     { id: 'inventory', label: 'Inventory', icon: Package },
     { id: 'suppliers', label: 'Suppliers', icon: Truck },
@@ -13,13 +12,71 @@ const TABS = [
 
 const CATEGORIES = ['All', 'Construction', 'Plumbing', 'Electrical', 'Timber', 'Paint', 'Finishing'];
 
+import Skeleton from '../components/Skeleton';
+
+// Skeleton Loading Component
+const ResourcesSkeleton = () => (
+    <View style={{ flex: 1, backgroundColor: '#f3f4f6' }}>
+        <StatusBar barStyle="light-content" backgroundColor="#059669" />
+        {/* Header Skeleton */}
+        <View style={[styles.header, { height: 200 }]}>
+            <View style={{ marginBottom: 20 }}>
+                <Skeleton width={150} height={30} style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} />
+            </View>
+            {/* Search Skeleton */}
+            <Skeleton width="100%" height={45} borderRadius={12} style={{ marginBottom: 16, backgroundColor: 'white' }} />
+            {/* Tabs Skeleton */}
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+                <Skeleton width={100} height={35} borderRadius={10} style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} />
+                <Skeleton width={100} height={35} borderRadius={10} style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} />
+                <Skeleton width={100} height={35} borderRadius={10} style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} />
+            </View>
+        </View>
+
+        {/* Content Skeleton */}
+        <View style={{ padding: 20 }}>
+            <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
+                <Skeleton width={80} height={30} borderRadius={20} />
+                <Skeleton width={80} height={30} borderRadius={20} />
+                <Skeleton width={80} height={30} borderRadius={20} />
+            </View>
+
+            {[1, 2, 3, 4].map(i => (
+                <View key={i} style={{ backgroundColor: 'white', padding: 16, borderRadius: 16, marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <Skeleton width={44} height={44} borderRadius={12} />
+                    <View style={{ flex: 1 }}>
+                        <Skeleton width={120} height={16} style={{ marginBottom: 6 }} />
+                        <Skeleton width={80} height={12} />
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                        <Skeleton width={60} height={16} style={{ marginBottom: 6 }} />
+                        <Skeleton width={40} height={12} />
+                    </View>
+                </View>
+            ))}
+        </View>
+    </View>
+);
+
 export default function ResourcesScreen() {
     const { dashboardData, loading, refreshData } = useAuth();
     const [activeTab, setActiveTab] = useState('inventory');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('All');
 
-    // if (!dashboardData) return null; // Removed check to prevent Hook Error (fewer hooks rendered)
+    // --- Filter Logic (Moved to top level to satisfy Rules of Hooks) ---
+    const filteredInventory = useMemo(() => {
+        if (!dashboardData?.materials) return [];
+        return (dashboardData.materials || []).filter(m => {
+            const matchesSearch = (m.name || '').toLowerCase().includes((searchQuery || '').toLowerCase());
+            const matchesCategory = selectedCategory === 'All' || m.category === selectedCategory;
+            return matchesSearch && matchesCategory;
+        });
+    }, [dashboardData, searchQuery, selectedCategory]);
+
+    // Conditional returns MUST be after all hooks
+    if (loading && !dashboardData) return <ResourcesSkeleton />;
+    if (!dashboardData) return null;
 
     // --- Helpers ---
     const handleCall = (phone) => {
@@ -32,7 +89,8 @@ export default function ResourcesScreen() {
         Linking.openURL(`mailto:${email}`);
     };
 
-    const getRoleColor = (role) => {
+    // Helper function moved to component level
+    const getResourceRoleColor = (role) => {
         switch (role) {
             case 'THEKEDAAR': return { bg: '#f3e8ff', text: '#7e22ce' }; // Purple
             case 'ENGINEER': return { bg: '#dbeafe', text: '#1d4ed8' }; // Blue
@@ -43,19 +101,6 @@ export default function ResourcesScreen() {
             default: return { bg: '#f3f4f6', text: '#374151' };
         }
     };
-
-
-    // --- Render Tabs ---
-
-    // --- Filter Logic (Moved to top level to satisfy Rules of Hooks) ---
-    const filteredInventory = useMemo(() => {
-        if (!dashboardData?.materials) return [];
-        return (dashboardData.materials || []).filter(m => {
-            const matchesSearch = (m.name || '').toLowerCase().includes((searchQuery || '').toLowerCase());
-            const matchesCategory = selectedCategory === 'All' || m.category === selectedCategory;
-            return matchesSearch && matchesCategory;
-        });
-    }, [dashboardData, searchQuery, selectedCategory]);
 
     const renderInventory = () => {
         const filtered = filteredInventory;
@@ -171,7 +216,7 @@ export default function ResourcesScreen() {
         return (
             <View style={styles.listSection}>
                 {filtered.map(c => {
-                    const roleStyle = getRoleColor(c.role || 'LABOUR');
+                    const roleStyle = getResourceRoleColor(c.role || 'LABOUR');
                     return (
                         <View key={c.id} style={styles.card}>
                             <View style={styles.cardRow}>
