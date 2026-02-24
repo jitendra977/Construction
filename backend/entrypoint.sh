@@ -3,14 +3,31 @@
 # Exit on error
 set -e
 
-if [ "$DATABASE_URL" != "" ] && [[ "$DATABASE_URL" == mysql* ]]; then
-    echo "Waiting for mysql..."
-    # Parse host/user/pass from DATABASE_URL or use env vars if available for mysqladmin
-    # Simplified check: just wait a bit or check tcp port if nc is available (but we didn't install netcat)
-    # Better: Use python script or mysqladmin if credentials are easy. 
-    # For now, let's just sleep to be safe as mysqladmin might need password in env.
-    sleep 10 
-    echo "MySQL started (assumed)"
+# Wait for database
+if [ -n "$DB_HOST" ]; then
+    echo "Waiting for database at $DB_HOST:$DB_PORT..."
+    # Use python to check database connectivity
+    python << END
+import socket
+import time
+import os
+
+host = os.environ.get('DB_HOST', 'mysql_db')
+port = int(os.environ.get('DB_PORT', 3306))
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+for _ in range(30):
+    try:
+        s.connect((host, port))
+        s.close()
+        break
+    except socket.error:
+        time.sleep(1)
+END
+    echo "Database is up!"
+elif [ -n "$DATABASE_URL" ]; then
+    echo "Waiting for database from DATABASE_URL..."
+    sleep 10
 fi
 
 echo "Running migrations..."

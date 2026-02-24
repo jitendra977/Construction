@@ -1,2075 +1,2076 @@
 [
-{
-  "model": "auth.user",
-  "fields": {
-    "password": "pbkdf2_sha256$600000$DheJMx64jfff1qpmZZuYyc$zX16BcAF/X9Wfe816iWskvzLTK2WBLW+7mP8CKQy+tE=",
-    "last_login": "2026-02-10T09:35:21.279Z",
-    "is_superuser": true,
-    "username": "jitu",
-    "first_name": "",
-    "last_name": "",
-    "email": "jitendrakhadka4@gmail.com",
-    "is_staff": true,
-    "is_active": true,
-    "date_joined": "2026-02-10T04:02:38.502Z",
-    "groups": [],
-    "user_permissions": []
+  {
+    "model": "accounts.user",
+    "fields": {
+      "password": "pbkdf2_sha256$600000$DheJMx64jfff1qpmZZuYyc$zX16BcAF/X9Wfe816iWskvzLTK2WBLW+7mP8CKQy+tE=",
+      "last_login": "2026-02-10T09:35:21.279Z",
+      "is_superuser": true,
+      "username": "jitu",
+      "first_name": "",
+      "last_name": "",
+      "email": "jitendrakhadka4@gmail.com",
+      "is_staff": true,
+      "is_active": true,
+      "date_joined": "2026-02-10T04:02:38.502Z",
+      "role": "ADMIN",
+      "groups": [],
+      "user_permissions": []
+    }
+  },
+  {
+    "model": "core.houseproject",
+    "pk": 15,
+    "fields": {
+      "name": "Dream Home Tulsipur (Residential)",
+      "owner_name": "Jitendra Khadka",
+      "address": "Tulsipur-6, Dang, Nepal",
+      "total_budget": "15000000.00",
+      "start_date": "2026-02-12",
+      "expected_completion_date": "2027-02-12",
+      "area_sqft": 2500,
+      "created_at": "2026-02-12T01:01:12.028Z",
+      "updated_at": "2026-02-12T01:01:12.028Z"
+    }
+  },
+  {
+    "model": "core.constructionphase",
+    "pk": 105,
+    "fields": {
+      "name": "1. Planning & Design",
+      "start_date": "2024-01-01",
+      "end_date": "2024-02-01",
+      "status": "COMPLETED",
+      "order": 1,
+      "description": "Naksa Pass, Structural Drawing",
+      "estimated_budget": "1500000.00",
+      "permit_required": true,
+      "permit_status": "APPROVED",
+      "permit_date_issued": "2024-02-01",
+      "permit_notes": "Naksa approved by Tulsipur Sub-Metropolitan City. Permit No: TSM/2024/001",
+      "naksa_file": "phases/naksa/IMG_1447.jpg",
+      "structure_design": "phases/structure/Gemini_Generated_Image_vxl43kvxl43kvxl4.png",
+      "completion_photo": ""
+    }
+  },
+  {
+    "model": "core.constructionphase",
+    "pk": 106,
+    "fields": {
+      "name": "2. Site Preparation",
+      "start_date": "2024-02-01",
+      "end_date": "2024-02-15",
+      "status": "COMPLETED",
+      "order": 2,
+      "description": "Cleaning, Layout, Boring",
+      "estimated_budget": "1500000.00",
+      "permit_required": false,
+      "permit_status": "NOT_REQUIRED",
+      "permit_date_issued": null,
+      "permit_notes": "",
+      "naksa_file": "",
+      "structure_design": "",
+      "completion_photo": ""
+    }
+  },
+  {
+    "model": "core.constructionphase",
+    "pk": 107,
+    "fields": {
+      "name": "3. Foundation (Jag)",
+      "start_date": "2024-02-15",
+      "end_date": "2024-03-30",
+      "status": "COMPLETED",
+      "order": 3,
+      "description": "Excavation, Soling, Footing, Tie Beam (DPC)",
+      "estimated_budget": "1500000.00",
+      "permit_required": false,
+      "permit_status": "NOT_REQUIRED",
+      "permit_date_issued": null,
+      "permit_notes": "",
+      "naksa_file": "",
+      "structure_design": "",
+      "completion_photo": ""
+    }
+  },
+  {
+    "model": "core.constructionphase",
+    "pk": 108,
+    "fields": {
+      "name": "4. Ground Floor Structure",
+      "start_date": "2024-04-01",
+      "end_date": "2024-05-15",
+      "status": "PENDING",
+      "order": 4,
+      "description": "Column Raising, Brickwork, Slab Casting (Dhalan)",
+      "estimated_budget": "1500000.00",
+      "permit_required": false,
+      "permit_status": "NOT_REQUIRED",
+      "permit_date_issued": null,
+      "permit_notes": "",
+      "naksa_file": "",
+      "structure_design": "",
+      "completion_photo": ""
+    }
+  },
+  {
+    "model": "core.constructionphase",
+    "pk": 109,
+    "fields": {
+      "name": "5. First Floor Structure",
+      "start_date": "2024-05-15",
+      "end_date": "2024-06-30",
+      "status": "PENDING",
+      "order": 5,
+      "description": "Column, Brickwork, Slab Casting",
+      "estimated_budget": "1500000.00",
+      "permit_required": false,
+      "permit_status": "NOT_REQUIRED",
+      "permit_date_issued": null,
+      "permit_notes": "",
+      "naksa_file": "",
+      "structure_design": "",
+      "completion_photo": ""
+    }
+  },
+  {
+    "model": "core.constructionphase",
+    "pk": 110,
+    "fields": {
+      "name": "6. Second Floor Structure",
+      "start_date": "2024-07-01",
+      "end_date": "2024-08-15",
+      "status": "PENDING",
+      "order": 6,
+      "description": "Column, Brickwork, Slab Casting",
+      "estimated_budget": "1500000.00",
+      "permit_required": false,
+      "permit_status": "NOT_REQUIRED",
+      "permit_date_issued": null,
+      "permit_notes": "",
+      "naksa_file": "",
+      "structure_design": "",
+      "completion_photo": ""
+    }
+  },
+  {
+    "model": "core.constructionphase",
+    "pk": 111,
+    "fields": {
+      "name": "7. Roofing & Top Floor",
+      "start_date": "2024-08-15",
+      "end_date": "2024-09-01",
+      "status": "PENDING",
+      "order": 7,
+      "description": "Truss Work, Water Tank, Solar",
+      "estimated_budget": "1500000.00",
+      "permit_required": false,
+      "permit_status": "NOT_REQUIRED",
+      "permit_date_issued": null,
+      "permit_notes": "",
+      "naksa_file": "",
+      "structure_design": "",
+      "completion_photo": ""
+    }
+  },
+  {
+    "model": "core.constructionphase",
+    "pk": 112,
+    "fields": {
+      "name": "8. Electrical & Plumbing",
+      "start_date": "2024-09-01",
+      "end_date": "2024-10-30",
+      "status": "PENDING",
+      "order": 8,
+      "description": "Piping, Wiring, Sanitary Installation",
+      "estimated_budget": "1500000.00",
+      "permit_required": false,
+      "permit_status": "NOT_REQUIRED",
+      "permit_date_issued": null,
+      "permit_notes": "",
+      "naksa_file": "",
+      "structure_design": "",
+      "completion_photo": ""
+    }
+  },
+  {
+    "model": "core.constructionphase",
+    "pk": 113,
+    "fields": {
+      "name": "9. Finishing (Plaster/Paint)",
+      "start_date": "2024-11-01",
+      "end_date": "2024-12-30",
+      "status": "PENDING",
+      "order": 9,
+      "description": "Plaster, Putty, Paint, Tiling, Railing",
+      "estimated_budget": "1500000.00",
+      "permit_required": false,
+      "permit_status": "NOT_REQUIRED",
+      "permit_date_issued": null,
+      "permit_notes": "",
+      "naksa_file": "",
+      "structure_design": "",
+      "completion_photo": ""
+    }
+  },
+  {
+    "model": "core.floor",
+    "pk": 16,
+    "fields": {
+      "name": "Ground Floor (भुइँ तल्ला)",
+      "level": 0,
+      "image": "",
+      "created_at": "2026-02-11T14:17:39.071Z",
+      "updated_at": "2026-02-11T14:17:39.071Z"
+    }
+  },
+  {
+    "model": "core.floor",
+    "pk": 17,
+    "fields": {
+      "name": "First Floor (पहिलो तल्ला)",
+      "level": 1,
+      "image": "",
+      "created_at": "2026-02-11T14:17:39.071Z",
+      "updated_at": "2026-02-11T14:17:39.071Z"
+    }
+  },
+  {
+    "model": "core.floor",
+    "pk": 18,
+    "fields": {
+      "name": "Second Floor / Roof (दोस्रो तल्ला)",
+      "level": 2,
+      "image": "",
+      "created_at": "2026-02-11T14:17:39.072Z",
+      "updated_at": "2026-02-11T14:17:39.072Z"
+    }
+  },
+  {
+    "model": "core.room",
+    "pk": 35,
+    "fields": {
+      "name": "Baithak (Sitting Room)",
+      "floor": 16,
+      "area_sqft": null,
+      "status": "IN_PROGRESS",
+      "budget_allocation": "0.00"
+    }
+  },
+  {
+    "model": "core.room",
+    "pk": 36,
+    "fields": {
+      "name": "Kitchen (भान्छा)",
+      "floor": 16,
+      "area_sqft": null,
+      "status": "NOT_STARTED",
+      "budget_allocation": "0.00"
+    }
+  },
+  {
+    "model": "core.room",
+    "pk": 37,
+    "fields": {
+      "name": "Master Bed",
+      "floor": 17,
+      "area_sqft": null,
+      "status": "NOT_STARTED",
+      "budget_allocation": "0.00"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 163,
+    "fields": {
+      "title": "Naksa Design & Approval",
+      "description": "Architectural drawing completion",
+      "phase": 105,
+      "room": null,
+      "assigned_to": 89,
+      "status": "COMPLETED",
+      "priority": "HIGH",
+      "start_date": "2024-01-01",
+      "due_date": "2024-01-15",
+      "completed_date": "2024-01-15",
+      "created_at": "2026-02-12T01:01:12.083Z",
+      "updated_at": "2026-02-12T01:01:12.083Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 164,
+    "fields": {
+      "title": "Structural Design Approval",
+      "description": "Engineer certification",
+      "phase": 105,
+      "room": null,
+      "assigned_to": 89,
+      "status": "COMPLETED",
+      "priority": "CRITICAL",
+      "start_date": "2024-01-15",
+      "due_date": "2024-01-25",
+      "completed_date": "2024-01-25",
+      "created_at": "2026-02-12T01:01:12.084Z",
+      "updated_at": "2026-02-12T01:01:12.084Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 165,
+    "fields": {
+      "title": "Municipality Permit Application",
+      "description": "Submit documents to Nagarpalika",
+      "phase": 105,
+      "room": null,
+      "assigned_to": null,
+      "status": "COMPLETED",
+      "priority": "HIGH",
+      "start_date": "2024-01-20",
+      "due_date": "2024-02-01",
+      "completed_date": "2024-02-01",
+      "created_at": "2026-02-12T01:01:12.084Z",
+      "updated_at": "2026-02-12T01:01:12.084Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 166,
+    "fields": {
+      "title": "Site Cleaning & Leveling",
+      "description": "Remove debris, level ground",
+      "phase": 106,
+      "room": null,
+      "assigned_to": 89,
+      "status": "COMPLETED",
+      "priority": "MEDIUM",
+      "start_date": "2024-02-01",
+      "due_date": "2024-02-05",
+      "completed_date": "2024-02-05",
+      "created_at": "2026-02-12T01:01:12.085Z",
+      "updated_at": "2026-02-12T01:01:12.085Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 167,
+    "fields": {
+      "title": "Layout Marking (Dhori Thapne)",
+      "description": "Mark foundation boundaries",
+      "phase": 106,
+      "room": null,
+      "assigned_to": 89,
+      "status": "COMPLETED",
+      "priority": "HIGH",
+      "start_date": "2024-02-05",
+      "due_date": "2024-02-08",
+      "completed_date": "2024-02-08",
+      "created_at": "2026-02-12T01:01:12.086Z",
+      "updated_at": "2026-02-12T01:01:12.086Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 168,
+    "fields": {
+      "title": "Soil Testing & Boring",
+      "description": "Check soil bearing capacity",
+      "phase": 106,
+      "room": null,
+      "assigned_to": null,
+      "status": "COMPLETED",
+      "priority": "CRITICAL",
+      "start_date": "2024-02-08",
+      "due_date": "2024-02-15",
+      "completed_date": "2024-02-15",
+      "created_at": "2026-02-12T01:01:12.086Z",
+      "updated_at": "2026-02-12T01:01:12.086Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 169,
+    "fields": {
+      "title": "Excavation (Jag Khanne)",
+      "description": "Dig foundation trenches 4ft deep",
+      "phase": 107,
+      "room": null,
+      "assigned_to": 89,
+      "status": "COMPLETED",
+      "priority": "CRITICAL",
+      "start_date": "2024-02-15",
+      "due_date": "2024-02-20",
+      "completed_date": "2024-02-20",
+      "created_at": "2026-02-12T01:01:12.087Z",
+      "updated_at": "2026-02-12T01:01:12.087Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 170,
+    "fields": {
+      "title": "Soling & Compaction",
+      "description": "Brick soling with sand filling",
+      "phase": 107,
+      "room": null,
+      "assigned_to": 89,
+      "status": "COMPLETED",
+      "priority": "HIGH",
+      "start_date": "2024-02-20",
+      "due_date": "2024-02-25",
+      "completed_date": "2024-02-25",
+      "created_at": "2026-02-12T01:01:12.088Z",
+      "updated_at": "2026-02-12T01:01:12.088Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 171,
+    "fields": {
+      "title": "Footing Concrete (PCC)",
+      "description": "Plain cement concrete base",
+      "phase": 107,
+      "room": null,
+      "assigned_to": 89,
+      "status": "COMPLETED",
+      "priority": "CRITICAL",
+      "start_date": "2024-02-25",
+      "due_date": "2024-03-05",
+      "completed_date": null,
+      "created_at": "2026-02-12T01:01:12.088Z",
+      "updated_at": "2026-02-12T01:20:13.713Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 172,
+    "fields": {
+      "title": "Reinforcement & Shuttering",
+      "description": "Steel fixing for footing",
+      "phase": 107,
+      "room": null,
+      "assigned_to": 89,
+      "status": "COMPLETED",
+      "priority": "HIGH",
+      "start_date": "2024-03-05",
+      "due_date": "2024-03-15",
+      "completed_date": null,
+      "created_at": "2026-02-12T01:01:12.089Z",
+      "updated_at": "2026-02-12T01:20:17.546Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 173,
+    "fields": {
+      "title": "Tie Beam & DPC",
+      "description": "Damp proof course installation",
+      "phase": 107,
+      "room": null,
+      "assigned_to": 89,
+      "status": "COMPLETED",
+      "priority": "CRITICAL",
+      "start_date": "2024-03-15",
+      "due_date": "2024-03-30",
+      "completed_date": null,
+      "created_at": "2026-02-12T01:01:12.090Z",
+      "updated_at": "2026-02-12T01:20:20.072Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 174,
+    "fields": {
+      "title": "Column Casting (Pillar)",
+      "description": "Raise columns to 1st floor level",
+      "phase": 108,
+      "room": null,
+      "assigned_to": 89,
+      "status": "PENDING",
+      "priority": "CRITICAL",
+      "start_date": "2024-04-01",
+      "due_date": "2024-04-15",
+      "completed_date": null,
+      "created_at": "2026-02-12T01:01:12.091Z",
+      "updated_at": "2026-02-12T01:01:12.091Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 175,
+    "fields": {
+      "title": "Beam Shuttering & Reinforcement",
+      "description": "Prepare for beam casting",
+      "phase": 108,
+      "room": null,
+      "assigned_to": 89,
+      "status": "PENDING",
+      "priority": "HIGH",
+      "start_date": "2024-04-15",
+      "due_date": "2024-04-25",
+      "completed_date": null,
+      "created_at": "2026-02-12T01:01:12.092Z",
+      "updated_at": "2026-02-12T01:01:12.092Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 176,
+    "fields": {
+      "title": "Brickwork (Itta Lagaune)",
+      "description": "Wall construction ground floor",
+      "phase": 108,
+      "room": null,
+      "assigned_to": 89,
+      "status": "PENDING",
+      "priority": "MEDIUM",
+      "start_date": "2024-04-25",
+      "due_date": "2024-05-05",
+      "completed_date": null,
+      "created_at": "2026-02-12T01:01:12.093Z",
+      "updated_at": "2026-02-12T01:01:12.093Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 177,
+    "fields": {
+      "title": "Slab Casting (Dhalan Halne)",
+      "description": "RCC slab for ground floor",
+      "phase": 108,
+      "room": null,
+      "assigned_to": 89,
+      "status": "PENDING",
+      "priority": "CRITICAL",
+      "start_date": "2024-05-05",
+      "due_date": "2024-05-15",
+      "completed_date": null,
+      "created_at": "2026-02-12T01:01:12.093Z",
+      "updated_at": "2026-02-12T01:01:12.093Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 178,
+    "fields": {
+      "title": "Column Raising (1st to 2nd)",
+      "description": "Extend columns to 2nd floor",
+      "phase": 109,
+      "room": null,
+      "assigned_to": 89,
+      "status": "PENDING",
+      "priority": "CRITICAL",
+      "start_date": "2024-05-15",
+      "due_date": "2024-05-30",
+      "completed_date": null,
+      "created_at": "2026-02-12T01:01:12.094Z",
+      "updated_at": "2026-02-12T01:01:12.094Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 179,
+    "fields": {
+      "title": "Beam & Lintel Work",
+      "description": "Beam casting 1st floor",
+      "phase": 109,
+      "room": null,
+      "assigned_to": 89,
+      "status": "PENDING",
+      "priority": "HIGH",
+      "start_date": "2024-05-30",
+      "due_date": "2024-06-10",
+      "completed_date": null,
+      "created_at": "2026-02-12T01:01:12.095Z",
+      "updated_at": "2026-02-12T01:01:12.095Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 180,
+    "fields": {
+      "title": "Brickwork 1st Floor",
+      "description": "Wall construction",
+      "phase": 109,
+      "room": null,
+      "assigned_to": 89,
+      "status": "PENDING",
+      "priority": "MEDIUM",
+      "start_date": "2024-06-10",
+      "due_date": "2024-06-20",
+      "completed_date": null,
+      "created_at": "2026-02-12T01:01:12.096Z",
+      "updated_at": "2026-02-12T01:01:12.096Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 181,
+    "fields": {
+      "title": "Slab Casting 1st Floor",
+      "description": "RCC slab work",
+      "phase": 109,
+      "room": null,
+      "assigned_to": 89,
+      "status": "PENDING",
+      "priority": "CRITICAL",
+      "start_date": "2024-06-20",
+      "due_date": "2024-06-30",
+      "completed_date": null,
+      "created_at": "2026-02-12T01:01:12.096Z",
+      "updated_at": "2026-02-12T01:01:12.096Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 182,
+    "fields": {
+      "title": "Column Raising (2nd to Roof)",
+      "description": "Final column extension",
+      "phase": 110,
+      "room": null,
+      "assigned_to": 89,
+      "status": "PENDING",
+      "priority": "CRITICAL",
+      "start_date": "2024-07-01",
+      "due_date": "2024-07-15",
+      "completed_date": null,
+      "created_at": "2026-02-12T01:01:12.097Z",
+      "updated_at": "2026-02-12T01:01:12.097Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 183,
+    "fields": {
+      "title": "Beam Work 2nd Floor",
+      "description": "Beam casting",
+      "phase": 110,
+      "room": null,
+      "assigned_to": 89,
+      "status": "PENDING",
+      "priority": "HIGH",
+      "start_date": "2024-07-15",
+      "due_date": "2024-07-25",
+      "completed_date": null,
+      "created_at": "2026-02-12T01:01:12.098Z",
+      "updated_at": "2026-02-12T01:01:12.098Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 184,
+    "fields": {
+      "title": "Brickwork 2nd Floor",
+      "description": "Wall construction",
+      "phase": 110,
+      "room": null,
+      "assigned_to": 89,
+      "status": "PENDING",
+      "priority": "MEDIUM",
+      "start_date": "2024-07-25",
+      "due_date": "2024-08-05",
+      "completed_date": null,
+      "created_at": "2026-02-12T01:01:12.098Z",
+      "updated_at": "2026-02-12T01:01:12.098Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 185,
+    "fields": {
+      "title": "Slab Casting 2nd Floor",
+      "description": "Top floor slab",
+      "phase": 110,
+      "room": null,
+      "assigned_to": 89,
+      "status": "PENDING",
+      "priority": "CRITICAL",
+      "start_date": "2024-08-05",
+      "due_date": "2024-08-15",
+      "completed_date": null,
+      "created_at": "2026-02-12T01:01:12.099Z",
+      "updated_at": "2026-02-12T01:01:12.099Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 186,
+    "fields": {
+      "title": "Roof Truss Installation",
+      "description": "Steel/wooden truss work",
+      "phase": 111,
+      "room": null,
+      "assigned_to": 92,
+      "status": "PENDING",
+      "priority": "HIGH",
+      "start_date": "2024-08-15",
+      "due_date": "2024-08-22",
+      "completed_date": null,
+      "created_at": "2026-02-12T01:01:12.100Z",
+      "updated_at": "2026-02-12T01:01:12.100Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 187,
+    "fields": {
+      "title": "Tin/Tile Roofing",
+      "description": "Weatherproof roofing",
+      "phase": 111,
+      "room": null,
+      "assigned_to": 89,
+      "status": "PENDING",
+      "priority": "CRITICAL",
+      "start_date": "2024-08-22",
+      "due_date": "2024-08-28",
+      "completed_date": null,
+      "created_at": "2026-02-12T01:01:12.100Z",
+      "updated_at": "2026-02-12T01:01:12.100Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 188,
+    "fields": {
+      "title": "Water Tank Installation",
+      "description": "Overhead tank setup",
+      "phase": 111,
+      "room": null,
+      "assigned_to": 91,
+      "status": "PENDING",
+      "priority": "MEDIUM",
+      "start_date": "2024-08-28",
+      "due_date": "2024-09-01",
+      "completed_date": null,
+      "created_at": "2026-02-12T01:01:12.101Z",
+      "updated_at": "2026-02-12T01:01:12.101Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 189,
+    "fields": {
+      "title": "Plumbing Rough-in",
+      "description": "Water supply & drainage pipes",
+      "phase": 112,
+      "room": null,
+      "assigned_to": 91,
+      "status": "PENDING",
+      "priority": "HIGH",
+      "start_date": "2024-09-01",
+      "due_date": "2024-09-20",
+      "completed_date": null,
+      "created_at": "2026-02-12T01:01:12.102Z",
+      "updated_at": "2026-02-12T01:01:12.102Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 190,
+    "fields": {
+      "title": "Electrical Conduit & Wiring",
+      "description": "Complete house wiring",
+      "phase": 112,
+      "room": null,
+      "assigned_to": 90,
+      "status": "PENDING",
+      "priority": "HIGH",
+      "start_date": "2024-09-20",
+      "due_date": "2024-10-10",
+      "completed_date": null,
+      "created_at": "2026-02-12T01:01:12.102Z",
+      "updated_at": "2026-02-12T01:01:12.102Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 191,
+    "fields": {
+      "title": "Sanitary Fixtures Installation",
+      "description": "Toilets, sinks, fittings",
+      "phase": 112,
+      "room": null,
+      "assigned_to": 91,
+      "status": "PENDING",
+      "priority": "MEDIUM",
+      "start_date": "2024-10-10",
+      "due_date": "2024-10-20",
+      "completed_date": null,
+      "created_at": "2026-02-12T01:01:12.103Z",
+      "updated_at": "2026-02-12T01:01:12.103Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 192,
+    "fields": {
+      "title": "Electrical Panel & Meter",
+      "description": "Main board installation",
+      "phase": 112,
+      "room": null,
+      "assigned_to": 90,
+      "status": "PENDING",
+      "priority": "CRITICAL",
+      "start_date": "2024-10-20",
+      "due_date": "2024-10-30",
+      "completed_date": null,
+      "created_at": "2026-02-12T01:01:12.104Z",
+      "updated_at": "2026-02-12T01:01:12.104Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 193,
+    "fields": {
+      "title": "Internal Plastering",
+      "description": "Wall plastering all floors",
+      "phase": 113,
+      "room": null,
+      "assigned_to": 89,
+      "status": "PENDING",
+      "priority": "HIGH",
+      "start_date": "2024-11-01",
+      "due_date": "2024-11-20",
+      "completed_date": null,
+      "created_at": "2026-02-12T01:01:12.104Z",
+      "updated_at": "2026-02-12T01:01:12.104Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 194,
+    "fields": {
+      "title": "External Plastering",
+      "description": "Outer wall finish",
+      "phase": 113,
+      "room": null,
+      "assigned_to": 89,
+      "status": "PENDING",
+      "priority": "MEDIUM",
+      "start_date": "2024-11-20",
+      "due_date": "2024-12-01",
+      "completed_date": null,
+      "created_at": "2026-02-12T01:01:12.105Z",
+      "updated_at": "2026-02-12T01:01:12.105Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 195,
+    "fields": {
+      "title": "Floor Tiling",
+      "description": "Ceramic/marble tile work",
+      "phase": 113,
+      "room": null,
+      "assigned_to": 89,
+      "status": "PENDING",
+      "priority": "MEDIUM",
+      "start_date": "2024-12-01",
+      "due_date": "2024-12-10",
+      "completed_date": null,
+      "created_at": "2026-02-12T01:01:12.106Z",
+      "updated_at": "2026-02-12T01:01:12.106Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 196,
+    "fields": {
+      "title": "Painting (Putty & Paint)",
+      "description": "Interior & exterior painting",
+      "phase": 113,
+      "room": null,
+      "assigned_to": 89,
+      "status": "PENDING",
+      "priority": "MEDIUM",
+      "start_date": "2024-12-10",
+      "due_date": "2024-12-20",
+      "completed_date": null,
+      "created_at": "2026-02-12T01:01:12.107Z",
+      "updated_at": "2026-02-12T01:01:12.107Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 197,
+    "fields": {
+      "title": "Door & Window Installation",
+      "description": "Fit all doors and windows",
+      "phase": 113,
+      "room": null,
+      "assigned_to": 89,
+      "status": "PENDING",
+      "priority": "HIGH",
+      "start_date": "2024-12-20",
+      "due_date": "2024-12-25",
+      "completed_date": null,
+      "created_at": "2026-02-12T01:01:12.107Z",
+      "updated_at": "2026-02-12T01:01:12.107Z"
+    }
+  },
+  {
+    "model": "tasks.task",
+    "pk": 198,
+    "fields": {
+      "title": "Railing & Grill Work",
+      "description": "Safety railings & grills",
+      "phase": 113,
+      "room": null,
+      "assigned_to": 92,
+      "status": "PENDING",
+      "priority": "MEDIUM",
+      "start_date": "2024-12-25",
+      "due_date": "2024-12-30",
+      "completed_date": null,
+      "created_at": "2026-02-12T01:01:12.108Z",
+      "updated_at": "2026-02-12T01:01:12.108Z"
+    }
+  },
+  {
+    "model": "tasks.taskmedia",
+    "pk": 6,
+    "fields": {
+      "task": 163,
+      "file": "task_updates/dad4409ad6c400d64af52a301f471ba6_MtZrrUY.png",
+      "media_type": "IMAGE",
+      "created_at": "2026-02-12T01:17:04.503Z",
+      "description": null
+    }
+  },
+  {
+    "model": "tasks.taskmedia",
+    "pk": 7,
+    "fields": {
+      "task": 169,
+      "file": "task_updates/IMG_1435.jpg",
+      "media_type": "IMAGE",
+      "created_at": "2026-02-12T01:20:42.545Z",
+      "description": null
+    }
+  },
+  {
+    "model": "tasks.taskmedia",
+    "pk": 8,
+    "fields": {
+      "task": 164,
+      "file": "task_updates/fdad89654a481d433bac764ead1e13bc_4.webp",
+      "media_type": "IMAGE",
+      "created_at": "2026-02-12T02:52:25.986Z",
+      "description": null
+    }
+  },
+  {
+    "model": "finance.budgetcategory",
+    "pk": 154,
+    "fields": {
+      "name": "Civil Works & Structure (जग र संरचना)",
+      "description": "",
+      "allocation": "7500000.00"
+    }
+  },
+  {
+    "model": "finance.budgetcategory",
+    "pk": 155,
+    "fields": {
+      "name": "Finishing & Interior (फिनिसिङ)",
+      "description": "",
+      "allocation": "3500000.00"
+    }
+  },
+  {
+    "model": "finance.budgetcategory",
+    "pk": 156,
+    "fields": {
+      "name": "MEP: Electrical & Plumbing (बिजुली र प्लम्बिङ)",
+      "description": "",
+      "allocation": "1500000.00"
+    }
+  },
+  {
+    "model": "finance.budgetcategory",
+    "pk": 157,
+    "fields": {
+      "name": "Labor & Wages (ज्यामी र मिस्त्री खर्च)",
+      "description": "",
+      "allocation": "2000000.00"
+    }
+  },
+  {
+    "model": "finance.budgetcategory",
+    "pk": 158,
+    "fields": {
+      "name": "Consulting & Permits (नक्सा र अनुमति)",
+      "description": "",
+      "allocation": "500000.00"
+    }
+  },
+  {
+    "model": "finance.expense",
+    "pk": 202,
+    "fields": {
+      "title": "Nagarpalika Naksa Pass Fee",
+      "amount": "45000.00",
+      "expense_type": "GOVT",
+      "category": 158,
+      "phase": 105,
+      "material": null,
+      "quantity": null,
+      "unit_price": null,
+      "supplier": null,
+      "contractor": null,
+      "funding_source": 67,
+      "date": "2024-01-20",
+      "paid_to": "Tulsipur Sub-Metropolitan City",
+      "is_paid": true,
+      "receipt": null,
+      "notes": "",
+      "created_at": "2026-02-12T01:01:12.056Z"
+    }
+  },
+  {
+    "model": "finance.expense",
+    "pk": 203,
+    "fields": {
+      "title": "50 Bags Cement for Foundation",
+      "amount": "42500.00",
+      "expense_type": "MATERIAL",
+      "category": 154,
+      "phase": 107,
+      "material": 138,
+      "quantity": "50.00",
+      "unit_price": "850.00",
+      "supplier": 105,
+      "contractor": null,
+      "funding_source": null,
+      "date": "2024-02-16",
+      "paid_to": "Rapti Hardware & Suppliers",
+      "is_paid": false,
+      "receipt": null,
+      "notes": "",
+      "created_at": "2026-02-12T01:01:12.060Z"
+    }
+  },
+  {
+    "model": "finance.expense",
+    "pk": 204,
+    "fields": {
+      "title": "Advance for Foundation Digging",
+      "amount": "150000.00",
+      "expense_type": "LABOR",
+      "category": 157,
+      "phase": 107,
+      "material": null,
+      "quantity": null,
+      "unit_price": null,
+      "supplier": null,
+      "contractor": 89,
+      "funding_source": 67,
+      "date": "2024-02-18",
+      "paid_to": "Ram Bahadur",
+      "is_paid": true,
+      "receipt": null,
+      "notes": "",
+      "created_at": "2026-02-12T01:01:12.070Z"
+    }
+  },
+  {
+    "model": "finance.expense",
+    "pk": 205,
+    "fields": {
+      "title": "3000 Bricks for Soling",
+      "amount": "54000.00",
+      "expense_type": "MATERIAL",
+      "category": 154,
+      "phase": 107,
+      "material": 143,
+      "quantity": "3000.00",
+      "unit_price": "18.00",
+      "supplier": 107,
+      "contractor": null,
+      "funding_source": null,
+      "date": "2024-02-20",
+      "paid_to": "Dang Bricks Industry",
+      "is_paid": true,
+      "receipt": null,
+      "notes": "",
+      "created_at": "2026-02-12T01:01:12.073Z"
+    }
+  },
+  {
+    "model": "finance.payment",
+    "pk": 142,
+    "fields": {
+      "expense": 202,
+      "funding_source": 67,
+      "amount": "45000.00",
+      "date": "2024-01-20",
+      "method": "CASH",
+      "reference_id": ""
+    }
+  },
+  {
+    "model": "finance.payment",
+    "pk": 143,
+    "fields": {
+      "expense": 203,
+      "funding_source": 66,
+      "amount": "20000.00",
+      "date": "2024-02-16",
+      "method": "CHECK",
+      "reference_id": "CHQ-998877"
+    }
+  },
+  {
+    "model": "finance.payment",
+    "pk": 144,
+    "fields": {
+      "expense": 204,
+      "funding_source": 67,
+      "amount": "150000.00",
+      "date": "2024-02-18",
+      "method": "CASH",
+      "reference_id": ""
+    }
+  },
+  {
+    "model": "finance.payment",
+    "pk": 145,
+    "fields": {
+      "expense": 205,
+      "funding_source": 68,
+      "amount": "54000.00",
+      "date": "2024-02-20",
+      "method": "BANK_TRANSFER",
+      "reference_id": "IPS-332211"
+    }
+  },
+  {
+    "model": "finance.fundingsource",
+    "pk": 66,
+    "fields": {
+      "name": "NIC Asia Bank Loan",
+      "source_type": "LOAN",
+      "amount": "8000000.00",
+      "current_balance": "7980000.00",
+      "default_payment_method": "CHECK",
+      "interest_rate": "11.50",
+      "received_date": "2024-01-15",
+      "notes": "",
+      "created_at": "2026-02-12T01:01:12.051Z",
+      "updated_at": "2026-02-12T01:01:12.066Z"
+    }
+  },
+  {
+    "model": "finance.fundingsource",
+    "pk": 67,
+    "fields": {
+      "name": "Personal Savings (Bachat)",
+      "source_type": "OWN_MONEY",
+      "amount": "5000000.00",
+      "current_balance": "4805000.00",
+      "default_payment_method": "CASH",
+      "interest_rate": "0.00",
+      "received_date": "2024-01-01",
+      "notes": "",
+      "created_at": "2026-02-12T01:01:12.053Z",
+      "updated_at": "2026-02-12T01:01:12.072Z"
+    }
+  },
+  {
+    "model": "finance.fundingsource",
+    "pk": 68,
+    "fields": {
+      "name": "Loan from Brother (US)",
+      "source_type": "BORROWED",
+      "amount": "2000000.00",
+      "current_balance": "1946000.00",
+      "default_payment_method": "BANK_TRANSFER",
+      "interest_rate": "0.00",
+      "received_date": "2024-02-10",
+      "notes": "",
+      "created_at": "2026-02-12T01:01:12.054Z",
+      "updated_at": "2026-02-12T01:01:12.079Z"
+    }
+  },
+  {
+    "model": "finance.fundingtransaction",
+    "pk": 205,
+    "fields": {
+      "funding_source": 66,
+      "amount": "8000000.00",
+      "transaction_type": "CREDIT",
+      "date": "2024-01-15",
+      "description": "Initial Funding Allocation",
+      "payment": null,
+      "created_at": "2026-02-12T01:01:12.052Z"
+    }
+  },
+  {
+    "model": "finance.fundingtransaction",
+    "pk": 206,
+    "fields": {
+      "funding_source": 67,
+      "amount": "5000000.00",
+      "transaction_type": "CREDIT",
+      "date": "2024-01-01",
+      "description": "Initial Funding Allocation",
+      "payment": null,
+      "created_at": "2026-02-12T01:01:12.054Z"
+    }
+  },
+  {
+    "model": "finance.fundingtransaction",
+    "pk": 207,
+    "fields": {
+      "funding_source": 68,
+      "amount": "2000000.00",
+      "transaction_type": "CREDIT",
+      "date": "2024-02-10",
+      "description": "Initial Funding Allocation",
+      "payment": null,
+      "created_at": "2026-02-12T01:01:12.055Z"
+    }
+  },
+  {
+    "model": "finance.fundingtransaction",
+    "pk": 208,
+    "fields": {
+      "funding_source": 67,
+      "amount": "45000.00",
+      "transaction_type": "DEBIT",
+      "date": "2024-01-20",
+      "description": "Payment for: Nagarpalika Naksa Pass Fee",
+      "payment": 142,
+      "created_at": "2026-02-12T01:01:12.058Z"
+    }
+  },
+  {
+    "model": "finance.fundingtransaction",
+    "pk": 209,
+    "fields": {
+      "funding_source": 66,
+      "amount": "20000.00",
+      "transaction_type": "DEBIT",
+      "date": "2024-02-16",
+      "description": "Payment for: 50 Bags Cement for Foundation",
+      "payment": 143,
+      "created_at": "2026-02-12T01:01:12.066Z"
+    }
+  },
+  {
+    "model": "finance.fundingtransaction",
+    "pk": 210,
+    "fields": {
+      "funding_source": 67,
+      "amount": "150000.00",
+      "transaction_type": "DEBIT",
+      "date": "2024-02-18",
+      "description": "Payment for: Advance for Foundation Digging",
+      "payment": 144,
+      "created_at": "2026-02-12T01:01:12.071Z"
+    }
+  },
+  {
+    "model": "finance.fundingtransaction",
+    "pk": 211,
+    "fields": {
+      "funding_source": 68,
+      "amount": "54000.00",
+      "transaction_type": "DEBIT",
+      "date": "2024-02-20",
+      "description": "Payment for: 3000 Bricks for Soling",
+      "payment": 145,
+      "created_at": "2026-02-12T01:01:12.079Z"
+    }
+  },
+  {
+    "model": "resources.supplier",
+    "pk": 105,
+    "fields": {
+      "name": "Rapti Hardware & Suppliers",
+      "contact_person": "",
+      "phone": "9857821000",
+      "email": "",
+      "address": "Tulsipur-5",
+      "category": "Civil Materials",
+      "pan_number": "",
+      "bank_name": "",
+      "account_number": "",
+      "branch": "",
+      "is_active": true,
+      "created_at": "2026-02-12T01:01:12.040Z"
+    }
+  },
+  {
+    "model": "resources.supplier",
+    "pk": 106,
+    "fields": {
+      "name": "Ambe Steels Authorized Dealer",
+      "contact_person": "",
+      "phone": "9847822000",
+      "email": "",
+      "address": "Ghorahi Road",
+      "category": "Iron/Steel",
+      "pan_number": "",
+      "bank_name": "",
+      "account_number": "",
+      "branch": "",
+      "is_active": true,
+      "created_at": "2026-02-12T01:01:12.040Z"
+    }
+  },
+  {
+    "model": "resources.supplier",
+    "pk": 107,
+    "fields": {
+      "name": "Dang Bricks Industry",
+      "contact_person": "",
+      "phone": "9867823000",
+      "email": "",
+      "address": "Bijauri",
+      "category": "Bricks",
+      "pan_number": "",
+      "bank_name": "",
+      "account_number": "",
+      "branch": "",
+      "is_active": true,
+      "created_at": "2026-02-12T01:01:12.041Z"
+    }
+  },
+  {
+    "model": "resources.supplier",
+    "pk": 108,
+    "fields": {
+      "name": "Tulsipur Paint House",
+      "contact_person": "",
+      "phone": "9817824000",
+      "email": "",
+      "address": "Buspark",
+      "category": "Paints",
+      "pan_number": "",
+      "bank_name": "",
+      "account_number": "",
+      "branch": "",
+      "is_active": true,
+      "created_at": "2026-02-12T01:01:12.042Z"
+    }
+  },
+  {
+    "model": "resources.supplier",
+    "pk": 109,
+    "fields": {
+      "name": "New Electric & Sanitary",
+      "contact_person": "",
+      "phone": "9807825000",
+      "email": "",
+      "address": "B.P. Chowk",
+      "category": "MEP Items",
+      "pan_number": "",
+      "bank_name": "",
+      "account_number": "",
+      "branch": "",
+      "is_active": true,
+      "created_at": "2026-02-12T01:01:12.042Z"
+    }
+  },
+  {
+    "model": "resources.contractor",
+    "pk": 89,
+    "fields": {
+      "name": "Ram Bahadur (Civil Thekedar)",
+      "role": "THEKEDAAR",
+      "phone": "9812345678",
+      "email": "",
+      "address": "",
+      "citizenship_number": "",
+      "bank_details": "",
+      "skills": "Standard Civil Works",
+      "rate": null,
+      "is_active": true,
+      "joined_date": "2026-02-12"
+    }
+  },
+  {
+    "model": "resources.contractor",
+    "pk": 90,
+    "fields": {
+      "name": "Shyam Electrician",
+      "role": "ELECTRICIAN",
+      "phone": "9823456789",
+      "email": "",
+      "address": "",
+      "citizenship_number": "",
+      "bank_details": "",
+      "skills": "House Wiring Specialist",
+      "rate": null,
+      "is_active": true,
+      "joined_date": "2026-02-12"
+    }
+  },
+  {
+    "model": "resources.contractor",
+    "pk": 91,
+    "fields": {
+      "name": "Hari Plumber",
+      "role": "PLUMBER",
+      "phone": "9834567890",
+      "email": "",
+      "address": "",
+      "citizenship_number": "",
+      "bank_details": "",
+      "skills": "Sanitary Works",
+      "rate": null,
+      "is_active": true,
+      "joined_date": "2026-02-12"
+    }
+  },
+  {
+    "model": "resources.contractor",
+    "pk": 92,
+    "fields": {
+      "name": "Ramesh Welder",
+      "role": "WELDER",
+      "phone": "9845678901",
+      "email": "",
+      "address": "",
+      "citizenship_number": "",
+      "bank_details": "",
+      "skills": "Grill & Shutter",
+      "rate": null,
+      "is_active": true,
+      "joined_date": "2026-02-12"
+    }
+  },
+  {
+    "model": "resources.material",
+    "pk": 137,
+    "fields": {
+      "name": "Pipes (Jagdamba)",
+      "category": "",
+      "unit": "Pcs",
+      "supplier": null,
+      "budget_category": null,
+      "image": "",
+      "quantity_estimated": "0.00",
+      "quantity_purchased": "0.00",
+      "quantity_used": "0.00",
+      "current_stock": "0.00",
+      "min_stock_level": "10.00",
+      "avg_cost_per_unit": "1500.00"
+    }
+  },
+  {
+    "model": "resources.material",
+    "pk": 138,
+    "fields": {
+      "name": "Cement (Argakhanchi OPC)",
+      "category": "",
+      "unit": "Bags",
+      "supplier": null,
+      "budget_category": null,
+      "image": "",
+      "quantity_estimated": "0.00",
+      "quantity_purchased": "100.00",
+      "quantity_used": "0.00",
+      "current_stock": "100.00",
+      "min_stock_level": "10.00",
+      "avg_cost_per_unit": "850.00"
+    }
+  },
+  {
+    "model": "resources.material",
+    "pk": 139,
+    "fields": {
+      "name": "Sand (River)",
+      "category": "",
+      "unit": "Truck",
+      "supplier": null,
+      "budget_category": null,
+      "image": "",
+      "quantity_estimated": "0.00",
+      "quantity_purchased": "0.00",
+      "quantity_used": "0.00",
+      "current_stock": "0.00",
+      "min_stock_level": "10.00",
+      "avg_cost_per_unit": "25000.00"
+    }
+  },
+  {
+    "model": "resources.material",
+    "pk": 140,
+    "fields": {
+      "name": "Aggregate (Gitti)",
+      "category": "",
+      "unit": "Truck",
+      "supplier": null,
+      "budget_category": null,
+      "image": "",
+      "quantity_estimated": "0.00",
+      "quantity_purchased": "0.00",
+      "quantity_used": "0.00",
+      "current_stock": "0.00",
+      "min_stock_level": "10.00",
+      "avg_cost_per_unit": "28000.00"
+    }
+  },
+  {
+    "model": "resources.material",
+    "pk": 141,
+    "fields": {
+      "name": "Fe 500 TMT Bar (12mm)",
+      "category": "",
+      "unit": "Ton",
+      "supplier": null,
+      "budget_category": null,
+      "image": "",
+      "quantity_estimated": "0.00",
+      "quantity_purchased": "0.00",
+      "quantity_used": "0.00",
+      "current_stock": "0.00",
+      "min_stock_level": "10.00",
+      "avg_cost_per_unit": "105000.00"
+    }
+  },
+  {
+    "model": "resources.material",
+    "pk": 142,
+    "fields": {
+      "name": "Fe 500 TMT Bar (8mm / Ring)",
+      "category": "",
+      "unit": "Ton",
+      "supplier": null,
+      "budget_category": null,
+      "image": "",
+      "quantity_estimated": "0.00",
+      "quantity_purchased": "0.00",
+      "quantity_used": "0.00",
+      "current_stock": "0.00",
+      "min_stock_level": "10.00",
+      "avg_cost_per_unit": "106000.00"
+    }
+  },
+  {
+    "model": "resources.material",
+    "pk": 143,
+    "fields": {
+      "name": "Bricks (No. 1)",
+      "category": "",
+      "unit": "Pcs",
+      "supplier": null,
+      "budget_category": null,
+      "image": "",
+      "quantity_estimated": "0.00",
+      "quantity_purchased": "6000.00",
+      "quantity_used": "0.00",
+      "current_stock": "6000.00",
+      "min_stock_level": "10.00",
+      "avg_cost_per_unit": "18.00"
+    }
+  },
+  {
+    "model": "resources.materialtransaction",
+    "pk": 133,
+    "fields": {
+      "material": 138,
+      "transaction_type": "IN",
+      "quantity": "50.00",
+      "unit_price": "850.00",
+      "date": "2024-02-16",
+      "supplier": 105,
+      "expense": 203,
+      "funding_source": 66,
+      "room": null,
+      "purpose": "",
+      "notes": "Auto-generated from Expense: 50 Bags Cement for Foundation",
+      "create_expense": true,
+      "created_at": "2026-02-12T01:01:12.064Z"
+    }
+  },
+  {
+    "model": "resources.materialtransaction",
+    "pk": 134,
+    "fields": {
+      "material": 138,
+      "transaction_type": "IN",
+      "quantity": "50.00",
+      "unit_price": "850.00",
+      "date": "2024-02-16",
+      "supplier": 105,
+      "expense": 203,
+      "funding_source": null,
+      "room": null,
+      "purpose": "",
+      "notes": "Initial cement stock",
+      "create_expense": true,
+      "created_at": "2026-02-12T01:01:12.069Z"
+    }
+  },
+  {
+    "model": "resources.materialtransaction",
+    "pk": 135,
+    "fields": {
+      "material": 143,
+      "transaction_type": "IN",
+      "quantity": "3000.00",
+      "unit_price": "18.00",
+      "date": "2024-02-20",
+      "supplier": 107,
+      "expense": 205,
+      "funding_source": 68,
+      "room": null,
+      "purpose": "",
+      "notes": "Auto-generated from Expense: 3000 Bricks for Soling",
+      "create_expense": true,
+      "created_at": "2026-02-12T01:01:12.077Z"
+    }
+  },
+  {
+    "model": "resources.materialtransaction",
+    "pk": 136,
+    "fields": {
+      "material": 143,
+      "transaction_type": "IN",
+      "quantity": "3000.00",
+      "unit_price": "18.00",
+      "date": "2024-02-20",
+      "supplier": 107,
+      "expense": 205,
+      "funding_source": null,
+      "room": null,
+      "purpose": "",
+      "notes": "",
+      "create_expense": true,
+      "created_at": "2026-02-12T01:01:12.082Z"
+    }
+  },
+  {
+    "model": "resources.document",
+    "pk": 1,
+    "fields": {
+      "title": "Lalpurja (Land Certificate)",
+      "file": "documents/2026/02/lalpurja_land_certificate.pdf",
+      "document_type": "LALPURJA",
+      "uploaded_at": "2026-02-12T01:01:54.747Z",
+      "description": "5 Aana land ownership certificate from Land Revenue Office"
+    }
+  },
+  {
+    "model": "resources.document",
+    "pk": 2,
+    "fields": {
+      "title": "Citizenship Certificate",
+      "file": "documents/2026/02/citizenship_certificate.pdf",
+      "document_type": "OTHER",
+      "uploaded_at": "2026-02-12T01:01:54.751Z",
+      "description": "Owner citizenship certificate (Jitendra Khadka)"
+    }
+  },
+  {
+    "model": "resources.document",
+    "pk": 3,
+    "fields": {
+      "title": "Tax Clearance (Tiro Rasid)",
+      "file": "documents/2026/02/tax_clearance_tiro_rasid.pdf",
+      "document_type": "OTHER",
+      "uploaded_at": "2026-02-12T01:01:54.753Z",
+      "description": "Property tax clearance certificate from municipality"
+    }
+  },
+  {
+    "model": "resources.document",
+    "pk": 4,
+    "fields": {
+      "title": "Site Survey Report",
+      "file": "documents/2026/02/site_survey_report.pdf",
+      "document_type": "OTHER",
+      "uploaded_at": "2026-02-12T01:01:54.756Z",
+      "description": "Field verification report by Surveyor Ram Kumar Khadka"
+    }
+  },
+  {
+    "model": "resources.document",
+    "pk": 5,
+    "fields": {
+      "title": "Charkilla (Boundary Map)",
+      "file": "documents/2026/02/charkilla_boundary_map.pdf",
+      "document_type": "OTHER",
+      "uploaded_at": "2026-02-12T01:01:54.759Z",
+      "description": "Land boundary map with neighbor signatures"
+    }
+  },
+  {
+    "model": "resources.document",
+    "pk": 6,
+    "fields": {
+      "title": "Architectural Drawing",
+      "file": "documents/2026/02/architectural_drawing.pdf",
+      "document_type": "NAKSHA",
+      "uploaded_at": "2026-02-12T01:01:54.761Z",
+      "description": "3-floor residential building architectural plan"
+    }
+  },
+  {
+    "model": "resources.document",
+    "pk": 7,
+    "fields": {
+      "title": "Structural Design",
+      "file": "documents/2026/02/structural_design.pdf",
+      "document_type": "NAKSHA",
+      "uploaded_at": "2026-02-12T01:01:54.763Z",
+      "description": "Structural engineering drawings by Er. Dinesh Sharma"
+    }
+  },
+  {
+    "model": "resources.document",
+    "pk": 8,
+    "fields": {
+      "title": "Engineer Approval Letter",
+      "file": "documents/2026/02/engineer_approval_letter.pdf",
+      "document_type": "PERMIT",
+      "uploaded_at": "2026-02-12T01:01:54.766Z",
+      "description": "Structural safety certification (License No: 8765-Civil)"
+    }
+  },
+  {
+    "model": "resources.document",
+    "pk": 9,
+    "fields": {
+      "title": "Revenue Receipt",
+      "file": "documents/2026/02/revenue_receipt.pdf",
+      "document_type": "OTHER",
+      "uploaded_at": "2026-02-12T01:01:54.768Z",
+      "description": "Payment receipt Rs. 45,000 (Receipt No: TSM/REV/2024/0089)"
+    }
+  },
+  {
+    "model": "resources.document",
+    "pk": 10,
+    "fields": {
+      "title": "Asthayi Nirman Ijajat",
+      "file": "documents/2026/02/asthayi_nirman_ijajat.pdf",
+      "document_type": "PERMIT",
+      "uploaded_at": "2026-02-12T01:01:54.770Z",
+      "description": "Temporary construction permit (Permit No: TSM/2024/001)"
+    }
+  },
+  {
+    "model": "resources.document",
+    "pk": 11,
+    "fields": {
+      "title": "Site Board Photo",
+      "file": "documents/2026/02/site_board_photo.pdf",
+      "document_type": "PHOTO",
+      "uploaded_at": "2026-02-12T01:01:54.773Z",
+      "description": "Photo of permit board displayed at construction site"
+    }
+  },
+  {
+    "model": "resources.document",
+    "pk": 12,
+    "fields": {
+      "title": "post",
+      "file": "documents/2026/02/post.png",
+      "document_type": "OTHER",
+      "uploaded_at": "2026-02-12T01:30:24.204Z",
+      "description": "Document for 1. Darta / Chalani (File Registration)"
+    }
+  },
+  {
+    "model": "resources.document",
+    "pk": 13,
+    "fields": {
+      "title": "IMG_1435",
+      "file": "documents/2026/02/IMG_1435.jpg",
+      "document_type": "OTHER",
+      "uploaded_at": "2026-02-12T01:30:30.238Z",
+      "description": "Document for 1. Darta / Chalani (File Registration)"
+    }
+  },
+  {
+    "model": "estimator.constructionrate",
+    "pk": 1,
+    "fields": {
+      "key": "CEMENT",
+      "label": "Cement (OPC/PPC)",
+      "value": "750.00",
+      "unit": "Bag",
+      "category": "MATERIAL",
+      "updated_at": "2026-02-12T03:34:03.674Z"
+    }
+  },
+  {
+    "model": "estimator.constructionrate",
+    "pk": 2,
+    "fields": {
+      "key": "SAND",
+      "label": "River Sand (Baluwa)",
+      "value": "90.00",
+      "unit": "Cft",
+      "category": "MATERIAL",
+      "updated_at": "2026-02-12T03:34:03.676Z"
+    }
+  },
+  {
+    "model": "estimator.constructionrate",
+    "pk": 3,
+    "fields": {
+      "key": "AGGREGATE",
+      "label": "Aggregates (Gitti)",
+      "value": "105.00",
+      "unit": "Cft",
+      "category": "MATERIAL",
+      "updated_at": "2026-02-12T03:34:03.678Z"
+    }
+  },
+  {
+    "model": "estimator.constructionrate",
+    "pk": 4,
+    "fields": {
+      "key": "BRICK",
+      "label": "Bricks (First Class)",
+      "value": "17.50",
+      "unit": "Pcs",
+      "category": "MATERIAL",
+      "updated_at": "2026-02-12T03:34:03.679Z"
+    }
+  },
+  {
+    "model": "estimator.constructionrate",
+    "pk": 5,
+    "fields": {
+      "key": "ROD",
+      "label": "Steel Rod (TMT)",
+      "value": "102.00",
+      "unit": "Kg",
+      "category": "MATERIAL",
+      "updated_at": "2026-02-12T03:34:03.680Z"
+    }
+  },
+  {
+    "model": "estimator.constructionrate",
+    "pk": 6,
+    "fields": {
+      "key": "LABOR_CIVIL",
+      "label": "Civil Work Labor",
+      "value": "480.00",
+      "unit": "Sq.Ft",
+      "category": "LABOR",
+      "updated_at": "2026-02-12T03:34:03.682Z"
+    }
+  },
+  {
+    "model": "estimator.constructionrate",
+    "pk": 7,
+    "fields": {
+      "key": "LABOR_MEP",
+      "label": "MEP (Fitting) Labor",
+      "value": "180.00",
+      "unit": "Sq.Ft",
+      "category": "LABOR",
+      "updated_at": "2026-02-12T03:34:03.690Z"
+    }
+  },
+  {
+    "model": "estimator.constructionrate",
+    "pk": 8,
+    "fields": {
+      "key": "LABOR_FINISH",
+      "label": "Finishing Labor",
+      "value": "250.00",
+      "unit": "Sq.Ft",
+      "category": "LABOR",
+      "updated_at": "2026-02-12T03:34:03.691Z"
+    }
+  },
+  {
+    "model": "estimator.constructionrate",
+    "pk": 9,
+    "fields": {
+      "key": "PAINT_SQFT",
+      "label": "Painting Material",
+      "value": "45.00",
+      "unit": "Sq.Ft",
+      "category": "MATERIAL",
+      "updated_at": "2026-02-12T03:34:03.692Z"
+    }
+  },
+  {
+    "model": "estimator.constructionrate",
+    "pk": 10,
+    "fields": {
+      "key": "TILE_SQFT",
+      "label": "Tiling Material",
+      "value": "180.00",
+      "unit": "Sq.Ft",
+      "category": "MATERIAL",
+      "updated_at": "2026-02-12T03:34:03.695Z"
+    }
+  },
+  {
+    "model": "permits.permitstep",
+    "pk": 22,
+    "fields": {
+      "title": "1. Darta / Chalani (File Registration)",
+      "description": "Submit application file at Tulsipur Sub-Metropolitan City Engineering Section with: Lalpurja (Land Certificate), Citizenship, Tax Clearance (Tiro Rasid), Site Plan, and Architectural Drawings.",
+      "status": "APPROVED",
+      "date_issued": "2024-01-05",
+      "notes": "File No: TSM/ENG/2024/001. Submitted at Ward Office No. 6.",
+      "order": 1,
+      "documents": [
+        12,
+        13
+      ]
+    }
+  },
+  {
+    "model": "permits.permitstep",
+    "pk": 23,
+    "fields": {
+      "title": "2. Jaminko Nap Jaach (Field Verification)",
+      "description": "Municipal Surveyor (Amin) visits site to verify land boundaries (Charkilla), measure actual area, and confirm setback requirements as per Tulsipur building bylaws.",
+      "status": "APPROVED",
+      "date_issued": "2024-01-10",
+      "notes": "Surveyor: Ram Kumar Khadka. Verified 5 Aana land. Setback: 5ft front, 3ft sides confirmed.",
+      "order": 2,
+      "documents": [
+        4,
+        5
+      ]
+    }
+  },
+  {
+    "model": "permits.permitstep",
+    "pk": 24,
+    "fields": {
+      "title": "3. Naksa Jaach (Blueprint Verification)",
+      "description": "Structural Engineer reviews architectural and structural drawings for compliance with Nepal National Building Code (NBC) and local bylaws. Checks load calculations, foundation design, and safety measures.",
+      "status": "APPROVED",
+      "date_issued": "2024-01-18",
+      "notes": "Approved by Er. Dinesh Sharma (License No: 8765-Civil). Minor corrections made to staircase width.",
+      "order": 3,
+      "documents": [
+        6,
+        7,
+        8
+      ]
+    }
+  },
+  {
+    "model": "permits.permitstep",
+    "pk": 25,
+    "fields": {
+      "title": "4. Rajaswa Bhuktani (Revenue Payment)",
+      "description": "Pay construction tax/revenue to Municipality Treasury based on building area (Rs. 150 per sq.ft for residential). Includes: Building Permit Fee, Sanitation Fee, and Development Charge.",
+      "status": "APPROVED",
+      "date_issued": "2024-01-20",
+      "notes": "Total Paid: Rs. 45,000 (2500 sqft × Rs. 18/sqft). Receipt No: TSM/REV/2024/0089",
+      "order": 4,
+      "documents": [
+        9
+      ]
+    }
+  },
+  {
+    "model": "permits.permitstep",
+    "pk": 26,
+    "fields": {
+      "title": "5. Asthayi Nirman Ijajat (Temporary Construction Permit)",
+      "description": "Permission to begin foundation work up to Plinth/DPC level. Valid for 3 months. Must display permit board at site entrance.",
+      "status": "APPROVED",
+      "date_issued": "2024-02-01",
+      "notes": "Permit No: TSM/2024/001. Valid until 2024-05-01. Site board installed.",
+      "order": 5,
+      "documents": [
+        10,
+        11
+      ]
+    }
+  },
+  {
+    "model": "permits.permitstep",
+    "pk": 27,
+    "fields": {
+      "title": "6. DPC Level Jaach (Plinth Level Inspection)",
+      "description": "Municipal Engineer inspects foundation, plinth height (minimum 18 inches above ground), and verifies setbacks before allowing superstructure construction.",
+      "status": "IN_PROGRESS",
+      "date_issued": null,
+      "notes": "Inspection scheduled for 2024-03-05. Engineer: Er. Prakash Thapa",
+      "order": 6,
+      "documents": []
+    }
+  },
+  {
+    "model": "permits.permitstep",
+    "pk": 28,
+    "fields": {
+      "title": "7. Sthayi Nirman Ijajat (Permanent Construction Permit)",
+      "description": "Final approval to build superstructure (columns, beams, slabs) after successful DPC inspection. Includes approval for roofing and finishing work.",
+      "status": "PENDING",
+      "date_issued": null,
+      "notes": "Requires DPC inspection clearance first",
+      "order": 7,
+      "documents": []
+    }
+  },
+  {
+    "model": "permits.permitstep",
+    "pk": 29,
+    "fields": {
+      "title": "8. Slab Casting Jaach (Floor Slab Inspection)",
+      "description": "Optional inspection at each floor level to verify column alignment, beam reinforcement, and slab thickness as per approved drawings.",
+      "status": "PENDING",
+      "date_issued": null,
+      "notes": "Required for buildings above 3 floors or commercial structures",
+      "order": 8,
+      "documents": []
+    }
+  },
+  {
+    "model": "permits.permitstep",
+    "pk": 30,
+    "fields": {
+      "title": "9. Nirman Sampanna Praman Patra (Completion Certificate)",
+      "description": "Final inspection after construction completion. Verifies building matches approved Naksa, proper drainage, fire safety, and structural integrity. Required for electricity and water connection.",
+      "status": "PENDING",
+      "date_issued": null,
+      "notes": "Apply within 6 months of construction completion. Fee: Rs. 5,000",
+      "order": 9,
+      "documents": []
+    }
+  },
+  {
+    "model": "permits.permitstep",
+    "pk": 31,
+    "fields": {
+      "title": "10. Occupancy Certificate (Basne Swikrit)",
+      "description": "Final clearance from Municipality certifying building is safe for occupation. Required for property registration and bank loan documentation.",
+      "status": "PENDING",
+      "date_issued": null,
+      "notes": "Issued after Completion Certificate and utility connections",
+      "order": 10,
+      "documents": []
+    }
+  },
+  {
+    "model": "permits.legaldocument",
+    "pk": 1,
+    "fields": {
+      "title": "1277b11f31253d9072f7154dbdafbab2",
+      "document_type": "OTHER",
+      "file": "legal_docs/1277b11f31253d9072f7154dbdafbab2.jpg",
+      "upload_date": "2026-02-10T08:54:26.172Z",
+      "notes": null
+    }
+  },
+  {
+    "model": "permits.legaldocument",
+    "pk": 2,
+    "fields": {
+      "title": "IMG_1536",
+      "document_type": "OTHER",
+      "file": "legal_docs/IMG_1536.jpg",
+      "upload_date": "2026-02-10T08:56:52.843Z",
+      "notes": null
+    }
   }
-},
-{
-  "model": "core.houseproject",
-  "pk": 15,
-  "fields": {
-    "name": "Dream Home Tulsipur (Residential)",
-    "owner_name": "Jitendra Khadka",
-    "address": "Tulsipur-6, Dang, Nepal",
-    "total_budget": "15000000.00",
-    "start_date": "2026-02-12",
-    "expected_completion_date": "2027-02-12",
-    "area_sqft": 2500,
-    "created_at": "2026-02-12T01:01:12.028Z",
-    "updated_at": "2026-02-12T01:01:12.028Z"
-  }
-},
-{
-  "model": "core.constructionphase",
-  "pk": 105,
-  "fields": {
-    "name": "1. Planning & Design",
-    "start_date": "2024-01-01",
-    "end_date": "2024-02-01",
-    "status": "COMPLETED",
-    "order": 1,
-    "description": "Naksa Pass, Structural Drawing",
-    "estimated_budget": "1500000.00",
-    "permit_required": true,
-    "permit_status": "APPROVED",
-    "permit_date_issued": "2024-02-01",
-    "permit_notes": "Naksa approved by Tulsipur Sub-Metropolitan City. Permit No: TSM/2024/001",
-    "naksa_file": "phases/naksa/IMG_1447.jpg",
-    "structure_design": "phases/structure/Gemini_Generated_Image_vxl43kvxl43kvxl4.png",
-    "completion_photo": ""
-  }
-},
-{
-  "model": "core.constructionphase",
-  "pk": 106,
-  "fields": {
-    "name": "2. Site Preparation",
-    "start_date": "2024-02-01",
-    "end_date": "2024-02-15",
-    "status": "COMPLETED",
-    "order": 2,
-    "description": "Cleaning, Layout, Boring",
-    "estimated_budget": "1500000.00",
-    "permit_required": false,
-    "permit_status": "NOT_REQUIRED",
-    "permit_date_issued": null,
-    "permit_notes": "",
-    "naksa_file": "",
-    "structure_design": "",
-    "completion_photo": ""
-  }
-},
-{
-  "model": "core.constructionphase",
-  "pk": 107,
-  "fields": {
-    "name": "3. Foundation (Jag)",
-    "start_date": "2024-02-15",
-    "end_date": "2024-03-30",
-    "status": "COMPLETED",
-    "order": 3,
-    "description": "Excavation, Soling, Footing, Tie Beam (DPC)",
-    "estimated_budget": "1500000.00",
-    "permit_required": false,
-    "permit_status": "NOT_REQUIRED",
-    "permit_date_issued": null,
-    "permit_notes": "",
-    "naksa_file": "",
-    "structure_design": "",
-    "completion_photo": ""
-  }
-},
-{
-  "model": "core.constructionphase",
-  "pk": 108,
-  "fields": {
-    "name": "4. Ground Floor Structure",
-    "start_date": "2024-04-01",
-    "end_date": "2024-05-15",
-    "status": "PENDING",
-    "order": 4,
-    "description": "Column Raising, Brickwork, Slab Casting (Dhalan)",
-    "estimated_budget": "1500000.00",
-    "permit_required": false,
-    "permit_status": "NOT_REQUIRED",
-    "permit_date_issued": null,
-    "permit_notes": "",
-    "naksa_file": "",
-    "structure_design": "",
-    "completion_photo": ""
-  }
-},
-{
-  "model": "core.constructionphase",
-  "pk": 109,
-  "fields": {
-    "name": "5. First Floor Structure",
-    "start_date": "2024-05-15",
-    "end_date": "2024-06-30",
-    "status": "PENDING",
-    "order": 5,
-    "description": "Column, Brickwork, Slab Casting",
-    "estimated_budget": "1500000.00",
-    "permit_required": false,
-    "permit_status": "NOT_REQUIRED",
-    "permit_date_issued": null,
-    "permit_notes": "",
-    "naksa_file": "",
-    "structure_design": "",
-    "completion_photo": ""
-  }
-},
-{
-  "model": "core.constructionphase",
-  "pk": 110,
-  "fields": {
-    "name": "6. Second Floor Structure",
-    "start_date": "2024-07-01",
-    "end_date": "2024-08-15",
-    "status": "PENDING",
-    "order": 6,
-    "description": "Column, Brickwork, Slab Casting",
-    "estimated_budget": "1500000.00",
-    "permit_required": false,
-    "permit_status": "NOT_REQUIRED",
-    "permit_date_issued": null,
-    "permit_notes": "",
-    "naksa_file": "",
-    "structure_design": "",
-    "completion_photo": ""
-  }
-},
-{
-  "model": "core.constructionphase",
-  "pk": 111,
-  "fields": {
-    "name": "7. Roofing & Top Floor",
-    "start_date": "2024-08-15",
-    "end_date": "2024-09-01",
-    "status": "PENDING",
-    "order": 7,
-    "description": "Truss Work, Water Tank, Solar",
-    "estimated_budget": "1500000.00",
-    "permit_required": false,
-    "permit_status": "NOT_REQUIRED",
-    "permit_date_issued": null,
-    "permit_notes": "",
-    "naksa_file": "",
-    "structure_design": "",
-    "completion_photo": ""
-  }
-},
-{
-  "model": "core.constructionphase",
-  "pk": 112,
-  "fields": {
-    "name": "8. Electrical & Plumbing",
-    "start_date": "2024-09-01",
-    "end_date": "2024-10-30",
-    "status": "PENDING",
-    "order": 8,
-    "description": "Piping, Wiring, Sanitary Installation",
-    "estimated_budget": "1500000.00",
-    "permit_required": false,
-    "permit_status": "NOT_REQUIRED",
-    "permit_date_issued": null,
-    "permit_notes": "",
-    "naksa_file": "",
-    "structure_design": "",
-    "completion_photo": ""
-  }
-},
-{
-  "model": "core.constructionphase",
-  "pk": 113,
-  "fields": {
-    "name": "9. Finishing (Plaster/Paint)",
-    "start_date": "2024-11-01",
-    "end_date": "2024-12-30",
-    "status": "PENDING",
-    "order": 9,
-    "description": "Plaster, Putty, Paint, Tiling, Railing",
-    "estimated_budget": "1500000.00",
-    "permit_required": false,
-    "permit_status": "NOT_REQUIRED",
-    "permit_date_issued": null,
-    "permit_notes": "",
-    "naksa_file": "",
-    "structure_design": "",
-    "completion_photo": ""
-  }
-},
-{
-  "model": "core.floor",
-  "pk": 16,
-  "fields": {
-    "name": "Ground Floor (भुइँ तल्ला)",
-    "level": 0,
-    "image": "",
-    "created_at": "2026-02-11T14:17:39.071Z",
-    "updated_at": "2026-02-11T14:17:39.071Z"
-  }
-},
-{
-  "model": "core.floor",
-  "pk": 17,
-  "fields": {
-    "name": "First Floor (पहिलो तल्ला)",
-    "level": 1,
-    "image": "",
-    "created_at": "2026-02-11T14:17:39.071Z",
-    "updated_at": "2026-02-11T14:17:39.071Z"
-  }
-},
-{
-  "model": "core.floor",
-  "pk": 18,
-  "fields": {
-    "name": "Second Floor / Roof (दोस्रो तल्ला)",
-    "level": 2,
-    "image": "",
-    "created_at": "2026-02-11T14:17:39.072Z",
-    "updated_at": "2026-02-11T14:17:39.072Z"
-  }
-},
-{
-  "model": "core.room",
-  "pk": 35,
-  "fields": {
-    "name": "Baithak (Sitting Room)",
-    "floor": 16,
-    "area_sqft": null,
-    "status": "IN_PROGRESS",
-    "budget_allocation": "0.00"
-  }
-},
-{
-  "model": "core.room",
-  "pk": 36,
-  "fields": {
-    "name": "Kitchen (भान्छा)",
-    "floor": 16,
-    "area_sqft": null,
-    "status": "NOT_STARTED",
-    "budget_allocation": "0.00"
-  }
-},
-{
-  "model": "core.room",
-  "pk": 37,
-  "fields": {
-    "name": "Master Bed",
-    "floor": 17,
-    "area_sqft": null,
-    "status": "NOT_STARTED",
-    "budget_allocation": "0.00"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 163,
-  "fields": {
-    "title": "Naksa Design & Approval",
-    "description": "Architectural drawing completion",
-    "phase": 105,
-    "room": null,
-    "assigned_to": 89,
-    "status": "COMPLETED",
-    "priority": "HIGH",
-    "start_date": "2024-01-01",
-    "due_date": "2024-01-15",
-    "completed_date": "2024-01-15",
-    "created_at": "2026-02-12T01:01:12.083Z",
-    "updated_at": "2026-02-12T01:01:12.083Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 164,
-  "fields": {
-    "title": "Structural Design Approval",
-    "description": "Engineer certification",
-    "phase": 105,
-    "room": null,
-    "assigned_to": 89,
-    "status": "COMPLETED",
-    "priority": "CRITICAL",
-    "start_date": "2024-01-15",
-    "due_date": "2024-01-25",
-    "completed_date": "2024-01-25",
-    "created_at": "2026-02-12T01:01:12.084Z",
-    "updated_at": "2026-02-12T01:01:12.084Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 165,
-  "fields": {
-    "title": "Municipality Permit Application",
-    "description": "Submit documents to Nagarpalika",
-    "phase": 105,
-    "room": null,
-    "assigned_to": null,
-    "status": "COMPLETED",
-    "priority": "HIGH",
-    "start_date": "2024-01-20",
-    "due_date": "2024-02-01",
-    "completed_date": "2024-02-01",
-    "created_at": "2026-02-12T01:01:12.084Z",
-    "updated_at": "2026-02-12T01:01:12.084Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 166,
-  "fields": {
-    "title": "Site Cleaning & Leveling",
-    "description": "Remove debris, level ground",
-    "phase": 106,
-    "room": null,
-    "assigned_to": 89,
-    "status": "COMPLETED",
-    "priority": "MEDIUM",
-    "start_date": "2024-02-01",
-    "due_date": "2024-02-05",
-    "completed_date": "2024-02-05",
-    "created_at": "2026-02-12T01:01:12.085Z",
-    "updated_at": "2026-02-12T01:01:12.085Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 167,
-  "fields": {
-    "title": "Layout Marking (Dhori Thapne)",
-    "description": "Mark foundation boundaries",
-    "phase": 106,
-    "room": null,
-    "assigned_to": 89,
-    "status": "COMPLETED",
-    "priority": "HIGH",
-    "start_date": "2024-02-05",
-    "due_date": "2024-02-08",
-    "completed_date": "2024-02-08",
-    "created_at": "2026-02-12T01:01:12.086Z",
-    "updated_at": "2026-02-12T01:01:12.086Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 168,
-  "fields": {
-    "title": "Soil Testing & Boring",
-    "description": "Check soil bearing capacity",
-    "phase": 106,
-    "room": null,
-    "assigned_to": null,
-    "status": "COMPLETED",
-    "priority": "CRITICAL",
-    "start_date": "2024-02-08",
-    "due_date": "2024-02-15",
-    "completed_date": "2024-02-15",
-    "created_at": "2026-02-12T01:01:12.086Z",
-    "updated_at": "2026-02-12T01:01:12.086Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 169,
-  "fields": {
-    "title": "Excavation (Jag Khanne)",
-    "description": "Dig foundation trenches 4ft deep",
-    "phase": 107,
-    "room": null,
-    "assigned_to": 89,
-    "status": "COMPLETED",
-    "priority": "CRITICAL",
-    "start_date": "2024-02-15",
-    "due_date": "2024-02-20",
-    "completed_date": "2024-02-20",
-    "created_at": "2026-02-12T01:01:12.087Z",
-    "updated_at": "2026-02-12T01:01:12.087Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 170,
-  "fields": {
-    "title": "Soling & Compaction",
-    "description": "Brick soling with sand filling",
-    "phase": 107,
-    "room": null,
-    "assigned_to": 89,
-    "status": "COMPLETED",
-    "priority": "HIGH",
-    "start_date": "2024-02-20",
-    "due_date": "2024-02-25",
-    "completed_date": "2024-02-25",
-    "created_at": "2026-02-12T01:01:12.088Z",
-    "updated_at": "2026-02-12T01:01:12.088Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 171,
-  "fields": {
-    "title": "Footing Concrete (PCC)",
-    "description": "Plain cement concrete base",
-    "phase": 107,
-    "room": null,
-    "assigned_to": 89,
-    "status": "COMPLETED",
-    "priority": "CRITICAL",
-    "start_date": "2024-02-25",
-    "due_date": "2024-03-05",
-    "completed_date": null,
-    "created_at": "2026-02-12T01:01:12.088Z",
-    "updated_at": "2026-02-12T01:20:13.713Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 172,
-  "fields": {
-    "title": "Reinforcement & Shuttering",
-    "description": "Steel fixing for footing",
-    "phase": 107,
-    "room": null,
-    "assigned_to": 89,
-    "status": "COMPLETED",
-    "priority": "HIGH",
-    "start_date": "2024-03-05",
-    "due_date": "2024-03-15",
-    "completed_date": null,
-    "created_at": "2026-02-12T01:01:12.089Z",
-    "updated_at": "2026-02-12T01:20:17.546Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 173,
-  "fields": {
-    "title": "Tie Beam & DPC",
-    "description": "Damp proof course installation",
-    "phase": 107,
-    "room": null,
-    "assigned_to": 89,
-    "status": "COMPLETED",
-    "priority": "CRITICAL",
-    "start_date": "2024-03-15",
-    "due_date": "2024-03-30",
-    "completed_date": null,
-    "created_at": "2026-02-12T01:01:12.090Z",
-    "updated_at": "2026-02-12T01:20:20.072Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 174,
-  "fields": {
-    "title": "Column Casting (Pillar)",
-    "description": "Raise columns to 1st floor level",
-    "phase": 108,
-    "room": null,
-    "assigned_to": 89,
-    "status": "PENDING",
-    "priority": "CRITICAL",
-    "start_date": "2024-04-01",
-    "due_date": "2024-04-15",
-    "completed_date": null,
-    "created_at": "2026-02-12T01:01:12.091Z",
-    "updated_at": "2026-02-12T01:01:12.091Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 175,
-  "fields": {
-    "title": "Beam Shuttering & Reinforcement",
-    "description": "Prepare for beam casting",
-    "phase": 108,
-    "room": null,
-    "assigned_to": 89,
-    "status": "PENDING",
-    "priority": "HIGH",
-    "start_date": "2024-04-15",
-    "due_date": "2024-04-25",
-    "completed_date": null,
-    "created_at": "2026-02-12T01:01:12.092Z",
-    "updated_at": "2026-02-12T01:01:12.092Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 176,
-  "fields": {
-    "title": "Brickwork (Itta Lagaune)",
-    "description": "Wall construction ground floor",
-    "phase": 108,
-    "room": null,
-    "assigned_to": 89,
-    "status": "PENDING",
-    "priority": "MEDIUM",
-    "start_date": "2024-04-25",
-    "due_date": "2024-05-05",
-    "completed_date": null,
-    "created_at": "2026-02-12T01:01:12.093Z",
-    "updated_at": "2026-02-12T01:01:12.093Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 177,
-  "fields": {
-    "title": "Slab Casting (Dhalan Halne)",
-    "description": "RCC slab for ground floor",
-    "phase": 108,
-    "room": null,
-    "assigned_to": 89,
-    "status": "PENDING",
-    "priority": "CRITICAL",
-    "start_date": "2024-05-05",
-    "due_date": "2024-05-15",
-    "completed_date": null,
-    "created_at": "2026-02-12T01:01:12.093Z",
-    "updated_at": "2026-02-12T01:01:12.093Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 178,
-  "fields": {
-    "title": "Column Raising (1st to 2nd)",
-    "description": "Extend columns to 2nd floor",
-    "phase": 109,
-    "room": null,
-    "assigned_to": 89,
-    "status": "PENDING",
-    "priority": "CRITICAL",
-    "start_date": "2024-05-15",
-    "due_date": "2024-05-30",
-    "completed_date": null,
-    "created_at": "2026-02-12T01:01:12.094Z",
-    "updated_at": "2026-02-12T01:01:12.094Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 179,
-  "fields": {
-    "title": "Beam & Lintel Work",
-    "description": "Beam casting 1st floor",
-    "phase": 109,
-    "room": null,
-    "assigned_to": 89,
-    "status": "PENDING",
-    "priority": "HIGH",
-    "start_date": "2024-05-30",
-    "due_date": "2024-06-10",
-    "completed_date": null,
-    "created_at": "2026-02-12T01:01:12.095Z",
-    "updated_at": "2026-02-12T01:01:12.095Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 180,
-  "fields": {
-    "title": "Brickwork 1st Floor",
-    "description": "Wall construction",
-    "phase": 109,
-    "room": null,
-    "assigned_to": 89,
-    "status": "PENDING",
-    "priority": "MEDIUM",
-    "start_date": "2024-06-10",
-    "due_date": "2024-06-20",
-    "completed_date": null,
-    "created_at": "2026-02-12T01:01:12.096Z",
-    "updated_at": "2026-02-12T01:01:12.096Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 181,
-  "fields": {
-    "title": "Slab Casting 1st Floor",
-    "description": "RCC slab work",
-    "phase": 109,
-    "room": null,
-    "assigned_to": 89,
-    "status": "PENDING",
-    "priority": "CRITICAL",
-    "start_date": "2024-06-20",
-    "due_date": "2024-06-30",
-    "completed_date": null,
-    "created_at": "2026-02-12T01:01:12.096Z",
-    "updated_at": "2026-02-12T01:01:12.096Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 182,
-  "fields": {
-    "title": "Column Raising (2nd to Roof)",
-    "description": "Final column extension",
-    "phase": 110,
-    "room": null,
-    "assigned_to": 89,
-    "status": "PENDING",
-    "priority": "CRITICAL",
-    "start_date": "2024-07-01",
-    "due_date": "2024-07-15",
-    "completed_date": null,
-    "created_at": "2026-02-12T01:01:12.097Z",
-    "updated_at": "2026-02-12T01:01:12.097Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 183,
-  "fields": {
-    "title": "Beam Work 2nd Floor",
-    "description": "Beam casting",
-    "phase": 110,
-    "room": null,
-    "assigned_to": 89,
-    "status": "PENDING",
-    "priority": "HIGH",
-    "start_date": "2024-07-15",
-    "due_date": "2024-07-25",
-    "completed_date": null,
-    "created_at": "2026-02-12T01:01:12.098Z",
-    "updated_at": "2026-02-12T01:01:12.098Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 184,
-  "fields": {
-    "title": "Brickwork 2nd Floor",
-    "description": "Wall construction",
-    "phase": 110,
-    "room": null,
-    "assigned_to": 89,
-    "status": "PENDING",
-    "priority": "MEDIUM",
-    "start_date": "2024-07-25",
-    "due_date": "2024-08-05",
-    "completed_date": null,
-    "created_at": "2026-02-12T01:01:12.098Z",
-    "updated_at": "2026-02-12T01:01:12.098Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 185,
-  "fields": {
-    "title": "Slab Casting 2nd Floor",
-    "description": "Top floor slab",
-    "phase": 110,
-    "room": null,
-    "assigned_to": 89,
-    "status": "PENDING",
-    "priority": "CRITICAL",
-    "start_date": "2024-08-05",
-    "due_date": "2024-08-15",
-    "completed_date": null,
-    "created_at": "2026-02-12T01:01:12.099Z",
-    "updated_at": "2026-02-12T01:01:12.099Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 186,
-  "fields": {
-    "title": "Roof Truss Installation",
-    "description": "Steel/wooden truss work",
-    "phase": 111,
-    "room": null,
-    "assigned_to": 92,
-    "status": "PENDING",
-    "priority": "HIGH",
-    "start_date": "2024-08-15",
-    "due_date": "2024-08-22",
-    "completed_date": null,
-    "created_at": "2026-02-12T01:01:12.100Z",
-    "updated_at": "2026-02-12T01:01:12.100Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 187,
-  "fields": {
-    "title": "Tin/Tile Roofing",
-    "description": "Weatherproof roofing",
-    "phase": 111,
-    "room": null,
-    "assigned_to": 89,
-    "status": "PENDING",
-    "priority": "CRITICAL",
-    "start_date": "2024-08-22",
-    "due_date": "2024-08-28",
-    "completed_date": null,
-    "created_at": "2026-02-12T01:01:12.100Z",
-    "updated_at": "2026-02-12T01:01:12.100Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 188,
-  "fields": {
-    "title": "Water Tank Installation",
-    "description": "Overhead tank setup",
-    "phase": 111,
-    "room": null,
-    "assigned_to": 91,
-    "status": "PENDING",
-    "priority": "MEDIUM",
-    "start_date": "2024-08-28",
-    "due_date": "2024-09-01",
-    "completed_date": null,
-    "created_at": "2026-02-12T01:01:12.101Z",
-    "updated_at": "2026-02-12T01:01:12.101Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 189,
-  "fields": {
-    "title": "Plumbing Rough-in",
-    "description": "Water supply & drainage pipes",
-    "phase": 112,
-    "room": null,
-    "assigned_to": 91,
-    "status": "PENDING",
-    "priority": "HIGH",
-    "start_date": "2024-09-01",
-    "due_date": "2024-09-20",
-    "completed_date": null,
-    "created_at": "2026-02-12T01:01:12.102Z",
-    "updated_at": "2026-02-12T01:01:12.102Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 190,
-  "fields": {
-    "title": "Electrical Conduit & Wiring",
-    "description": "Complete house wiring",
-    "phase": 112,
-    "room": null,
-    "assigned_to": 90,
-    "status": "PENDING",
-    "priority": "HIGH",
-    "start_date": "2024-09-20",
-    "due_date": "2024-10-10",
-    "completed_date": null,
-    "created_at": "2026-02-12T01:01:12.102Z",
-    "updated_at": "2026-02-12T01:01:12.102Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 191,
-  "fields": {
-    "title": "Sanitary Fixtures Installation",
-    "description": "Toilets, sinks, fittings",
-    "phase": 112,
-    "room": null,
-    "assigned_to": 91,
-    "status": "PENDING",
-    "priority": "MEDIUM",
-    "start_date": "2024-10-10",
-    "due_date": "2024-10-20",
-    "completed_date": null,
-    "created_at": "2026-02-12T01:01:12.103Z",
-    "updated_at": "2026-02-12T01:01:12.103Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 192,
-  "fields": {
-    "title": "Electrical Panel & Meter",
-    "description": "Main board installation",
-    "phase": 112,
-    "room": null,
-    "assigned_to": 90,
-    "status": "PENDING",
-    "priority": "CRITICAL",
-    "start_date": "2024-10-20",
-    "due_date": "2024-10-30",
-    "completed_date": null,
-    "created_at": "2026-02-12T01:01:12.104Z",
-    "updated_at": "2026-02-12T01:01:12.104Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 193,
-  "fields": {
-    "title": "Internal Plastering",
-    "description": "Wall plastering all floors",
-    "phase": 113,
-    "room": null,
-    "assigned_to": 89,
-    "status": "PENDING",
-    "priority": "HIGH",
-    "start_date": "2024-11-01",
-    "due_date": "2024-11-20",
-    "completed_date": null,
-    "created_at": "2026-02-12T01:01:12.104Z",
-    "updated_at": "2026-02-12T01:01:12.104Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 194,
-  "fields": {
-    "title": "External Plastering",
-    "description": "Outer wall finish",
-    "phase": 113,
-    "room": null,
-    "assigned_to": 89,
-    "status": "PENDING",
-    "priority": "MEDIUM",
-    "start_date": "2024-11-20",
-    "due_date": "2024-12-01",
-    "completed_date": null,
-    "created_at": "2026-02-12T01:01:12.105Z",
-    "updated_at": "2026-02-12T01:01:12.105Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 195,
-  "fields": {
-    "title": "Floor Tiling",
-    "description": "Ceramic/marble tile work",
-    "phase": 113,
-    "room": null,
-    "assigned_to": 89,
-    "status": "PENDING",
-    "priority": "MEDIUM",
-    "start_date": "2024-12-01",
-    "due_date": "2024-12-10",
-    "completed_date": null,
-    "created_at": "2026-02-12T01:01:12.106Z",
-    "updated_at": "2026-02-12T01:01:12.106Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 196,
-  "fields": {
-    "title": "Painting (Putty & Paint)",
-    "description": "Interior & exterior painting",
-    "phase": 113,
-    "room": null,
-    "assigned_to": 89,
-    "status": "PENDING",
-    "priority": "MEDIUM",
-    "start_date": "2024-12-10",
-    "due_date": "2024-12-20",
-    "completed_date": null,
-    "created_at": "2026-02-12T01:01:12.107Z",
-    "updated_at": "2026-02-12T01:01:12.107Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 197,
-  "fields": {
-    "title": "Door & Window Installation",
-    "description": "Fit all doors and windows",
-    "phase": 113,
-    "room": null,
-    "assigned_to": 89,
-    "status": "PENDING",
-    "priority": "HIGH",
-    "start_date": "2024-12-20",
-    "due_date": "2024-12-25",
-    "completed_date": null,
-    "created_at": "2026-02-12T01:01:12.107Z",
-    "updated_at": "2026-02-12T01:01:12.107Z"
-  }
-},
-{
-  "model": "tasks.task",
-  "pk": 198,
-  "fields": {
-    "title": "Railing & Grill Work",
-    "description": "Safety railings & grills",
-    "phase": 113,
-    "room": null,
-    "assigned_to": 92,
-    "status": "PENDING",
-    "priority": "MEDIUM",
-    "start_date": "2024-12-25",
-    "due_date": "2024-12-30",
-    "completed_date": null,
-    "created_at": "2026-02-12T01:01:12.108Z",
-    "updated_at": "2026-02-12T01:01:12.108Z"
-  }
-},
-{
-  "model": "tasks.taskmedia",
-  "pk": 6,
-  "fields": {
-    "task": 163,
-    "file": "task_updates/dad4409ad6c400d64af52a301f471ba6_MtZrrUY.png",
-    "media_type": "IMAGE",
-    "created_at": "2026-02-12T01:17:04.503Z",
-    "description": null
-  }
-},
-{
-  "model": "tasks.taskmedia",
-  "pk": 7,
-  "fields": {
-    "task": 169,
-    "file": "task_updates/IMG_1435.jpg",
-    "media_type": "IMAGE",
-    "created_at": "2026-02-12T01:20:42.545Z",
-    "description": null
-  }
-},
-{
-  "model": "tasks.taskmedia",
-  "pk": 8,
-  "fields": {
-    "task": 164,
-    "file": "task_updates/fdad89654a481d433bac764ead1e13bc_4.webp",
-    "media_type": "IMAGE",
-    "created_at": "2026-02-12T02:52:25.986Z",
-    "description": null
-  }
-},
-{
-  "model": "finance.budgetcategory",
-  "pk": 154,
-  "fields": {
-    "name": "Civil Works & Structure (जग र संरचना)",
-    "description": "",
-    "allocation": "7500000.00"
-  }
-},
-{
-  "model": "finance.budgetcategory",
-  "pk": 155,
-  "fields": {
-    "name": "Finishing & Interior (फिनिसिङ)",
-    "description": "",
-    "allocation": "3500000.00"
-  }
-},
-{
-  "model": "finance.budgetcategory",
-  "pk": 156,
-  "fields": {
-    "name": "MEP: Electrical & Plumbing (बिजुली र प्लम्बिङ)",
-    "description": "",
-    "allocation": "1500000.00"
-  }
-},
-{
-  "model": "finance.budgetcategory",
-  "pk": 157,
-  "fields": {
-    "name": "Labor & Wages (ज्यामी र मिस्त्री खर्च)",
-    "description": "",
-    "allocation": "2000000.00"
-  }
-},
-{
-  "model": "finance.budgetcategory",
-  "pk": 158,
-  "fields": {
-    "name": "Consulting & Permits (नक्सा र अनुमति)",
-    "description": "",
-    "allocation": "500000.00"
-  }
-},
-{
-  "model": "finance.expense",
-  "pk": 202,
-  "fields": {
-    "title": "Nagarpalika Naksa Pass Fee",
-    "amount": "45000.00",
-    "expense_type": "GOVT",
-    "category": 158,
-    "phase": 105,
-    "material": null,
-    "quantity": null,
-    "unit_price": null,
-    "supplier": null,
-    "contractor": null,
-    "funding_source": 67,
-    "date": "2024-01-20",
-    "paid_to": "Tulsipur Sub-Metropolitan City",
-    "is_paid": true,
-    "receipt": null,
-    "notes": "",
-    "created_at": "2026-02-12T01:01:12.056Z"
-  }
-},
-{
-  "model": "finance.expense",
-  "pk": 203,
-  "fields": {
-    "title": "50 Bags Cement for Foundation",
-    "amount": "42500.00",
-    "expense_type": "MATERIAL",
-    "category": 154,
-    "phase": 107,
-    "material": 138,
-    "quantity": "50.00",
-    "unit_price": "850.00",
-    "supplier": 105,
-    "contractor": null,
-    "funding_source": null,
-    "date": "2024-02-16",
-    "paid_to": "Rapti Hardware & Suppliers",
-    "is_paid": false,
-    "receipt": null,
-    "notes": "",
-    "created_at": "2026-02-12T01:01:12.060Z"
-  }
-},
-{
-  "model": "finance.expense",
-  "pk": 204,
-  "fields": {
-    "title": "Advance for Foundation Digging",
-    "amount": "150000.00",
-    "expense_type": "LABOR",
-    "category": 157,
-    "phase": 107,
-    "material": null,
-    "quantity": null,
-    "unit_price": null,
-    "supplier": null,
-    "contractor": 89,
-    "funding_source": 67,
-    "date": "2024-02-18",
-    "paid_to": "Ram Bahadur",
-    "is_paid": true,
-    "receipt": null,
-    "notes": "",
-    "created_at": "2026-02-12T01:01:12.070Z"
-  }
-},
-{
-  "model": "finance.expense",
-  "pk": 205,
-  "fields": {
-    "title": "3000 Bricks for Soling",
-    "amount": "54000.00",
-    "expense_type": "MATERIAL",
-    "category": 154,
-    "phase": 107,
-    "material": 143,
-    "quantity": "3000.00",
-    "unit_price": "18.00",
-    "supplier": 107,
-    "contractor": null,
-    "funding_source": null,
-    "date": "2024-02-20",
-    "paid_to": "Dang Bricks Industry",
-    "is_paid": true,
-    "receipt": null,
-    "notes": "",
-    "created_at": "2026-02-12T01:01:12.073Z"
-  }
-},
-{
-  "model": "finance.payment",
-  "pk": 142,
-  "fields": {
-    "expense": 202,
-    "funding_source": 67,
-    "amount": "45000.00",
-    "date": "2024-01-20",
-    "method": "CASH",
-    "reference_id": ""
-  }
-},
-{
-  "model": "finance.payment",
-  "pk": 143,
-  "fields": {
-    "expense": 203,
-    "funding_source": 66,
-    "amount": "20000.00",
-    "date": "2024-02-16",
-    "method": "CHECK",
-    "reference_id": "CHQ-998877"
-  }
-},
-{
-  "model": "finance.payment",
-  "pk": 144,
-  "fields": {
-    "expense": 204,
-    "funding_source": 67,
-    "amount": "150000.00",
-    "date": "2024-02-18",
-    "method": "CASH",
-    "reference_id": ""
-  }
-},
-{
-  "model": "finance.payment",
-  "pk": 145,
-  "fields": {
-    "expense": 205,
-    "funding_source": 68,
-    "amount": "54000.00",
-    "date": "2024-02-20",
-    "method": "BANK_TRANSFER",
-    "reference_id": "IPS-332211"
-  }
-},
-{
-  "model": "finance.fundingsource",
-  "pk": 66,
-  "fields": {
-    "name": "NIC Asia Bank Loan",
-    "source_type": "LOAN",
-    "amount": "8000000.00",
-    "current_balance": "7980000.00",
-    "default_payment_method": "CHECK",
-    "interest_rate": "11.50",
-    "received_date": "2024-01-15",
-    "notes": "",
-    "created_at": "2026-02-12T01:01:12.051Z",
-    "updated_at": "2026-02-12T01:01:12.066Z"
-  }
-},
-{
-  "model": "finance.fundingsource",
-  "pk": 67,
-  "fields": {
-    "name": "Personal Savings (Bachat)",
-    "source_type": "OWN_MONEY",
-    "amount": "5000000.00",
-    "current_balance": "4805000.00",
-    "default_payment_method": "CASH",
-    "interest_rate": "0.00",
-    "received_date": "2024-01-01",
-    "notes": "",
-    "created_at": "2026-02-12T01:01:12.053Z",
-    "updated_at": "2026-02-12T01:01:12.072Z"
-  }
-},
-{
-  "model": "finance.fundingsource",
-  "pk": 68,
-  "fields": {
-    "name": "Loan from Brother (US)",
-    "source_type": "BORROWED",
-    "amount": "2000000.00",
-    "current_balance": "1946000.00",
-    "default_payment_method": "BANK_TRANSFER",
-    "interest_rate": "0.00",
-    "received_date": "2024-02-10",
-    "notes": "",
-    "created_at": "2026-02-12T01:01:12.054Z",
-    "updated_at": "2026-02-12T01:01:12.079Z"
-  }
-},
-{
-  "model": "finance.fundingtransaction",
-  "pk": 205,
-  "fields": {
-    "funding_source": 66,
-    "amount": "8000000.00",
-    "transaction_type": "CREDIT",
-    "date": "2024-01-15",
-    "description": "Initial Funding Allocation",
-    "payment": null,
-    "created_at": "2026-02-12T01:01:12.052Z"
-  }
-},
-{
-  "model": "finance.fundingtransaction",
-  "pk": 206,
-  "fields": {
-    "funding_source": 67,
-    "amount": "5000000.00",
-    "transaction_type": "CREDIT",
-    "date": "2024-01-01",
-    "description": "Initial Funding Allocation",
-    "payment": null,
-    "created_at": "2026-02-12T01:01:12.054Z"
-  }
-},
-{
-  "model": "finance.fundingtransaction",
-  "pk": 207,
-  "fields": {
-    "funding_source": 68,
-    "amount": "2000000.00",
-    "transaction_type": "CREDIT",
-    "date": "2024-02-10",
-    "description": "Initial Funding Allocation",
-    "payment": null,
-    "created_at": "2026-02-12T01:01:12.055Z"
-  }
-},
-{
-  "model": "finance.fundingtransaction",
-  "pk": 208,
-  "fields": {
-    "funding_source": 67,
-    "amount": "45000.00",
-    "transaction_type": "DEBIT",
-    "date": "2024-01-20",
-    "description": "Payment for: Nagarpalika Naksa Pass Fee",
-    "payment": 142,
-    "created_at": "2026-02-12T01:01:12.058Z"
-  }
-},
-{
-  "model": "finance.fundingtransaction",
-  "pk": 209,
-  "fields": {
-    "funding_source": 66,
-    "amount": "20000.00",
-    "transaction_type": "DEBIT",
-    "date": "2024-02-16",
-    "description": "Payment for: 50 Bags Cement for Foundation",
-    "payment": 143,
-    "created_at": "2026-02-12T01:01:12.066Z"
-  }
-},
-{
-  "model": "finance.fundingtransaction",
-  "pk": 210,
-  "fields": {
-    "funding_source": 67,
-    "amount": "150000.00",
-    "transaction_type": "DEBIT",
-    "date": "2024-02-18",
-    "description": "Payment for: Advance for Foundation Digging",
-    "payment": 144,
-    "created_at": "2026-02-12T01:01:12.071Z"
-  }
-},
-{
-  "model": "finance.fundingtransaction",
-  "pk": 211,
-  "fields": {
-    "funding_source": 68,
-    "amount": "54000.00",
-    "transaction_type": "DEBIT",
-    "date": "2024-02-20",
-    "description": "Payment for: 3000 Bricks for Soling",
-    "payment": 145,
-    "created_at": "2026-02-12T01:01:12.079Z"
-  }
-},
-{
-  "model": "resources.supplier",
-  "pk": 105,
-  "fields": {
-    "name": "Rapti Hardware & Suppliers",
-    "contact_person": "",
-    "phone": "9857821000",
-    "email": "",
-    "address": "Tulsipur-5",
-    "category": "Civil Materials",
-    "pan_number": "",
-    "bank_name": "",
-    "account_number": "",
-    "branch": "",
-    "is_active": true,
-    "created_at": "2026-02-12T01:01:12.040Z"
-  }
-},
-{
-  "model": "resources.supplier",
-  "pk": 106,
-  "fields": {
-    "name": "Ambe Steels Authorized Dealer",
-    "contact_person": "",
-    "phone": "9847822000",
-    "email": "",
-    "address": "Ghorahi Road",
-    "category": "Iron/Steel",
-    "pan_number": "",
-    "bank_name": "",
-    "account_number": "",
-    "branch": "",
-    "is_active": true,
-    "created_at": "2026-02-12T01:01:12.040Z"
-  }
-},
-{
-  "model": "resources.supplier",
-  "pk": 107,
-  "fields": {
-    "name": "Dang Bricks Industry",
-    "contact_person": "",
-    "phone": "9867823000",
-    "email": "",
-    "address": "Bijauri",
-    "category": "Bricks",
-    "pan_number": "",
-    "bank_name": "",
-    "account_number": "",
-    "branch": "",
-    "is_active": true,
-    "created_at": "2026-02-12T01:01:12.041Z"
-  }
-},
-{
-  "model": "resources.supplier",
-  "pk": 108,
-  "fields": {
-    "name": "Tulsipur Paint House",
-    "contact_person": "",
-    "phone": "9817824000",
-    "email": "",
-    "address": "Buspark",
-    "category": "Paints",
-    "pan_number": "",
-    "bank_name": "",
-    "account_number": "",
-    "branch": "",
-    "is_active": true,
-    "created_at": "2026-02-12T01:01:12.042Z"
-  }
-},
-{
-  "model": "resources.supplier",
-  "pk": 109,
-  "fields": {
-    "name": "New Electric & Sanitary",
-    "contact_person": "",
-    "phone": "9807825000",
-    "email": "",
-    "address": "B.P. Chowk",
-    "category": "MEP Items",
-    "pan_number": "",
-    "bank_name": "",
-    "account_number": "",
-    "branch": "",
-    "is_active": true,
-    "created_at": "2026-02-12T01:01:12.042Z"
-  }
-},
-{
-  "model": "resources.contractor",
-  "pk": 89,
-  "fields": {
-    "name": "Ram Bahadur (Civil Thekedar)",
-    "role": "THEKEDAAR",
-    "phone": "9812345678",
-    "email": "",
-    "address": "",
-    "citizenship_number": "",
-    "bank_details": "",
-    "skills": "Standard Civil Works",
-    "rate": null,
-    "is_active": true,
-    "joined_date": "2026-02-12"
-  }
-},
-{
-  "model": "resources.contractor",
-  "pk": 90,
-  "fields": {
-    "name": "Shyam Electrician",
-    "role": "ELECTRICIAN",
-    "phone": "9823456789",
-    "email": "",
-    "address": "",
-    "citizenship_number": "",
-    "bank_details": "",
-    "skills": "House Wiring Specialist",
-    "rate": null,
-    "is_active": true,
-    "joined_date": "2026-02-12"
-  }
-},
-{
-  "model": "resources.contractor",
-  "pk": 91,
-  "fields": {
-    "name": "Hari Plumber",
-    "role": "PLUMBER",
-    "phone": "9834567890",
-    "email": "",
-    "address": "",
-    "citizenship_number": "",
-    "bank_details": "",
-    "skills": "Sanitary Works",
-    "rate": null,
-    "is_active": true,
-    "joined_date": "2026-02-12"
-  }
-},
-{
-  "model": "resources.contractor",
-  "pk": 92,
-  "fields": {
-    "name": "Ramesh Welder",
-    "role": "WELDER",
-    "phone": "9845678901",
-    "email": "",
-    "address": "",
-    "citizenship_number": "",
-    "bank_details": "",
-    "skills": "Grill & Shutter",
-    "rate": null,
-    "is_active": true,
-    "joined_date": "2026-02-12"
-  }
-},
-{
-  "model": "resources.material",
-  "pk": 137,
-  "fields": {
-    "name": "Pipes (Jagdamba)",
-    "category": "",
-    "unit": "Pcs",
-    "supplier": null,
-    "budget_category": null,
-    "image": "",
-    "quantity_estimated": "0.00",
-    "quantity_purchased": "0.00",
-    "quantity_used": "0.00",
-    "current_stock": "0.00",
-    "min_stock_level": "10.00",
-    "avg_cost_per_unit": "1500.00"
-  }
-},
-{
-  "model": "resources.material",
-  "pk": 138,
-  "fields": {
-    "name": "Cement (Argakhanchi OPC)",
-    "category": "",
-    "unit": "Bags",
-    "supplier": null,
-    "budget_category": null,
-    "image": "",
-    "quantity_estimated": "0.00",
-    "quantity_purchased": "100.00",
-    "quantity_used": "0.00",
-    "current_stock": "100.00",
-    "min_stock_level": "10.00",
-    "avg_cost_per_unit": "850.00"
-  }
-},
-{
-  "model": "resources.material",
-  "pk": 139,
-  "fields": {
-    "name": "Sand (River)",
-    "category": "",
-    "unit": "Truck",
-    "supplier": null,
-    "budget_category": null,
-    "image": "",
-    "quantity_estimated": "0.00",
-    "quantity_purchased": "0.00",
-    "quantity_used": "0.00",
-    "current_stock": "0.00",
-    "min_stock_level": "10.00",
-    "avg_cost_per_unit": "25000.00"
-  }
-},
-{
-  "model": "resources.material",
-  "pk": 140,
-  "fields": {
-    "name": "Aggregate (Gitti)",
-    "category": "",
-    "unit": "Truck",
-    "supplier": null,
-    "budget_category": null,
-    "image": "",
-    "quantity_estimated": "0.00",
-    "quantity_purchased": "0.00",
-    "quantity_used": "0.00",
-    "current_stock": "0.00",
-    "min_stock_level": "10.00",
-    "avg_cost_per_unit": "28000.00"
-  }
-},
-{
-  "model": "resources.material",
-  "pk": 141,
-  "fields": {
-    "name": "Fe 500 TMT Bar (12mm)",
-    "category": "",
-    "unit": "Ton",
-    "supplier": null,
-    "budget_category": null,
-    "image": "",
-    "quantity_estimated": "0.00",
-    "quantity_purchased": "0.00",
-    "quantity_used": "0.00",
-    "current_stock": "0.00",
-    "min_stock_level": "10.00",
-    "avg_cost_per_unit": "105000.00"
-  }
-},
-{
-  "model": "resources.material",
-  "pk": 142,
-  "fields": {
-    "name": "Fe 500 TMT Bar (8mm / Ring)",
-    "category": "",
-    "unit": "Ton",
-    "supplier": null,
-    "budget_category": null,
-    "image": "",
-    "quantity_estimated": "0.00",
-    "quantity_purchased": "0.00",
-    "quantity_used": "0.00",
-    "current_stock": "0.00",
-    "min_stock_level": "10.00",
-    "avg_cost_per_unit": "106000.00"
-  }
-},
-{
-  "model": "resources.material",
-  "pk": 143,
-  "fields": {
-    "name": "Bricks (No. 1)",
-    "category": "",
-    "unit": "Pcs",
-    "supplier": null,
-    "budget_category": null,
-    "image": "",
-    "quantity_estimated": "0.00",
-    "quantity_purchased": "6000.00",
-    "quantity_used": "0.00",
-    "current_stock": "6000.00",
-    "min_stock_level": "10.00",
-    "avg_cost_per_unit": "18.00"
-  }
-},
-{
-  "model": "resources.materialtransaction",
-  "pk": 133,
-  "fields": {
-    "material": 138,
-    "transaction_type": "IN",
-    "quantity": "50.00",
-    "unit_price": "850.00",
-    "date": "2024-02-16",
-    "supplier": 105,
-    "expense": 203,
-    "funding_source": 66,
-    "room": null,
-    "purpose": "",
-    "notes": "Auto-generated from Expense: 50 Bags Cement for Foundation",
-    "create_expense": true,
-    "created_at": "2026-02-12T01:01:12.064Z"
-  }
-},
-{
-  "model": "resources.materialtransaction",
-  "pk": 134,
-  "fields": {
-    "material": 138,
-    "transaction_type": "IN",
-    "quantity": "50.00",
-    "unit_price": "850.00",
-    "date": "2024-02-16",
-    "supplier": 105,
-    "expense": 203,
-    "funding_source": null,
-    "room": null,
-    "purpose": "",
-    "notes": "Initial cement stock",
-    "create_expense": true,
-    "created_at": "2026-02-12T01:01:12.069Z"
-  }
-},
-{
-  "model": "resources.materialtransaction",
-  "pk": 135,
-  "fields": {
-    "material": 143,
-    "transaction_type": "IN",
-    "quantity": "3000.00",
-    "unit_price": "18.00",
-    "date": "2024-02-20",
-    "supplier": 107,
-    "expense": 205,
-    "funding_source": 68,
-    "room": null,
-    "purpose": "",
-    "notes": "Auto-generated from Expense: 3000 Bricks for Soling",
-    "create_expense": true,
-    "created_at": "2026-02-12T01:01:12.077Z"
-  }
-},
-{
-  "model": "resources.materialtransaction",
-  "pk": 136,
-  "fields": {
-    "material": 143,
-    "transaction_type": "IN",
-    "quantity": "3000.00",
-    "unit_price": "18.00",
-    "date": "2024-02-20",
-    "supplier": 107,
-    "expense": 205,
-    "funding_source": null,
-    "room": null,
-    "purpose": "",
-    "notes": "",
-    "create_expense": true,
-    "created_at": "2026-02-12T01:01:12.082Z"
-  }
-},
-{
-  "model": "resources.document",
-  "pk": 1,
-  "fields": {
-    "title": "Lalpurja (Land Certificate)",
-    "file": "documents/2026/02/lalpurja_land_certificate.pdf",
-    "document_type": "LALPURJA",
-    "uploaded_at": "2026-02-12T01:01:54.747Z",
-    "description": "5 Aana land ownership certificate from Land Revenue Office"
-  }
-},
-{
-  "model": "resources.document",
-  "pk": 2,
-  "fields": {
-    "title": "Citizenship Certificate",
-    "file": "documents/2026/02/citizenship_certificate.pdf",
-    "document_type": "OTHER",
-    "uploaded_at": "2026-02-12T01:01:54.751Z",
-    "description": "Owner citizenship certificate (Jitendra Khadka)"
-  }
-},
-{
-  "model": "resources.document",
-  "pk": 3,
-  "fields": {
-    "title": "Tax Clearance (Tiro Rasid)",
-    "file": "documents/2026/02/tax_clearance_tiro_rasid.pdf",
-    "document_type": "OTHER",
-    "uploaded_at": "2026-02-12T01:01:54.753Z",
-    "description": "Property tax clearance certificate from municipality"
-  }
-},
-{
-  "model": "resources.document",
-  "pk": 4,
-  "fields": {
-    "title": "Site Survey Report",
-    "file": "documents/2026/02/site_survey_report.pdf",
-    "document_type": "OTHER",
-    "uploaded_at": "2026-02-12T01:01:54.756Z",
-    "description": "Field verification report by Surveyor Ram Kumar Khadka"
-  }
-},
-{
-  "model": "resources.document",
-  "pk": 5,
-  "fields": {
-    "title": "Charkilla (Boundary Map)",
-    "file": "documents/2026/02/charkilla_boundary_map.pdf",
-    "document_type": "OTHER",
-    "uploaded_at": "2026-02-12T01:01:54.759Z",
-    "description": "Land boundary map with neighbor signatures"
-  }
-},
-{
-  "model": "resources.document",
-  "pk": 6,
-  "fields": {
-    "title": "Architectural Drawing",
-    "file": "documents/2026/02/architectural_drawing.pdf",
-    "document_type": "NAKSHA",
-    "uploaded_at": "2026-02-12T01:01:54.761Z",
-    "description": "3-floor residential building architectural plan"
-  }
-},
-{
-  "model": "resources.document",
-  "pk": 7,
-  "fields": {
-    "title": "Structural Design",
-    "file": "documents/2026/02/structural_design.pdf",
-    "document_type": "NAKSHA",
-    "uploaded_at": "2026-02-12T01:01:54.763Z",
-    "description": "Structural engineering drawings by Er. Dinesh Sharma"
-  }
-},
-{
-  "model": "resources.document",
-  "pk": 8,
-  "fields": {
-    "title": "Engineer Approval Letter",
-    "file": "documents/2026/02/engineer_approval_letter.pdf",
-    "document_type": "PERMIT",
-    "uploaded_at": "2026-02-12T01:01:54.766Z",
-    "description": "Structural safety certification (License No: 8765-Civil)"
-  }
-},
-{
-  "model": "resources.document",
-  "pk": 9,
-  "fields": {
-    "title": "Revenue Receipt",
-    "file": "documents/2026/02/revenue_receipt.pdf",
-    "document_type": "OTHER",
-    "uploaded_at": "2026-02-12T01:01:54.768Z",
-    "description": "Payment receipt Rs. 45,000 (Receipt No: TSM/REV/2024/0089)"
-  }
-},
-{
-  "model": "resources.document",
-  "pk": 10,
-  "fields": {
-    "title": "Asthayi Nirman Ijajat",
-    "file": "documents/2026/02/asthayi_nirman_ijajat.pdf",
-    "document_type": "PERMIT",
-    "uploaded_at": "2026-02-12T01:01:54.770Z",
-    "description": "Temporary construction permit (Permit No: TSM/2024/001)"
-  }
-},
-{
-  "model": "resources.document",
-  "pk": 11,
-  "fields": {
-    "title": "Site Board Photo",
-    "file": "documents/2026/02/site_board_photo.pdf",
-    "document_type": "PHOTO",
-    "uploaded_at": "2026-02-12T01:01:54.773Z",
-    "description": "Photo of permit board displayed at construction site"
-  }
-},
-{
-  "model": "resources.document",
-  "pk": 12,
-  "fields": {
-    "title": "post",
-    "file": "documents/2026/02/post.png",
-    "document_type": "OTHER",
-    "uploaded_at": "2026-02-12T01:30:24.204Z",
-    "description": "Document for 1. Darta / Chalani (File Registration)"
-  }
-},
-{
-  "model": "resources.document",
-  "pk": 13,
-  "fields": {
-    "title": "IMG_1435",
-    "file": "documents/2026/02/IMG_1435.jpg",
-    "document_type": "OTHER",
-    "uploaded_at": "2026-02-12T01:30:30.238Z",
-    "description": "Document for 1. Darta / Chalani (File Registration)"
-  }
-},
-{
-  "model": "estimator.constructionrate",
-  "pk": 1,
-  "fields": {
-    "key": "CEMENT",
-    "label": "Cement (OPC/PPC)",
-    "value": "750.00",
-    "unit": "Bag",
-    "category": "MATERIAL",
-    "updated_at": "2026-02-12T03:34:03.674Z"
-  }
-},
-{
-  "model": "estimator.constructionrate",
-  "pk": 2,
-  "fields": {
-    "key": "SAND",
-    "label": "River Sand (Baluwa)",
-    "value": "90.00",
-    "unit": "Cft",
-    "category": "MATERIAL",
-    "updated_at": "2026-02-12T03:34:03.676Z"
-  }
-},
-{
-  "model": "estimator.constructionrate",
-  "pk": 3,
-  "fields": {
-    "key": "AGGREGATE",
-    "label": "Aggregates (Gitti)",
-    "value": "105.00",
-    "unit": "Cft",
-    "category": "MATERIAL",
-    "updated_at": "2026-02-12T03:34:03.678Z"
-  }
-},
-{
-  "model": "estimator.constructionrate",
-  "pk": 4,
-  "fields": {
-    "key": "BRICK",
-    "label": "Bricks (First Class)",
-    "value": "17.50",
-    "unit": "Pcs",
-    "category": "MATERIAL",
-    "updated_at": "2026-02-12T03:34:03.679Z"
-  }
-},
-{
-  "model": "estimator.constructionrate",
-  "pk": 5,
-  "fields": {
-    "key": "ROD",
-    "label": "Steel Rod (TMT)",
-    "value": "102.00",
-    "unit": "Kg",
-    "category": "MATERIAL",
-    "updated_at": "2026-02-12T03:34:03.680Z"
-  }
-},
-{
-  "model": "estimator.constructionrate",
-  "pk": 6,
-  "fields": {
-    "key": "LABOR_CIVIL",
-    "label": "Civil Work Labor",
-    "value": "480.00",
-    "unit": "Sq.Ft",
-    "category": "LABOR",
-    "updated_at": "2026-02-12T03:34:03.682Z"
-  }
-},
-{
-  "model": "estimator.constructionrate",
-  "pk": 7,
-  "fields": {
-    "key": "LABOR_MEP",
-    "label": "MEP (Fitting) Labor",
-    "value": "180.00",
-    "unit": "Sq.Ft",
-    "category": "LABOR",
-    "updated_at": "2026-02-12T03:34:03.690Z"
-  }
-},
-{
-  "model": "estimator.constructionrate",
-  "pk": 8,
-  "fields": {
-    "key": "LABOR_FINISH",
-    "label": "Finishing Labor",
-    "value": "250.00",
-    "unit": "Sq.Ft",
-    "category": "LABOR",
-    "updated_at": "2026-02-12T03:34:03.691Z"
-  }
-},
-{
-  "model": "estimator.constructionrate",
-  "pk": 9,
-  "fields": {
-    "key": "PAINT_SQFT",
-    "label": "Painting Material",
-    "value": "45.00",
-    "unit": "Sq.Ft",
-    "category": "MATERIAL",
-    "updated_at": "2026-02-12T03:34:03.692Z"
-  }
-},
-{
-  "model": "estimator.constructionrate",
-  "pk": 10,
-  "fields": {
-    "key": "TILE_SQFT",
-    "label": "Tiling Material",
-    "value": "180.00",
-    "unit": "Sq.Ft",
-    "category": "MATERIAL",
-    "updated_at": "2026-02-12T03:34:03.695Z"
-  }
-},
-{
-  "model": "permits.permitstep",
-  "pk": 22,
-  "fields": {
-    "title": "1. Darta / Chalani (File Registration)",
-    "description": "Submit application file at Tulsipur Sub-Metropolitan City Engineering Section with: Lalpurja (Land Certificate), Citizenship, Tax Clearance (Tiro Rasid), Site Plan, and Architectural Drawings.",
-    "status": "APPROVED",
-    "date_issued": "2024-01-05",
-    "notes": "File No: TSM/ENG/2024/001. Submitted at Ward Office No. 6.",
-    "order": 1,
-    "documents": [
-      12,
-      13
-    ]
-  }
-},
-{
-  "model": "permits.permitstep",
-  "pk": 23,
-  "fields": {
-    "title": "2. Jaminko Nap Jaach (Field Verification)",
-    "description": "Municipal Surveyor (Amin) visits site to verify land boundaries (Charkilla), measure actual area, and confirm setback requirements as per Tulsipur building bylaws.",
-    "status": "APPROVED",
-    "date_issued": "2024-01-10",
-    "notes": "Surveyor: Ram Kumar Khadka. Verified 5 Aana land. Setback: 5ft front, 3ft sides confirmed.",
-    "order": 2,
-    "documents": [
-      4,
-      5
-    ]
-  }
-},
-{
-  "model": "permits.permitstep",
-  "pk": 24,
-  "fields": {
-    "title": "3. Naksa Jaach (Blueprint Verification)",
-    "description": "Structural Engineer reviews architectural and structural drawings for compliance with Nepal National Building Code (NBC) and local bylaws. Checks load calculations, foundation design, and safety measures.",
-    "status": "APPROVED",
-    "date_issued": "2024-01-18",
-    "notes": "Approved by Er. Dinesh Sharma (License No: 8765-Civil). Minor corrections made to staircase width.",
-    "order": 3,
-    "documents": [
-      6,
-      7,
-      8
-    ]
-  }
-},
-{
-  "model": "permits.permitstep",
-  "pk": 25,
-  "fields": {
-    "title": "4. Rajaswa Bhuktani (Revenue Payment)",
-    "description": "Pay construction tax/revenue to Municipality Treasury based on building area (Rs. 150 per sq.ft for residential). Includes: Building Permit Fee, Sanitation Fee, and Development Charge.",
-    "status": "APPROVED",
-    "date_issued": "2024-01-20",
-    "notes": "Total Paid: Rs. 45,000 (2500 sqft × Rs. 18/sqft). Receipt No: TSM/REV/2024/0089",
-    "order": 4,
-    "documents": [
-      9
-    ]
-  }
-},
-{
-  "model": "permits.permitstep",
-  "pk": 26,
-  "fields": {
-    "title": "5. Asthayi Nirman Ijajat (Temporary Construction Permit)",
-    "description": "Permission to begin foundation work up to Plinth/DPC level. Valid for 3 months. Must display permit board at site entrance.",
-    "status": "APPROVED",
-    "date_issued": "2024-02-01",
-    "notes": "Permit No: TSM/2024/001. Valid until 2024-05-01. Site board installed.",
-    "order": 5,
-    "documents": [
-      10,
-      11
-    ]
-  }
-},
-{
-  "model": "permits.permitstep",
-  "pk": 27,
-  "fields": {
-    "title": "6. DPC Level Jaach (Plinth Level Inspection)",
-    "description": "Municipal Engineer inspects foundation, plinth height (minimum 18 inches above ground), and verifies setbacks before allowing superstructure construction.",
-    "status": "IN_PROGRESS",
-    "date_issued": null,
-    "notes": "Inspection scheduled for 2024-03-05. Engineer: Er. Prakash Thapa",
-    "order": 6,
-    "documents": []
-  }
-},
-{
-  "model": "permits.permitstep",
-  "pk": 28,
-  "fields": {
-    "title": "7. Sthayi Nirman Ijajat (Permanent Construction Permit)",
-    "description": "Final approval to build superstructure (columns, beams, slabs) after successful DPC inspection. Includes approval for roofing and finishing work.",
-    "status": "PENDING",
-    "date_issued": null,
-    "notes": "Requires DPC inspection clearance first",
-    "order": 7,
-    "documents": []
-  }
-},
-{
-  "model": "permits.permitstep",
-  "pk": 29,
-  "fields": {
-    "title": "8. Slab Casting Jaach (Floor Slab Inspection)",
-    "description": "Optional inspection at each floor level to verify column alignment, beam reinforcement, and slab thickness as per approved drawings.",
-    "status": "PENDING",
-    "date_issued": null,
-    "notes": "Required for buildings above 3 floors or commercial structures",
-    "order": 8,
-    "documents": []
-  }
-},
-{
-  "model": "permits.permitstep",
-  "pk": 30,
-  "fields": {
-    "title": "9. Nirman Sampanna Praman Patra (Completion Certificate)",
-    "description": "Final inspection after construction completion. Verifies building matches approved Naksa, proper drainage, fire safety, and structural integrity. Required for electricity and water connection.",
-    "status": "PENDING",
-    "date_issued": null,
-    "notes": "Apply within 6 months of construction completion. Fee: Rs. 5,000",
-    "order": 9,
-    "documents": []
-  }
-},
-{
-  "model": "permits.permitstep",
-  "pk": 31,
-  "fields": {
-    "title": "10. Occupancy Certificate (Basne Swikrit)",
-    "description": "Final clearance from Municipality certifying building is safe for occupation. Required for property registration and bank loan documentation.",
-    "status": "PENDING",
-    "date_issued": null,
-    "notes": "Issued after Completion Certificate and utility connections",
-    "order": 10,
-    "documents": []
-  }
-},
-{
-  "model": "permits.legaldocument",
-  "pk": 1,
-  "fields": {
-    "title": "1277b11f31253d9072f7154dbdafbab2",
-    "document_type": "OTHER",
-    "file": "legal_docs/1277b11f31253d9072f7154dbdafbab2.jpg",
-    "upload_date": "2026-02-10T08:54:26.172Z",
-    "notes": null
-  }
-},
-{
-  "model": "permits.legaldocument",
-  "pk": 2,
-  "fields": {
-    "title": "IMG_1536",
-    "document_type": "OTHER",
-    "file": "legal_docs/IMG_1536.jpg",
-    "upload_date": "2026-02-10T08:56:52.843Z",
-    "notes": null
-  }
-}
 ]
