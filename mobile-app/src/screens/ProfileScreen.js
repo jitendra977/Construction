@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, StatusBar, Image, Modal, TextInput, ActivityIndicator, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, StatusBar, Image, Modal, TextInput, ActivityIndicator, Alert, Switch } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LogOut, User, Mail, Shield, Calendar, Edit, Settings, Bell, HelpCircle, ChevronRight, Briefcase, Camera, Save, X } from 'lucide-react-native';
@@ -11,15 +11,35 @@ export default function ProfileScreen() {
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [saving, setSaving] = useState(false);
     const [formData, setFormData] = useState({
-        first_name: user?.first_name || '',
-        last_name: user?.last_name || '',
+        first_name: '',
+        last_name: '',
         profile: {
-            bio: user?.profile?.bio || '',
-            phone_number: user?.profile?.phone_number || '',
-            address: user?.profile?.address || '',
+            bio: '',
+            phone_number: '',
+            address: '',
+            preferred_language: 'en',
+            notifications_enabled: true,
             avatar: null
         }
     });
+
+    // Sync form data with user when user loads or modal opens
+    useEffect(() => {
+        if (user) {
+            setFormData({
+                first_name: user.first_name || '',
+                last_name: user.last_name || '',
+                profile: {
+                    bio: user.profile?.bio || '',
+                    phone_number: user.profile?.phone_number || '',
+                    address: user.profile?.address || '',
+                    preferred_language: user.profile?.preferred_language || 'en',
+                    notifications_enabled: user.profile?.notifications_enabled !== false,
+                    avatar: null // Reset avatar selection
+                }
+            });
+        }
+    }, [user, isModalVisible]);
 
     const handlePickImage = async () => {
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -45,7 +65,15 @@ export default function ProfileScreen() {
                 setIsModalVisible(false);
                 Alert.alert("Success", "Profile updated successfully!");
             } else {
-                Alert.alert("Error", result.error || "Failed to update profile");
+                // Handle nested error objects from DRF
+                let errorMessage = "Failed to update profile";
+                if (typeof result.error === 'object') {
+                    const firstError = Object.values(result.error)[0];
+                    errorMessage = Array.isArray(firstError) ? firstError[0] : JSON.stringify(result.error);
+                } else if (typeof result.error === 'string') {
+                    errorMessage = result.error;
+                }
+                Alert.alert("Error", errorMessage);
             }
         } catch (error) {
             Alert.alert("Error", "An unexpected error occurred");
@@ -110,7 +138,7 @@ export default function ProfileScreen() {
                         )}
                     </View>
                     <View style={{ flex: 1 }}>
-                        <Text style={styles.name}>{user?.username || 'User'}</Text>
+                        <Text style={styles.name}>{user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : user?.username || 'User'}</Text>
                         <Text style={styles.email}>{user?.email || 'No email provided'}</Text>
                         <View style={styles.roleBadge}>
                             <Shield size={12} color="white" />
@@ -147,8 +175,8 @@ export default function ProfileScreen() {
                 <Text style={styles.sectionTitle}>Account Information</Text>
                 <InfoCard
                     icon={User}
-                    label="Username"
-                    value={user?.username || 'N/A'}
+                    label="Full Name"
+                    value={user?.first_name || user?.last_name ? `${user.first_name} ${user.last_name}`.trim() : 'Not provided'}
                     iconColor="#4f46e5"
                     iconBg="#eef2ff"
                 />
@@ -172,6 +200,20 @@ export default function ProfileScreen() {
                     value={memberSince}
                     iconColor="#2563eb"
                     iconBg="#dbeafe"
+                />
+                <InfoCard
+                    icon={Settings}
+                    label="Preferred Language"
+                    value={user?.profile?.preferred_language === 'ne' ? 'Nepali' : 'English'}
+                    iconColor="#7c3aed"
+                    iconBg="#f5f3ff"
+                />
+                <InfoCard
+                    icon={Bell}
+                    label="Notifications"
+                    value={user?.profile?.notifications_enabled ? 'Enabled' : 'Disabled'}
+                    iconColor={user?.profile?.notifications_enabled ? '#059669' : '#dc2626'}
+                    iconBg={user?.profile?.notifications_enabled ? '#d1fae5' : '#fee2e2'}
                 />
                 <InfoCard
                     icon={Briefcase}
@@ -302,6 +344,37 @@ export default function ProfileScreen() {
                                     placeholder="Bio"
                                     multiline={true}
                                     numberOfLines={4}
+                                />
+                            </View>
+
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.inputLabel}>Preferred Language</Text>
+                                <View style={styles.languageToggle}>
+                                    <TouchableOpacity
+                                        style={[styles.langChip, formData.profile.preferred_language === 'en' && styles.langChipActive]}
+                                        onPress={() => setFormData({ ...formData, profile: { ...formData.profile, preferred_language: 'en' } })}
+                                    >
+                                        <Text style={[styles.langText, formData.profile.preferred_language === 'en' && styles.langTextActive]}>English</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.langChip, formData.profile.preferred_language === 'ne' && styles.langChipActive]}
+                                        onPress={() => setFormData({ ...formData, profile: { ...formData.profile, preferred_language: 'ne' } })}
+                                    >
+                                        <Text style={[styles.langText, formData.profile.preferred_language === 'ne' && styles.langTextActive]}>Nepali</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+
+                            <View style={[styles.inputGroup, styles.switchGroup]}>
+                                <View>
+                                    <Text style={styles.inputLabel}>Push Notifications</Text>
+                                    <Text style={styles.inputSubLabel}>Receive updates on project progress</Text>
+                                </View>
+                                <Switch
+                                    value={formData.profile.notifications_enabled}
+                                    onValueChange={(val) => setFormData({ ...formData, profile: { ...formData.profile, notifications_enabled: val } })}
+                                    trackColor={{ false: "#d1d5db", true: "#d1fae5" }}
+                                    thumbColor={formData.profile.notifications_enabled ? "#059669" : "#f1f1f1"}
                                 />
                             </View>
 
@@ -604,6 +677,41 @@ const styles = StyleSheet.create({
     textArea: {
         height: 100,
         textAlignVertical: 'top',
+    },
+    languageToggle: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    langChip: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+        backgroundColor: '#f3f4f6',
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+    },
+    langChipActive: {
+        backgroundColor: '#d1fae5',
+        borderColor: '#059669',
+    },
+    langText: {
+        fontSize: 14,
+        color: '#4b5563',
+        fontWeight: '600',
+    },
+    langTextActive: {
+        color: '#059669',
+    },
+    switchGroup: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 8,
+    },
+    inputSubLabel: {
+        fontSize: 12,
+        color: '#6b7280',
+        marginTop: 2,
     },
     modalFooter: {
         flexDirection: 'row',

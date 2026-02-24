@@ -16,6 +16,36 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ('id', 'username', 'email', 'first_name', 'last_name', 'role', 'profile')
         read_only_fields = ('id', 'username', 'email', 'role')
+        
+    def to_internal_value(self, data):
+        """
+        Handle flattened profile fields from FormData (e.g. 'profile.bio').
+        This allows clients to send nested profile data in multipart/form-data.
+        """
+        # Create a mutable copy if it's a QueryDict
+        if hasattr(data, 'dict'):
+            new_data = data.dict()
+        else:
+            new_data = dict(data)
+            
+        profile_data = new_data.get('profile', {})
+        if not isinstance(profile_data, dict):
+            profile_data = {}
+            
+        keys_to_remove = []
+        for key, value in new_data.items():
+            if key.startswith('profile.'):
+                field_name = key.split('.', 1)[1]
+                profile_data[field_name] = value
+                keys_to_remove.append(key)
+        
+        if profile_data:
+            new_data['profile'] = profile_data
+            for key in keys_to_remove:
+                if key in new_data:
+                    del new_data[key]
+                    
+        return super().to_internal_value(new_data)
 
     def update(self, instance, validated_data):
         profile_data = validated_data.pop('profile', None)

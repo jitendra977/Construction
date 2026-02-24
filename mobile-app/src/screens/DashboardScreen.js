@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, ScrollView, RefreshControl, TouchableOpacity, StatusBar, Modal, SafeAreaView, Dimensions, Animated } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, RefreshControl, TouchableOpacity, StatusBar, Modal, SafeAreaView, Dimensions, Animated, Image } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Calendar, ChevronRight, CheckCircle2, Circle, LayoutDashboard, Menu as MenuIcon, X, User, Settings, HelpCircle, LogOut, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { getMediaUrl } from '../services/api';
 import Skeleton from '../components/Skeleton';
 
 const { width } = Dimensions.get('window');
@@ -329,7 +330,14 @@ export default function DashboardScreen({ navigation }) {
                         >
                             <View style={styles.menuHeaderTop}>
                                 <View style={styles.avatarCircle}>
-                                    <Text style={styles.avatarText}>{user?.username?.charAt(0).toUpperCase()}</Text>
+                                    {user?.profile?.avatar ? (
+                                        <Image
+                                            source={{ uri: getMediaUrl(user.profile.avatar) }}
+                                            style={styles.avatarImage}
+                                        />
+                                    ) : (
+                                        <Text style={styles.avatarText}>{user?.username?.charAt(0).toUpperCase()}</Text>
+                                    )}
                                 </View>
                                 <TouchableOpacity onPress={() => setIsMenuOpen(false)}>
                                     <X color="white" size={24} />
@@ -511,6 +519,12 @@ const styles = StyleSheet.create({
         backgroundColor: 'white',
         alignItems: 'center',
         justifyContent: 'center',
+        overflow: 'hidden',
+    },
+    avatarImage: {
+        width: '100%',
+        height: '100%',
+        resizeMode: 'cover',
     },
     avatarText: {
         fontSize: 24,
