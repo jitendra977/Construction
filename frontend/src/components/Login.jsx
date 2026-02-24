@@ -8,14 +8,23 @@ function Login() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [expired, setExpired] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
+
+    useEffect(() => {
+        const queryParams = new URLSearchParams(location.search);
+        if (queryParams.get('expired') === 'true') {
+            setExpired(true);
+        }
+    }, [location]);
 
     const { login } = useConstruction();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        setExpired(false);
         setLoading(true);
 
         const result = await login(username, password);
@@ -38,6 +47,12 @@ function Login() {
                     </h1>
                     <h2 className="text-lg text-gray-600 font-normal">Login</h2>
                 </div>
+
+                {expired && (
+                    <div className="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded-lg mb-6">
+                        Session expired. Please log in again.
+                    </div>
+                )}
 
                 {error && (
                     <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">

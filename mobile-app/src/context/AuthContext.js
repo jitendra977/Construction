@@ -62,8 +62,24 @@ export const AuthProvider = ({ children }) => {
     };
 
     useEffect(() => {
+        // Register logout handler for API background failures
+        const { setOnLogout } = require('../services/api');
+        setOnLogout(() => {
+            console.log("Session expired, logging out...");
+            setUser(null);
+            setDashboardData(null);
+        });
+
         loadUser();
     }, []);
+
+    const updateProfile = async (userData) => {
+        const result = await authService.updateProfile(userData);
+        if (result.success) {
+            setUser(result.user);
+        }
+        return result;
+    };
 
     return (
         <AuthContext.Provider value={{
@@ -73,6 +89,7 @@ export const AuthProvider = ({ children }) => {
             dashboardData,
             login,
             logout,
+            updateProfile,
             refreshData: fetchDashboardData
         }}>
             {children}

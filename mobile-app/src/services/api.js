@@ -19,6 +19,12 @@ api.interceptors.request.use(
         return Promise.reject(error);
     });
 
+let logoutCallback = null;
+
+export const setOnLogout = (callback) => {
+    logoutCallback = callback;
+};
+
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
@@ -51,6 +57,12 @@ api.interceptors.response.use(
                     await storage.deleteItem('refresh_token');
                     await storage.deleteItem('user');
                 }
+
+                // Trigger logout callback if registered
+                if (logoutCallback) {
+                    logoutCallback();
+                }
+
                 return Promise.reject(refreshError);
             }
         }
@@ -392,6 +404,48 @@ export const projectService = {
     },
     async updateProject(id, data) {
         const response = await api.put(`/projects/${id}/`, data);
+        return response.data;
+    },
+};
+
+// User/Profile Service
+export const userService = {
+    async getProfile() {
+        const response = await api.get('/auth/profile/');
+        return response.data;
+    },
+    async updateProfile(userData) {
+        const config = {};
+        let data = userData;
+
+        // In React Native, we need to handle FormData for file uploads
+        if (userData.profile?.avatar && userData.profile.avatar.uri) {
+            config.headers = { 'Content-Type': 'multipart/form-data' };
+            const formData = new FormData();
+
+            if (userData.first_name) formData.append('first_name', userData.first_name);
+            if (userData.last_name) formData.append('last_name', userData.last_name);
+
+            if (userData.profile) {
+                Object.keys(userData.profile).forEach(key => {
+                    if (key === 'avatar') {
+                        const avatar = userData.profile[key];
+                        if (avatar.uri) {
+                            formData.append('profile.avatar', {
+                                uri: avatar.uri,
+                                type: avatar.type || 'image/jpeg',
+                                name: avatar.fileName || 'profile.jpg',
+                            });
+                        }
+                    } else {
+                        formData.append(`profile.${key}`, userData.profile[key]);
+                    }
+                });
+            }
+            data = formData;
+        }
+
+        const response = await api.patch('/auth/profile/', data, config);
         return response.data;
     },
 };

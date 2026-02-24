@@ -1,5 +1,11 @@
 from django.contrib import admin
-from .models import BudgetCategory, Expense, Payment, FundingSource
+from .models import BudgetCategory, Expense, Payment, FundingSource, FundingTransaction
+
+@admin.register(FundingTransaction)
+class FundingTransactionAdmin(admin.ModelAdmin):
+    list_display = ('funding_source', 'amount', 'transaction_type', 'date', 'description')
+    list_filter = ('transaction_type', 'date', 'funding_source')
+    search_fields = ('description',)
 
 @admin.register(BudgetCategory)
 class BudgetCategoryAdmin(admin.ModelAdmin):

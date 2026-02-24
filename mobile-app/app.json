@@ -22,7 +22,12 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Allow app to access your camera to take photos of construction progress.",
         "NSPhotoLibraryUsageDescription": "Allow app to access your photos to upload construction progress images.",
-        "NSMicrophoneUsageDescription": "Allow app to access your microphone for video recording."
+        "NSPhotoLibraryAddUsageDescription": "Allow app to save photos to your library.",
+        "NSMicrophoneUsageDescription": "Allow app to access your microphone for video recording.",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsLocalNetworking": true
+        }
       }
     },
     "android": {
@@ -30,7 +35,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.construction.mobileapp"
     },
     "plugins": [
       "expo-secure-store"

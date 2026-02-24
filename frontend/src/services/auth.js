@@ -70,6 +70,44 @@ export const authService = {
         }
     },
 
+    // Update user profile
+    updateProfile: async (userData) => {
+        try {
+            const config = {};
+            let data = userData;
+
+            // If updating avatar, use FormData
+            if (userData.profile?.avatar instanceof File) {
+                config.headers = { 'Content-Type': 'multipart/form-data' };
+                const formData = new FormData();
+
+                if (userData.first_name) formData.append('first_name', userData.first_name);
+                if (userData.last_name) formData.append('last_name', userData.last_name);
+
+                // Nest profile fields for backend serializer
+                if (userData.profile) {
+                    Object.keys(userData.profile).forEach(key => {
+                        if (key === 'avatar' && !(userData.profile[key] instanceof File)) return;
+                        formData.append(`profile.${key}`, userData.profile[key]);
+                    });
+                }
+                data = formData;
+            }
+
+            const response = await api.patch('/auth/profile/', data, config);
+
+            // Update stored user info
+            localStorage.setItem('user', JSON.stringify(response.data));
+
+            return { success: true, user: response.data };
+        } catch (error) {
+            return {
+                success: false,
+                error: error.response?.data || 'Failed to update profile',
+            };
+        }
+    },
+
     // Check if user is authenticated
     isAuthenticated: () => {
         return !!localStorage.getItem('access_token');

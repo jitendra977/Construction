@@ -286,6 +286,22 @@ export const ConstructionProvider = ({ children }) => {
         }
     }, [fetchData]);
 
+    const updateProfile = useCallback(async (userData) => {
+        setLoading(true);
+        try {
+            const result = await authService.updateProfile(userData);
+            if (result.success) {
+                setUser(result.user);
+            }
+            return result;
+        } catch (error) {
+            console.error("Failed to update profile", error);
+            return { success: false, error: "An unexpected error occurred" };
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
     const value = {
         // State
         user,
@@ -310,6 +326,7 @@ export const ConstructionProvider = ({ children }) => {
         updatePermitStatus,
         createPermitStep,
         deletePermitStep,
+        updateProfile,
         isCalculatorOpen,
         setIsCalculatorOpen: (val) => setIsCalculatorOpen(val),
         toggleCalculator: () => setIsCalculatorOpen(prev => !prev),

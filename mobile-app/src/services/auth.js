@@ -57,4 +57,22 @@ export const authService = {
         const userStr = await storage.getItem('user');
         return userStr ? JSON.parse(userStr) : null;
     },
+
+    updateProfile: async (userData) => {
+        try {
+            const { userService } = require('./api');
+            const data = await userService.updateProfile(userData);
+
+            // Update stored user info
+            await storage.setItem('user', JSON.stringify(data));
+
+            return { success: true, user: data };
+        } catch (error) {
+            console.error('Update profile error:', error.response?.data || error.message);
+            return {
+                success: false,
+                error: error.response?.data || 'Profile update failed',
+            };
+        }
+    },
 };

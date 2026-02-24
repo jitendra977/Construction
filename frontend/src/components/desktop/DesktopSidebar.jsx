@@ -1,5 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { getMediaUrl } from '../../services/api';
 
 const DesktopSidebar = ({ user, onLogout, navItems }) => {
     const linkClasses = ({ isActive }) =>
@@ -64,15 +65,36 @@ const DesktopSidebar = ({ user, onLogout, navItems }) => {
             </nav>
 
             <div className="p-4 border-t border-gray-100">
-                <div className="flex items-center gap-3 px-4 py-3 mb-2">
-                    <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold">
-                        {user?.username?.charAt(0).toUpperCase()}
+                <NavLink
+                    to="/dashboard/desktop/profile"
+                    className={({ isActive }) =>
+                        `flex items-center gap-3 px-4 py-3 mb-2 rounded-xl transition-all ${isActive ? 'bg-indigo-50 border border-indigo-100' : 'hover:bg-gray-50'}`
+                    }
+                >
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold shadow-sm overflow-hidden">
+                        {user?.profile?.avatar ? (
+                            <img
+                                src={getMediaUrl(user.profile.avatar)}
+                                alt={user.username}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.style.display = 'none';
+                                    e.target.parentNode.innerHTML = user?.username?.charAt(0).toUpperCase();
+                                }}
+                            />
+                        ) : (
+                            user?.username?.charAt(0).toUpperCase()
+                        )}
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{user?.username}</p>
-                        <p className="text-xs text-gray-500">Owner</p>
+                        <p className="text-sm font-bold text-gray-900 truncate">{user?.username}</p>
+                        <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest opacity-70">
+                            {user?.role || 'Admin'}
+                        </p>
                     </div>
-                </div>
+                    <span className="text-gray-400 text-xs">👤</span>
+                </NavLink>
                 <button
                     onClick={onLogout}
                     className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"

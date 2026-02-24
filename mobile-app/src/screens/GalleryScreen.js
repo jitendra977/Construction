@@ -4,6 +4,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Camera, Layers, FileText, Image as ImageIcon, X, Download } from 'lucide-react-native';
 import { dashboardService, getMediaUrl } from '../services/api';
 import storage from '../utils/storage';
+import * as FileSystem from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
+import { Alert } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -218,9 +221,18 @@ export default function GalleryScreen() {
                     </TouchableOpacity>
 
                     {lightboxItem && (
+                        <TouchableOpacity
+                            style={[styles.closeButton, { right: 70 }]}
+                            onPress={() => saveImage(lightboxItem.url)}
+                        >
+                            <Download color="white" size={28} />
+                        </TouchableOpacity>
+                    )}
+
+                    {lightboxItem && (
                         <View style={styles.lightboxContent}>
                             <Image
-                                source={{ uri: lightboxItem.url }}
+                                source={{ uri: getMediaUrl(lightboxItem.url) }}
                                 style={styles.lightboxImage}
                                 resizeMode="contain"
                             />
@@ -234,6 +246,27 @@ export default function GalleryScreen() {
             </Modal>
         </ScrollView>
     );
+
+    async function saveImage(url) {
+        try {
+            const { status } = await MediaLibrary.requestPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permission needed', 'Please allow access to your photo library to save images.');
+                return;
+            }
+
+            const downloadUrl = getMediaUrl(url);
+            const filename = downloadUrl.split('/').pop();
+            const fileUri = FileSystem.documentDirectory + filename;
+
+            const { uri } = await FileSystem.downloadAsync(downloadUrl, fileUri);
+            await MediaLibrary.saveToLibraryAsync(uri);
+            Alert.alert('Success', 'Image saved to gallery!');
+        } catch (e) {
+            console.error(e);
+            Alert.alert('Error', 'Failed to save image.');
+        }
+    }
 }
 
 const styles = StyleSheet.create({

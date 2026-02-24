@@ -1,11 +1,58 @@
-import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, StatusBar } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, StatusBar, Image, Modal, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
-import { LogOut, User, Mail, Shield, Calendar, Edit, Settings, Bell, HelpCircle, ChevronRight, Briefcase } from 'lucide-react-native';
+import { LogOut, User, Mail, Shield, Calendar, Edit, Settings, Bell, HelpCircle, ChevronRight, Briefcase, Camera, Save, X } from 'lucide-react-native';
+import { getMediaUrl } from '../services/api';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function ProfileScreen() {
-    const { user, logout, dashboardData } = useAuth();
+    const { user, updateProfile, logout, dashboardData } = useAuth();
+    const [isModalVisible, setIsModalVisible] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [formData, setFormData] = useState({
+        first_name: user?.first_name || '',
+        last_name: user?.last_name || '',
+        profile: {
+            bio: user?.profile?.bio || '',
+            phone_number: user?.profile?.phone_number || '',
+            address: user?.profile?.address || '',
+            avatar: null
+        }
+    });
+
+    const handlePickImage = async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.7,
+        });
+
+        if (!result.canceled) {
+            setFormData({
+                ...formData,
+                profile: { ...formData.profile, avatar: result.assets[0] }
+            });
+        }
+    };
+
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            const result = await updateProfile(formData);
+            if (result.success) {
+                setIsModalVisible(false);
+                Alert.alert("Success", "Profile updated successfully!");
+            } else {
+                Alert.alert("Error", result.error || "Failed to update profile");
+            }
+        } catch (error) {
+            Alert.alert("Error", "An unexpected error occurred");
+        } finally {
+            setSaving(false);
+        }
+    };
 
     // Calculate some user stats
     const totalPhases = dashboardData?.phases?.length || 0;
@@ -53,7 +100,14 @@ export default function ProfileScreen() {
 
                 <View style={styles.headerContent}>
                     <View style={styles.avatar}>
-                        <Text style={styles.avatarText}>{user?.username?.charAt(0).toUpperCase() || 'U'}</Text>
+                        {user?.profile?.avatar ? (
+                            <Image
+                                source={{ uri: getMediaUrl(user.profile.avatar) }}
+                                style={styles.avatarImage}
+                            />
+                        ) : (
+                            <Text style={styles.avatarText}>{user?.username?.charAt(0).toUpperCase() || 'U'}</Text>
+                        )}
                     </View>
                     <View style={{ flex: 1 }}>
                         <Text style={styles.name}>{user?.username || 'User'}</Text>
@@ -63,7 +117,10 @@ export default function ProfileScreen() {
                             <Text style={styles.roleText}>{user?.role || 'Admin'}</Text>
                         </View>
                     </View>
-                    <TouchableOpacity style={styles.editButton}>
+                    <TouchableOpacity
+                        style={styles.editButton}
+                        onPress={() => setIsModalVisible(true)}
+                    >
                         <Edit size={18} color="white" />
                     </TouchableOpacity>
                 </View>
@@ -103,7 +160,7 @@ export default function ProfileScreen() {
                     iconBg="#d1fae5"
                 />
                 <InfoCard
-                    icon={Briefcase}
+                    icon={Shield}
                     label="Role"
                     value={user?.role || 'Admin'}
                     iconColor="#d97706"
@@ -115,6 +172,27 @@ export default function ProfileScreen() {
                     value={memberSince}
                     iconColor="#2563eb"
                     iconBg="#dbeafe"
+                />
+                <InfoCard
+                    icon={Briefcase}
+                    label="Bio"
+                    value={user?.profile?.bio || 'No bio provided'}
+                    iconColor="#4f46e5"
+                    iconBg="#eef2ff"
+                />
+                <InfoCard
+                    icon={Settings}
+                    label="Phone Number"
+                    value={user?.profile?.phone_number || 'Not provided'}
+                    iconColor="#059669"
+                    iconBg="#d1fae5"
+                />
+                <InfoCard
+                    icon={Settings}
+                    label="Address"
+                    value={user?.profile?.address || 'Not provided'}
+                    iconColor="#7c3aed"
+                    iconBg="#f5f3ff"
                 />
             </View>
 
@@ -130,6 +208,131 @@ export default function ProfileScreen() {
             </View>
 
             <View style={{ height: 40 }} />
+
+            {/* Edit Profile Modal */}
+            <Modal
+                visible={isModalVisible}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setIsModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContainer}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Edit Profile</Text>
+                            <TouchableOpacity onPress={() => setIsModalVisible(false)}>
+                                <X size={24} color="#111827" />
+                            </TouchableOpacity>
+                        </View>
+
+                        <ScrollView style={styles.modalBody}>
+                            {/* Avatar section */}
+                            <View style={styles.editAvatarSection}>
+                                <View style={styles.editableAvatar}>
+                                    {formData.profile.avatar ? (
+                                        <Image source={{ uri: formData.profile.avatar.uri }} style={styles.fullImage} />
+                                    ) : user?.profile?.avatar ? (
+                                        <Image source={{ uri: getMediaUrl(user.profile.avatar) }} style={styles.fullImage} />
+                                    ) : (
+                                        <Text style={styles.avatarText}>{user?.username?.charAt(0).toUpperCase() || 'U'}</Text>
+                                    )}
+                                    <TouchableOpacity style={styles.cameraIcon} onPress={handlePickImage}>
+                                        <Camera size={20} color="white" />
+                                    </TouchableOpacity>
+                                </View>
+                                <Text style={styles.changePhotoText}>Change Profile Photo</Text>
+                            </View>
+
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.inputLabel}>First Name</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    value={formData.first_name}
+                                    onChangeText={(text) => setFormData({ ...formData, first_name: text })}
+                                    placeholder="First Name"
+                                />
+                            </View>
+
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.inputLabel}>Last Name</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    value={formData.last_name}
+                                    onChangeText={(text) => setFormData({ ...formData, last_name: text })}
+                                    placeholder="Last Name"
+                                />
+                            </View>
+
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.inputLabel}>Phone Number</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    value={formData.profile.phone_number}
+                                    onChangeText={(text) => setFormData({
+                                        ...formData,
+                                        profile: { ...formData.profile, phone_number: text }
+                                    })}
+                                    placeholder="Phone Number"
+                                    keyboardType="phone-pad"
+                                />
+                            </View>
+
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.inputLabel}>Address</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    value={formData.profile.address}
+                                    onChangeText={(text) => setFormData({
+                                        ...formData,
+                                        profile: { ...formData.profile, address: text }
+                                    })}
+                                    placeholder="Address"
+                                />
+                            </View>
+
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.inputLabel}>Bio</Text>
+                                <TextInput
+                                    style={[styles.input, styles.textArea]}
+                                    value={formData.profile.bio}
+                                    onChangeText={(text) => setFormData({
+                                        ...formData,
+                                        profile: { ...formData.profile, bio: text }
+                                    })}
+                                    placeholder="Bio"
+                                    multiline={true}
+                                    numberOfLines={4}
+                                />
+                            </View>
+
+                            <View style={{ height: 30 }} />
+                        </ScrollView>
+
+                        <View style={styles.modalFooter}>
+                            <TouchableOpacity
+                                style={styles.cancelButton}
+                                onPress={() => setIsModalVisible(false)}
+                            >
+                                <Text style={styles.cancelButtonText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.saveButton}
+                                onPress={handleSave}
+                                disabled={saving}
+                            >
+                                {saving ? (
+                                    <ActivityIndicator size="small" color="white" />
+                                ) : (
+                                    <>
+                                        <Save size={18} color="white" style={{ marginRight: 8 }} />
+                                        <Text style={styles.saveButtonText}>Save Changes</Text>
+                                    </>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </ScrollView>
     );
 }
@@ -176,6 +379,11 @@ const styles = StyleSheet.create({
         fontSize: 32,
         fontWeight: 'bold',
         color: 'white',
+    },
+    avatarImage: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 37, // Slightly less than avatar container to accommodate border if needed, but the container has border
     },
     name: {
         fontSize: 22,
@@ -312,5 +520,125 @@ const styles = StyleSheet.create({
         fontSize: 15,
         fontWeight: '500',
         color: '#374151',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalContainer: {
+        backgroundColor: 'white',
+        borderTopLeftRadius: 30,
+        borderTopRightRadius: 30,
+        height: '85%',
+        paddingVertical: 20,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 24,
+        paddingBottom: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f3f4f6',
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#111827',
+    },
+    modalBody: {
+        padding: 24,
+    },
+    editAvatarSection: {
+        alignItems: 'center',
+        marginBottom: 24,
+    },
+    editableAvatar: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        backgroundColor: '#e5e7eb',
+        justifyContent: 'center',
+        alignItems: 'center',
+        position: 'relative',
+        overflow: 'hidden',
+    },
+    fullImage: {
+        width: '100%',
+        height: '100%',
+    },
+    cameraIcon: {
+        position: 'absolute',
+        bottom: 0,
+        right: 0,
+        backgroundColor: '#059669',
+        padding: 8,
+        borderRadius: 20,
+    },
+    changePhotoText: {
+        marginTop: 10,
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#6b7280',
+    },
+    inputGroup: {
+        marginBottom: 20,
+    },
+    inputLabel: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: '#374151',
+        marginBottom: 8,
+        textTransform: 'uppercase',
+    },
+    input: {
+        backgroundColor: '#f9fafb',
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+        borderRadius: 12,
+        padding: 12,
+        fontSize: 15,
+        color: '#111827',
+    },
+    textArea: {
+        height: 100,
+        textAlignVertical: 'top',
+    },
+    modalFooter: {
+        flexDirection: 'row',
+        paddingHorizontal: 20,
+        paddingTop: 16,
+        paddingBottom: 10,
+        borderTopWidth: 1,
+        borderTopColor: '#f3f4f6',
+        gap: 12,
+    },
+    cancelButton: {
+        flex: 1,
+        paddingVertical: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 12,
+        backgroundColor: '#f3f4f6',
+    },
+    cancelButtonText: {
+        fontSize: 15,
+        fontWeight: 'bold',
+        color: '#4b5563',
+    },
+    saveButton: {
+        flex: 2,
+        flexDirection: 'row',
+        paddingVertical: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 12,
+        backgroundColor: '#059669',
+    },
+    saveButtonText: {
+        fontSize: 15,
+        fontWeight: 'bold',
+        color: 'white',
     },
 });

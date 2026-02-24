@@ -24,9 +24,12 @@ import {
     Camera,
     Upload,
     X,
+    Download,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
 import { taskService, getMediaUrl } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
 import EmptyState from '../components/EmptyState';
@@ -497,6 +500,15 @@ export default function TaskDetailScreen({ route, navigation }) {
                     >
                         <X color="white" size={30} />
                     </TouchableOpacity>
+
+                    {selectedImage && (
+                        <TouchableOpacity
+                            style={{ position: 'absolute', top: 50, right: 70, zIndex: 10, padding: 10 }}
+                            onPress={() => saveImage(selectedImage)}
+                        >
+                            <Download color="white" size={30} />
+                        </TouchableOpacity>
+                    )}
                     {selectedImage && (
                         <Image
                             source={{ uri: selectedImage }}
@@ -508,6 +520,26 @@ export default function TaskDetailScreen({ route, navigation }) {
             </Modal>
         </ScrollView>
     );
+
+    async function saveImage(url) {
+        try {
+            const { status } = await MediaLibrary.requestPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permission needed', 'Please allow access to your photo library to save images.');
+                return;
+            }
+
+            const filename = url.split('/').pop();
+            const fileUri = FileSystem.documentDirectory + filename;
+
+            const { uri } = await FileSystem.downloadAsync(url, fileUri);
+            await MediaLibrary.saveToLibraryAsync(uri);
+            Alert.alert('Success', 'Image saved to gallery!');
+        } catch (e) {
+            console.error(e);
+            Alert.alert('Error', 'Failed to save image.');
+        }
+    }
 }
 
 const styles = StyleSheet.create({

@@ -66,6 +66,26 @@ function Dashboard() {
                                     {user?.first_name} {user?.last_name}
                                 </span>
                             </div>
+                            <div className="flex items-center">
+                                <span className="font-medium text-gray-700 w-32">Role:</span>
+                                <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-bold rounded uppercase">
+                                    {user?.role || 'User'}
+                                </span>
+                            </div>
+                            <div className="flex items-start">
+                                <span className="font-medium text-gray-700 w-32">Bio:</span>
+                                <span className="text-gray-600 italic">
+                                    {user?.profile?.bio || 'No bio provided'}
+                                </span>
+                            </div>
+                            <div className="flex items-center">
+                                <span className="font-medium text-gray-700 w-32">Phone:</span>
+                                <span className="text-gray-600">{user?.profile?.phone_number || 'Not provided'}</span>
+                            </div>
+                            <div className="flex items-start">
+                                <span className="font-medium text-gray-700 w-32">Address:</span>
+                                <span className="text-gray-600">{user?.profile?.address || 'Not provided'}</span>
+                            </div>
                         </div>
                     </div>
 

@@ -1,4 +1,6 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
+import { getMediaUrl } from '../../services/api';
 
 const MobileHeader = ({ project, stats, onLogout }) => {
     return (
@@ -14,9 +16,25 @@ const MobileHeader = ({ project, stats, onLogout }) => {
                     <p className="text-emerald-100 text-[10px] font-bold uppercase tracking-widest opacity-90 mt-1">Construction Manager</p>
                 </div>
                 <div className="flex gap-2">
-                    <button className="p-2.5 bg-white/10 backdrop-blur-md rounded-xl text-white border border-white/20">
-                        <span className="text-lg">🔔</span>
-                    </button>
+                    <Link
+                        to="/dashboard/mobile/profile"
+                        className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-xl text-white border border-white/20 active:scale-95 transition-all flex items-center justify-center overflow-hidden"
+                    >
+                        {user?.profile?.avatar ? (
+                            <img
+                                src={getMediaUrl(user.profile.avatar)}
+                                alt={user.username}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.style.display = 'none';
+                                    e.target.parentNode.innerHTML = '<span class="text-lg">👤</span>';
+                                }}
+                            />
+                        ) : (
+                            <span className="text-lg">👤</span>
+                        )}
+                    </Link>
                     <button
                         onClick={onLogout}
                         className="p-2.5 bg-white/10 backdrop-blur-md rounded-xl text-white border border-white/20 active:bg-red-500/20 transition-colors"
