@@ -1,8 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { getMediaUrl } from '../../services/api';
+import { useConstruction } from '../../context/ConstructionContext';
 
 const MobileHeader = ({ project, stats, onLogout }) => {
+    const { user } = useConstruction();
+
     return (
         <header className="px-4 pt-10 pb-12 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 shadow-xl overflow-hidden relative">
             {/* Background Accent */}

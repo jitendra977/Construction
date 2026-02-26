@@ -33,6 +33,11 @@ fi
 echo "Running migrations..."
 python manage.py migrate --noinput
 
+if [ -n "$DJANGO_SUPERUSER_USERNAME" ]; then
+    echo "Creating superuser..."
+    python manage.py createsuperuser --noinput || echo "Superuser already exists or could not be created."
+fi
+
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 

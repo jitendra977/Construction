@@ -5,7 +5,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: construction_backend
     volumes:
       - media_data:/app/media
     ports:
@@ -22,8 +21,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: https://api.construction.nishanaweb.cloud/api/v1
-    container_name: construction_frontend
+        VITE_API_URL: http://localhost:8001/api/v1
     volumes:
       - media_data:/usr/share/nginx/html/media
     ports:

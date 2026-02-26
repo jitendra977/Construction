@@ -450,11 +450,12 @@ export const userService = {
     },
 };
 
-export const getMediaUrl = (url) => {
+export const getMediaUrl = (url, bustCache = false) => {
     if (!url) return null;
     if (url.startsWith('http')) return url;
     const baseUrl = API_BASE_URL.replace('/api/v1', '');
-    return `${baseUrl}${url}`;
+    const finalUrl = `${baseUrl}${url}`;
+    return bustCache ? `${finalUrl}?t=${new Date().getTime()}` : finalUrl;
 };
 
 export default api;

@@ -11,14 +11,15 @@ services:
       - /app/venv
     ports:
       - "8000:8000"
+    env_file:
+      - ./backend/.env
     environment:
       - DEBUG=True
-      - SECRET_KEY=dev-secret-key-change-in-production
       - ALLOWED_HOSTS=localhost,127.0.0.1,backend
-      - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
-    command: python manage.py runserver 0.0.0.0:8000
+      - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:8000
     networks:
       - construction_network
+      - app_network
 
   frontend:
     build:
@@ -41,3 +42,6 @@ services:
 networks:
   construction_network:
     driver: bridge
+  app_network:
+    external: true
+    name: app-network

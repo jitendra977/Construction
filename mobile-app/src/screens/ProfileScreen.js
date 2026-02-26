@@ -10,6 +10,7 @@ export default function ProfileScreen() {
     const { user, updateProfile, logout, dashboardData } = useAuth();
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [refreshTimestamp, setRefreshTimestamp] = useState(Date.now());
     const [formData, setFormData] = useState({
         first_name: '',
         last_name: '',
@@ -60,9 +61,17 @@ export default function ProfileScreen() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            const result = await updateProfile(formData);
+            // Filter out null avatar if it hasn't changed to avoid clearing it
+            const submissionData = { ...formData };
+            if (submissionData.profile && submissionData.profile.avatar === null) {
+                const { avatar, ...profileRest } = submissionData.profile;
+                submissionData.profile = profileRest;
+            }
+
+            const result = await updateProfile(submissionData);
             if (result.success) {
                 setIsModalVisible(false);
+                setRefreshTimestamp(Date.now()); // Trigger image refresh
                 Alert.alert("Success", "Profile updated successfully!");
             } else {
                 // Handle nested error objects from DRF
@@ -130,7 +139,8 @@ export default function ProfileScreen() {
                     <View style={styles.avatar}>
                         {user?.profile?.avatar ? (
                             <Image
-                                source={{ uri: getMediaUrl(user.profile.avatar) }}
+                                key={`avatar-${refreshTimestamp}`}
+                                source={{ uri: getMediaUrl(user.profile.avatar, true) }}
                                 style={styles.avatarImage}
                             />
                         ) : (

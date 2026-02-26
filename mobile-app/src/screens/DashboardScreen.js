@@ -332,7 +332,7 @@ export default function DashboardScreen({ navigation }) {
                                 <View style={styles.avatarCircle}>
                                     {user?.profile?.avatar ? (
                                         <Image
-                                            source={{ uri: getMediaUrl(user.profile.avatar) }}
+                                            source={{ uri: getMediaUrl(user.profile.avatar, true) }}
                                             style={styles.avatarImage}
                                         />
                                     ) : (
@@ -343,7 +343,9 @@ export default function DashboardScreen({ navigation }) {
                                     <X color="white" size={24} />
                                 </TouchableOpacity>
                             </View>
-                            <Text style={styles.menuUsername}>{user?.username || 'User'}</Text>
+                            <Text style={styles.menuUsername}>
+                                {user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : user?.username || 'User'}
+                            </Text>
                             <Text style={styles.menuEmail}>{user?.email || 'user@example.com'}</Text>
                         </LinearGradient>
 
