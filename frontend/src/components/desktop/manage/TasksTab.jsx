@@ -26,6 +26,19 @@ const TasksTab = ({ searchQuery = '' }) => {
         return matchesSearch && matchesPhase && matchesContractor;
     });
 
+    const tasksByPhase = filteredTasks.reduce((acc, task) => {
+        const phaseId = task.phase || 0;
+        if (!acc[phaseId]) acc[phaseId] = [];
+        acc[phaseId].push(task);
+        return acc;
+    }, {});
+
+    const sortedPhaseIds = Object.keys(tasksByPhase).sort((a, b) => {
+        const phaseA = dashboardData.phases?.find(p => p.id === parseInt(a));
+        const phaseB = dashboardData.phases?.find(p => p.id === parseInt(b));
+        return (phaseA?.order || 99) - (phaseB?.order || 99);
+    });
+
     const handleOpenModal = (item = null) => {
         setEditingItem(item);
         if (item) {
@@ -182,93 +195,135 @@ const TasksTab = ({ searchQuery = '' }) => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
-                        {filteredTasks.map(t => (
-                            <tr key={t.id} className="hover:bg-gray-50 transition-colors group">
-                                <td className="px-6 py-4">
-                                    <div className="flex items-center gap-2">
-                                        <div className="font-bold text-gray-900">{t.title}</div>
-                                        {t.media?.length > 0 && (
-                                            <span title="Has Proof Images" className="text-emerald-500 text-sm">📸</span>
-                                        )}
-                                    </div>
-                                    <div className="text-[10px] text-gray-400 font-medium line-clamp-1 max-w-xs italic">
-                                        {t.description || 'No description provided'}
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="flex flex-col gap-1">
-                                        <div className="text-[10px] font-black text-indigo-500 uppercase tracking-tighter">
-                                            {getPhaseName(t.phase)}
+                        {sortedPhaseIds.map(phaseId => (
+                            <React.Fragment key={`desktop-phase-${phaseId}`}>
+                                <tr className="bg-indigo-50/50">
+                                    <td colSpan="4" className="px-6 py-3">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-1.5 h-4 bg-indigo-500 rounded-full"></div>
+                                            <span className="text-xs font-black text-indigo-900 uppercase tracking-wider">
+                                                {phaseId === '0' ? 'Unassigned Phase' : getPhaseName(parseInt(phaseId))}
+                                            </span>
+                                            <span className="text-[10px] font-bold text-indigo-400 bg-white px-1.5 py-0.5 rounded shadow-sm">
+                                                {tasksByPhase[phaseId].length} tasks
+                                            </span>
                                         </div>
-                                        <div className="text-xs text-gray-600 font-medium">
-                                            👤 {getContractorName(t.assigned_to)}
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="flex flex-col gap-1.5">
-                                        <span className={`px-2 py-0.5 rounded border text-[9px] font-black uppercase w-fit ${getStatusColor(t.status)}`}>
-                                            {t.status}
-                                        </span>
-                                        <div className={`text-[10px] font-bold ${getPriorityColor(t.priority)}`}>
-                                            {t.priority} Priority
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4 text-right">
-                                    <div className="flex justify-end items-center gap-3 transition-opacity">
-                                        <button
-                                            onClick={() => handleQuickUploadClick(t.id)}
-                                            className="text-emerald-600 hover:text-emerald-800 font-black text-[10px] uppercase flex items-center gap-1 bg-emerald-50 px-2 py-1 rounded"
-                                        >
-                                            {uploading && pendingUploadTaskId === t.id ? '...' : '+ Upload'}
-                                        </button>
-                                        <button onClick={() => handleOpenModal(t)} className="text-indigo-600 hover:text-indigo-900 font-bold text-[10px] uppercase">Edit</button>
-                                        <button onClick={() => setTaskToDelete({ id: t.id, title: t.title })} className="text-red-500 hover:text-red-700 font-bold text-[10px] uppercase">Delete</button>
-                                    </div>
-                                </td>
-                            </tr>
+                                    </td>
+                                </tr>
+                                {tasksByPhase[phaseId].map(t => (
+                                    <tr key={t.id} className="hover:bg-gray-50 transition-colors group">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className="font-bold text-gray-900">{t.title}</div>
+                                                {t.media?.length > 0 && (
+                                                    <span title="Has Proof Images" className="text-emerald-500 text-sm">📸</span>
+                                                )}
+                                            </div>
+                                            <div className="text-[10px] text-gray-400 font-medium line-clamp-1 max-w-xs italic">
+                                                {t.description || 'No description provided'}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-col gap-1">
+                                                <div className="text-[10px] font-black text-indigo-500 uppercase tracking-tighter">
+                                                    {getPhaseName(t.phase)}
+                                                </div>
+                                                <div className="text-xs text-gray-600 font-medium">
+                                                    👤 {getContractorName(t.assigned_to)}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-col gap-1.5">
+                                                <span className={`px-2 py-0.5 rounded border text-[9px] font-black uppercase w-fit ${getStatusColor(t.status)}`}>
+                                                    {t.status}
+                                                </span>
+                                                <div className={`text-[10px] font-bold ${getPriorityColor(t.priority)}`}>
+                                                    {t.priority} Priority
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex justify-end items-center gap-3 transition-opacity">
+                                                <button
+                                                    onClick={() => handleQuickUploadClick(t.id)}
+                                                    className="text-emerald-600 hover:text-emerald-800 font-black text-[10px] uppercase flex items-center gap-1 bg-emerald-50 px-2 py-1 rounded"
+                                                >
+                                                    {uploading && pendingUploadTaskId === t.id ? '...' : '+ Upload'}
+                                                </button>
+                                                <button onClick={() => handleOpenModal(t)} className="text-indigo-600 hover:text-indigo-900 font-bold text-[10px] uppercase">Edit</button>
+                                                <button onClick={() => setTaskToDelete({ id: t.id, title: t.title })} className="text-red-500 hover:text-red-700 font-bold text-[10px] uppercase">Delete</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </React.Fragment>
                         ))}
+                        {filteredTasks.length === 0 && (
+                            <tr>
+                                <td colSpan="4" className="px-6 py-10 text-center text-gray-400 italic text-sm">No tasks found.</td>
+                            </tr>
+                        )}
                     </tbody>
                 </table>
             </div>
 
             {/* Mobile View */}
-            <div className="lg:hidden space-y-3">
-                {filteredTasks.map(t => (
-                    <div key={t.id} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm relative overflow-hidden">
-                        {t.media?.length > 0 && (
-                            <div className="absolute top-0 right-0 p-2 bg-emerald-50 text-emerald-600 rounded-bl-xl text-[8px] font-black uppercase tracking-tighter">
-                                📸 Proof attached
-                            </div>
-                        )}
-                        <div className="flex justify-between items-start mb-3">
-                            <div>
-                                <h3 className="font-bold text-gray-900">{t.title}</h3>
-                                <div className="text-[10px] font-black text-indigo-500 uppercase mt-0.5">
-                                    {getPhaseName(t.phase)}
-                                </div>
-                            </div>
-                            <span className={`px-2 py-0.5 rounded border text-[9px] font-black uppercase ${getStatusColor(t.status)}`}>
-                                {t.status}
+            <div className="lg:hidden space-y-6">
+                {sortedPhaseIds.map(phaseId => (
+                    <div key={`mobile-phase-${phaseId}`} className="space-y-3">
+                        <div className="flex items-center gap-2 sticky top-0 bg-gray-50/90 backdrop-blur-sm z-10 py-2">
+                            <div className="w-1.5 h-4 bg-indigo-500 rounded-full"></div>
+                            <h4 className="text-xs font-black text-indigo-900 uppercase tracking-wider m-0">
+                                {phaseId === '0' ? 'Unassigned Phase' : getPhaseName(parseInt(phaseId))}
+                            </h4>
+                            <span className="text-[10px] font-bold text-indigo-400 bg-white px-1.5 py-0.5 rounded shadow-sm">
+                                {tasksByPhase[phaseId].length} tasks
                             </span>
                         </div>
-                        <div className="flex justify-between items-center text-xs text-gray-500 mb-4 bg-gray-50 p-2 rounded-xl">
-                            <div>
-                                <span className="text-[9px] font-bold text-gray-400 uppercase block mb-0.5">Assigned To</span>
-                                <span className="font-bold text-gray-700">{getContractorName(t.assigned_to)}</span>
-                            </div>
-                            <div className="text-right">
-                                <span className="text-[9px] font-bold text-gray-400 uppercase block mb-0.5">Priority</span>
-                                <span className={`font-black ${getPriorityColor(t.priority)}`}>{t.priority}</span>
-                            </div>
-                        </div>
-                        <div className="flex gap-2">
-                            <button onClick={() => handleOpenModal(t)} className="flex-1 py-2 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-bold hover:bg-indigo-100">Edit</button>
-                            <button onClick={() => setTaskToDelete({ id: t.id, title: t.title })} className="px-4 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100">Delete</button>
+                        <div className="space-y-3 pl-2 border-l-2 border-indigo-100/50">
+                            {tasksByPhase[phaseId].map(t => (
+                                <div key={t.id} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm relative overflow-hidden">
+                                    {t.media?.length > 0 && (
+                                        <div className="absolute top-0 right-0 p-2 bg-emerald-50 text-emerald-600 rounded-bl-xl text-[8px] font-black uppercase tracking-tighter">
+                                            📸 Proof attached
+                                        </div>
+                                    )}
+                                    <div className="flex justify-between items-start mb-3">
+                                        <div>
+                                            <h3 className="font-bold text-gray-900">{t.title}</h3>
+                                            <div className="text-[10px] font-black text-indigo-500 uppercase mt-0.5">
+                                                {getPhaseName(t.phase)}
+                                            </div>
+                                        </div>
+                                        <span className={`px-2 py-0.5 rounded border text-[9px] font-black uppercase ${getStatusColor(t.status)}`}>
+                                            {t.status}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-xs text-gray-500 mb-4 bg-gray-50 p-2 rounded-xl">
+                                        <div>
+                                            <span className="text-[9px] font-bold text-gray-400 uppercase block mb-0.5">Assigned To</span>
+                                            <span className="font-bold text-gray-700">{getContractorName(t.assigned_to)}</span>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="text-[9px] font-bold text-gray-400 uppercase block mb-0.5">Priority</span>
+                                            <span className={`font-black ${getPriorityColor(t.priority)}`}>{t.priority}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => handleOpenModal(t)} className="flex-1 py-2 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-bold hover:bg-indigo-100">Edit</button>
+                                        <button onClick={() => setTaskToDelete({ id: t.id, title: t.title })} className="px-4 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100">Delete</button>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 ))}
+                {filteredTasks.length === 0 && (
+                    <div className="py-10 text-center text-gray-400 italic bg-white rounded-2xl border-2 border-dashed border-gray-100">
+                        No tasks found.
+                    </div>
+                )}
             </div>
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`${editingItem ? 'Edit' : 'Add'} Task`}>
