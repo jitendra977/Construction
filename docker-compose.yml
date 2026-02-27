@@ -20,8 +20,6 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      args:
-        VITE_API_URL: http://localhost:8001/api/v1
     volumes:
       - media_data:/usr/share/nginx/html/media
     ports:
