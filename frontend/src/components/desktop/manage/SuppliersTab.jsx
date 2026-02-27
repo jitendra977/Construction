@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { dashboardService } from '../../../services/api';
+import { dashboardService, getMediaUrl } from '../../../services/api';
 import Modal from '../../common/Modal';
 import { useConstruction } from '../../../context/ConstructionContext';
 
@@ -51,8 +51,21 @@ const SuppliersTab = ({ searchQuery = '' }) => {
         e.preventDefault();
         setLoading(true);
         try {
-            if (editingItem) await dashboardService.updateSupplier(editingItem.id, formData);
-            else await dashboardService.createSupplier(formData);
+            // Use FormData for file upload support
+            const data = new FormData();
+            Object.keys(formData).forEach(key => {
+                if (formData[key] !== null && formData[key] !== undefined) {
+                    if (key === 'photo' && formData[key] instanceof File) {
+                        data.append('photo', formData[key]);
+                    } else if (key !== 'photo') {
+                        data.append(key, formData[key]);
+                    }
+                }
+            });
+
+            if (editingItem) await dashboardService.updateSupplier(editingItem.id, data);
+            else await dashboardService.createSupplier(data);
+
             setIsModalOpen(false);
             refreshData();
         } catch (error) {
@@ -171,11 +184,24 @@ const SuppliersTab = ({ searchQuery = '' }) => {
                             return (
                                 <tr key={s.id} className="hover:bg-gray-50 transition-colors group">
                                     <td className="px-6 py-4">
-                                        <div className="flex flex-col gap-1">
-                                            <div className="font-bold text-gray-900 leading-tight">{s.name}</div>
-                                            <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[10px] font-bold uppercase w-fit border border-indigo-100">
-                                                {s.category || 'General'}
-                                            </span>
+                                        <div className="flex items-center gap-3">
+                                            {s.photo ? (
+                                                <img
+                                                    src={getMediaUrl(s.photo)}
+                                                    alt={s.name}
+                                                    className="w-10 h-10 rounded-full object-cover border border-indigo-100 shadow-sm"
+                                                />
+                                            ) : (
+                                                <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold border border-indigo-100 shadow-sm">
+                                                    {s.name.charAt(0)}
+                                                </div>
+                                            )}
+                                            <div className="flex flex-col gap-1">
+                                                <div className="font-bold text-gray-900 leading-tight">{s.name}</div>
+                                                <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[10px] font-bold uppercase w-fit border border-indigo-100">
+                                                    {s.category || 'General'}
+                                                </span>
+                                            </div>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
@@ -224,10 +250,23 @@ const SuppliersTab = ({ searchQuery = '' }) => {
                     return (
                         <div key={s.id} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex flex-col gap-4">
                             <div className="flex justify-between items-start">
-                                <div>
-                                    <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest px-1.5 py-0.5 bg-indigo-50 rounded leading-none mb-2 inline-block">#{s.category || 'General'}</span>
-                                    <h3 className="font-bold text-gray-900 text-base leading-tight">{s.name}</h3>
-                                    <div className="text-[10px] text-gray-500 font-medium mt-1">{s.phone}</div>
+                                <div className="flex items-center gap-3">
+                                    {s.photo ? (
+                                        <img
+                                            src={getMediaUrl(s.photo)}
+                                            alt={s.name}
+                                            className="w-10 h-10 rounded-full object-cover border border-indigo-100 shadow-sm"
+                                        />
+                                    ) : (
+                                        <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold border border-indigo-100 shadow-sm">
+                                            {s.name.charAt(0)}
+                                        </div>
+                                    )}
+                                    <div>
+                                        <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest px-1.5 py-0.5 bg-indigo-50 rounded leading-none mb-2 inline-block">#{s.category || 'General'}</span>
+                                        <h3 className="font-bold text-gray-900 text-base leading-tight">{s.name}</h3>
+                                        <div className="text-[10px] text-gray-500 font-medium mt-1">{s.phone}</div>
+                                    </div>
                                 </div>
                                 <div className="text-right">
                                     <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Total Bill</div>
@@ -381,7 +420,7 @@ const SuppliersTab = ({ searchQuery = '' }) => {
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                        <div>
+                        <div className="col-span-1">
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Email Address</label>
                             <input
                                 type="email"
@@ -391,7 +430,7 @@ const SuppliersTab = ({ searchQuery = '' }) => {
                                 placeholder="supplier@example.com"
                             />
                         </div>
-                        <div>
+                        <div className="col-span-1">
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Branch Location</label>
                             <input
                                 type="text"
@@ -399,6 +438,25 @@ const SuppliersTab = ({ searchQuery = '' }) => {
                                 onChange={e => setFormData({ ...formData, branch: e.target.value })}
                                 className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none"
                                 placeholder="Main Branch"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">Supplier Logo/Photo</label>
+                        <div className="flex items-center gap-4">
+                            {(formData.photo || editingItem?.photo) && (
+                                <img
+                                    src={formData.photo instanceof File ? URL.createObjectURL(formData.photo) : getMediaUrl(formData.photo || editingItem?.photo)}
+                                    className="w-12 h-12 rounded-full object-cover border-2 border-indigo-100"
+                                    alt="Preview"
+                                />
+                            )}
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={e => setFormData({ ...formData, photo: e.target.files[0] })}
+                                className="text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
                             />
                         </div>
                     </div>

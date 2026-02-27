@@ -7,9 +7,11 @@ class Supplier(models.Model):
     """
     name = models.CharField(max_length=200)
     contact_person = models.CharField(max_length=100, blank=True)
+    email = models.EmailField(null=True, blank=True)
     phone = models.CharField(max_length=20)
-    email = models.EmailField(blank=True)
-    address = models.TextField(blank=True)
+    address = models.TextField(null=True, blank=True)
+    photo = models.ImageField(upload_to='suppliers/', null=True, blank=True)
+    is_active = models.BooleanField(default=True)
     category = models.CharField(max_length=100, help_text="e.g., Civil Materials, Electrical, Plumbing")
     
     # Advanced Fields
@@ -59,6 +61,7 @@ class Contractor(models.Model):
     phone = models.CharField(max_length=20, blank=True)
     email = models.EmailField(blank=True)
     address = models.TextField(blank=True)
+    photo = models.ImageField(upload_to='contractors/', null=True, blank=True)
     
     # Advanced Fields
     citizenship_number = models.CharField(max_length=50, blank=True)

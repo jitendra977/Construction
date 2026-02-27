@@ -22,6 +22,8 @@ class ExpenseSerializer(serializers.ModelSerializer):
     phase_name = serializers.CharField(source='phase.name', read_only=True)
     supplier_name = serializers.CharField(source='supplier.name', read_only=True)
     contractor_name = serializers.CharField(source='contractor.name', read_only=True)
+    contractor_photo = serializers.ImageField(source='contractor.photo', read_only=True)
+    supplier_photo = serializers.ImageField(source='supplier.photo', read_only=True)
     funding_source_name = serializers.CharField(source='funding_source.name', read_only=True)
     payments = PaymentSerializer(many=True, read_only=True)
     material_transaction = serializers.SerializerMethodField()

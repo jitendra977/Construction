@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { dashboardService } from '../../../services/api';
+import { dashboardService, getMediaUrl } from '../../../services/api';
 import Modal from '../../common/Modal';
 import { useConstruction } from '../../../context/ConstructionContext';
 
@@ -51,8 +51,21 @@ const ContractorsTab = ({ searchQuery = '' }) => {
         e.preventDefault();
         setLoading(true);
         try {
-            if (editingItem) await dashboardService.updateContractor(editingItem.id, formData);
-            else await dashboardService.createContractor(formData);
+            // Use FormData for file upload support
+            const data = new FormData();
+            Object.keys(formData).forEach(key => {
+                if (formData[key] !== null && formData[key] !== undefined) {
+                    if (key === 'photo' && formData[key] instanceof File) {
+                        data.append('photo', formData[key]);
+                    } else if (key !== 'photo') {
+                        data.append(key, formData[key]);
+                    }
+                }
+            });
+
+            if (editingItem) await dashboardService.updateContractor(editingItem.id, data);
+            else await dashboardService.createContractor(data);
+
             setIsModalOpen(false);
             refreshData();
         } catch (error) {
@@ -189,9 +202,17 @@ const ContractorsTab = ({ searchQuery = '' }) => {
                                 <tr key={c.id} className="hover:bg-gray-50 transition-colors group">
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold border border-indigo-100 shadow-sm">
-                                                {c.name.charAt(0)}
-                                            </div>
+                                            {c.photo ? (
+                                                <img
+                                                    src={getMediaUrl(c.photo)}
+                                                    alt={c.name}
+                                                    className="w-10 h-10 rounded-full object-cover border border-indigo-100 shadow-sm"
+                                                />
+                                            ) : (
+                                                <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold border border-indigo-100 shadow-sm">
+                                                    {c.name.charAt(0)}
+                                                </div>
+                                            )}
                                             <div>
                                                 <div className="font-bold text-gray-900">{c.name}</div>
                                                 <div className="text-[10px] text-gray-400 font-medium uppercase truncate max-w-[150px]">
@@ -252,9 +273,17 @@ const ContractorsTab = ({ searchQuery = '' }) => {
                         <div key={c.id} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex flex-col gap-4">
                             <div className="flex justify-between items-start">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold border border-indigo-100">
-                                        {c.name.charAt(0)}
-                                    </div>
+                                    {c.photo ? (
+                                        <img
+                                            src={getMediaUrl(c.photo)}
+                                            alt={c.name}
+                                            className="w-10 h-10 rounded-full object-cover border border-indigo-100"
+                                        />
+                                    ) : (
+                                        <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold border border-indigo-100">
+                                            {c.name.charAt(0)}
+                                        </div>
+                                    )}
                                     <div>
                                         <div className="flex items-center gap-2 mb-0.5">
                                             <h3 className="font-bold text-gray-900 text-base leading-tight">{c.name}</h3>
@@ -396,6 +425,24 @@ const ContractorsTab = ({ searchQuery = '' }) => {
                                 onChange={e => setFormData({ ...formData, rate: e.target.value })}
                                 className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none"
                                 placeholder="e.g. 1500"
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">Contractor Photo</label>
+                        <div className="flex items-center gap-4">
+                            {(formData.photo || editingItem?.photo) && (
+                                <img
+                                    src={formData.photo instanceof File ? URL.createObjectURL(formData.photo) : getMediaUrl(formData.photo || editingItem?.photo)}
+                                    className="w-12 h-12 rounded-full object-cover border-2 border-indigo-100"
+                                    alt="Preview"
+                                />
+                            )}
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={e => setFormData({ ...formData, photo: e.target.files[0] })}
+                                className="text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
                             />
                         </div>
                     </div>

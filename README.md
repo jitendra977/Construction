@@ -45,68 +45,30 @@ Construction/
 └── docker-compose.dev.yml  # Development compose
 ```
 
-## 🚀 Quick Start
+## 📚 Project Documentation
 
-### Prerequisites
-- Docker and Docker Compose installed
-- Git installed
+Access the complete project documentation here:
 
-### Development Setup
+| Category | Document | Description |
+| :--- | :--- | :--- |
+| **🚀 Getting Started** | [Local Setup Guide](file:///Volumes/Programming/FINAL-PROJECT/FULL-STACK/Construction/docs/local_setup.md) | Quickly start local development |
+| **💻 Dev Server** | [Detailed Server Guide](file:///Volumes/Programming/FINAL-PROJECT/FULL-STACK/Construction/docs/dev_server.md) | In-depth setup (Native & Docker) |
+| **☁️ Cloud** | [Cloud Deployment](file:///Volumes/Programming/FINAL-PROJECT/FULL-STACK/Construction/docs/cloud_setup.md) | Deploy to production |
+| **🐍 Backend** | [Backend README](file:///Volumes/Programming/FINAL-PROJECT/FULL-STACK/Construction/backend/README.md) | Django structure & stack |
+| **⚛️ Frontend** | [Frontend README](file:///Volumes/Programming/FINAL-PROJECT/FULL-STACK/Construction/frontend/README.md) | React structure & stack |
+| **📊 Roadmap** | [Project Task List](file:///Volumes/Programming/FINAL-PROJECT/FULL-STACK/Construction/docs/task.md) | Feature tracking & progress |
+| **✨ Walkthrough** | [Feature Walkthrough](file:///Volumes/Programming/FINAL-PROJECT/FULL-STACK/Construction/docs/walkthrough.md) | Visual proof of work |
 
-1. **Clone the repository** (if using Git)
-   ```bash
-   git clone <repository-url>
-   cd Construction
-   ```
+---
 
-2. **Set up environment variables**
-   
-   Backend:
-   ```bash
-   cd backend
-   cp .env.example .env
-   # Edit .env with your settings
-   cd ..
-   ```
-   
-   Frontend:
-   ```bash
-   cd frontend
-   cp .env.example .env
-   # Edit .env with your settings
-   cd ..
-   ```
+## 🚀 Quick Start (Development)
 
-3. **Start the development servers**
-   ```bash
-   docker-compose -f docker-compose.dev.yml up --build
-   ```
+The fastest way to start is with the optimized development environment:
 
-4. **Create a superuser** (in a new terminal)
-   ```bash
-   docker-compose -f docker-compose.dev.yml exec backend python manage.py createsuperuser
-   ```
-
-5. **Access the application**
-   - Frontend: http://localhost:5173
-   - Backend API: http://localhost:8000/api
-   - Django Admin: http://localhost:8000/admin
-
-### Production Setup
-
-1. **Build and start production containers**
-   ```bash
-   docker-compose up --build -d
-   ```
-
-2. **Create a superuser**
-   ```bash
-   docker-compose exec backend python manage.py createsuperuser
-   ```
-
-3. **Access the application**
-   - Frontend: http://localhost
-   - Backend API: http://localhost:8000/api
+```bash
+docker compose -f docker-compose.dev.yml up -d --build
+```
+> **URLs**: Frontend: `5173`, Backend: `8000`. See [Local Setup Guide](file:///Volumes/Programming/FINAL-PROJECT/FULL-STACK/Construction/docs/local_setup.md) for details.
 
 ## 🔧 Development Without Docker
 

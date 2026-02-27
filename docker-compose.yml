@@ -8,10 +8,9 @@ services:
     volumes:
       - media_data:/app/media
     ports:
-      - "8001:8000" # Reverted to 8001 for cloud compatibility
+      - "8001:8000" # Production port
     env_file:
       - ./backend/.env
-    # db is external (mysql_db) on 'app-network'
     networks:
       - construction_network
       - app_network
@@ -25,7 +24,7 @@ services:
     volumes:
       - media_data:/usr/share/nginx/html/media
     ports:
-      - "8080:80" # Changed to 8080 to avoid conflict with Proxy Manager on port 80
+      - "8080:80" # Production port
     depends_on:
       - backend
     networks:

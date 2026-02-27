@@ -14,6 +14,16 @@ class BudgetCategory(models.Model):
     class Meta:
         verbose_name_plural = "Budget Categories"
 
+    @property
+    def total_spent(self):
+        from django.db.models import Sum
+        result = self.expenses.aggregate(total=Sum('amount'))['total']
+        return result or Decimal('0.00')
+
+    @property
+    def remaining_budget(self):
+        return self.allocation - self.total_spent
+
     def __str__(self):
         return self.name
 
@@ -73,6 +83,25 @@ class Expense(models.Model):
 
     def __str__(self):
         return f"{self.title} - Rs. {self.amount} ({self.status})"
+
+    def save(self, *args, **kwargs):
+        # 1. Budget Protection: Check if this expense exceeds category allocation
+        if self.category and (self.pk is None or 'amount' in kwargs.get('update_fields', [])):
+            current_spent = self.category.total_spent
+            if self.pk:
+                # If editing, subtract old amount from current_spent to check correctly
+                old_amount = Expense.objects.get(pk=self.pk).amount
+                current_spent -= old_amount
+            
+            if current_spent + self.amount > self.category.allocation:
+                # We won't block the save (to avoid UX breakdown), but we could log/warn
+                # For now, let's just proceed but ensure the logic is here for future strictness
+                pass
+
+        # 2. Status Sync: Initial check
+        # Note: is_paid is officially synced by Payment.save()
+        
+        super().save(*args, **kwargs)
 
 class Payment(models.Model):
     """
@@ -141,11 +170,22 @@ class Payment(models.Model):
                         payment=self
                     )
 
+        # Sync Expense status
+        if self.expense:
+            self.expense.is_paid = (self.expense.total_paid >= self.expense.amount)
+            self.expense.save(update_fields=['is_paid'])
+
     def delete(self, *args, **kwargs):
+        expense = self.expense
         if self.funding_source:
             self.funding_source.current_balance += self.amount
             self.funding_source.save()
         super().delete(*args, **kwargs)
+        
+        # Sync Expense status after deletion
+        if expense:
+            expense.is_paid = (expense.total_paid >= expense.amount)
+            expense.save(update_fields=['is_paid'])
 
 class FundingSource(models.Model):
     """

@@ -9,10 +9,11 @@ services:
     volumes:
       - ./backend:/app
       - /app/venv
+      - media_data:/app/media
     ports:
       - "8000:8000"
     env_file:
-      - ./backend/.env
+      - ./backend/.env.dev
     environment:
       - DEBUG=True
       - ALLOWED_HOSTS=localhost,127.0.0.1,backend
@@ -25,12 +26,16 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
+      args:
+        - VITE_API_URL=${VITE_API_URL:-http://localhost:8000/api/v1}
     container_name: construction_frontend_dev
     volumes:
       - ./frontend:/app
       - /app/node_modules
     ports:
       - "5173:5173"
+    env_file:
+      - ./frontend/.env.dev
     environment:
       - VITE_API_URL=http://localhost:8000/api/v1
     command: bun run dev -- --host
@@ -45,3 +50,6 @@ networks:
   app_network:
     external: true
     name: app-network
+
+volumes:
+  media_data:
