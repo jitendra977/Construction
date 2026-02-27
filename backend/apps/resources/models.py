@@ -21,6 +21,18 @@ class Supplier(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    @property
+    def total_billed(self):
+        return sum(exp.amount for exp in self.expenses.all())
+
+    @property
+    def total_paid(self):
+        return sum(exp.total_paid for exp in self.expenses.all())
+
+    @property
+    def balance_due(self):
+        return self.total_billed - self.total_paid
+
     def __str__(self):
         return self.name
 
@@ -57,6 +69,18 @@ class Contractor(models.Model):
     is_active = models.BooleanField(default=True)
     
     joined_date = models.DateField(auto_now_add=True)
+
+    @property
+    def total_amount(self):
+        return sum(exp.amount for exp in self.expenses.all())
+
+    @property
+    def total_paid(self):
+        return sum(exp.total_paid for exp in self.expenses.all())
+
+    @property
+    def balance_due(self):
+        return self.total_amount - self.total_paid
 
     def __str__(self):
         return f"{self.name} - {self.get_role_display()}"

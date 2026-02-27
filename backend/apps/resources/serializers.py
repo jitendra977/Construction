@@ -2,10 +2,19 @@ from rest_framework import serializers
 from .models import Contractor, Material, Document, Supplier, MaterialTransaction
 
 class SupplierSerializer(serializers.ModelSerializer):
+    total_billed = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    total_paid = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    balance_due = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+
     class Meta:
         model = Supplier
         fields = '__all__'
+
 class ContractorSerializer(serializers.ModelSerializer):
+    total_amount = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    total_paid = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    balance_due = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+
     class Meta:
         model = Contractor
         fields = '__all__'
