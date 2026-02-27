@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { constructionService, getMediaUrl } from '../../../services/api';
 import Modal from '../../common/Modal';
 import { useConstruction } from '../../../context/ConstructionContext';
+import TaskPreviewModal from './TaskPreviewModal';
 
 const TasksTab = ({ searchQuery = '' }) => {
     const { dashboardData, refreshData } = useConstruction();
@@ -15,6 +16,7 @@ const TasksTab = ({ searchQuery = '' }) => {
     const [mediaToDelete, setMediaToDelete] = useState(null);
     const [phaseFilter, setPhaseFilter] = useState('');
     const [contractorFilter, setContractorFilter] = useState('');
+    const [previewTask, setPreviewTask] = useState(null);
     const fileInputRef = useRef(null);
     const quickFileInputRef = useRef(null);
 
@@ -89,7 +91,8 @@ const TasksTab = ({ searchQuery = '' }) => {
         }
     };
 
-    const handleQuickUploadClick = (taskId) => {
+    const handleQuickUploadClick = (e, taskId) => {
+        e.stopPropagation();
         setPendingUploadTaskId(taskId);
         quickFileInputRef.current?.click();
     };
@@ -211,15 +214,15 @@ const TasksTab = ({ searchQuery = '' }) => {
                                     </td>
                                 </tr>
                                 {tasksByPhase[phaseId].map(t => (
-                                    <tr key={t.id} className="hover:bg-gray-50 transition-colors group">
+                                    <tr key={t.id} onClick={() => setPreviewTask(t)} className="hover:bg-gray-50 transition-colors group cursor-pointer">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-2">
-                                                <div className="font-bold text-gray-900">{t.title}</div>
+                                                <div className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">{t.title}</div>
                                                 {t.media?.length > 0 && (
                                                     <span title="Has Proof Images" className="text-emerald-500 text-sm">📸</span>
                                                 )}
                                             </div>
-                                            <div className="text-[10px] text-gray-400 font-medium line-clamp-1 max-w-xs italic">
+                                            <div className="text-[10px] text-gray-400 font-medium line-clamp-1 max-w-xs italic mt-0.5">
                                                 {t.description || 'No description provided'}
                                             </div>
                                         </td>
@@ -246,13 +249,13 @@ const TasksTab = ({ searchQuery = '' }) => {
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex justify-end items-center gap-3 transition-opacity">
                                                 <button
-                                                    onClick={() => handleQuickUploadClick(t.id)}
+                                                    onClick={(e) => handleQuickUploadClick(e, t.id)}
                                                     className="text-emerald-600 hover:text-emerald-800 font-black text-[10px] uppercase flex items-center gap-1 bg-emerald-50 px-2 py-1 rounded"
                                                 >
                                                     {uploading && pendingUploadTaskId === t.id ? '...' : '+ Upload'}
                                                 </button>
-                                                <button onClick={() => handleOpenModal(t)} className="text-indigo-600 hover:text-indigo-900 font-bold text-[10px] uppercase">Edit</button>
-                                                <button onClick={() => setTaskToDelete({ id: t.id, title: t.title })} className="text-red-500 hover:text-red-700 font-bold text-[10px] uppercase">Delete</button>
+                                                <button onClick={(e) => { e.stopPropagation(); handleOpenModal(t); }} className="text-indigo-600 hover:text-indigo-900 font-bold text-[10px] uppercase">Edit</button>
+                                                <button onClick={(e) => { e.stopPropagation(); setTaskToDelete({ id: t.id, title: t.title }); }} className="text-red-500 hover:text-red-700 font-bold text-[10px] uppercase">Delete</button>
                                             </div>
                                         </td>
                                     </tr>
@@ -283,7 +286,7 @@ const TasksTab = ({ searchQuery = '' }) => {
                         </div>
                         <div className="space-y-3 pl-2 border-l-2 border-indigo-100/50">
                             {tasksByPhase[phaseId].map(t => (
-                                <div key={t.id} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm relative overflow-hidden">
+                                <div key={t.id} onClick={() => setPreviewTask(t)} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm relative overflow-hidden cursor-pointer hover:border-indigo-100 transition-colors group">
                                     {t.media?.length > 0 && (
                                         <div className="absolute top-0 right-0 p-2 bg-emerald-50 text-emerald-600 rounded-bl-xl text-[8px] font-black uppercase tracking-tighter">
                                             📸 Proof attached
@@ -291,7 +294,7 @@ const TasksTab = ({ searchQuery = '' }) => {
                                     )}
                                     <div className="flex justify-between items-start mb-3">
                                         <div>
-                                            <h3 className="font-bold text-gray-900">{t.title}</h3>
+                                            <h3 className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">{t.title}</h3>
                                             <div className="text-[10px] font-black text-indigo-500 uppercase mt-0.5">
                                                 {getPhaseName(t.phase)}
                                             </div>
@@ -310,9 +313,9 @@ const TasksTab = ({ searchQuery = '' }) => {
                                             <span className={`font-black ${getPriorityColor(t.priority)}`}>{t.priority}</span>
                                         </div>
                                     </div>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => handleOpenModal(t)} className="flex-1 py-2 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-bold hover:bg-indigo-100">Edit</button>
-                                        <button onClick={() => setTaskToDelete({ id: t.id, title: t.title })} className="px-4 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100">Delete</button>
+                                    <div className="flex gap-2 relative z-10">
+                                        <button onClick={(e) => { e.stopPropagation(); handleOpenModal(t); }} className="flex-1 py-2 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-bold hover:bg-indigo-100">Edit</button>
+                                        <button onClick={(e) => { e.stopPropagation(); setTaskToDelete({ id: t.id, title: t.title }); }} className="px-4 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100">Delete</button>
                                     </div>
                                 </div>
                             ))}
@@ -510,6 +513,12 @@ const TasksTab = ({ searchQuery = '' }) => {
                     </div>
                 </div>
             )}
+
+            <TaskPreviewModal
+                isOpen={!!previewTask}
+                onClose={() => setPreviewTask(null)}
+                task={previewTask}
+            />
         </div>
     );
 };
