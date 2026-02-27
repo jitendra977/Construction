@@ -18,8 +18,7 @@ node_modules/
 dist/
 
 # Environment
-.env
-.env.local
+.env*
 
 # IDEs
 .vscode/
