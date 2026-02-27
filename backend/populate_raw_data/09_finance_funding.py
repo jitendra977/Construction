@@ -24,7 +24,13 @@ def populate():
         if created:
             print(f"Created funding source: {source.name}")
         else:
-            print(f"Funding source {source.name} already exists")
+            source.source_type = s_data['type']
+            source.amount = Decimal(str(s_data['amount']))
+            source.received_date = s_data['date']
+            source.interest_rate = Decimal(str(s_data.get('interest', 0.00)))
+            source.default_payment_method = 'BANK_TRANSFER' if s_data['type'] == 'LOAN' else 'CASH'
+            source.save()
+            print(f"Updated funding source: {source.name}")
 
 if __name__ == '__main__':
     populate()
