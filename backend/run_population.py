@@ -10,7 +10,7 @@ django.setup()
 
 def run_all():
     script_names = [
-        '01_accounts', '02_core_project', '03_core_phases', '04_core_floors_rooms',
+        '00_cleanup', '01_accounts', '02_core_project', '03_core_phases', '04_core_floors_rooms',
         '05_resources_suppliers', '06_resources_contractors', '07_resources_materials',
         '08_finance_categories', '09_finance_funding', '10_tasks',
         '11_finance_expenses', '12_permits'
