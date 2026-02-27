@@ -8,32 +8,33 @@ def populate():
     from apps.tasks.models import Task, TaskMedia, TaskUpdate
     from apps.permits.models import PermitStep, LegalDocument
     
-    from django.db import transaction, connection
+    from django.db import connection
     
-    print("Cleaning up old data...")
+    print("Cleaning up old data (Aggressive Reset)...")
     
-    models_to_clean = [
-        TaskUpdate, TaskMedia, Task,
-        MaterialTransaction, Expense, Payment, FundingTransaction, FundingSource, BudgetCategory,
-        Material, Supplier, Contractor,
-        Room, Floor, ConstructionPhase, HouseProject,
-        PermitStep, LegalDocument, Document
+    tables_to_clean = [
+        'tasks_taskupdate', 'tasks_taskmedia', 'tasks_task',
+        'resources_materialtransaction', 'finance_payment', 'finance_fundingtransaction',
+        'finance_expense', 'finance_fundingsource', 'finance_budgetcategory',
+        'resources_material', 'resources_supplier', 'resources_contractor',
+        'core_room', 'core_floor', 'core_constructionphase', 'core_houseproject',
+        'permits_permitstep', 'permits_legaldocument', 'resources_document'
     ]
     
-    with transaction.atomic():
-        for model in models_to_clean:
-            count = model.objects.all().count()
-            if count > 0:
-                print(f"Deleting {count} records from {model.__name__}...")
-                model.objects.all().delete()
-                # Double check
-                remaining = model.objects.all().count()
-                if remaining > 0:
-                    print(f"Warning: {remaining} records remain in {model.__name__}. Trying raw SQL...")
-                    with connection.cursor() as cursor:
-                        table_name = model._meta.db_table
-                        cursor.execute(f"DELETE FROM {table_name}")
-                    print(f"Now {model.objects.all().count()} records remain.")
+    with connection.cursor() as cursor:
+        print("Disabling foreign key checks...")
+        cursor.execute("SET FOREIGN_KEY_CHECKS = 0;")
+        
+        for table in tables_to_clean:
+            print(f"Truncating table {table}...")
+            try:
+                cursor.execute(f"TRUNCATE TABLE {table};")
+            except Exception as e:
+                print(f"Truncate failed for {table}, trying DELETE. Error: {e}")
+                cursor.execute(f"DELETE FROM {table};")
+        
+        print("Enabling foreign key checks...")
+        cursor.execute("SET FOREIGN_KEY_CHECKS = 1;")
 
     print("Cleanup complete.")
 
