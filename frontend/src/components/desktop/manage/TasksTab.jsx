@@ -10,9 +10,11 @@ const TasksTab = ({ searchQuery = '' }) => {
     const [formData, setFormData] = useState({});
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
+    const [pendingUploadTaskId, setPendingUploadTaskId] = useState(null);
     const [phaseFilter, setPhaseFilter] = useState('');
     const [contractorFilter, setContractorFilter] = useState('');
     const fileInputRef = useRef(null);
+    const quickFileInputRef = useRef(null);
 
     const filteredTasks = (dashboardData.tasks || []).filter(t => {
         const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -46,13 +48,14 @@ const TasksTab = ({ searchQuery = '' }) => {
         }
     };
 
-    const handleFileUpload = async (e) => {
+    const handleFileUpload = async (e, taskId = null) => {
         const file = e.target.files[0];
-        if (!file || !editingItem) return;
+        const targetTaskId = taskId || editingItem?.id || pendingUploadTaskId;
+        if (!file || !targetTaskId) return;
 
         setUploading(true);
         const uploadData = new FormData();
-        uploadData.append('task', editingItem.id);
+        uploadData.append('task', targetTaskId);
         uploadData.append('file', file);
         uploadData.append('media_type', 'IMAGE');
 
@@ -63,8 +66,15 @@ const TasksTab = ({ searchQuery = '' }) => {
             alert('Upload failed.');
         } finally {
             setUploading(false);
+            setPendingUploadTaskId(null);
             if (fileInputRef.current) fileInputRef.current.value = '';
+            if (quickFileInputRef.current) quickFileInputRef.current.value = '';
         }
+    };
+
+    const handleQuickUploadClick = (taskId) => {
+        setPendingUploadTaskId(taskId);
+        quickFileInputRef.current?.click();
     };
 
     const handleDeleteMedia = async (mediaId) => {
@@ -146,6 +156,14 @@ const TasksTab = ({ searchQuery = '' }) => {
                 </button>
             </div>
 
+            <input
+                type="file"
+                ref={quickFileInputRef}
+                onChange={(e) => handleFileUpload(e)}
+                accept="image/*"
+                className="hidden"
+            />
+
             {/* Desktop View */}
             <div className="hidden lg:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <table className="w-full text-left border-collapse">
@@ -192,7 +210,13 @@ const TasksTab = ({ searchQuery = '' }) => {
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 text-right">
-                                    <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="flex justify-end items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button
+                                            onClick={() => handleQuickUploadClick(t.id)}
+                                            className="text-emerald-600 hover:text-emerald-800 font-black text-[10px] uppercase flex items-center gap-1 bg-emerald-50 px-2 py-1 rounded"
+                                        >
+                                            {uploading && pendingUploadTaskId === t.id ? '...' : '+ Upload'}
+                                        </button>
                                         <button onClick={() => handleOpenModal(t)} className="text-indigo-600 hover:text-indigo-900 font-bold text-[10px] uppercase">Edit</button>
                                         <button onClick={() => handleDelete(t.id)} className="text-red-500 hover:text-red-700 font-bold text-[10px] uppercase">Delete</button>
                                     </div>
