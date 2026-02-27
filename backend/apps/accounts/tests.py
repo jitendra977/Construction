@@ -1,7 +1,9 @@
 from django.test import TestCase
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from rest_framework import status
+
+User = get_user_model()
 
 
 class AuthenticationTestCase(TestCase):
@@ -17,7 +19,7 @@ class AuthenticationTestCase(TestCase):
     
     def test_login_success(self):
         """Test successful login"""
-        response = self.client.post('/api/accounts/login/', {
+        response = self.client.post('/api/v1/auth/login/', {
             'username': 'testuser',
             'password': 'testpass123'
         })
@@ -28,7 +30,7 @@ class AuthenticationTestCase(TestCase):
     
     def test_login_invalid_credentials(self):
         """Test login with invalid credentials"""
-        response = self.client.post('/api/accounts/login/', {
+        response = self.client.post('/api/v1/auth/login/', {
             'username': 'testuser',
             'password': 'wrongpassword'
         })
@@ -37,7 +39,7 @@ class AuthenticationTestCase(TestCase):
     def test_user_profile(self):
         """Test getting user profile"""
         # Login first
-        login_response = self.client.post('/api/accounts/login/', {
+        login_response = self.client.post('/api/v1/auth/login/', {
             'username': 'testuser',
             'password': 'testpass123'
         })
@@ -45,6 +47,6 @@ class AuthenticationTestCase(TestCase):
         
         # Get profile
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
-        response = self.client.get('/api/accounts/profile/')
+        response = self.client.get('/api/v1/auth/profile/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['username'], 'testuser')
