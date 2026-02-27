@@ -19,7 +19,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useConstruction } from '../../../context/ConstructionContext';
 
-const SortableCard = ({ phase, onEdit, onDelete }) => {
+const SortableCard = ({ phase, tasks = [], onEdit, onDelete }) => {
     const {
         attributes,
         listeners,
@@ -72,6 +72,32 @@ const SortableCard = ({ phase, onEdit, onDelete }) => {
                 </div>
             </div>
 
+            {/* Associated Tasks Section */}
+            <div className="mb-4 bg-indigo-50/30 rounded-xl p-3 border border-indigo-100/50">
+                <div className="flex justify-between items-center mb-2">
+                    <h4 className="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
+                        <span>🔧</span> Tasks ({tasks.length})
+                    </h4>
+                </div>
+                {tasks.length > 0 ? (
+                    <div className="space-y-1.5">
+                        {tasks.map(task => (
+                            <div key={task.id} className="flex items-center justify-between bg-white/60 p-2 rounded-lg text-[11px]">
+                                <span className="font-bold text-gray-700 truncate mr-2">{task.title}</span>
+                                <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase ${task.status === 'COMPLETED' ? 'bg-green-100 text-green-600' :
+                                        task.status === 'IN_PROGRESS' ? 'bg-indigo-100 text-indigo-600' :
+                                            'bg-gray-200 text-gray-500'
+                                    }`}>
+                                    {task.status === 'IN_PROGRESS' ? 'Active' : task.status}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-[10px] text-gray-400 italic">No tasks assigned yet.</p>
+                )}
+            </div>
+
             <div className="flex gap-2">
                 <button
                     onClick={() => onEdit(phase)}
@@ -90,7 +116,7 @@ const SortableCard = ({ phase, onEdit, onDelete }) => {
     );
 };
 
-const SortableRow = ({ phase, onEdit, onDelete }) => {
+const SortableRow = ({ phase, tasks = [], onEdit, onDelete }) => {
     const {
         attributes,
         listeners,
@@ -118,9 +144,28 @@ const SortableRow = ({ phase, onEdit, onDelete }) => {
                     <span className="font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded text-xs">{phase.order}</span>
                 </div>
             </td>
-            <td className="px-6 py-4 text-gray-700 font-semibold">{phase.name}</td>
             <td className="px-6 py-4">
-                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${phase.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                <div className="text-gray-700 font-bold">{phase.name}</div>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                    {tasks.length > 0 ? (
+                        tasks.slice(0, 3).map(task => (
+                            <div key={task.id} className="flex items-center gap-1.5 bg-gray-100/80 px-2 py-1 rounded-md text-[10px] font-bold text-gray-500 whitespace-nowrap">
+                                <span className={task.status === 'COMPLETED' ? 'text-green-500' : 'text-indigo-400'}>●</span>
+                                {task.title}
+                            </div>
+                        ))
+                    ) : (
+                        <span className="text-[10px] text-gray-400 font-medium italic">No tasks</span>
+                    )}
+                    {tasks.length > 3 && (
+                        <div className="bg-indigo-50 px-2 py-1 rounded-md text-[10px] font-black text-indigo-600">
+                            +{tasks.length - 3} MORE
+                        </div>
+                    )}
+                </div>
+            </td>
+            <td className="px-6 py-4 text-xs font-bold">
+                <span className={`px-2.5 py-1 rounded-full uppercase ${phase.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
                     phase.status === 'IN_PROGRESS' ? 'bg-indigo-100 text-indigo-700' :
                         phase.status === 'HALTED' ? 'bg-red-100 text-red-700' :
                             'bg-gray-100 text-gray-500'
@@ -128,10 +173,10 @@ const SortableRow = ({ phase, onEdit, onDelete }) => {
                     {phase.status}
                 </span>
             </td>
-            <td className="px-6 py-4 font-bold text-gray-900 text-sm">Rs. {Number(phase.estimated_budget).toLocaleString()}</td>
+            <td className="px-6 py-4 font-black text-gray-900 text-sm">Rs. {Number(phase.estimated_budget).toLocaleString()}</td>
             <td className="px-6 py-4 text-right space-x-3">
-                <button onClick={() => onEdit(phase)} className="text-indigo-600 hover:text-indigo-900 font-semibold text-sm">Edit</button>
-                <button onClick={() => onDelete(phase.id)} className="text-red-600 hover:text-red-900 font-semibold text-sm">Delete</button>
+                <button onClick={() => onEdit(phase)} className="text-indigo-600 hover:text-indigo-900 font-bold text-xs uppercase tracking-widest">Edit</button>
+                <button onClick={() => onDelete(phase.id)} className="text-red-500 hover:text-red-700 font-bold text-xs uppercase tracking-widest">Delete</button>
             </td>
         </tr>
     );
@@ -229,7 +274,13 @@ const PhasesTab = ({ searchQuery = '' }) => {
                         <tbody className="divide-y divide-gray-50">
                             <SortableContext items={filteredPhases.map(p => p.id)} strategy={verticalListSortingStrategy}>
                                 {filteredPhases.map(p => (
-                                    <SortableRow key={p.id} phase={p} onEdit={handleOpenModal} onDelete={handleDelete} />
+                                    <SortableRow
+                                        key={p.id}
+                                        phase={p}
+                                        tasks={dashboardData.tasks?.filter(t => t.phase === p.id) || []}
+                                        onEdit={handleOpenModal}
+                                        onDelete={handleDelete}
+                                    />
                                 ))}
                             </SortableContext>
                             {filteredPhases.length === 0 && (
@@ -245,7 +296,13 @@ const PhasesTab = ({ searchQuery = '' }) => {
                 <div className="lg:hidden">
                     <SortableContext items={filteredPhases.map(p => p.id)} strategy={verticalListSortingStrategy}>
                         {filteredPhases.map(p => (
-                            <SortableCard key={p.id} phase={p} onEdit={handleOpenModal} onDelete={handleDelete} />
+                            <SortableCard
+                                key={p.id}
+                                phase={p}
+                                tasks={dashboardData.tasks?.filter(t => t.phase === p.id) || []}
+                                onEdit={handleOpenModal}
+                                onDelete={handleDelete}
+                            />
                         ))}
                     </SortableContext>
                     {filteredPhases.length === 0 && (
