@@ -11,6 +11,7 @@ import MaterialsTab from './manage/MaterialsTab';
 import StockTab from './manage/StockTab';
 import FundingTab from './manage/FundingTab';
 import TasksTab from './manage/TasksTab';
+import PaymentsTab from './manage/PaymentsTab';
 
 const DesktopManage = () => {
     const { dashboardData } = useConstruction();
@@ -42,6 +43,7 @@ const DesktopManage = () => {
                 { id: 'funding', label: 'Funding (लगानी)' },
                 { id: 'categories', label: 'Categories (शिर्षक)' },
                 { id: 'expenses', label: 'Expenses (खर्च)' },
+                { id: 'payments', label: 'Payments (भुक्तानी)' },
             ]
         },
         {
@@ -180,6 +182,7 @@ const DesktopManage = () => {
                                 {activeTab === 'categories' && <CategoriesTab searchQuery={searchQuery} />}
                                 {activeTab === 'expenses' && <ExpensesTab searchQuery={searchQuery} />}
                                 {activeTab === 'funding' && <FundingTab searchQuery={searchQuery} />}
+                                {activeTab === 'payments' && <PaymentsTab searchQuery={searchQuery} />}
                             </>
                         )}
 

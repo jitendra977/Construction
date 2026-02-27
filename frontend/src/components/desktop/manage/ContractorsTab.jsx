@@ -11,13 +11,14 @@ const ContractorsTab = ({ searchQuery = '' }) => {
     const [loading, setLoading] = useState(false);
 
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
     const [activeContractor, setActiveContractor] = useState(null);
     const [paymentFormData, setPaymentFormData] = useState({
-        amount: '',
         date: new Date().toISOString().split('T')[0],
         method: 'CASH',
         reference_id: '',
-        funding_source: ''
+        funding_source: '',
+        notes: ''
     });
 
     const filteredContractors = dashboardData.contractors?.filter(c =>
@@ -68,9 +69,30 @@ const ContractorsTab = ({ searchQuery = '' }) => {
             date: new Date().toISOString().split('T')[0],
             method: 'CASH',
             reference_id: '',
-            funding_source: ''
+            funding_source: '',
+            notes: ''
         });
         setIsPaymentModalOpen(true);
+    };
+
+    const handleOpenHistoryModal = (contractor) => {
+        setActiveContractor(contractor);
+        setIsHistoryModalOpen(true);
+    };
+
+    const getContractorHistory = (contractorId) => {
+        if (!contractorId || !dashboardData?.expenses) return [];
+        let history = [];
+        const contractorExpenses = dashboardData.expenses.filter(exp => exp.contractor === contractorId && exp.balance_due !== undefined);
+        contractorExpenses.forEach(exp => {
+            history.push({ id: `exp-${exp.id}`, date: exp.date, type: 'BILL', title: exp.title, amount: exp.amount, status: exp.status, notes: exp.notes });
+            if (exp.payments && exp.payments.length > 0) {
+                exp.payments.forEach(payment => {
+                    history.push({ id: `pay-${payment.id}`, date: payment.date, type: 'PAYMENT', title: `Payment: ${exp.title}`, amount: payment.amount, method: payment.method, notes: payment.notes });
+                });
+            }
+        });
+        return history.sort((a, b) => new Date(b.date) - new Date(a.date));
     };
 
     const handlePaymentSubmit = async (e) => {
@@ -111,7 +133,8 @@ const ContractorsTab = ({ searchQuery = '' }) => {
                 amount: parseFloat(paymentFormData.amount),
                 date: paymentFormData.date,
                 method: paymentFormData.method,
-                reference_id: paymentFormData.reference_id
+                reference_id: paymentFormData.reference_id,
+                notes: paymentFormData.notes
             });
 
             setIsPaymentModalOpen(false);
@@ -204,6 +227,7 @@ const ContractorsTab = ({ searchQuery = '' }) => {
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button onClick={() => handleOpenPaymentModal(c)} className="text-green-600 hover:text-green-900 font-bold text-[10px] uppercase tracking-wider bg-green-50 hover:bg-green-100 px-2 py-1 rounded">Pay</button>
+                                            <button onClick={() => handleOpenHistoryModal(c)} className="text-blue-600 hover:text-blue-900 font-bold text-[10px] uppercase tracking-wider bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded">History</button>
                                             <button onClick={() => handleOpenModal(c)} className="text-indigo-600 hover:text-indigo-900 font-bold text-[10px] uppercase tracking-wider">Edit</button>
                                             <button onClick={() => handleDelete(c.id)} className="text-red-500 hover:text-red-700 font-bold text-[10px] uppercase tracking-wider">Delete</button>
                                         </div>
@@ -269,9 +293,13 @@ const ContractorsTab = ({ searchQuery = '' }) => {
                             </div>
 
                             <div className="grid grid-cols-2 gap-3 pb-3 border-b border-gray-100 mb-3">
-                                <button onClick={() => handleOpenPaymentModal(c)} className="col-span-2 py-2.5 bg-green-50 text-green-700 rounded-xl text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-all border border-green-200">
+                                <button onClick={() => handleOpenPaymentModal(c)} className="col-span-1 py-2.5 bg-green-50 text-green-700 rounded-xl text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-all border border-green-200">
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                    Pay Contractor
+                                    Pay
+                                </button>
+                                <button onClick={() => handleOpenHistoryModal(c)} className="col-span-1 py-2.5 bg-blue-50 text-blue-700 rounded-xl text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-all border border-blue-200">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                    History
                                 </button>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
@@ -472,6 +500,15 @@ const ContractorsTab = ({ searchQuery = '' }) => {
                                     placeholder="Txn ID / Check #"
                                 />
                             </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-1">Remarks / Notes</label>
+                                <textarea
+                                    value={paymentFormData.notes}
+                                    onChange={e => setPaymentFormData({ ...paymentFormData, notes: e.target.value })}
+                                    className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none min-h-[80px]"
+                                    placeholder="Optional payment remarks..."
+                                />
+                            </div>
                         </div>
                         <div className="flex justify-end gap-3 mt-8">
                             <button type="button" onClick={() => setIsPaymentModalOpen(false)} className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700">Cancel</button>
@@ -481,6 +518,48 @@ const ContractorsTab = ({ searchQuery = '' }) => {
                             </button>
                         </div>
                     </form>
+                </div>
+            </Modal>
+
+            <Modal isOpen={isHistoryModalOpen} onClose={() => setIsHistoryModalOpen(false)} title={`Payment History: ${activeContractor?.name}`}>
+                <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                    {activeContractor && getContractorHistory(activeContractor.id).length > 0 ? (
+                        getContractorHistory(activeContractor.id).map(txn => (
+                            <div key={txn.id} className="flex justify-between items-center p-3 border-b border-gray-100 last:border-0 hover:bg-gray-50 rounded-lg transition-colors">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-lg ${txn.type === 'BILL' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-600 border border-green-100'}`}>
+                                        {txn.type === 'BILL' ? '🧾' : '💸'}
+                                    </div>
+                                    <div>
+                                        <div className="font-bold text-sm text-gray-900">{txn.title}</div>
+                                        <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+                                            {new Date(txn.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                            {txn.type === 'PAYMENT' && ` • ${txn.method?.replace('_', ' ')}`}
+                                            {txn.type === 'BILL' && ` • ${txn.status}`}
+                                        </div>
+                                        {txn.notes && <div className="text-xs text-gray-500 italic mt-0.5 max-w-[200px] truncate" title={txn.notes}>Txn Note: {txn.notes}</div>}
+                                    </div>
+                                </div>
+                                <div className={`font-black tracking-tight text-right ${txn.type === 'BILL' ? 'text-red-500' : 'text-green-600'}`}>
+                                    <div className="text-sm">{txn.type === 'BILL' ? '+' : '-'}{Number(txn.amount).toLocaleString('en-IN')}</div>
+                                    <div className="text-[8px] uppercase tracking-wider opacity-70">{txn.type}</div>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="py-8 text-center text-gray-400 italic text-sm">No transaction history found.</div>
+                    )}
+                </div>
+                <div className="mt-6 pt-4 border-t border-gray-100">
+                    <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+                        <div className="flex justify-between items-center"><span className="text-gray-500 font-bold text-[10px] uppercase tracking-wider">Total Billed:</span><span className="font-bold text-gray-900">Rs. {Number(activeContractor?.total_amount || 0).toLocaleString()}</span></div>
+                        <div className="flex justify-between items-center"><span className="text-gray-500 font-bold text-[10px] uppercase tracking-wider">Total Paid:</span><span className="font-bold text-green-600">Rs. {Number(activeContractor?.total_paid || 0).toLocaleString()}</span></div>
+                        <div className="flex justify-between items-center pt-2 border-t border-gray-200 mt-2"><span className="text-red-500 font-black text-xs uppercase tracking-widest">Balance Due:</span><span className="font-black text-red-600 text-lg">Rs. {Number(activeContractor?.balance_due || 0).toLocaleString()}</span></div>
+                    </div>
+                </div>
+                <div className="flex justify-end gap-3 mt-4">
+                    <button type="button" onClick={() => setIsHistoryModalOpen(false)} className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-colors">Close</button>
+                    <button type="button" onClick={() => { setIsHistoryModalOpen(false); handleOpenPaymentModal(activeContractor); }} className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200">Pay Now</button>
                 </div>
             </Modal>
         </div >

@@ -13,6 +13,7 @@ import SuppliersTab from '../desktop/manage/SuppliersTab';
 import MaterialsTab from '../desktop/manage/MaterialsTab';
 import StockTab from '../desktop/manage/StockTab';
 import FundingTab from '../desktop/manage/FundingTab';
+import PaymentsTab from '../desktop/manage/PaymentsTab';
 
 const MobileManage = () => {
     const { dashboardData } = useConstruction();
@@ -46,6 +47,7 @@ const MobileManage = () => {
                 { id: 'funding', label: 'Funding', nepali: 'लगानी' },
                 { id: 'categories', label: 'Categories', nepali: 'शिर्षक' },
                 { id: 'expenses', label: 'Expenses', nepali: 'खर्च' },
+                { id: 'payments', label: 'Payments', nepali: 'भुक्तानी' },
             ]
         },
         {
@@ -155,6 +157,7 @@ const MobileManage = () => {
                         {activeTab === 'categories' && <CategoriesTab searchQuery={searchQuery} />}
                         {activeTab === 'expenses' && <ExpensesTab searchQuery={searchQuery} />}
                         {activeTab === 'funding' && <FundingTab searchQuery={searchQuery} />}
+                        {activeTab === 'payments' && <PaymentsTab searchQuery={searchQuery} />}
                     </>
                 )}
 
