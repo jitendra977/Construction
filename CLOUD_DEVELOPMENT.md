@@ -78,7 +78,21 @@ FILE_UPLOAD_MAX_MEMORY_SIZE=52428800
 DATA_UPLOAD_MAX_MEMORY_SIZE=52428800
 ```
 
-### Frontend Configuration
+### Root Configuration
+
+Create `~/project/Construction/.env`:
+
+```bash
+nano ~/project/Construction/.env
+```
+
+Paste this:
+
+```ini
+VITE_API_URL=https://api.construction.nishanaweb.cloud/api/v1
+```
+
+### Frontend Configuration (Legacy/Optional)
 
 ```bash
 nano ~/project/Construction/frontend/.env
