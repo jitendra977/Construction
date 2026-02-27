@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { constructionService } from '../../../services/api';
+import React, { useState, useRef } from 'react';
+import { constructionService, getMediaUrl } from '../../../services/api';
 import Modal from '../../common/Modal';
 import { useConstruction } from '../../../context/ConstructionContext';
 
@@ -9,8 +9,10 @@ const TasksTab = ({ searchQuery = '' }) => {
     const [editingItem, setEditingItem] = useState(null);
     const [formData, setFormData] = useState({});
     const [loading, setLoading] = useState(false);
+    const [uploading, setUploading] = useState(false);
     const [phaseFilter, setPhaseFilter] = useState('');
     const [contractorFilter, setContractorFilter] = useState('');
+    const fileInputRef = useRef(null);
 
     const filteredTasks = (dashboardData.tasks || []).filter(t => {
         const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -41,6 +43,37 @@ const TasksTab = ({ searchQuery = '' }) => {
             refreshData();
         } catch (error) {
             alert('Delete failed.');
+        }
+    };
+
+    const handleFileUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file || !editingItem) return;
+
+        setUploading(true);
+        const uploadData = new FormData();
+        uploadData.append('task', editingItem.id);
+        uploadData.append('file', file);
+        uploadData.append('media_type', 'IMAGE');
+
+        try {
+            await constructionService.uploadTaskMedia(uploadData);
+            refreshData();
+        } catch (error) {
+            alert('Upload failed.');
+        } finally {
+            setUploading(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
+    const handleDeleteMedia = async (mediaId) => {
+        if (!window.confirm('Delete this proof image?')) return;
+        try {
+            await constructionService.deleteTaskMedia(mediaId);
+            refreshData();
+        } catch (error) {
+            alert('Failed to delete media.');
         }
     };
 
@@ -128,7 +161,12 @@ const TasksTab = ({ searchQuery = '' }) => {
                         {filteredTasks.map(t => (
                             <tr key={t.id} className="hover:bg-gray-50 transition-colors group">
                                 <td className="px-6 py-4">
-                                    <div className="font-bold text-gray-900">{t.title}</div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="font-bold text-gray-900">{t.title}</div>
+                                        {t.media?.length > 0 && (
+                                            <span title="Has Proof Images" className="text-emerald-500 text-sm">📸</span>
+                                        )}
+                                    </div>
                                     <div className="text-[10px] text-gray-400 font-medium line-clamp-1 max-w-xs italic">
                                         {t.description || 'No description provided'}
                                     </div>
@@ -168,7 +206,12 @@ const TasksTab = ({ searchQuery = '' }) => {
             {/* Mobile View */}
             <div className="lg:hidden space-y-3">
                 {filteredTasks.map(t => (
-                    <div key={t.id} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+                    <div key={t.id} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm relative overflow-hidden">
+                        {t.media?.length > 0 && (
+                            <div className="absolute top-0 right-0 p-2 bg-emerald-50 text-emerald-600 rounded-bl-xl text-[8px] font-black uppercase tracking-tighter">
+                                📸 Proof attached
+                            </div>
+                        )}
                         <div className="flex justify-between items-start mb-3">
                             <div>
                                 <h3 className="font-bold text-gray-900">{t.title}</h3>
@@ -199,91 +242,147 @@ const TasksTab = ({ searchQuery = '' }) => {
             </div>
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`${editingItem ? 'Edit' : 'Add'} Task`}>
-                <form onSubmit={handleSubmit} className="space-y-4 p-1">
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Task Title</label>
-                        <input
-                            type="text"
-                            value={formData.title || ''}
-                            onChange={e => setFormData({ ...formData, title: e.target.value })}
-                            className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none font-medium"
-                            placeholder="e.g. Concrete Pouring"
-                            required
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Description</label>
-                        <textarea
-                            value={formData.description || ''}
-                            onChange={e => setFormData({ ...formData, description: e.target.value })}
-                            className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none min-h-[100px]"
-                            placeholder="Add details about the task..."
-                        />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
+                <div className="max-h-[80vh] overflow-y-auto pr-2 custom-scrollbar">
+                    <form onSubmit={handleSubmit} className="space-y-4 p-1">
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">Phase</label>
-                            <select
-                                value={formData.phase || ''}
-                                onChange={e => setFormData({ ...formData, phase: parseInt(e.target.value) })}
-                                className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none appearance-none bg-white font-medium"
+                            <label className="block text-sm font-semibold text-gray-700 mb-1">Task Title</label>
+                            <input
+                                type="text"
+                                value={formData.title || ''}
+                                onChange={e => setFormData({ ...formData, title: e.target.value })}
+                                className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none font-medium"
+                                placeholder="e.g. Concrete Pouring"
                                 required
-                            >
-                                <option value="">Select Phase</option>
-                                {dashboardData.phases?.map(p => (
-                                    <option key={p.id} value={p.id}>{p.name}</option>
-                                ))}
-                            </select>
+                            />
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">Assigned Contractor</label>
-                            <select
-                                value={formData.assigned_to || ''}
-                                onChange={e => setFormData({ ...formData, assigned_to: e.target.value ? parseInt(e.target.value) : null })}
-                                className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none appearance-none bg-white font-medium"
-                            >
-                                <option value="">Unassigned</option>
-                                {dashboardData.contractors?.map(c => (
-                                    <option key={c.id} value={c.id}>{c.name}</option>
-                                ))}
-                            </select>
+                            <label className="block text-sm font-semibold text-gray-700 mb-1">Description</label>
+                            <textarea
+                                value={formData.description || ''}
+                                onChange={e => setFormData({ ...formData, description: e.target.value })}
+                                className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none min-h-[80px]"
+                                placeholder="Add details about the task..."
+                            />
                         </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">Status</label>
-                            <select
-                                value={formData.status || 'PENDING'}
-                                onChange={e => setFormData({ ...formData, status: e.target.value })}
-                                className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none appearance-none bg-white font-medium"
-                            >
-                                <option value="PENDING">Pending</option>
-                                <option value="IN_PROGRESS">In Progress</option>
-                                <option value="COMPLETED">Completed</option>
-                                <option value="BLOCKED">Blocked</option>
-                            </select>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-1">Phase</label>
+                                <select
+                                    value={formData.phase || ''}
+                                    onChange={e => setFormData({ ...formData, phase: parseInt(e.target.value) })}
+                                    className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none appearance-none bg-white font-medium"
+                                    required
+                                >
+                                    <option value="">Select Phase</option>
+                                    {dashboardData.phases?.map(p => (
+                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-1">Assigned Contractor</label>
+                                <select
+                                    value={formData.assigned_to || ''}
+                                    onChange={e => setFormData({ ...formData, assigned_to: e.target.value ? parseInt(e.target.value) : null })}
+                                    className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none appearance-none bg-white font-medium"
+                                >
+                                    <option value="">Unassigned</option>
+                                    {dashboardData.contractors?.map(c => (
+                                        <option key={c.id} value={c.id}>{c.name}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">Priority</label>
-                            <select
-                                value={formData.priority || 'MEDIUM'}
-                                onChange={e => setFormData({ ...formData, priority: e.target.value })}
-                                className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none appearance-none bg-white font-medium"
-                            >
-                                <option value="LOW">Low</option>
-                                <option value="MEDIUM">Medium</option>
-                                <option value="HIGH">High</option>
-                                <option value="CRITICAL">Critical</option>
-                            </select>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-1">Status</label>
+                                <select
+                                    value={formData.status || 'PENDING'}
+                                    onChange={e => setFormData({ ...formData, status: e.target.value })}
+                                    className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none appearance-none bg-white font-medium"
+                                >
+                                    <option value="PENDING">Pending</option>
+                                    <option value="IN_PROGRESS">In Progress</option>
+                                    <option value="COMPLETED">Completed</option>
+                                    <option value="BLOCKED">Blocked</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-1">Priority</label>
+                                <select
+                                    value={formData.priority || 'MEDIUM'}
+                                    onChange={e => setFormData({ ...formData, priority: e.target.value })}
+                                    className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none appearance-none bg-white font-medium"
+                                >
+                                    <option value="LOW">Low</option>
+                                    <option value="MEDIUM">Medium</option>
+                                    <option value="HIGH">High</option>
+                                    <option value="CRITICAL">Critical</option>
+                                </select>
+                            </div>
                         </div>
-                    </div>
-                    <div className="flex justify-end gap-3 mt-8">
-                        <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700">Cancel</button>
-                        <button type="submit" disabled={loading} className="px-8 py-2.5 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 disabled:opacity-50 transition-all">
-                            {loading ? 'Saving...' : (editingItem ? 'Update Task' : 'Create Task')}
-                        </button>
-                    </div>
-                </form>
+                        {/* Media Section - Only for existing tasks */}
+                        {editingItem && (
+                            <div className="mt-6 pt-6 border-t border-gray-100">
+                                <div className="flex justify-between items-center mb-3">
+                                    <h4 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                                        <span>📸</span> Proof of Work (कामको प्रमाण)
+                                    </h4>
+                                    <button
+                                        type="button"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        disabled={uploading}
+                                        className="text-[10px] font-black uppercase text-indigo-600 hover:text-indigo-800 flex items-center gap-1 bg-indigo-50 px-3 py-1.5 rounded-lg active:scale-95 transition-all disabled:opacity-50"
+                                    >
+                                        {uploading ? 'Processing...' : '+ Upload Image'}
+                                    </button>
+                                    <input
+                                        type="file"
+                                        ref={fileInputRef}
+                                        onChange={handleFileUpload}
+                                        accept="image/*"
+                                        className="hidden"
+                                    />
+                                </div>
+
+                                {editingItem.media?.length > 0 ? (
+                                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                                        {editingItem.media.map(m => (
+                                            <div key={m.id} className="relative aspect-square group rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+                                                <img
+                                                    src={getMediaUrl(m.file)}
+                                                    alt="Proof"
+                                                    className="w-full h-full object-cover"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDeleteMedia(m.id)}
+                                                    className="absolute top-1 right-1 bg-red-500 text-white p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity active:scale-90"
+                                                >
+                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl py-8 flex flex-col items-center justify-center text-gray-400">
+                                        <span className="text-3xl mb-2">🖼️</span>
+                                        <p className="text-[10px] font-bold uppercase tracking-widest">No proof uploaded yet</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        <div className="flex justify-end gap-3 mt-8 pb-2">
+                            <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700">Cancel</button>
+                            <button type="submit" disabled={loading} className="px-8 py-2.5 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 disabled:opacity-50 transition-all">
+                                {loading ? 'Saving...' : (editingItem ? 'Update Task' : 'Create Task')}
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </Modal>
         </div>
     );
