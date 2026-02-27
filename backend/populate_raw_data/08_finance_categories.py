@@ -8,9 +8,9 @@ def populate():
     from decimal import Decimal
     
     categories = [
-        {'name': 'Civil Materials', 'allocation': total_budget * Decimal('0.45'), 'desc': 'Cement, Sand, Bricks, Steel, etc.'},
-        {'name': 'Labor & Contractors', 'allocation': total_budget * Decimal('0.25'), 'desc': 'Payments to Mistris, helpers, and thekedaars.'},
-        {'name': 'Finishing Materials', 'allocation': total_budget * Decimal('0.15'), 'desc': 'Tiles, Marble, Paint, Woodwork.'},
+        {'name': 'Civil Materials', 'allocation': total_budget * Decimal('0.35'), 'desc': 'Cement, Sand, Bricks, Steel, etc.'},
+        {'name': 'Labor & Contractors', 'allocation': total_budget * Decimal('0.20'), 'desc': 'Payments to Mistris, helpers, and thekedaars.'},
+        {'name': 'Finishing & Interior', 'allocation': total_budget * Decimal('0.30'), 'desc': 'Tiles, Marble, Paint, Woodwork, Furniture, and Interior Design.'},
         {'name': 'MEP (Plumbing & Electrical)', 'allocation': total_budget * Decimal('0.08'), 'desc': 'Electrical wires, Pipes, Sanitaries.'},
         {'name': 'Permits & Government Fees', 'allocation': total_budget * Decimal('0.04'), 'desc': 'Nagar Palika fees, Naksa darta, etc.'},
         {'name': 'Professional Fees', 'allocation': total_budget * Decimal('0.02'), 'desc': 'Engineer and Architect fees.'},

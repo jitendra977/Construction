@@ -4,18 +4,18 @@ def populate():
     from apps.core.models import ConstructionPhase
     
     phases = [
-        {'name': 'Site Preparation & Mobilization', 'order': 1, 'estimated_budget': 500000, 'description': 'Clearing site, temporary shed, water, electricity.'},
-        {'name': 'Excavation & Earthwork (Jag Khanne)', 'order': 2, 'estimated_budget': 1200000, 'description': 'Excavation for footings and underground water tank.'},
-        {'name': 'Foundation & DPC', 'order': 3, 'estimated_budget': 4500000, 'description': 'PCC, Footing, Plinth Beam, and Damp Proof Course.'},
-        {'name': 'Superstructure - Ground Floor', 'order': 4, 'estimated_budget': 5500000, 'description': 'Columns (Pillers), Walls, and Slab casting.'},
-        {'name': 'Superstructure - First Floor', 'order': 5, 'estimated_budget': 5000000, 'description': 'Columns, Walls, and Slab casting.'},
-        {'name': 'Superstructure - Top Floor/Staircase Cover', 'order': 6, 'estimated_budget': 3500000, 'description': 'Upper rooms and roof casting.'},
-        {'name': 'Finishing - Plaster & Putty', 'order': 7, 'estimated_budget': 4000000, 'description': 'Internal and external plastering.'},
-        {'name': 'Finishing - Flooring & Tiling', 'order': 8, 'estimated_budget': 3000000, 'description': 'Marble, Tiles, and Parqueting.'},
-        {'name': 'MEP - Electrical & Plumbing', 'order': 9, 'estimated_budget': 2500000, 'description': 'Wiring, piping, and fixtures.'},
-        {'name': 'Painting & Woodwork', 'order': 10, 'estimated_budget': 2000000, 'description': 'Wall painting and doors/windows installation.'},
-        {'name': 'Exterior & Landscaping', 'order': 11, 'estimated_budget': 1500000, 'description': 'Compound wall, gate, and garden.'},
-        {'name': 'Final Handover', 'order': 12, 'estimated_budget': 500000, 'description': 'Deep cleaning and final inspection.'},
+        {'name': 'Site Preparation & Mobilization', 'order': 1, 'estimated_budget': 150000, 'description': 'Clearing site, temporary shed, water, electricity.'},
+        {'name': 'Excavation & Earthwork (Jag Khanne)', 'order': 2, 'estimated_budget': 300000, 'description': 'Excavation for footings and underground water tank.'},
+        {'name': 'Foundation & DPC', 'order': 3, 'estimated_budget': 1500000, 'description': 'PCC, Footing, Plinth Beam, and Damp Proof Course.'},
+        {'name': 'Superstructure - Ground Floor', 'order': 4, 'estimated_budget': 1800000, 'description': 'Columns (Pillers), Walls, and Slab casting.'},
+        {'name': 'Superstructure - First Floor', 'order': 5, 'estimated_budget': 1500000, 'description': 'Columns, Walls, and Slab casting.'},
+        {'name': 'Superstructure - Top Floor/Staircase Cover', 'order': 6, 'estimated_budget': 800000, 'description': 'Upper rooms and roof casting.'},
+        {'name': 'Finishing - Plaster & Putty', 'order': 7, 'estimated_budget': 800000, 'description': 'Internal and external plastering.'},
+        {'name': 'Finishing - Flooring & Tiling', 'order': 8, 'estimated_budget': 1000000, 'description': 'Marble, Tiles, and Parqueting.'},
+        {'name': 'MEP - Electrical & Plumbing', 'order': 9, 'estimated_budget': 600000, 'description': 'Wiring, piping, and fixtures.'},
+        {'name': 'Interior & Woodwork', 'order': 10, 'estimated_budget': 1000000, 'description': 'Wall painting, interior design, and furniture.'},
+        {'name': 'Exterior & Landscaping', 'order': 11, 'estimated_budget': 350000, 'description': 'Compound wall, gate, and garden.'},
+        {'name': 'Final Handover', 'order': 12, 'estimated_budget': 200000, 'description': 'Deep cleaning and final inspection.'},
     ]
 
     for phase_data in phases:

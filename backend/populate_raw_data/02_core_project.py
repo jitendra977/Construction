@@ -6,13 +6,13 @@ def populate():
     project, created = HouseProject.objects.get_or_create(
         id=1,
         defaults={
-            'name': 'Sharma Niwas - 2.5 Storey Residential',
+            'name': 'Sharma Niwas - 1 Crore Project',
             'owner_name': 'Ram Prasad Sharma',
             'address': 'Budhanilkantha-04, Kathmandu, Nepal',
-            'total_budget': 35000000.00,  # 3.5 Crore
+            'total_budget': 10000000.00,  # 1 Crore
             'start_date': date(2025, 1, 15),
             'expected_completion_date': date(2026, 6, 30),
-            'area_sqft': 3200
+            'area_sqft': 1800  # Scaled down area for 1 Crore budget
         }
     )
     

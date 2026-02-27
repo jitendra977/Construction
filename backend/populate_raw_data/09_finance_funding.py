@@ -5,8 +5,8 @@ def populate():
     from apps.finance.models import FundingSource
     
     sources = [
-        {'name': 'Own Savings (Nabil Bank)', 'type': 'OWN_MONEY', 'amount': 15000000.00, 'date': date(2025, 1, 1)},
-        {'name': 'Home Loan (NIC Asia)', 'type': 'LOAN', 'amount': 20000000.00, 'date': date(2025, 3, 15), 'interest': 11.5},
+        {'name': 'Own Savings (Nabil Bank)', 'type': 'OWN_MONEY', 'amount': 4000000.00, 'date': date(2025, 1, 1)},
+        {'name': 'Home Loan (NIC Asia)', 'type': 'LOAN', 'amount': 6000000.00, 'date': date(2025, 3, 15), 'interest': 11.5},
     ]
 
     for s_data in sources:
