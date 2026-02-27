@@ -10,6 +10,7 @@ import SuppliersTab from './manage/SuppliersTab';
 import MaterialsTab from './manage/MaterialsTab';
 import StockTab from './manage/StockTab';
 import FundingTab from './manage/FundingTab';
+import TasksTab from './manage/TasksTab';
 
 const DesktopManage = () => {
     const { dashboardData } = useConstruction();
@@ -26,6 +27,7 @@ const DesktopManage = () => {
             color: 'from-blue-500 to-indigo-600',
             tabs: [
                 { id: 'phases', label: 'Phases (चरणहरू)' },
+                { id: 'tasks', label: 'Tasks (कामहरू)' },
                 { id: 'floors', label: 'Floors (तल्लाहरू)' },
                 { id: 'rooms', label: 'Rooms (कोठाहरू)' },
             ]
@@ -166,6 +168,7 @@ const DesktopManage = () => {
                         {activeSection === 'structure' && (
                             <>
                                 {activeTab === 'phases' && <PhasesTab searchQuery={searchQuery} />}
+                                {activeTab === 'tasks' && <TasksTab searchQuery={searchQuery} />}
                                 {activeTab === 'floors' && <FloorsTab searchQuery={searchQuery} />}
                                 {activeTab === 'rooms' && <RoomsManageTab searchQuery={searchQuery} />}
                             </>
