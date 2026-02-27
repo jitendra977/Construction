@@ -5,6 +5,7 @@ import { useConstruction } from '../../context/ConstructionContext';
 import PhasesTab from '../desktop/manage/PhasesTab';
 import FloorsTab from '../desktop/manage/FloorsTab';
 import RoomsManageTab from '../desktop/manage/RoomsManageTab';
+import TasksTab from '../desktop/manage/TasksTab';
 import CategoriesTab from '../desktop/manage/CategoriesTab';
 import ExpensesTab from '../desktop/manage/ExpensesTab';
 import ContractorsTab from '../desktop/manage/ContractorsTab';
@@ -31,6 +32,7 @@ const MobileManage = () => {
                 { id: 'phases', label: 'Phases', nepali: 'चरणहरू' },
                 { id: 'floors', label: 'Floors', nepali: 'तल्लाहरू' },
                 { id: 'rooms', label: 'Rooms', nepali: 'कोठाहरू' },
+                { id: 'tasks', label: 'Tasks', nepali: 'कामहरू' },
             ]
         },
         {
@@ -144,6 +146,7 @@ const MobileManage = () => {
                         {activeTab === 'phases' && <PhasesTab searchQuery={searchQuery} />}
                         {activeTab === 'floors' && <FloorsTab searchQuery={searchQuery} />}
                         {activeTab === 'rooms' && <RoomsManageTab searchQuery={searchQuery} />}
+                        {activeTab === 'tasks' && <TasksTab searchQuery={searchQuery} />}
                     </>
                 )}
 
