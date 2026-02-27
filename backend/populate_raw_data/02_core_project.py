@@ -20,13 +20,13 @@ def populate():
         print(f"Created house project: {project.name}")
     else:
         # Update existing
-        project.name = 'Sharma Niwas - 2.5 Storey Residential'
+        project.name = 'Sharma Niwas - 1 Crore Project'
         project.owner_name = 'Ram Prasad Sharma'
         project.address = 'Budhanilkantha-04, Kathmandu, Nepal'
-        project.total_budget = 35000000.00
+        project.total_budget = 10000000.00
         project.start_date = date(2025, 1, 15)
         project.expected_completion_date = date(2026, 6, 30)
-        project.area_sqft = 3200
+        project.area_sqft = 1800
         project.save()
         print(f"Updated house project: {project.name}")
 
