@@ -11,6 +11,8 @@ const TasksTab = ({ searchQuery = '' }) => {
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [pendingUploadTaskId, setPendingUploadTaskId] = useState(null);
+    const [taskToDelete, setTaskToDelete] = useState(null);
+    const [mediaToDelete, setMediaToDelete] = useState(null);
     const [phaseFilter, setPhaseFilter] = useState('');
     const [contractorFilter, setContractorFilter] = useState('');
     const fileInputRef = useRef(null);
@@ -38,13 +40,15 @@ const TasksTab = ({ searchQuery = '' }) => {
         setIsModalOpen(true);
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this task?')) return;
+    const confirmDeleteTask = async () => {
+        if (!taskToDelete) return;
         try {
-            await constructionService.deleteTask(id);
+            await constructionService.deleteTask(taskToDelete.id);
+            setTaskToDelete(null);
             refreshData();
         } catch (error) {
             alert('Delete failed.');
+            setTaskToDelete(null);
         }
     };
 
@@ -77,13 +81,15 @@ const TasksTab = ({ searchQuery = '' }) => {
         quickFileInputRef.current?.click();
     };
 
-    const handleDeleteMedia = async (mediaId) => {
-        if (!window.confirm('Delete this proof image?')) return;
+    const confirmDeleteMedia = async () => {
+        if (!mediaToDelete) return;
         try {
-            await constructionService.deleteTaskMedia(mediaId);
+            await constructionService.deleteTaskMedia(mediaToDelete);
+            setMediaToDelete(null);
             refreshData();
         } catch (error) {
             alert('Failed to delete media.');
+            setMediaToDelete(null);
         }
     };
 
@@ -218,7 +224,7 @@ const TasksTab = ({ searchQuery = '' }) => {
                                             {uploading && pendingUploadTaskId === t.id ? '...' : '+ Upload'}
                                         </button>
                                         <button onClick={() => handleOpenModal(t)} className="text-indigo-600 hover:text-indigo-900 font-bold text-[10px] uppercase">Edit</button>
-                                        <button onClick={() => handleDelete(t.id)} className="text-red-500 hover:text-red-700 font-bold text-[10px] uppercase">Delete</button>
+                                        <button onClick={() => setTaskToDelete({ id: t.id, title: t.title })} className="text-red-500 hover:text-red-700 font-bold text-[10px] uppercase">Delete</button>
                                     </div>
                                 </td>
                             </tr>
@@ -259,7 +265,7 @@ const TasksTab = ({ searchQuery = '' }) => {
                         </div>
                         <div className="flex gap-2">
                             <button onClick={() => handleOpenModal(t)} className="flex-1 py-2 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-bold hover:bg-indigo-100">Edit</button>
-                            <button onClick={() => handleDelete(t.id)} className="px-4 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100">Delete</button>
+                            <button onClick={() => setTaskToDelete({ id: t.id, title: t.title })} className="px-4 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100">Delete</button>
                         </div>
                     </div>
                 ))}
@@ -380,7 +386,7 @@ const TasksTab = ({ searchQuery = '' }) => {
                                                 />
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleDeleteMedia(m.id)}
+                                                    onClick={() => setMediaToDelete(m.id)}
                                                     className="absolute top-1 right-1 bg-red-500 text-white p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity active:scale-90"
                                                 >
                                                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -408,6 +414,47 @@ const TasksTab = ({ searchQuery = '' }) => {
                     </form>
                 </div>
             </Modal>
+
+            {/* Custom Delete Confirmation Modal */}
+            {(taskToDelete || mediaToDelete) && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900">Confirm Deletion</h3>
+                                <p className="text-sm text-gray-500">This action cannot be undone</p>
+                            </div>
+                        </div>
+                        <p className="text-gray-700 mb-6">
+                            {taskToDelete
+                                ? <>Are you sure you want to delete task "<strong>{taskToDelete.title}</strong>"?</>
+                                : <>Are you sure you want to delete this proof image?</>
+                            }
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => { setTaskToDelete(null); setMediaToDelete(null); }}
+                                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-semibold"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={taskToDelete ? confirmDeleteTask : confirmDeleteMedia}
+                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold shadow-lg shadow-red-200"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
