@@ -8,35 +8,32 @@ def populate():
     from apps.tasks.models import Task, TaskMedia, TaskUpdate
     from apps.permits.models import PermitStep, LegalDocument
     
-    from django.db import transaction
+    from django.db import transaction, connection
     
     print("Cleaning up old data...")
     
+    models_to_clean = [
+        TaskUpdate, TaskMedia, Task,
+        MaterialTransaction, Expense, Payment, FundingTransaction, FundingSource, BudgetCategory,
+        Material, Supplier, Contractor,
+        Room, Floor, ConstructionPhase, HouseProject,
+        PermitStep, LegalDocument, Document
+    ]
+    
     with transaction.atomic():
-        # Order matters for foreign keys
-        print(f"Deleting Task updates: {TaskUpdate.objects.all().delete()[0]}")
-        print(f"Deleting Task media: {TaskMedia.objects.all().delete()[0]}")
-        print(f"Deleting Tasks: {Task.objects.all().delete()[0]}")
-        
-        print(f"Deleting Material transactions: {MaterialTransaction.objects.all().delete()[0]}")
-        print(f"Deleting Expenses: {Expense.objects.all().delete()[0]}")
-        print(f"Deleting Payments: {Payment.objects.all().delete()[0]}")
-        print(f"Deleting Funding transactions: {FundingTransaction.objects.all().delete()[0]}")
-        print(f"Deleting Funding sources: {FundingSource.objects.all().delete()[0]}")
-        print(f"Deleting Budget categories: {BudgetCategory.objects.all().delete()[0]}")
-        
-        print(f"Deleting Materials: {Material.objects.all().delete()[0]}")
-        print(f"Deleting Suppliers: {Supplier.objects.all().delete()[0]}")
-        print(f"Deleting Contractors: {Contractor.objects.all().delete()[0]}")
-        
-        print(f"Deleting Rooms: {Room.objects.all().delete()[0]}")
-        print(f"Deleting Floors: {Floor.objects.all().delete()[0]}")
-        print(f"Deleting Construction phases: {ConstructionPhase.objects.all().delete()[0]}")
-        print(f"Deleting House projects: {HouseProject.objects.all().delete()[0]}")
-        
-        print(f"Deleting Permit steps: {PermitStep.objects.all().delete()[0]}")
-        print(f"Deleting Legal documents: {LegalDocument.objects.all().delete()[0]}")
-        print(f"Deleting Documents: {Document.objects.all().delete()[0]}")
+        for model in models_to_clean:
+            count = model.objects.all().count()
+            if count > 0:
+                print(f"Deleting {count} records from {model.__name__}...")
+                model.objects.all().delete()
+                # Double check
+                remaining = model.objects.all().count()
+                if remaining > 0:
+                    print(f"Warning: {remaining} records remain in {model.__name__}. Trying raw SQL...")
+                    with connection.cursor() as cursor:
+                        table_name = model._meta.db_table
+                        cursor.execute(f"DELETE FROM {table_name}")
+                    print(f"Now {model.objects.all().count()} records remain.")
 
     print("Cleanup complete.")
 
