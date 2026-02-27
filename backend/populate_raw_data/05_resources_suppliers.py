@@ -2,12 +2,12 @@ def populate():
     from apps.resources.models import Supplier
     
     suppliers = [
-        {'name': 'Pashupati Hardware & Sanitaries', 'contact': 'Rajesh Pashupati', 'phone': '9851000000', 'category': 'Sanitary & Plumbing', 'address': 'Baneshwor, Kathmandu'},
-        {'name': 'Bhadrakali Brick Kiln', 'contact': 'Suresh Shrestha', 'phone': '9841000001', 'category': 'Civil Materials', 'address': 'Bhaktapur'},
-        {'name': 'Jagadamba Steel Depot', 'contact': 'Manish Agarwal', 'phone': '9801000002', 'category': 'Civil Materials', 'address': 'Teku, Kathmandu'},
-        {'name': 'Asian Paints Authorized Dealer - New Home', 'contact': 'Prakash Rai', 'phone': '9861000003', 'category': 'Paints', 'address': 'Sukedhara, Kathmandu'},
-        {'name': 'Everest Cement Traders', 'contact': 'Dipak Thapa', 'phone': '9851100004', 'category': 'Civil Materials', 'address': 'Kalanki, Kathmandu'},
-        {'name': 'Lumbini Electricals', 'contact': 'Bishal Gurung', 'phone': '9841200005', 'category': 'Electrical', 'address': 'Tripureshwor, Kathmandu'},
+        {'name': 'Pashupati Hardware & Sanitaries', 'contact': 'Rajesh Pashupati', 'phone': '9851000000', 'email': 'pashupati@gmail.com', 'category': 'Sanitary & Plumbing', 'address': 'Baneshwor, Kathmandu'},
+        {'name': 'Bhadrakali Brick Kiln', 'contact': 'Suresh Shrestha', 'phone': '9841000001', 'email': 'bhadrakali@gmail.com', 'category': 'Civil Materials', 'address': 'Bhaktapur'},
+        {'name': 'Jagadamba Steel Depot', 'contact': 'Manish Agarwal', 'phone': '9801000002', 'email': 'jagadamba@gmail.com', 'category': 'Civil Materials', 'address': 'Teku, Kathmandu'},
+        {'name': 'Asian Paints Authorized Dealer - New Home', 'contact': 'Prakash Rai', 'phone': '9861000003', 'email': 'asianpaints@gmail.com', 'category': 'Paints', 'address': 'Sukedhara, Kathmandu'},
+        {'name': 'Everest Cement Traders', 'contact': 'Dipak Thapa', 'phone': '9851100004', 'email': 'everest@gmail.com', 'category': 'Civil Materials', 'address': 'Kalanki, Kathmandu'},
+        {'name': 'Lumbini Electricals', 'contact': 'Bishal Gurung', 'phone': '9841200005', 'email': 'lumbini@gmail.com', 'category': 'Electrical', 'address': 'Tripureshwor, Kathmandu'},
     ]
 
     for s_data in suppliers:
@@ -16,6 +16,7 @@ def populate():
             defaults={
                 'contact_person': s_data['contact'],
                 'phone': s_data['phone'],
+                'email': s_data['email'],
                 'category': s_data['category'],
                 'address': s_data['address'],
                 'is_active': True
