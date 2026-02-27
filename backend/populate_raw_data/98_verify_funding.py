@@ -1,4 +1,4 @@
-def verify():
+def populate():
     from apps.finance.models import FundingSource
     from django.db.models import Sum
     
