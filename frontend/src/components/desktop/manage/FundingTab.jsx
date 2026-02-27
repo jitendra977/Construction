@@ -131,7 +131,8 @@ const FundingTab = ({ searchQuery = '' }) => {
                     <thead>
                         <tr className="bg-gray-50 border-b border-gray-100">
                             <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Source Name</th>
-                            <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Total Amount</th>
+                            <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Total Allocated</th>
+                            <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Total Spent</th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Current Balance</th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Actions</th>
                         </tr>
@@ -154,6 +155,7 @@ const FundingTab = ({ searchQuery = '' }) => {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 font-black text-gray-900">{formatCurrency(f.amount)}</td>
+                                    <td className="px-6 py-4 text-red-600 font-bold text-sm">{formatCurrency(Number(f.amount) - Number(f.current_balance))}</td>
                                     <td className="px-6 py-4">
                                         <div className="flex flex-col">
                                             <div className="flex justify-between items-baseline mb-1">
@@ -210,8 +212,9 @@ const FundingTab = ({ searchQuery = '' }) => {
                                     <h3 className="font-bold text-gray-900 text-base leading-tight">{f.name}</h3>
                                 </div>
                                 <div className="text-right">
-                                    <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Total Limit</div>
+                                    <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Total Allocated</div>
                                     <div className="text-sm font-black text-gray-900 leading-none">{formatCurrency(f.amount)}</div>
+                                    <div className="text-[10px] font-bold text-red-500 mt-2">Spent: {formatCurrency(Number(f.amount) - Number(f.current_balance))}</div>
                                 </div>
                             </div>
 

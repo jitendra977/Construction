@@ -223,8 +223,8 @@ const ExpensesTab = ({ searchQuery = '' }) => {
                                     <div className="flex items-center gap-2">
                                         <div className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">{e.title}</div>
                                         {e.material_transaction && (
-                                            <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[8px] font-black uppercase rounded border border-emerald-200 tracking-tighter">
-                                                Stock
+                                            <span className="px-2 py-0.5 bg-indigo-50/50 text-indigo-700 text-[9px] font-black uppercase rounded border border-indigo-200 tracking-tighter" title="Auto-generated from Material Inventory receipt">
+                                                Auto: Stock-In
                                             </span>
                                         )}
                                     </div>
@@ -334,7 +334,7 @@ const ExpensesTab = ({ searchQuery = '' }) => {
                                 <div className="flex items-center gap-2">
                                     <h3 className="font-bold text-gray-900 text-base leading-tight">{e.title}</h3>
                                     {e.material_transaction && (
-                                        <span className="px-1 py-0.5 bg-emerald-50 text-emerald-600 text-[8px] font-black uppercase rounded border border-emerald-100 tracking-tighter">Stock</span>
+                                        <span className="px-2 py-0.5 bg-indigo-50/50 text-indigo-700 text-[9px] font-black uppercase rounded border border-indigo-200 tracking-tighter" title="Auto-generated from Material Inventory receipt">Auto: Stock-In</span>
                                     )}
                                 </div>
                                 {e.paid_to && <p className="text-[10px] text-gray-500 mt-1 font-bold">Paid to: {e.paid_to}</p>}

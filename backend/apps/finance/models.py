@@ -96,6 +96,57 @@ class Payment(models.Model):
     
     def __str__(self):
         return f"Payment of Rs. {self.amount} for {self.expense.title}"
+
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        old_payment = None
+        if not is_new:
+            old_payment = Payment.objects.get(pk=self.pk)
+
+        super().save(*args, **kwargs)
+
+        if is_new and self.funding_source:
+            # Deduct balance
+            self.funding_source.current_balance -= self.amount
+            self.funding_source.save()
+            
+            # Create debit transaction
+            FundingTransaction.objects.create(
+                funding_source=self.funding_source,
+                amount=self.amount,
+                transaction_type='DEBIT',
+                date=self.date,
+                description=f"Payment for: {self.expense.title}",
+                payment=self
+            )
+        elif not is_new and old_payment:
+            # If changed funding source or amount, we need to adjust
+            if old_payment.funding_source != self.funding_source or old_payment.amount != self.amount:
+                # Refund old
+                if old_payment.funding_source:
+                    old_payment.funding_source.current_balance += old_payment.amount
+                    old_payment.funding_source.save()
+                    old_payment.funding_transactions.all().delete()
+                
+                # Charge new
+                if self.funding_source:
+                    self.funding_source.current_balance -= self.amount
+                    self.funding_source.save()
+                    FundingTransaction.objects.create(
+                        funding_source=self.funding_source,
+                        amount=self.amount,
+                        transaction_type='DEBIT',
+                        date=self.date,
+                        description=f"Payment for: {self.expense.title}",
+                        payment=self
+                    )
+
+    def delete(self, *args, **kwargs):
+        if self.funding_source:
+            self.funding_source.current_balance += self.amount
+            self.funding_source.save()
+        super().delete(*args, **kwargs)
+
 class FundingSource(models.Model):
     """
     Tracks where the money for the project is coming from.
