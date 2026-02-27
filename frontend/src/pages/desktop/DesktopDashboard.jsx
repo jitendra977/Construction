@@ -36,6 +36,7 @@ function DesktopDashboard() {
         { id: 'permits', icon: '📜', label: 'Permits (नक्सा पास)' },
         { id: 'manage', icon: '🛠️', label: 'Manage (व्यवस्थापन)' },
         { id: 'photos', icon: '📸', label: 'Gallery (फोटो ग्यालरी)' },
+        { id: 'import', icon: '📥', label: 'Import Data (डाटा आयात)' },
     ];
 
     return (

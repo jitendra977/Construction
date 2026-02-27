@@ -9,6 +9,7 @@ import DesktopManage from '../../components/desktop/DesktopManage';
 import EstimatorHub from '../../pages/estimator/EstimatorHub';
 import PermitPage from '../../pages/permits/PermitPage';
 import Profile from '../../pages/Profile';
+import DataImportPage from '../../pages/DataImportPage';
 
 const DesktopRoutes = () => {
     return (
@@ -21,6 +22,7 @@ const DesktopRoutes = () => {
             <Route path="manage" element={<DesktopManage />} />
             <Route path="photos" element={<DesktopPhotos />} />
             <Route path="profile" element={<Profile />} />
+            <Route path="import" element={<DataImportPage />} />
             {/* Catch-all to home */}
             <Route path="*" element={<Navigate to="/dashboard/desktop/home" replace />} />
         </Routes>

@@ -9,6 +9,7 @@ import PhotosTab from '../../components/mobile/PhotosTab';
 import EstimatorHub from '../../pages/estimator/EstimatorHub';
 import PermitPage from '../../pages/permits/PermitPage';
 import Profile from '../../pages/Profile';
+import DataImportPage from '../../pages/DataImportPage';
 
 const MobileRoutes = () => {
     return (
@@ -21,6 +22,7 @@ const MobileRoutes = () => {
             <Route path="permits" element={<PermitPage />} />
             <Route path="photos" element={<PhotosTab />} />
             <Route path="profile" element={<Profile />} />
+            <Route path="import" element={<DataImportPage />} />
             {/* Catch-all to home */}
             <Route path="*" element={<Navigate to="home" replace />} />
         </Routes>

@@ -243,6 +243,22 @@ export const permitService = {
     deleteDocument: (id) => api.delete(`/permits/documents/${id}/`),
 };
 
+export const importService = {
+    /**
+     * Upload a .sql file to the backend for execution.
+     * @param {File} sqlFile - The .sql File object from a file input
+     * @param {function} onUploadProgress - Optional axios progress callback
+     */
+    importSql: (sqlFile, onUploadProgress) => {
+        const formData = new FormData();
+        formData.append('sql_file', sqlFile);
+        return api.post('/import/sql/', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            onUploadProgress,
+        });
+    },
+};
+
 /**
  * Helper to get the full URL for media files.
  * In dev, prepends the backend server URL.
