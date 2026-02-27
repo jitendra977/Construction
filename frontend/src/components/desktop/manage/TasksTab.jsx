@@ -210,7 +210,7 @@ const TasksTab = ({ searchQuery = '' }) => {
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 text-right">
-                                    <div className="flex justify-end items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="flex justify-end items-center gap-3 transition-opacity">
                                         <button
                                             onClick={() => handleQuickUploadClick(t.id)}
                                             className="text-emerald-600 hover:text-emerald-800 font-black text-[10px] uppercase flex items-center gap-1 bg-emerald-50 px-2 py-1 rounded"
