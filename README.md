@@ -2,6 +2,10 @@
 
 A full-stack web application for managing house construction projects, built with React and Django.
 
+## Scripts and Utilities
+A collection of helpful scripts for deployment, local development, and cloud synchronization is located in the `scripts/` directory. 
+**[View the Scripts Documentation](scripts/README.md)**
+
 ## 🏗️ Tech Stack
 
 ### Frontend
