@@ -34,3 +34,7 @@ Thumbs.db
 
 # Docker
 *.pid
+
+# Data Sync Dumps
+data_sync_*.json
+test_dump.json
