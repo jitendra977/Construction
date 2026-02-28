@@ -116,7 +116,7 @@ Login to your Nginx Proxy Manager dashboard.
 2. **Details Tab**:
    - Domain: `construction.nishanaweb.cloud`
    - Scheme: `http`
-   - Forward Hostname/IP: `construction_frontend`
+   - Forward Hostname/IP: `frontend` *(Crucial: matches the docker container name)*
    - Forward Port: `80`
    - ✅ Websockets Support
    - ✅ Block Common Exploits
@@ -124,7 +124,6 @@ Login to your Nginx Proxy Manager dashboard.
    - ✅ Request a new SSL Certificate
    - ✅ Force SSL
    - ✅ HTTP/2 Support
-   - ✅ HSTS Enabled
 4. **Save**
 
 ### 🅱️ Host 2: Backend (api.construction.nishanaweb.cloud)
@@ -133,7 +132,7 @@ Login to your Nginx Proxy Manager dashboard.
 2. **Details Tab**:
    - Domain: `api.construction.nishanaweb.cloud`
    - Scheme: `http`
-   - Forward Hostname/IP: `construction_backend`
+   - Forward Hostname/IP: `backend` *(Crucial: matches the docker container name)*
    - Forward Port: `8000`
    - ✅ Block Common Exploits
 3. **SSL Tab**:
@@ -142,8 +141,8 @@ Login to your Nginx Proxy Manager dashboard.
    - ✅ HTTP/2 Support
 4. **Custom Locations Tab** → Add Location:
    - **Location**: `/media/`
-   - **Forward Hostname/IP**: `construction_frontend`
-   - **Forward Port**: `80`
+   - **Forward Hostname/IP**: `backend`
+   - **Forward Port**: `8000`
    - **Scheme**: `http`
 5. **Advanced Tab** (paste this):
    ```nginx
@@ -194,7 +193,7 @@ docker compose ps
 ## 👤 Step 5: Create Admin User
 
 ```bash
-docker exec -it construction_backend python manage.py createsuperuser
+docker exec -it backend python manage.py createsuperuser
 ```
 
 Follow the prompts to create your admin account.
@@ -246,15 +245,20 @@ docker compose logs --tail=50 frontend
 ```bash
 docker exec -it mysql_db mysql -u root -pM3IF00UrzSZEEnZkp5lk -e "DROP DATABASE construction_db;"
 docker exec -it mysql_db mysql -u root -pM3IF00UrzSZEEnZkp5lk -e "CREATE DATABASE construction_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-docker exec -it construction_backend python manage.py migrate
-docker exec -it construction_backend python manage.py createsuperuser
+docker exec -it backend python manage.py migrate
+docker exec -it backend python manage.py createsuperuser
 ```
 
-### Load Sample Data (Optional)
+### E. Sync Database (Local -> Cloud)
+
+To easily migrate your local SQLite data to the cloud MySQL instance, run the automated sync script from your local machine:
+
 ```bash
-docker cp backend/data_dump.json construction_backend:/app/data_dump.json
-docker exec construction_backend python manage.py loaddata data_dump.json
+# On your local machine, run:
+./scripts/sync_to_cloud.sh
 ```
+
+*Note: This script will prompt you for your server SSH passphrase twice.*
 
 ---
 

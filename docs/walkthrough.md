@@ -75,3 +75,36 @@ To ensure your construction project stays financially healthy, follow this recom
 - **Component Refactoring**: The monolithic `ExpensesTab.jsx` was broken down into modular sub-components located in `frontend/src/components/desktop/manage/expenses/`.
 - **Styling**: Utilized a modern Design System based on Tailwind CSS with a focus on backdrop blurs, soft shadows, and a curated HSL-tailored color palette.
 - **Interactivity**: Added smooth transitions and hover states for all interactive elements to provide a premium feel.
+
+---
+
+# Payment Proof Photo Feature
+
+The ability to upload and view proof-of-payment photos (screenshots, receipts, etc.) has been added for both contractor and supplier payments.
+
+## Features Added
+
+### Backend
+- Added `proof_photo` field to the `Payment` model.
+- Updated `PaymentSerializer` to handle multipart form data and return the `proof_photo` URL.
+
+### Frontend Upload Forms
+Integrated photo upload support into all payment-recording interfaces:
+- **QuickPayModal (Mobile)**: Added a "📸 Upload Proof" button with instant image preview.
+- **ExpensesTab (Desktop)**: Updated the "Record Transaction" modal to support image selection.
+- **ExpenseDetailModal**: Added upload capability directly within the detailed expense view.
+
+### Proof Viewing
+- **PaymentsTab (Desktop & Mobile)**: Added a "🖼️ VIEW PROOF" link that opens the uploaded photo in a new tab.
+- **Expense Details**: Added links to proof photos in the payment history list within the `ExpenseDetailModal`.
+
+---
+
+# Cloud Deployment Fixes
+
+The cloud environment (`api.construction.nishanaweb.cloud`) encountered 500 API errors and missing data. These were resolved via:
+
+1. **Fixed Nginx Proxy Manager Settings**: Corrected proxy hostnames from `construction_backend`/`construction_frontend` to the Docker service names `backend`/`frontend`.
+2. **Missing Migration Resolved**: Pushed a missing database migration for `resources_supplier.photo` that was crashing the cloud API, and successfully ran the migration on the remote database.
+3. **Budget Health Division Error**: Fixed a division-by-zero bug inside `HouseProject.budget_health` calculations.
+4. **Improved Sync Script**: Stabilized `/scripts/sync_to_cloud.sh` to safely dump the local SQLite database, copy it to the remote server, and inject the seed data into the Cloud MySQL database.
