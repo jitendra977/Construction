@@ -1,6 +1,0 @@
-#!/usr/bin/expect -f
-set timeout 10
-spawn ssh -o StrictHostKeyChecking=no jitendra@192.168.0.59 "cd ~/Construction && docker compose exec -T backend python manage.py shell -c \"from apps.resources.models import Document; doc = Document.objects.filter(file__isnull=False).first(); print(doc.file.url if doc else 'No documents found')\""
-expect "password:"
-send "jitu9844\r"
-interact

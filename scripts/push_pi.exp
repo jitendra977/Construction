@@ -1,6 +1,0 @@
-#!/usr/bin/expect -f
-set timeout 300
-spawn git push pi main:master -f
-expect "password:"
-send "jitu9844\r"
-expect eof

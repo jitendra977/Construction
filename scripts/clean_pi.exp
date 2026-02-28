@@ -1,6 +1,0 @@
-#!/usr/bin/expect -f
-set timeout 600
-spawn ssh -o StrictHostKeyChecking=no jitendra@192.168.0.59 "cd ~/Construction && docker compose down -v --rmi all && ls -A | grep -v '.git' | xargs rm -rf"
-expect "password:"
-send "jitu9844\r"
-expect eof

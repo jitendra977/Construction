@@ -1,6 +1,0 @@
-#!/usr/bin/expect -f
-set timeout 10
-spawn ssh -o StrictHostKeyChecking=no jitendra@192.168.0.59 "rm -rf ~/Construction && mkdir -p ~/Construction && cd ~/Construction && git init && git config receive.denyCurrentBranch updateInstead"
-expect "password:"
-send "jitu9844\r"
-interact

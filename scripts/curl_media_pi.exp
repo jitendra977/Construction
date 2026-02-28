@@ -1,6 +1,0 @@
-#!/usr/bin/expect -f
-set timeout 10
-spawn ssh -o StrictHostKeyChecking=no jitendra@192.168.0.59 "curl -I http://localhost/media/documents/2026/02/site_survey_report.pdf"
-expect "password:"
-send "jitu9844\r"
-interact
