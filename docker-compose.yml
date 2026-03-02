@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   backend:
+    container_name: construction_backend
     build:
       context: ./backend
       dockerfile: Dockerfile
