@@ -3,8 +3,9 @@ import sys
 import django
 
 # Setup Django environment
-# Add the current directory to sys.path so we can import apps correctly
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Add the backend directory to sys.path so we can import apps correctly
+backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(backend_dir)
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
@@ -13,7 +14,7 @@ def run_all():
         '00_cleanup', '01_accounts', '02_core_project', '03_core_phases', '04_core_floors_rooms',
         '05_resources_suppliers', '06_resources_contractors', '07_resources_materials',
         '08_finance_categories', '09_finance_funding', '10_tasks',
-        '11_finance_expenses', '12_permits', '98_verify_funding'
+        '11_finance_expenses', '12_permits', '13_estimator_rates', '98_verify_funding'
     ]
     
     print("--- Starting Full Project Data Population ---")

@@ -1,15 +1,6 @@
-import os
-import django
-import sys
+def populate():
+    from apps.estimator.models import ConstructionRate
 
-# Add the project root to sys.path
-sys.path.append('/Volumes/Programming/FINAL-PROJECT/FULL-STACK/Construction/backend')
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
-django.setup()
-
-from apps.estimator.models import ConstructionRate
-
-def seed_rates():
     rates = [
         {'key': 'CEMENT', 'label': 'Cement (OPC/PPC)', 'value': 750, 'unit': 'Bag', 'category': 'MATERIAL'},
         {'key': 'SAND', 'label': 'River Sand (Baluwa)', 'value': 90, 'unit': 'Cft', 'category': 'MATERIAL'},
@@ -33,9 +24,9 @@ def seed_rates():
             for attr, value in rate_data.items():
                 setattr(rate, attr, value)
             rate.save()
-            print(f"Updated: {rate.label}")
+            print(f"Updated rate: {rate.label}")
         else:
-            print(f"Created: {rate.label}")
+            print(f"Created rate: {rate.label}")
 
 if __name__ == '__main__':
-    seed_rates()
+    populate()

@@ -47,3 +47,9 @@ venv.bak/
 # OS
 .DS_Store
 Thumbs.db
+
+# Data & Dumps
+*.sqlite3
+data_dump*.json
+backup_data*.json
+test_dump*.json

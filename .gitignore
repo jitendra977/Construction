@@ -35,6 +35,9 @@ Thumbs.db
 *.pid
 
 # Data Sync Dumps
+*.sqlite3
 data_sync_*.json
-test_dump.json
+data_dump*.json
+backup_data*.json
+test_dump*.json
 docker-compose.dev.yml
