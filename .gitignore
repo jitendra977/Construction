@@ -19,9 +19,8 @@ dist/
 
 # Environment
 .env
-.env.local
-.env.production
-.env.development
+.env.*
+!.env.example
 
 # IDEs
 .vscode/
@@ -38,3 +37,4 @@ Thumbs.db
 # Data Sync Dumps
 data_sync_*.json
 test_dump.json
+docker-compose.dev.yml

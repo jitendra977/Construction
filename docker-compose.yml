@@ -1,5 +1,4 @@
 version: '3.8'
-
 services:
   backend:
     container_name: construction_backend
@@ -9,7 +8,7 @@ services:
     volumes:
       - media_data:/app/media
     ports:
-      - "8001:8000" # Production port
+      - "8001:8000"
     env_file:
       - ./backend/.env
     networks:
@@ -17,6 +16,7 @@ services:
       - app_network
 
   frontend:
+    container_name: construction_frontend
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -25,7 +25,7 @@ services:
     volumes:
       - media_data:/usr/share/nginx/html/media
     ports:
-      - "8080:80" # Production port
+      - "8080:80"
     depends_on:
       - backend
     networks:
