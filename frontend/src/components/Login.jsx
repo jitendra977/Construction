@@ -66,17 +66,17 @@ function Login() {
                             htmlFor="username"
                             className="block text-sm font-medium text-gray-700 mb-2"
                         >
-                            Username
+                            Email Address
                         </label>
                         <input
-                            type="text"
+                            type="email"
                             id="username"
-                            autoComplete="username"
+                            autoComplete="email"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             required
                             disabled={loading}
-                            placeholder="Enter your username"
+                            placeholder="Enter your email address"
                             className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed"
                         />
                     </div>

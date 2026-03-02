@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 from decimal import Decimal
 
 class Supplier(models.Model):
@@ -55,8 +56,17 @@ class Contractor(models.Model):
         ('WELDER', 'Welder/Grill Mistri'),
         ('OTHER', 'Other'),
     ]
+    
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE, 
+        related_name='contractor_profile',
+        null=True, 
+        blank=True,
+        help_text="Linked user account for this contractor"
+    )
 
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100, blank=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     phone = models.CharField(max_length=20, blank=True)
     email = models.EmailField(blank=True)
@@ -74,6 +84,21 @@ class Contractor(models.Model):
     joined_date = models.DateField(auto_now_add=True)
 
     @property
+    def display_name(self):
+        if self.user:
+            full_name = f"{self.user.first_name} {self.user.last_name}".strip()
+            return full_name or self.name or self.user.username
+        return self.name
+
+    @property
+    def display_email(self):
+        return self.user.email if self.user else self.email
+
+    @property
+    def display_phone(self):
+        return self.user.phone_number if self.user else self.phone
+
+    @property
     def total_amount(self):
         return sum(exp.amount for exp in self.expenses.all())
 
@@ -85,8 +110,15 @@ class Contractor(models.Model):
     def balance_due(self):
         return self.total_amount - self.total_paid
 
+    @property
+    def name_display(self):
+        if self.user:
+            full_name = f"{self.user.first_name} {self.user.last_name}".strip()
+            return full_name or self.user.username
+        return self.name
+
     def __str__(self):
-        return f"{self.name} - {self.get_role_display()}"
+        return f"{self.name_display} - {self.get_role_display()}"
 
 class Material(models.Model):
     """

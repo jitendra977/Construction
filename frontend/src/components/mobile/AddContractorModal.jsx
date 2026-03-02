@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useConstruction } from '../../context/ConstructionContext';
-import { dashboardService } from '../../services/api';
+import { dashboardService, accountsService } from '../../services/api';
 import Modal from '../common/Modal';
 
 const AddContractorModal = ({ isOpen, onClose }) => {
@@ -10,12 +10,45 @@ const AddContractorModal = ({ isOpen, onClose }) => {
         name: '',
         role: 'LABOUR',
         phone: '',
+        user: null,
         email: '',
         skills: '',
         rate: '',
         citizenship_number: '',
         is_active: true
     });
+    const [systemUsers, setSystemUsers] = useState([]);
+
+    React.useEffect(() => {
+        const fetchUsers = async () => {
+            try {
+                const res = await accountsService.getUsers();
+                setSystemUsers(res.data);
+            } catch (error) {
+                console.error("Failed to fetch users", error);
+            }
+        };
+        if (isOpen) fetchUsers();
+    }, [isOpen]);
+
+    const handleUserChange = (userId) => {
+        const selectedUser = systemUsers.find(u => u.id === parseInt(userId));
+        if (selectedUser) {
+            const fullName = `${selectedUser.first_name} ${selectedUser.last_name}`.trim() || selectedUser.username;
+            setFormData({
+                ...formData,
+                user: selectedUser.id,
+                name: fullName,
+                email: selectedUser.email,
+                phone: selectedUser.phone_number || ''
+            });
+        } else {
+            setFormData({
+                ...formData,
+                user: null
+            });
+        }
+    };
 
     const roles = [
         { id: 'THEKEDAAR', label: 'Thekedaar' },
@@ -61,14 +94,38 @@ const AddContractorModal = ({ isOpen, onClose }) => {
             <form onSubmit={handleSubmit} className="space-y-5 p-1">
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Contractor Full Name</label>
+                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Link System User Account (Optional)</label>
+                        <div className="relative">
+                            <select
+                                value={formData.user || ''}
+                                onChange={(e) => handleUserChange(e.target.value)}
+                                className="w-full bg-gray-50 border-none rounded-xl p-3.5 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-indigo-500 appearance-none transition-all"
+                            >
+                                <option value="">-- No Linked Account --</option>
+                                {systemUsers.filter(u => u.role?.code === 'CONTRACTOR').map(u => (
+                                    <option key={u.id} value={u.id}>
+                                        {u.first_name} {u.last_name} ({u.email})
+                                    </option>
+                                ))}
+                            </select>
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">
+                            Contractor Full Name {formData.user && <span className="text-[10px] text-blue-500 font-black ml-1">(Synced)</span>}
+                        </label>
                         <input
                             type="text"
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            className="w-full bg-gray-50 border-none rounded-xl p-3.5 text-sm font-black text-gray-900 focus:ring-2 focus:ring-indigo-500 transition-all"
+                            className={`w-full bg-gray-50 border-none rounded-xl p-3.5 text-sm font-black text-gray-900 focus:ring-2 focus:ring-indigo-500 transition-all ${formData.user ? 'opacity-50 cursor-not-allowed' : ''}`}
                             placeholder="e.g. Ramesh Thapa"
                             required
+                            disabled={!!formData.user}
                         />
                     </div>
 
@@ -91,14 +148,17 @@ const AddContractorModal = ({ isOpen, onClose }) => {
                             </div>
                         </div>
                         <div>
-                            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Phone</label>
+                            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">
+                                Phone {formData.user && <span className="text-[10px] text-blue-500 font-black ml-1">(Synced)</span>}
+                            </label>
                             <input
                                 type="text"
                                 value={formData.phone}
                                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                className="w-full bg-gray-50 border-none rounded-xl p-3 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-indigo-500 transition-all font-mono"
+                                className={`w-full bg-gray-50 border-none rounded-xl p-3 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-indigo-500 transition-all font-mono ${formData.user ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 placeholder="+977"
                                 required
+                                disabled={!!formData.user}
                             />
                         </div>
                     </div>
@@ -138,13 +198,16 @@ const AddContractorModal = ({ isOpen, onClose }) => {
                     </div>
 
                     <div>
-                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Email (Optional)</label>
+                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">
+                            Email (Optional) {formData.user && <span className="text-[10px] text-blue-500 font-black ml-1">(Synced)</span>}
+                        </label>
                         <input
                             type="email"
                             value={formData.email}
                             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                            className="w-full bg-gray-50 border-none rounded-xl p-3.5 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-indigo-500 transition-all"
+                            className={`w-full bg-gray-50 border-none rounded-xl p-3.5 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-indigo-500 transition-all ${formData.user ? 'opacity-50 cursor-not-allowed' : ''}`}
                             placeholder="contractor@email.com"
+                            disabled={!!formData.user}
                         />
                     </div>
                 </div>

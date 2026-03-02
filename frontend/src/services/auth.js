@@ -76,21 +76,19 @@ export const authService = {
             const config = {};
             let data = userData;
 
-            // If updating avatar, use FormData
-            if (userData.profile?.avatar instanceof File) {
+            // Use FormData for file uploads (profile_image)
+            const hasFile = userData.profile_image instanceof File;
+
+            if (hasFile) {
                 config.headers = { 'Content-Type': 'multipart/form-data' };
                 const formData = new FormData();
 
-                if (userData.first_name) formData.append('first_name', userData.first_name);
-                if (userData.last_name) formData.append('last_name', userData.last_name);
-
-                // Nest profile fields for backend serializer
-                if (userData.profile) {
-                    Object.keys(userData.profile).forEach(key => {
-                        if (key === 'avatar' && !(userData.profile[key] instanceof File)) return;
-                        formData.append(`profile.${key}`, userData.profile[key]);
-                    });
-                }
+                Object.keys(userData).forEach(key => {
+                    if (key === 'profile_image' && !(userData[key] instanceof File)) return;
+                    if (userData[key] !== null && userData[key] !== undefined) {
+                        formData.append(key, userData[key]);
+                    }
+                });
                 data = formData;
             }
 

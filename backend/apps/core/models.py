@@ -36,7 +36,7 @@ class HouseProject(models.Model):
             return {
                 "status": "OVER_ALLOCATED",
                 "excess": total_allocated - self.total_budget,
-                "percent": (total_allocated / self.total_budget) * 100
+                "percent": (total_allocated / self.total_budget) * 100 if self.total_budget > 0 else 0
             }
         return {
             "status": "HEALTHY",

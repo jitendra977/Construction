@@ -13,12 +13,37 @@ django.setup()
 from apps.finance.models import BudgetCategory, FundingSource, Expense, Payment, FundingTransaction
 from apps.resources.models import Material, Supplier, MaterialTransaction, Contractor
 from apps.core.models import HouseProject, ConstructionPhase, Floor, Room
+from apps.accounts.models import User
 from django.utils import timezone
+from decouple import config
 
 def populate_data():
+    from apps.accounts.models import User, Role
     print("--- Populating PROFESSIONAL Nepali Home construction Data (~1.5 Crore Budget) ---")
     
-    # 1. Clear ALL existing data
+    # 0. Create Default Roles if they don't exist
+    for code, name in Role.ROLE_CODES:
+        Role.objects.get_or_create(code=code, defaults={'name': name})
+    
+    # 0.1 Create Default Superuser (Admin) from .env
+    admin_user = config('DJANGO_SUPERUSER_USERNAME', default='admin')
+    admin_email = config('DJANGO_SUPERUSER_EMAIL', default='admin@example.com')
+    admin_pass = config('DJANGO_SUPERUSER_PASSWORD', default='adminpassword123')
+
+    if not User.objects.filter(username=admin_user).exists():
+        print(f"Creating superuser: {admin_user}...")
+        super_admin_role, _ = Role.objects.get_or_create(code=Role.SUPER_ADMIN, defaults={'name': 'Super Admin'})
+        User.objects.create_superuser(
+            username=admin_user,
+            email=admin_email,
+            password=admin_pass,
+            role=super_admin_role
+        )
+        print(f"Superuser {admin_user} created successfully.")
+    else:
+        print(f"Superuser {admin_user} already exists.")
+
+    # 1. Clear ALL existing data (Except Users & Roles)
     Payment.objects.all().delete()
     FundingTransaction.objects.all().delete()
     MaterialTransaction.objects.all().delete()

@@ -1,6 +1,10 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 from . import views
+
+# Views in this router are specifically for authentication and profile management
+# Main CRUD for users/roles/logs is handled in the root router in config/urls.py
 
 urlpatterns = [
     path('login/', views.login_view, name='login'),

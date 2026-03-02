@@ -8,7 +8,7 @@ API_URL="${API_URL}"
 FRONTEND_URL="${FRONTEND_URL}"
 
 echo "1. Testing API Endpoint Accessibility..."
-curl -s -o /dev/null -w "Status: %{http_code}\n" "$API_URL/api/"
+curl -s -o /dev/null -w "Status: %{http_code}\n" "$API_URL/api/v1/"
 
 echo ""
 # Credentials (must be provided via environment variables)
@@ -22,7 +22,7 @@ TEST_EMAIL="${TEST_EMAIL}"
 TEST_USERNAME="${TEST_USERNAME}"
 
 echo "2. Testing Login Endpoint..."
-curl -s -X POST "$API_URL/api/auth/login/" \
+curl -s -X POST "$API_URL/api/v1/auth/login/" \
   -H "Content-Type: application/json" \
   -H "Origin: $FRONTEND_URL" \
   -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASSWORD\"}" \
@@ -30,14 +30,14 @@ curl -s -X POST "$API_URL/api/auth/login/" \
 
 echo ""
 echo "3. Checking CORS Headers..."
-curl -s -I -X OPTIONS "$API_URL/api/auth/login/" \
+curl -s -I -X OPTIONS "$API_URL/api/v1/auth/login/" \
   -H "Origin: $FRONTEND_URL" \
   -H "Access-Control-Request-Method: POST" \
   -H "Access-Control-Request-Headers: Content-Type,Authorization" | grep -i "access-control"
 
 echo ""
 echo "4. Testing with Username..."
-curl -s -X POST "$API_URL/api/auth/login/" \
+curl -s -X POST "$API_URL/api/v1/auth/login/" \
   -H "Content-Type: application/json" \
   -H "Origin: $FRONTEND_URL" \
   -d "{\"username\":\"$TEST_USERNAME\",\"password\":\"$TEST_PASSWORD\"}" \

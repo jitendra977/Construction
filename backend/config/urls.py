@@ -7,9 +7,9 @@ from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 
-from apps.accounts.views import UserViewSet
+from apps.accounts.views import UserViewSet, RoleViewSet, ActivityLogViewSet
 from apps.core.views import HouseProjectViewSet, ConstructionPhaseViewSet, RoomViewSet, FloorViewSet, DashboardDataView
-from apps.core.import_views import SqlImportView
+from apps.core.import_views import SqlImportView, RawDataPopulationView
 from apps.core.gallery_views import GalleryViewSet
 from apps.tasks.views import TaskViewSet, TaskUpdateViewSet, TaskMediaViewSet
 from apps.finance.views import BudgetCategoryViewSet, ExpenseViewSet, PaymentViewSet, FundingSourceViewSet, FundingTransactionViewSet
@@ -17,6 +17,8 @@ from apps.resources.views import ContractorViewSet, MaterialViewSet, DocumentVie
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet)
+router.register(r'roles', RoleViewSet)
+router.register(r'activity-logs', ActivityLogViewSet)
 router.register(r'projects', HouseProjectViewSet)
 router.register(r'phases', ConstructionPhaseViewSet)
 router.register(r'floors', FloorViewSet)
@@ -41,6 +43,7 @@ urlpatterns = [
     path('api/v1/auth/', include('apps.accounts.urls')), # Auth endpoints
     path('api/v1/dashboard/combined/', DashboardDataView.as_view(), name='dashboard-combined'),
     path('api/v1/import/sql/', SqlImportView.as_view(), name='sql-import'),
+    path('api/v1/import/populate-raw-data/', RawDataPopulationView.as_view(), name='populate-raw-data'),
     path('api/v1/', include(router.urls)),       # Main API
     path('api/v1/estimator/', include('apps.estimator.urls')),
     path('api/v1/permits/', include('apps.permits.urls')),

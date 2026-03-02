@@ -14,10 +14,19 @@ class ContractorSerializer(serializers.ModelSerializer):
     total_amount = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     total_paid = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     balance_due = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    
+    display_name = serializers.CharField(read_only=True)
+    display_email = serializers.EmailField(read_only=True)
+    display_phone = serializers.CharField(read_only=True)
 
     class Meta:
         model = Contractor
-        fields = '__all__'
+        fields = [
+            'id', 'user', 'name', 'role', 'phone', 'email', 'address', 'photo', 
+            'citizenship_number', 'bank_details', 'skills', 'rate', 'is_active', 
+            'joined_date', 'total_amount', 'total_paid', 'balance_due',
+            'display_name', 'display_email', 'display_phone'
+        ]
 
 class MaterialSerializer(serializers.ModelSerializer):
     budget_category_name = serializers.CharField(source='budget_category.name', read_only=True)

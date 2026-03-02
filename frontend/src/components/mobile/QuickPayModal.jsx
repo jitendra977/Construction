@@ -16,8 +16,11 @@ const QuickPayModal = ({ isOpen, onClose }) => {
         method: 'CASH',
         reference_id: '',
         funding_source: dashboardData.funding[0]?.id || '',
-        notes: ''
+        notes: '',
+        proof_photo: null
     });
+
+    const [photoPreview, setPhotoPreview] = useState(null);
 
     // Update active target when selection changes
     useEffect(() => {
@@ -67,6 +70,16 @@ const QuickPayModal = ({ isOpen, onClose }) => {
         return history.sort((a, b) => new Date(b.date) - new Date(a.date));
     };
 
+    const handlePhotoChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setPaymentFormData({ ...paymentFormData, proof_photo: file });
+            const reader = new FileReader();
+            reader.onloadend = () => setPhotoPreview(reader.result);
+            reader.readAsDataURL(file);
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!activeTarget || !selectedId) return;
@@ -92,13 +105,13 @@ const QuickPayModal = ({ isOpen, onClose }) => {
                 if (!categoryId && dashboardData.budgetCategories?.length > 0) categoryId = dashboardData.budgetCategories[0].id;
 
                 const expenseData = {
-                    title: `${categoryName} Payment/Advance: ${activeTarget.name}`,
+                    title: `${categoryName} Payment/Advance: ${activeTarget.display_name || activeTarget.name}`,
                     amount: parseFloat(paymentFormData.amount),
                     expense_type: isContractor ? 'LABOR' : 'MATERIAL',
                     category: categoryId,
                     date: paymentFormData.date,
                     is_paid: false,
-                    paid_to: activeTarget.name,
+                    paid_to: activeTarget.display_name || activeTarget.name,
                     funding_source: paymentFormData.funding_source
                 };
                 if (isContractor) expenseData.contractor = activeTarget.id;
@@ -108,28 +121,34 @@ const QuickPayModal = ({ isOpen, onClose }) => {
                 targetExpenseId = expenseRes.data.id;
             }
 
-            // 2. Create Payment
-            await dashboardService.createPayment({
-                expense: targetExpenseId,
-                funding_source: paymentFormData.funding_source,
-                amount: parseFloat(paymentFormData.amount),
-                date: paymentFormData.date,
-                method: paymentFormData.method,
-                reference_id: paymentFormData.reference_id,
-                notes: paymentFormData.notes
-            });
+            // 2. Create Payment using FormData for file support
+            const formData = new FormData();
+            formData.append('expense', targetExpenseId);
+            formData.append('funding_source', paymentFormData.funding_source);
+            formData.append('amount', parseFloat(paymentFormData.amount));
+            formData.append('date', paymentFormData.date);
+            formData.append('method', paymentFormData.method);
+            formData.append('reference_id', paymentFormData.reference_id);
+            formData.append('notes', paymentFormData.notes);
+            if (paymentFormData.proof_photo) {
+                formData.append('proof_photo', paymentFormData.proof_photo);
+            }
+
+            await dashboardService.createPayment(formData);
 
             refreshData();
             onClose();
             // Reset
             setSelectedId('');
+            setPhotoPreview(null);
             setPaymentFormData({
                 amount: '',
                 date: new Date().toISOString().split('T')[0],
                 method: 'CASH',
                 reference_id: '',
                 funding_source: dashboardData.funding[0]?.id || '',
-                notes: ''
+                notes: '',
+                proof_photo: null
             });
         } catch (error) {
             alert("Payment failed. Please check account balance.");
@@ -170,7 +189,9 @@ const QuickPayModal = ({ isOpen, onClose }) => {
                     >
                         <option value="">Choose or Search...</option>
                         {(targetType === 'CONTRACTOR' ? dashboardData.contractors : dashboardData.suppliers)?.map(item => (
-                            <option key={item.id} value={item.id}>{item.name}</option>
+                            <option key={item.id} value={item.id}>
+                                {item.display_name || item.name} {targetType === 'CONTRACTOR' ? `(${item.role})` : ''}
+                            </option>
                         ))}
                     </select>
                 </div>
@@ -264,12 +285,41 @@ const QuickPayModal = ({ isOpen, onClose }) => {
                                 </div>
                             </div>
 
+                            {/* Proof Photo Upload */}
+                            <div className="space-y-2">
+                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Payment Proof (Success Photo)</label>
+                                <div className="flex gap-3 items-center">
+                                    <label className="flex-1 flex items-center justify-center gap-2 p-3 bg-indigo-50 border-2 border-dashed border-indigo-200 rounded-xl cursor-pointer hover:bg-indigo-100 transition-colors">
+                                        <span className="text-xl">📸</span>
+                                        <span className="text-[10px] font-black text-indigo-600 uppercase">Upload Proof</span>
+                                        <input
+                                            type="file"
+                                            className="hidden"
+                                            accept="image/*"
+                                            onChange={handlePhotoChange}
+                                        />
+                                    </label>
+                                    {photoPreview && (
+                                        <div className="w-12 h-12 rounded-xl border border-gray-200 overflow-hidden relative group">
+                                            <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                                            <button
+                                                type="button"
+                                                onClick={() => { setPhotoPreview(null); setPaymentFormData({ ...paymentFormData, proof_photo: null }); }}
+                                                className="absolute inset-0 bg-red-500/80 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[8px] font-bold"
+                                            >
+                                                REMOVE
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
                             <button
                                 type="submit"
                                 disabled={loading}
                                 className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-emerald-100 active:scale-95 transition-all disabled:opacity-50 mt-2"
                             >
-                                {loading ? 'Processing...' : `Confirm Payment: ${activeTarget.name}`}
+                                {loading ? 'Processing...' : `Confirm Payment: ${activeTarget.display_name || activeTarget.name}`}
                             </button>
                         </form>
 

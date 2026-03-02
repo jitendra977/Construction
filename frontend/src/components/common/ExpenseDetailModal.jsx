@@ -15,8 +15,10 @@ const ExpenseDetailModal = ({ isOpen, onClose, expenseId }) => {
         date: new Date().toISOString().split('T')[0],
         method: 'CASH',
         reference_id: '',
-        funding_source: ''
+        funding_source: '',
+        proof_photo: null
     });
+    const [photoPreview, setPhotoPreview] = useState(null);
 
     // Synchronize default payment method when form opens
     useEffect(() => {
@@ -40,16 +42,34 @@ const ExpenseDetailModal = ({ isOpen, onClose, expenseId }) => {
 
     if (!expense) return null;
 
+    const handlePhotoChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setPaymentData({ ...paymentData, proof_photo: file });
+            const reader = new FileReader();
+            reader.onloadend = () => setPhotoPreview(reader.result);
+            reader.readAsDataURL(file);
+        }
+    };
+
     const handlePaymentSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         try {
-            await dashboardService.createPayment({
-                ...paymentData,
-                expense: expense.id,
-                amount: parseFloat(paymentData.amount)
-            });
+            const formData = new FormData();
+            formData.append('expense', expense.id);
+            formData.append('funding_source', paymentData.funding_source);
+            formData.append('amount', parseFloat(paymentData.amount));
+            formData.append('date', paymentData.date);
+            formData.append('method', paymentData.method);
+            formData.append('reference_id', paymentData.reference_id);
+            if (paymentData.proof_photo) {
+                formData.append('proof_photo', paymentData.proof_photo);
+            }
+
+            await dashboardService.createPayment(formData);
             setIsPaymentFormOpen(false);
+            setPhotoPreview(null);
             refreshData();
         } catch (error) {
             alert('Payment failed.');
@@ -285,6 +305,30 @@ const ExpenseDetailModal = ({ isOpen, onClose, expenseId }) => {
                                                 className="w-full bg-gray-50 border-none rounded-xl p-3 text-xs font-bold text-gray-700 placeholder-gray-300 focus:ring-2 focus:ring-green-500 focus:bg-white transition-all"
                                                 placeholder="Reference ID / Transaction ID"
                                             />
+
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block">Proof of Payment</label>
+                                                <div className="flex gap-3 items-center">
+                                                    <label className="flex-1 flex items-center justify-center gap-2 p-2.5 bg-green-50 border-2 border-dashed border-green-200 rounded-xl cursor-pointer hover:bg-green-100 transition-colors">
+                                                        <span className="text-lg">📸</span>
+                                                        <span className="text-[10px] font-black text-green-700 uppercase">Attach Photo</span>
+                                                        <input type="file" className="hidden" accept="image/*" onChange={handlePhotoChange} />
+                                                    </label>
+                                                    {photoPreview && (
+                                                        <div className="w-10 h-10 rounded-xl border border-gray-100 overflow-hidden relative group">
+                                                            <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => { setPhotoPreview(null); setPaymentData({ ...paymentData, proof_photo: null }); }}
+                                                                className="absolute inset-0 bg-red-500/80 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[8px] font-bold"
+                                                            >
+                                                                REMOVE
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+
                                             <button
                                                 type="submit"
                                                 disabled={loading}
@@ -316,6 +360,18 @@ const ExpenseDetailModal = ({ isOpen, onClose, expenseId }) => {
                                                     <div className="text-right">
                                                         {payment.reference_id && (
                                                             <div className="text-[9px] font-black text-gray-300 uppercase tracking-widest group-hover:text-indigo-400 transition-colors">#{payment.reference_id}</div>
+                                                        )}
+                                                        {payment.proof_photo && (
+                                                            <div className="mt-1 flex justify-end">
+                                                                <a
+                                                                    href={payment.proof_photo}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="px-2 py-0.5 bg-green-50 text-green-700 text-[8px] font-black uppercase rounded border border-green-100/50 hover:bg-green-100 transition-colors flex items-center gap-1"
+                                                                >
+                                                                    🖼️ View Proof
+                                                                </a>
+                                                            </div>
                                                         )}
                                                         <div className="text-[10px] text-green-600 font-black uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity mt-1">Confirmed</div>
                                                     </div>

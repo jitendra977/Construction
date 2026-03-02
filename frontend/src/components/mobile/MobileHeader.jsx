@@ -23,9 +23,9 @@ const MobileHeader = ({ project, stats, onLogout }) => {
                         to="/dashboard/mobile/profile"
                         className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-xl text-white border border-white/20 active:scale-95 transition-all flex items-center justify-center overflow-hidden"
                     >
-                        {user?.profile?.avatar ? (
+                        {user?.profile_image ? (
                             <img
-                                src={getMediaUrl(user.profile.avatar)}
+                                src={getMediaUrl(user.profile_image)}
                                 alt={user.username}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {

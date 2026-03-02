@@ -6,6 +6,7 @@ Dangerous DDL statements are blocked by a deny-list check before execution.
 """
 
 import re
+import importlib
 from django.db import connection, transaction
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -193,3 +194,70 @@ class SqlImportView(APIView):
             },
             status=status.HTTP_200_OK
         )
+
+class RawDataPopulationView(APIView):
+    """
+    POST /api/v1/import/populate-raw-data/
+    Triggers a full re-population of the database with sample construction data.
+    Superusers only.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if not request.user.is_superuser:
+            return Response(
+                {'success': False, 'error': 'Admin (superuser) access required.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        script_names = [
+            '00_cleanup', '01_accounts', '02_core_project', '03_core_phases', '04_core_floors_rooms',
+            '05_resources_suppliers', '06_resources_contractors', '07_resources_materials',
+            '08_finance_categories', '09_finance_funding', '10_tasks',
+            '11_finance_expenses', '12_permits', '98_verify_funding'
+        ]
+
+        results = []
+        errors = []
+
+        try:
+            for name in script_names:
+                try:
+                    # Clear cache and import
+                    module_name = f'populate_raw_data.{name}'
+                    if module_name in sys.modules:
+                        importlib.reload(sys.modules[module_name])
+                        module = sys.modules[module_name]
+                    else:
+                        module = importlib.import_module(module_name)
+                    
+                    if hasattr(module, 'populate'):
+                        module.populate()
+                        results.append(name)
+                    else:
+                        errors.append({'script': name, 'error': 'No populate() function found'})
+                except Exception as e:
+                    errors.append({'script': name, 'error': str(e)})
+                    # Fail fast on critical early scripts
+                    if name in ['00_cleanup', '01_accounts']:
+                        raise e
+
+            success = len(errors) == 0
+            return Response({
+                'success': success,
+                'executed_scripts': results,
+                'errors': errors,
+                'message': 'Full project data population completed.' if success else f'Data population completed with {len(errors)} error(s).'
+            }, status=status.HTTP_200_OK if success else status.HTTP_207_MULTI_STATUS)
+
+        except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
+            print(f"CRITICAL POPULATION ERROR: {error_details}")
+            return Response({
+                'success': False,
+                'message': f'Population failed critically. Error: {str(e)}',
+                'executed_scripts': results,
+                'errors': errors,
+                'traceback': error_details if settings.DEBUG else None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

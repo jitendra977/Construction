@@ -274,6 +274,52 @@ export default function DataImportPage() {
                         </div>
                     )}
 
+                    {/* Seed Data Card */}
+                    <div className="p-6 rounded-3xl bg-indigo-500/10 border border-indigo-500/20">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+                                <span className="text-xl">🛠️</span>
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-white">Seed Sample Data</h3>
+                                <p className="text-slate-400 text-xs">Reset and populate with realistic project data</p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <p className="text-slate-300 text-sm leading-relaxed">
+                                This will run all backend population scripts to seed the database with sample
+                                accounts, projects, phases, rooms, materials, and financial data.
+                                <span className="text-amber-400 font-semibold block mt-1">
+                                    ⚠️ WARNING: This typically cleans up existing data before population.
+                                </span>
+                            </p>
+
+                            <button
+                                onClick={async () => {
+                                    if (window.confirm("ARE YOU SURE? This will re-initialize the database with sample data. Existing project data will be lost.")) {
+                                        setLoading(true);
+                                        setError(null);
+                                        setResult(null);
+                                        try {
+                                            const res = await importService.populateRawData();
+                                            setResult(res.data);
+                                        } catch (err) {
+                                            const msg = err.response?.data?.message || err.message || 'Population failed.';
+                                            setError(msg);
+                                        } finally {
+                                            setLoading(false);
+                                        }
+                                    }
+                                }}
+                                disabled={loading}
+                                className="w-full py-3 rounded-2xl font-bold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 transition-all shadow-lg shadow-indigo-500/20"
+                            >
+                                {loading ? '🚀 Seeding Database...' : '🚀 Populate Raw Data'}
+                            </button>
+                        </div>
+                    </div>
+
                     {/* Info card */}
                     <div className="p-4 rounded-2xl bg-amber-500/8 border border-amber-500/20">
                         <div className="flex gap-2 items-start">

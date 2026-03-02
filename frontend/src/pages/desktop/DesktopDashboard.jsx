@@ -37,6 +37,7 @@ function DesktopDashboard() {
         { id: 'manage', icon: '🛠️', label: 'Manage (व्यवस्थापन)' },
         { id: 'photos', icon: '📸', label: 'Gallery (फोटो ग्यालरी)' },
         { id: 'import', icon: '📥', label: 'Import Data (डाटा आयात)' },
+        ...(user?.is_system_admin ? [{ id: 'users', icon: '👥', label: 'Users (प्रयोगकर्ता)' }] : []),
     ];
 
     return (

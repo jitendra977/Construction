@@ -1,40 +1,45 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.utils.safestring import mark_safe
-from .models import User, Profile
+from .models import User, Role, ActivityLog
 
-class ProfileInline(admin.StackedInline):
-    model = Profile
-    can_delete = False
-    verbose_name_plural = 'Profile'
-    readonly_fields = ('avatar_thumbnail',)
-
-    def avatar_thumbnail(self, obj):
-        if obj.avatar:
-            return mark_safe(f'<img src="{obj.avatar.url}" width="50" height="50" style="border-radius: 50%; object-fit: cover;" />')
-        return "No Avatar"
-    avatar_thumbnail.short_description = 'Avatar'
+@admin.register(Role)
+class RoleAdmin(admin.ModelAdmin):
+    list_display = ('name', 'code', 'can_manage_all_systems', 'can_manage_finances', 'can_manage_phases')
+    search_fields = ('name', 'code')
+    list_filter = ('can_manage_all_systems', 'can_manage_finances', 'can_manage_phases')
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
-    inlines = (ProfileInline,)
-    list_display = ('username', 'email', 'first_name', 'last_name', 'role', 'is_staff')
-    list_filter = ('is_staff', 'is_superuser', 'is_active', 'groups', 'role')
+    list_display = ('username', 'email', 'first_name', 'last_name', 'role', 'is_staff', 'is_verified')
+    list_filter = ('is_staff', 'is_superuser', 'is_active', 'groups', 'role', 'is_verified')
     fieldsets = UserAdmin.fieldsets + (
-        (None, {'fields': ('role',)}),
+        ('Custom Profile Info', {
+            'fields': (
+                'role', 'phone_number', 'profile_image', 'bio', 'address',
+                'preferred_language', 'notifications_enabled', 'is_verified', 
+                'verification_token', 'frontend_last_login'
+            )
+        }),
     )
     add_fieldsets = UserAdmin.add_fieldsets + (
-        (None, {'fields': ('role',)}),
+        ('Custom Profile Info', {
+            'fields': ('role', 'is_verified')
+        }),
     )
 
-@admin.register(Profile)
-class ProfileAdmin(admin.ModelAdmin):
-    list_display = ('avatar_thumbnail', 'user', 'phone_number', 'preferred_language', 'notifications_enabled')
-    search_fields = ('user__username', 'phone_number', 'address')
-    readonly_fields = ('avatar_thumbnail',)
-
-    def avatar_thumbnail(self, obj):
-        if obj.avatar:
-            return mark_safe(f'<img src="{obj.avatar.url}" width="50" height="50" style="border-radius: 50%; object-fit: cover;" />')
-        return "No Avatar"
-    avatar_thumbnail.short_description = 'Avatar'
+@admin.register(ActivityLog)
+class ActivityLogAdmin(admin.ModelAdmin):
+    list_display = ('timestamp', 'user', 'action', 'model_name', 'object_repr', 'success')
+    list_filter = ('action', 'model_name', 'success', 'timestamp')
+    search_fields = ('user__username', 'description', 'object_repr')
+    readonly_fields = [f.name for f in ActivityLog._meta.fields]
+    
+    def has_add_permission(self, request):
+        return False
+    
+    def has_change_permission(self, request, obj=None):
+        return False
+    
+    def has_delete_permission(self, request, obj=None):
+        return False

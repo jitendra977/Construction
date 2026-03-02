@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { dashboardService, getMediaUrl } from '../../../services/api';
+import { dashboardService, accountsService, getMediaUrl } from '../../../services/api';
 import Modal from '../../common/Modal';
 import { useConstruction } from '../../../context/ConstructionContext';
 
@@ -9,6 +9,7 @@ const ContractorsTab = ({ searchQuery = '' }) => {
     const [editingItem, setEditingItem] = useState(null);
     const [formData, setFormData] = useState({});
     const [loading, setLoading] = useState(false);
+    const [systemUsers, setSystemUsers] = useState([]);
 
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
@@ -20,14 +21,31 @@ const ContractorsTab = ({ searchQuery = '' }) => {
         funding_source: '',
         notes: ''
     });
+    const [roleFilter, setRoleFilter] = useState('ALL');
 
-    const filteredContractors = dashboardData.contractors?.filter(c =>
-        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.skills?.toLowerCase().includes(searchQuery.toLowerCase())
-    ) || [];
+    const roleChoices = [
+        { value: 'ALL', label: 'All Roles' },
+        { value: 'THEKEDAAR', label: 'Thekedaar (Contractor)' },
+        { value: 'ENGINEER', label: 'Civil Engineer' },
+        { value: 'MISTRI', label: 'Mistri (Mason)' },
+        { value: 'LABOUR', label: 'Labour (Helper)' },
+        { value: 'ELECTRICIAN', label: 'Electrician' },
+        { value: 'PLUMBER', label: 'Plumber' },
+        { value: 'CARPENTER', label: 'Carpenter' },
+        { value: 'PAINTER', label: 'Painter' },
+        { value: 'TILE_MISTRI', label: 'Tile/Marble' },
+        { value: 'WELDER', label: 'Welder' },
+    ];
 
-    const handleOpenModal = (item = null) => {
+    const filteredContractors = dashboardData.contractors?.filter(c => {
+        const matchesSearch = (c.display_name || c.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (c.role || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (c.skills || '').toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesRole = roleFilter === 'ALL' || c.role === roleFilter;
+        return matchesSearch && matchesRole;
+    }) || [];
+
+    const handleOpenModal = async (item = null) => {
         setEditingItem(item);
         if (item) {
             setFormData(item);
@@ -35,6 +53,36 @@ const ContractorsTab = ({ searchQuery = '' }) => {
             setFormData({ is_active: true, role: 'LABOUR' });
         }
         setIsModalOpen(true);
+
+        // Fetch users if not already fetched
+        if (systemUsers.length === 0) {
+            try {
+                const res = await accountsService.getUsers();
+                // Filter users with CONTRACTOR role or just show all for now
+                setSystemUsers(res.data);
+            } catch (error) {
+                console.error("Failed to fetch users", error);
+            }
+        }
+    };
+
+    const handleUserChange = (userId) => {
+        const selectedUser = systemUsers.find(u => u.id === parseInt(userId));
+        if (selectedUser) {
+            const fullName = `${selectedUser.first_name} ${selectedUser.last_name}`.trim() || selectedUser.username;
+            setFormData({
+                ...formData,
+                user: selectedUser.id,
+                name: fullName,
+                email: selectedUser.email,
+                phone: selectedUser.phone_number || ''
+            });
+        } else {
+            setFormData({
+                ...formData,
+                user: null
+            });
+        }
     };
 
     const handleDelete = async (id) => {
@@ -176,12 +224,23 @@ const ContractorsTab = ({ searchQuery = '' }) => {
         <div className="space-y-4">
             <div className="flex justify-between items-center mb-2">
                 <p className="text-sm text-gray-500">Manage site contractors, roles, and contact credentials.</p>
-                <button
-                    onClick={() => handleOpenModal()}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors shadow-sm"
-                >
-                    + Add New Contractor
-                </button>
+                <div className="flex items-center gap-3">
+                    <select
+                        value={roleFilter}
+                        onChange={(e) => setRoleFilter(e.target.value)}
+                        className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none appearance-none cursor-pointer"
+                    >
+                        {roleChoices.map(role => (
+                            <option key={role.value} value={role.value}>{role.label}</option>
+                        ))}
+                    </select>
+                    <button
+                        onClick={() => handleOpenModal()}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors shadow-sm"
+                    >
+                        + Add New Contractor
+                    </button>
+                </div>
             </div>
 
             {/* Desktop View: Table */}
@@ -209,14 +268,22 @@ const ContractorsTab = ({ searchQuery = '' }) => {
                                                     className="w-10 h-10 rounded-full object-cover border border-indigo-100 shadow-sm"
                                                 />
                                             ) : (
-                                                <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold border border-indigo-100 shadow-sm">
-                                                    {c.name.charAt(0)}
+                                                <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold border border-indigo-100 shadow-sm relative">
+                                                    {c.display_name?.charAt(0) || c.name?.charAt(0)}
+                                                    {c.user && (
+                                                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white" title="Linked to System User" />
+                                                    )}
                                                 </div>
                                             )}
                                             <div>
-                                                <div className="font-bold text-gray-900">{c.name}</div>
+                                                <div className="font-bold text-gray-900 flex items-center gap-1.5">
+                                                    {c.display_name || c.name}
+                                                    {c.user && (
+                                                        <span className="text-[8px] bg-blue-50 text-blue-600 px-1 py-0.5 rounded border border-blue-100 font-black">ACCOUNT LINKED</span>
+                                                    )}
+                                                </div>
                                                 <div className="text-[10px] text-gray-400 font-medium uppercase truncate max-w-[150px]">
-                                                    {c.skills || 'No specialization listed'}
+                                                    {c.display_email || c.email || (c.skills || 'No specialization listed')}
                                                 </div>
                                             </div>
                                         </div>
@@ -280,14 +347,18 @@ const ContractorsTab = ({ searchQuery = '' }) => {
                                             className="w-10 h-10 rounded-full object-cover border border-indigo-100"
                                         />
                                     ) : (
-                                        <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold border border-indigo-100">
-                                            {c.name.charAt(0)}
+                                        <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold border border-indigo-100 relative">
+                                            {c.display_name?.charAt(0) || c.name?.charAt(0)}
+                                            {c.user && (
+                                                <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white shadow-sm" />
+                                            )}
                                         </div>
                                     )}
                                     <div>
                                         <div className="flex items-center gap-2 mb-0.5">
-                                            <h3 className="font-bold text-gray-900 text-base leading-tight">{c.name}</h3>
+                                            <h3 className="font-bold text-gray-900 text-base leading-tight">{c.display_name || c.name}</h3>
                                             <div className={`w-1.5 h-1.5 rounded-full ${c.is_active ? 'bg-green-500' : 'bg-gray-300'}`} />
+                                            {c.user && <span className="text-[8px] bg-blue-50 text-blue-600 px-1 py-0.5 rounded border border-blue-100 font-black">LINKED</span>}
                                         </div>
                                         <div className={`px-2 py-0.5 rounded border text-[8px] font-black uppercase w-fit inline-block leading-none ${getRoleColor(c.role)}`}>
                                             {c.role}
@@ -351,16 +422,36 @@ const ContractorsTab = ({ searchQuery = '' }) => {
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`${editingItem ? 'Edit' : 'Add'} Contractor`}>
                 <form onSubmit={handleSubmit} className="space-y-4 p-1">
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">Link System User Account (Optional)</label>
+                        <select
+                            value={formData.user || ''}
+                            onChange={e => handleUserChange(e.target.value)}
+                            className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none appearance-none bg-white"
+                        >
+                            <option value="">-- No Linked Account --</option>
+                            {systemUsers.filter(u => u.role?.code === 'CONTRACTOR' || !editingItem).map(u => (
+                                <option key={u.id} value={u.id}>
+                                    {u.first_name} {u.last_name} ({u.email})
+                                </option>
+                            ))}
+                        </select>
+                        <p className="text-[10px] text-gray-400 mt-1 italic">Note: Linking an account will automatically sync Name, Email, and Phone.</p>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">Contractor Name</label>
+                            <label className="block text-sm font-semibold text-gray-700 mb-1">
+                                Contractor Name {formData.user && <span className="text-[10px] text-blue-500 font-bold ml-1">(Synced from Account)</span>}
+                            </label>
                             <input
                                 type="text"
                                 value={formData.name || ''}
                                 onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none"
+                                className={`w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none ${formData.user ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''}`}
                                 placeholder="e.g. Ramesh Mistri"
                                 required
+                                disabled={!!formData.user}
                             />
                         </div>
                         <div>
@@ -386,24 +477,30 @@ const ContractorsTab = ({ searchQuery = '' }) => {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">Phone Number</label>
+                            <label className="block text-sm font-semibold text-gray-700 mb-1">
+                                Phone Number {formData.user && <span className="text-[10px] text-blue-500 font-bold ml-1">(Synced)</span>}
+                            </label>
                             <input
                                 type="text"
                                 value={formData.phone || ''}
                                 onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                                className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none"
+                                className={`w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none ${formData.user ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''}`}
                                 placeholder="+977"
                                 required
+                                disabled={!!formData.user}
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">Email Address</label>
+                            <label className="block text-sm font-semibold text-gray-700 mb-1">
+                                Email Address {formData.user && <span className="text-[10px] text-blue-500 font-bold ml-1">(Synced)</span>}
+                            </label>
                             <input
                                 type="email"
                                 value={formData.email || ''}
                                 onChange={e => setFormData({ ...formData, email: e.target.value })}
-                                className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none"
+                                className={`w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none ${formData.user ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''}`}
                                 placeholder="example@gmail.com"
+                                disabled={!!formData.user}
                             />
                         </div>
                     </div>

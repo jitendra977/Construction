@@ -25,8 +25,10 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
         amount: 0,
         date: new Date().toISOString().split('T')[0],
         method: 'CASH',
-        reference_id: ''
+        reference_id: '',
+        proof_photo: null
     });
+    const [photoPreview, setPhotoPreview] = useState(null);
 
     const filteredExpenses = dashboardData.expenses?.filter(e =>
         e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -80,6 +82,16 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
         setIsDetailModalOpen(true);
     };
 
+    const handlePhotoChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setPaymentFormData({ ...paymentFormData, proof_photo: file });
+            const reader = new FileReader();
+            reader.onloadend = () => setPhotoPreview(reader.result);
+            reader.readAsDataURL(file);
+        }
+    };
+
     const handleOpenPaymentModal = (expense) => {
         setActiveExpense(expense);
 
@@ -102,12 +114,20 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
         e.preventDefault();
         setLoading(true);
         try {
-            await dashboardService.createPayment({
-                ...paymentFormData,
-                expense: activeExpense.id,
-                amount: parseFloat(paymentFormData.amount)
-            });
+            const formData = new FormData();
+            formData.append('expense', activeExpense.id);
+            formData.append('funding_source', paymentFormData.funding_source || activeExpense.funding_source);
+            formData.append('amount', parseFloat(paymentFormData.amount));
+            formData.append('date', paymentFormData.date);
+            formData.append('method', paymentFormData.method);
+            formData.append('reference_id', paymentFormData.reference_id);
+            if (paymentFormData.proof_photo) {
+                formData.append('proof_photo', paymentFormData.proof_photo);
+            }
+
+            await dashboardService.createPayment(formData);
             setIsPaymentModalOpen(false);
+            setPhotoPreview(null);
             refreshData();
         } catch (error) {
             console.error("Payment error:", error);
@@ -321,13 +341,13 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
                                         value={formData.contractor || ''}
                                         onChange={e => {
                                             const c = dashboardData.contractors?.find(con => con.id === parseInt(e.target.value));
-                                            setFormData({ ...formData, contractor: e.target.value, paid_to: c ? c.name : formData.paid_to });
+                                            setFormData({ ...formData, contractor: e.target.value, paid_to: c ? (c.display_name || c.name) : formData.paid_to });
                                         }}
                                         className="w-full rounded-2xl border-gray-100 bg-gray-50/50 shadow-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 p-4 border outline-none appearance-none font-bold"
                                     >
                                         <option value="">Select Contractor</option>
                                         {dashboardData.contractors?.map(c => (
-                                            <option key={c.id} value={c.id}>{c.name}</option>
+                                            <option key={c.id} value={c.id}>{c.display_name || c.name} ({c.role})</option>
                                         ))}
                                     </select>
                                     <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
@@ -433,8 +453,8 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
                                     return (
                                         <div className="flex items-center gap-3">
                                             <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest ${fs.source_type === 'LOAN' ? 'bg-orange-100 text-orange-600' :
-                                                    fs.source_type === 'OWN_MONEY' ? 'bg-emerald-100 text-emerald-600' :
-                                                        'bg-purple-100 text-purple-600'
+                                                fs.source_type === 'OWN_MONEY' ? 'bg-emerald-100 text-emerald-600' :
+                                                    'bg-purple-100 text-purple-600'
                                                 }`}>
                                                 {fs.source_type}
                                             </span>
@@ -575,6 +595,29 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
                                     className="w-full rounded-2xl border-gray-100 bg-gray-50/50 p-4 border focus:ring-4 focus:ring-indigo-100 outline-none font-bold"
                                     placeholder="e.g. eSewa ID / Check #"
                                 />
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Payment Proof (Screenshot)</label>
+                            <div className="flex gap-4 items-center">
+                                <label className="flex-1 flex items-center justify-center gap-3 p-4 bg-indigo-50 border-2 border-dashed border-indigo-200 rounded-2xl cursor-pointer hover:bg-indigo-100 transition-all">
+                                    <span className="text-2xl">📸</span>
+                                    <span className="text-xs font-black text-indigo-600 uppercase tracking-widest">Upload Receipt Photo</span>
+                                    <input type="file" className="hidden" accept="image/*" onChange={handlePhotoChange} />
+                                </label>
+                                {photoPreview && (
+                                    <div className="w-16 h-16 rounded-2xl border-2 border-white shadow-md overflow-hidden relative group">
+                                        <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                                        <button
+                                            type="button"
+                                            onClick={() => { setPhotoPreview(null); setPaymentFormData({ ...paymentFormData, proof_photo: null }); }}
+                                            className="absolute inset-0 bg-red-500/90 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] font-black"
+                                        >
+                                            REMOVE
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </div>
 

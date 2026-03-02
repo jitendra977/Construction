@@ -62,9 +62,37 @@ const DesktopSidebar = ({ user, onLogout, navItems }) => {
                         ))}
                     </div>
                 </div>
+
+                {navItems.some(item => ['import', 'users'].includes(item.id)) && (
+                    <div>
+                        <p className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">System Control</p>
+                        <div className="space-y-1">
+                            {navItems.filter(item => ['import', 'users'].includes(item.id)).map((item) => (
+                                <NavLink
+                                    key={item.id}
+                                    to={`/dashboard/desktop/${item.id}`}
+                                    className={linkClasses}
+                                >
+                                    <span className="text-xl">{item.icon}</span>
+                                    <span>{item.label}</span>
+                                </NavLink>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </nav>
 
-            <div className="p-4 border-t border-gray-100">
+            <div className="p-4 border-t border-gray-100 space-y-2">
+                <NavLink
+                    to="/dashboard/desktop/activity-logs"
+                    className={({ isActive }) =>
+                        `flex items-center gap-3 px-4 py-2 rounded-xl transition-all ${isActive ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`
+                    }
+                >
+                    <span className="text-xl">📊</span>
+                    <span className="text-sm font-medium">Activity Logs</span>
+                </NavLink>
+
                 <NavLink
                     to="/dashboard/desktop/profile"
                     className={({ isActive }) =>
@@ -72,9 +100,9 @@ const DesktopSidebar = ({ user, onLogout, navItems }) => {
                     }
                 >
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold shadow-sm overflow-hidden">
-                        {user?.profile?.avatar ? (
+                        {user?.profile_image ? (
                             <img
-                                src={getMediaUrl(user.profile.avatar)}
+                                src={getMediaUrl(user.profile_image)}
                                 alt={user.username}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
@@ -90,7 +118,7 @@ const DesktopSidebar = ({ user, onLogout, navItems }) => {
                     <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-gray-900 truncate">{user?.username}</p>
                         <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest opacity-70">
-                            {user?.role || 'Admin'}
+                            {user?.role?.name || 'Admin'}
                         </p>
                     </div>
                     <span className="text-gray-400 text-xs">👤</span>

@@ -122,6 +122,7 @@ class Payment(models.Model):
     method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES)
     reference_id = models.CharField(max_length=100, blank=True, help_text="Check number or Transaction ID")
     notes = models.TextField(blank=True, help_text="Payment remarks/comments")
+    proof_photo = models.ImageField(upload_to='payments/proofs/', null=True, blank=True, help_text="Upload proof of payment (screenshot/photo)")
     
     def __str__(self):
         return f"Payment of Rs. {self.amount} for {self.expense.title}"

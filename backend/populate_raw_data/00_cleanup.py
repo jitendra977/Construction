@@ -2,12 +2,6 @@ import os
 import django
 
 def populate():
-    from apps.core.models import HouseProject, ConstructionPhase, Floor, Room
-    from apps.finance.models import BudgetCategory, Expense, Payment, FundingSource, FundingTransaction
-    from apps.resources.models import Supplier, Contractor, Material, MaterialTransaction, Document
-    from apps.tasks.models import Task, TaskMedia, TaskUpdate
-    from apps.permits.models import PermitStep, LegalDocument
-    
     from django.db import connection
     
     print("Cleaning up old data (Aggressive Reset)...")
@@ -18,24 +12,46 @@ def populate():
         'finance_expense', 'finance_fundingsource', 'finance_budgetcategory',
         'resources_material', 'resources_supplier', 'resources_contractor',
         'core_room', 'core_floor', 'core_constructionphase', 'core_houseproject',
-        'permits_permitstep', 'permits_legaldocument', 'resources_document'
+        'permits_permitstep', 'permits_legaldocument', 'resources_document',
+        'accounts_activitylog', 'accounts_user', 'accounts_role'
     ]
     
+    db_engine = connection.vendor
+    
     with connection.cursor() as cursor:
-        print("Disabling foreign key checks...")
-        cursor.execute("SET FOREIGN_KEY_CHECKS = 0;")
+        print(f"Detected database engine: {db_engine}")
+        
+        # Disable foreign key checks
+        if db_engine == 'mysql':
+            cursor.execute("SET FOREIGN_KEY_CHECKS = 0;")
+        elif db_engine == 'sqlite':
+            cursor.execute("PRAGMA foreign_keys = OFF;")
         
         for table in tables_to_clean:
-            print(f"Truncating table {table}...")
+            print(f"Cleaning table {table}...")
             try:
-                cursor.execute(f"TRUNCATE TABLE {table};")
+                if db_engine == 'mysql':
+                    cursor.execute(f"TRUNCATE TABLE {table};")
+                else:
+                    cursor.execute(f"DELETE FROM {table};")
+                    if db_engine == 'sqlite':
+                        try:
+                            cursor.execute(f"DELETE FROM sqlite_sequence WHERE name='{table}';")
+                        except:
+                            pass
             except Exception as e:
-                print(f"Truncate failed for {table}, trying DELETE. Error: {e}")
-                cursor.execute(f"DELETE FROM {table};")
+                print(f"Cleanup failed for {table}. Error: {e}")
+                try:
+                    cursor.execute(f"DELETE FROM {table};")
+                except:
+                    pass
         
-        print("Enabling foreign key checks...")
-        cursor.execute("SET FOREIGN_KEY_CHECKS = 1;")
-
+        # Re-enable foreign key checks
+        if db_engine == 'mysql':
+            cursor.execute("SET FOREIGN_KEY_CHECKS = 1;")
+        elif db_engine == 'sqlite':
+            cursor.execute("PRAGMA foreign_keys = ON;")
+    
     print("Cleanup complete.")
 
 if __name__ == '__main__':

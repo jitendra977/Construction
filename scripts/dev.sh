@@ -15,7 +15,7 @@ echo "🚀 Starting Local Development Environment..."
 if [[ "$1" == "--nuclear" ]]; then
     echo "☢️  NUCLEAR MODE ACTIVATED"
     echo "🛑 Stopping containers..."
-    docker compose -f docker-compose.local.yml down -v
+    docker compose -f docker-compose.dev.yml down -v
     
     echo "🧹 Cleaning corrupted local modules..."
     echo "   (You may be asked for your password)"
@@ -28,18 +28,18 @@ if [[ "$1" == "--nuclear" ]]; then
 else
     # Standard restart
     echo "🔄 Standard Restart..."
-    docker compose -f docker-compose.local.yml down --remove-orphans
+    docker compose -f docker-compose.dev.yml down --remove-orphans
 fi
 
 echo "🏗️  Building and Starting..."
-docker compose -f docker-compose.local.yml up -d --build
+docker compose -f docker-compose.dev.yml up -d --build
 
 echo "🔍 Verifying services..."
 sleep 2
-if docker ps | grep -q "yaw-frontend"; then
+if docker ps | grep -q "construction_frontend_dev"; then
     echo "✅ Frontend is running!"
 else
-    echo "❌ Frontend failed to start. Check logs: docker logs yaw-frontend"
+    echo "❌ Frontend failed to start. Check logs: docker logs construction_frontend_dev"
 fi
 
 echo "------------------------------------------------"

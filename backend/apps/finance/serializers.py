@@ -15,7 +15,7 @@ class FundingSourceSerializer(serializers.ModelSerializer):
 class PaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payment
-        fields = '__all__'
+        fields = ['id', 'expense', 'funding_source', 'amount', 'date', 'method', 'reference_id', 'notes', 'proof_photo']
 
 class ExpenseSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)

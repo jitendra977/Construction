@@ -257,6 +257,21 @@ export const importService = {
             onUploadProgress,
         });
     },
+
+    /**
+     * Trigger a full database re-population with sample raw data.
+     * Superusers only. 
+     */
+    populateRawData: () => api.post('/import/populate-raw-data/'),
+};
+
+export const accountsService = {
+    getActivityLogs: () => api.get('/activity-logs/'),
+    getUsers: () => api.get('/users/'),
+    createUser: (data) => api.post('/users/', data),
+    updateUser: (id, data) => api.patch(`/users/${id}/`, data),
+    deleteUser: (id) => api.delete(`/users/${id}/`),
+    getRoles: () => api.get('/roles/'),
 };
 
 /**

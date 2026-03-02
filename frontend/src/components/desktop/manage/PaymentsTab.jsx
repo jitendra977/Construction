@@ -105,6 +105,18 @@ const PaymentsTab = ({ searchQuery = '' }) => {
                                     {p.notes && (
                                         <div className="text-[10px] text-gray-500 italic mt-1 bg-yellow-50/50 px-2 py-0.5 rounded border border-yellow-100 max-w-[200px] truncate" title={p.notes}>Note: {p.notes}</div>
                                     )}
+                                    {p.proof_photo && (
+                                        <div className="mt-2">
+                                            <a
+                                                href={p.proof_photo}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-indigo-50 text-[10px] font-bold text-indigo-600 border border-indigo-100 hover:bg-indigo-100 transition-colors"
+                                            >
+                                                🖼️ VIEW PROOF
+                                            </a>
+                                        </div>
+                                    )}
                                 </td>
                                 <td className="px-6 py-4">
                                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-50 border border-gray-100 text-xs font-semibold text-gray-600">
@@ -161,6 +173,18 @@ const PaymentsTab = ({ searchQuery = '' }) => {
                         {p.notes && (
                             <div className="bg-yellow-50/30 text-yellow-800 rounded-xl px-3 py-2 text-xs italic border border-yellow-100/50">
                                 <strong>Note:</strong> {p.notes}
+                            </div>
+                        )}
+                        {p.proof_photo && (
+                            <div className="mt-1">
+                                <a
+                                    href={p.proof_photo}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-50 text-indigo-700 rounded-xl text-[10px] font-black uppercase tracking-widest border border-indigo-100 shadow-sm"
+                                >
+                                    🖼️ View Payment Proof
+                                </a>
                             </div>
                         )}
                     </div>

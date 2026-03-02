@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useConstruction } from '../context/ConstructionContext';
-import { User, Mail, Shield, Phone, MapPin, Info, Bell, Settings, Camera, Save, X } from 'lucide-react';
+import { User, Mail, Shield, Phone, MapPin, Info, Bell, Settings, Camera, Save, X, Activity } from 'lucide-react';
 import { getMediaUrl } from '../services/api';
 import Modal from '../components/common/Modal';
+import { Link } from 'react-router-dom';
 
 const Profile = () => {
     const { user, updateProfile } = useConstruction();
@@ -11,44 +12,29 @@ const Profile = () => {
     const [formData, setFormData] = useState({
         first_name: user?.first_name || '',
         last_name: user?.last_name || '',
-        profile: {
-            bio: user?.profile?.bio || '',
-            phone_number: user?.profile?.phone_number || '',
-            address: user?.profile?.address || '',
-            preferred_language: user?.profile?.preferred_language || 'en',
-            notifications_enabled: user?.profile?.notifications_enabled ?? true,
-            avatar: null
-        }
+        bio: user?.bio || '',
+        phone_number: user?.phone_number || '',
+        address: user?.address || '',
+        preferred_language: user?.preferred_language || 'en',
+        notifications_enabled: user?.notifications_enabled ?? true,
+        profile_image: null
     });
     const [previewUrl, setPreviewUrl] = useState(null);
 
     if (!user) return null;
 
-    const avatarUrl = getMediaUrl(user.profile?.avatar);
+    const avatarUrl = getMediaUrl(user.profile_image);
+    const roleName = user.role?.name || 'Admin';
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        if (name.startsWith('profile.')) {
-            const profileField = name.split('.')[1];
-            setFormData(prev => ({
-                ...prev,
-                profile: {
-                    ...prev.profile,
-                    [profileField]: value
-                }
-            }));
-        } else {
-            setFormData(prev => ({ ...prev, [name]: value }));
-        }
+        setFormData(prev => ({ ...prev, [name]: value }));
     };
 
     const handleAvatarChange = (e) => {
         const file = e.target.files[0];
         if (file) {
-            setFormData(prev => ({
-                ...prev,
-                profile: { ...prev.profile, avatar: file }
-            }));
+            setFormData(prev => ({ ...prev, profile_image: file }));
             setPreviewUrl(URL.createObjectURL(file));
         }
     };
@@ -84,7 +70,7 @@ const Profile = () => {
 
                 <div className="absolute -bottom-6 left-8 flex items-end gap-6">
                     <div className="w-32 h-32 rounded-3xl bg-white p-1 shadow-xl overflow-hidden relative group">
-                        {user.profile?.avatar ? (
+                        {user.profile_image ? (
                             <img
                                 src={avatarUrl}
                                 alt={user.username}
@@ -112,7 +98,7 @@ const Profile = () => {
                         <div className="flex gap-2 mt-1">
                             <span className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1">
                                 <Shield size={12} />
-                                {user.role || 'Admin'}
+                                {roleName}
                             </span>
                         </div>
                     </div>
@@ -144,14 +130,14 @@ const Profile = () => {
                                 <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Phone Number</label>
                                 <p className="text-gray-900 font-medium flex items-center gap-2">
                                     <Phone size={14} className="text-gray-400" />
-                                    {user.profile?.phone_number || 'Not provided'}
+                                    {user.phone_number || 'Not provided'}
                                 </p>
                             </div>
                             <div className="space-y-1">
                                 <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Location</label>
                                 <p className="text-gray-900 font-medium flex items-center gap-2">
                                     <MapPin size={14} className="text-gray-400" />
-                                    {user.profile?.address || 'Not provided'}
+                                    {user.address || 'Not provided'}
                                 </p>
                             </div>
                         </div>
@@ -159,7 +145,7 @@ const Profile = () => {
                         <div className="mt-8 pt-8 border-t border-gray-50">
                             <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">About / Bio</label>
                             <p className="mt-2 text-gray-600 text-sm leading-relaxed">
-                                {user.profile?.bio || 'You haven\'t added a bio yet. Tell us more about yourself and your role in the project.'}
+                                {user.bio || 'You haven\'t added a bio yet. Tell us more about yourself and your role in the project.'}
                             </p>
                         </div>
                     </div>
@@ -181,8 +167,8 @@ const Profile = () => {
                                     </div>
                                     <span className="text-sm font-medium text-gray-700">Notifications</span>
                                 </div>
-                                <div className={`w-10 h-5 rounded-full relative transition-colors ${user.profile?.notifications_enabled ? 'bg-indigo-600' : 'bg-gray-300'}`}>
-                                    <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${user.profile?.notifications_enabled ? 'left-6' : 'left-1'}`} />
+                                <div className={`w-10 h-5 rounded-full relative transition-colors ${user.notifications_enabled ? 'bg-indigo-600' : 'bg-gray-300'}`}>
+                                    <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${user.notifications_enabled ? 'left-6' : 'left-1'}`} />
                                 </div>
                             </div>
 
@@ -194,11 +180,20 @@ const Profile = () => {
                                     <span className="text-sm font-medium text-gray-700">Language</span>
                                 </div>
                                 <span className="text-xs font-bold text-indigo-600 uppercase">
-                                    {user.profile?.preferred_language === 'en' ? 'English' : (user.profile?.preferred_language || 'en')}
+                                    {user.preferred_language === 'en' ? 'English' : (user.preferred_language || 'en')}
                                 </span>
                             </div>
                         </div>
                     </div>
+
+                    {/* Integrated Activity Logs Link */}
+                    <Link
+                        to="../activity-logs"
+                        className="w-full flex items-center justify-center gap-2 py-4 bg-indigo-50 text-indigo-700 rounded-2xl font-bold hover:bg-indigo-100 transition-all transform hover:-translate-y-1"
+                    >
+                        <Activity size={18} />
+                        View Activity Logs
+                    </Link>
 
                     <button
                         onClick={() => setIsEditModalOpen(true)}
@@ -221,9 +216,9 @@ const Profile = () => {
                     <div className="flex flex-col items-center gap-4 mb-8">
                         <div className="relative w-24 h-24">
                             <div className="w-full h-full rounded-2xl bg-gray-100 flex items-center justify-center overflow-hidden border-2 border-indigo-100">
-                                {previewUrl || user.profile?.avatar ? (
+                                {previewUrl || user.profile_image ? (
                                     <img
-                                        src={previewUrl || getMediaUrl(user.profile.avatar)}
+                                        src={previewUrl || getMediaUrl(user.profile_image)}
                                         className="w-full h-full object-cover"
                                         alt="Preview"
                                     />
@@ -266,8 +261,8 @@ const Profile = () => {
                             <label className="text-xs font-black text-gray-500 uppercase tracking-widest ml-1">Phone Number</label>
                             <input
                                 type="text"
-                                name="profile.phone_number"
-                                value={formData.profile.phone_number}
+                                name="phone_number"
+                                value={formData.phone_number}
                                 onChange={handleInputChange}
                                 className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-100 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 outline-none transition-all font-medium"
                                 placeholder="+977-98XXXXXXXX"
@@ -276,8 +271,8 @@ const Profile = () => {
                         <div className="space-y-2">
                             <label className="text-xs font-black text-gray-500 uppercase tracking-widest ml-1">Preferred Language</label>
                             <select
-                                name="profile.preferred_language"
-                                value={formData.profile.preferred_language}
+                                name="preferred_language"
+                                value={formData.preferred_language}
                                 onChange={handleInputChange}
                                 className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-100 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 outline-none transition-all font-medium appearance-none"
                             >
@@ -289,8 +284,8 @@ const Profile = () => {
                             <label className="text-xs font-black text-gray-500 uppercase tracking-widest ml-1">Address</label>
                             <input
                                 type="text"
-                                name="profile.address"
-                                value={formData.profile.address}
+                                name="address"
+                                value={formData.address}
                                 onChange={handleInputChange}
                                 className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-100 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 outline-none transition-all font-medium"
                                 placeholder="City, Country"
@@ -299,8 +294,8 @@ const Profile = () => {
                         <div className="sm:col-span-2 space-y-2">
                             <label className="text-xs font-black text-gray-500 uppercase tracking-widest ml-1">Bio</label>
                             <textarea
-                                name="profile.bio"
-                                value={formData.profile.bio}
+                                name="bio"
+                                value={formData.bio}
                                 onChange={handleInputChange}
                                 rows="3"
                                 className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-100 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 outline-none transition-all font-medium resize-none"
@@ -318,11 +313,11 @@ const Profile = () => {
                             type="button"
                             onClick={() => setFormData(prev => ({
                                 ...prev,
-                                profile: { ...prev.profile, notifications_enabled: !prev.profile.notifications_enabled }
+                                notifications_enabled: !prev.notifications_enabled
                             }))}
-                            className={`w-12 h-6 rounded-full relative transition-colors ${formData.profile.notifications_enabled ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                            className={`w-12 h-6 rounded-full relative transition-colors ${formData.notifications_enabled ? 'bg-indigo-600' : 'bg-gray-300'}`}
                         >
-                            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${formData.profile.notifications_enabled ? 'left-7' : 'left-1'}`} />
+                            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${formData.notifications_enabled ? 'left-7' : 'left-1'}`} />
                         </button>
                     </div>
 
