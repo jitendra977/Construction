@@ -10,7 +10,7 @@ echo ""
 # Configuration
 VPS_USER="${VPS_USER:-nishanaweb}"
 VPS_HOST="${VPS_HOST:-nishanaweb.cloud}"
-REMOTE_PROJECT_DIR="${REMOTE_PROJECT_DIR:-/home/nishanaweb/project/Illustration}"
+REMOTE_PROJECT_DIR="${REMOTE_PROJECT_DIR:-/home/nishanaweb/project/Construction}"
 BRANCH="${BRANCH:-deploy-server}"
 
 # SSH into server and fix the issue
