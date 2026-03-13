@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { constructionService } from '../../../services/api';
 import Modal from '../../common/Modal';
+import PhaseDetailModal from './PhaseDetailModal';
 import {
     DndContext,
     closestCenter,
@@ -58,6 +59,12 @@ const SortableCard = ({ phase, tasks = [], onEdit, onDelete }) => {
                 </span>
             </div>
 
+            {phase.description && (
+                <p className="text-[11px] text-gray-500 mb-3 line-clamp-2 leading-relaxed italic">
+                    {phase.description}
+                </p>
+            )}
+
             <div className="flex justify-between items-center bg-gray-50 rounded-xl p-3 mb-3">
                 <div>
                     <div className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Est. Budget</div>
@@ -85,8 +92,8 @@ const SortableCard = ({ phase, tasks = [], onEdit, onDelete }) => {
                             <div key={task.id} className="flex items-center justify-between bg-white/60 p-2 rounded-lg text-[11px]">
                                 <span className="font-bold text-gray-700 truncate mr-2">{task.title}</span>
                                 <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase ${task.status === 'COMPLETED' ? 'bg-green-100 text-green-600' :
-                                        task.status === 'IN_PROGRESS' ? 'bg-indigo-100 text-indigo-600' :
-                                            'bg-gray-200 text-gray-500'
+                                    task.status === 'IN_PROGRESS' ? 'bg-indigo-100 text-indigo-600' :
+                                        'bg-gray-200 text-gray-500'
                                     }`}>
                                     {task.status === 'IN_PROGRESS' ? 'Active' : task.status}
                                 </span>
@@ -146,6 +153,11 @@ const SortableRow = ({ phase, tasks = [], onEdit, onDelete }) => {
             </td>
             <td className="px-6 py-4">
                 <div className="text-gray-700 font-bold">{phase.name}</div>
+                {phase.description && (
+                    <div className="text-[10px] text-gray-400 mt-0.5 line-clamp-1 italic max-w-xs">
+                        {phase.description}
+                    </div>
+                )}
                 <div className="flex flex-wrap gap-1.5 mt-2">
                     {tasks.length > 0 ? (
                         tasks.slice(0, 3).map(task => (
@@ -189,6 +201,10 @@ const PhasesTab = ({ searchQuery = '' }) => {
     const [formData, setFormData] = useState({});
     const [loading, setLoading] = useState(false);
 
+    // Detail Modal State
+    const [isDetailOpen, setIsDetailOpen] = useState(false);
+    const [selectedPhase, setSelectedPhase] = useState(null);
+
     const filteredPhases = dashboardData.phases?.filter(p =>
         p.name.toLowerCase().includes(searchQuery.toLowerCase())
     ) || [];
@@ -199,9 +215,14 @@ const PhasesTab = ({ searchQuery = '' }) => {
     );
 
     const handleOpenModal = (phase = null) => {
-        setEditingItem(phase);
-        setFormData(phase ? { ...phase } : { status: 'PENDING', order: (dashboardData.phases?.length || 0) + 1 });
-        setIsModalOpen(true);
+        if (phase) {
+            setSelectedPhase(phase);
+            setIsDetailOpen(true);
+        } else {
+            setEditingItem(null);
+            setFormData({ status: 'PENDING', order: (dashboardData.phases?.length || 0) + 1 });
+            setIsModalOpen(true);
+        }
     };
 
     const handleDelete = async (id) => {
@@ -313,7 +334,7 @@ const PhasesTab = ({ searchQuery = '' }) => {
                 </div>
             </DndContext>
 
-            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`${editingItem ? 'Edit' : 'Add'} Phase`}>
+            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Add New Phase">
                 <form onSubmit={handleSubmit} className="space-y-4 p-1">
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-1">Phase Name</label>
@@ -380,14 +401,35 @@ const PhasesTab = ({ searchQuery = '' }) => {
                             <option value="HALTED">Halted (Rokiyeko)</option>
                         </select>
                     </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">Description</label>
+                        <textarea
+                            value={formData.description || ''}
+                            onChange={e => setFormData({ ...formData, description: e.target.value })}
+                            className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none min-h-[100px] text-sm"
+                            placeholder="Detailed description of the phase work..."
+                        />
+                    </div>
                     <div className="flex justify-end gap-3 mt-8">
                         <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700">Cancel</button>
                         <button type="submit" disabled={loading} className="px-8 py-2.5 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 disabled:opacity-50 transition-all">
-                            {loading ? 'Saving...' : (editingItem ? 'Update Phase' : 'Create Phase')}
+                            {loading ? 'Creating...' : 'Create Phase'}
                         </button>
                     </div>
                 </form>
             </Modal>
+
+            {isDetailOpen && selectedPhase && (
+                <PhaseDetailModal
+                    isOpen={isDetailOpen}
+                    onClose={() => {
+                        setIsDetailOpen(false);
+                        setSelectedPhase(null);
+                    }}
+                    phase={selectedPhase}
+                    tasks={dashboardData.tasks?.filter(t => t.phase === selectedPhase.id) || []}
+                />
+            )}
         </div>
     );
 };

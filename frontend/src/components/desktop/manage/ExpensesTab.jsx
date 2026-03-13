@@ -36,12 +36,20 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
         e.category_name?.toLowerCase().includes(searchQuery.toLowerCase())
     ) || [];
 
+    // Cascading Filter Logic (Phase-First Workflow)
+    const availableTasks = dashboardData.tasks?.filter(t => {
+        if (formData.phase && t.phase !== parseInt(formData.phase)) return false;
+        return true;
+    }) || [];
+
+
     const handleOpenModal = (expense = null) => {
         setEditingItem(expense);
         setFormData(expense ? { ...expense } : {
             category: dashboardData.budgetCategories[0]?.id,
             date: new Date().toISOString().split('T')[0],
-            expense_type: 'MATERIAL'
+            expense_type: 'MATERIAL',
+            task: null
         });
         setIsModalOpen(true);
     };
@@ -67,11 +75,28 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
             });
 
             if (editingItem) await dashboardService.updateExpense(editingItem.id, dataToSubmit);
-            else await dashboardService.createExpense(dataToSubmit);
+            else {
+                // Ensure paid_to is never empty (Backend requirement)
+                if (!dataToSubmit.paid_to) {
+                    dataToSubmit.paid_to = dataToSubmit.supplier_name || dataToSubmit.contractor_name || dataToSubmit.title || 'General Expense';
+                }
+                await dashboardService.createExpense(dataToSubmit);
+            }
             setIsModalOpen(false);
             refreshData();
         } catch (error) {
-            alert('Save failed.');
+            console.error("Expense operation failed:", error);
+            const serverError = error.response?.data;
+            let msg = "Failed to save expense.";
+
+            if (serverError) {
+                // DRF returns errors as an object: { field: ["error message"] }
+                const details = typeof serverError === 'object'
+                    ? Object.entries(serverError).map(([k, v]) => `${k}: ${v}`).join(', ')
+                    : JSON.stringify(serverError);
+                msg += " Reason: " + details;
+            }
+            alert(msg);
         } finally {
             setLoading(false);
         }
@@ -313,6 +338,71 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
                         </div>
                     )}
 
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-indigo-50/30 p-6 rounded-[2rem] border border-indigo-100/50 shadow-sm">
+                        <div>
+                            <label className="block text-xs font-black text-indigo-900 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                <span className="p-1 bg-indigo-500 text-white rounded text-[10px]">REQUIRED</span>
+                                Construction Phase (Kam ko Charan)
+                            </label>
+                            <div className="relative">
+                                <select
+                                    value={formData.phase || ''}
+                                    onChange={e => {
+                                        setFormData({ 
+                                            ...formData, 
+                                            phase: e.target.value,
+                                            task: '' // Reset task if phase changes
+                                        });
+                                    }}
+                                    className="w-full rounded-2xl border-white bg-white shadow-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 p-4 border outline-none appearance-none font-bold text-gray-900"
+                                    required
+                                >
+                                    <option value="">Select Phase (e.g. Structure, Finishes)</option>
+                                    {dashboardData.phases?.map(p => (
+                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                    ))}
+                                </select>
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-black text-indigo-900 uppercase tracking-widest mb-2">Specific Task (Kun Kam?)</label>
+                            <div className="relative">
+                                <select
+                                    value={formData.task || ''}
+                                    onChange={e => {
+                                        const taskId = e.target.value;
+                                        const selectedTask = dashboardData.tasks?.find(t => t.id === parseInt(taskId));
+                                        
+                                        if (selectedTask) {
+                                            setFormData({ 
+                                                ...formData, 
+                                                task: taskId,
+                                                category: selectedTask.category || formData.category,
+                                                phase: selectedTask.phase || formData.phase
+                                            });
+                                        } else {
+                                            setFormData({ ...formData, task: taskId });
+                                        }
+                                    }}
+                                    className="w-full rounded-2xl border-white bg-white shadow-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 p-4 border outline-none appearance-none font-bold"
+                                >
+                                    <option value="">General Phase Cost</option>
+                                    {availableTasks.map(t => (
+                                        <option key={t.id} value={t.id}>{t.title} {t.phase_name ? `(${t.phase_name})` : ''}</option>
+                                    ))}
+                                </select>
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                                </div>
+                            </div>
+                            <p className="text-[10px] text-indigo-500 mt-2 font-medium px-1 italic">✨ Suggestion: Pick a task to auto-fill the finance category.</p>
+                        </div>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Recipient (Vendor/Person)</label>
@@ -364,57 +454,22 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
                                 />
                             )}
                         </div>
+
                         <div>
-                            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Category Assignment</label>
+                            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                <span className="p-1 bg-gray-200 text-gray-500 rounded text-[10px]">ACCOUNTING</span>
+                                Finance Category
+                            </label>
                             <div className="relative">
                                 <select
                                     value={formData.category || ''}
                                     onChange={e => setFormData({ ...formData, category: e.target.value })}
-                                    className="w-full rounded-2xl border-gray-100 bg-gray-50/50 shadow-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 p-4 border outline-none appearance-none font-bold"
+                                    className="w-full rounded-2xl border-gray-100 bg-gray-50/50 shadow-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 p-4 border outline-none appearance-none font-bold text-gray-600"
                                     required
                                 >
-                                    <option value="">Select Category</option>
+                                    <option value="">Select Finance Category</option>
                                     {dashboardData.budgetCategories?.map(c => (
                                         <option key={c.id} value={c.id}>{c.name}</option>
-                                    ))}
-                                </select>
-                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Project Phase Attachment</label>
-                            <div className="relative">
-                                <select
-                                    value={formData.phase || ''}
-                                    onChange={e => setFormData({ ...formData, phase: e.target.value })}
-                                    className="w-full rounded-2xl border-gray-100 bg-gray-50/50 shadow-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 p-4 border outline-none appearance-none font-bold"
-                                >
-                                    <option value="">General Project Cost</option>
-                                    {dashboardData.phases?.map(p => (
-                                        <option key={p.id} value={p.id}>{p.name}</option>
-                                    ))}
-                                </select>
-                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-                                </div>
-                            </div>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Specific Area/Room</label>
-                            <div className="relative">
-                                <select
-                                    value={formData.room || ''}
-                                    onChange={e => setFormData({ ...formData, room: e.target.value })}
-                                    className="w-full rounded-2xl border-gray-100 bg-gray-50/50 shadow-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 p-4 border outline-none appearance-none font-bold"
-                                >
-                                    <option value="">Not Specific to Area</option>
-                                    {dashboardData.rooms?.map(r => (
-                                        <option key={r.id} value={r.id}>{r.name} ({r.floor_name})</option>
                                     ))}
                                 </select>
                                 <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
@@ -488,34 +543,6 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
             {/* Payment Modal */}
             <Modal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} title="Record Transaction">
                 <div className="space-y-8 p-1">
-                    {/* Source Context Card */}
-                    {activeExpense?.funding_source && (
-                        <div className={`p-6 rounded-3xl border flex flex-col gap-4 relative overflow-hidden ${(() => {
-                            const fs = dashboardData.funding?.find(f => f.id === activeExpense.funding_source);
-                            return fs?.source_type === 'LOAN' ? 'bg-orange-50 border-orange-100 text-orange-800' :
-                                fs?.source_type === 'BORROWED' ? 'bg-purple-50 border-purple-100 text-purple-800' :
-                                    'bg-green-50 border-green-100 text-green-800';
-                        })()}`}>
-                            <div className="flex justify-between items-start z-10">
-                                <div className="flex items-center gap-4">
-                                    <div className="p-3 bg-white/80 backdrop-blur-md rounded-2xl shadow-sm">
-                                        <svg className="w-6 h-6 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 leading-none mb-1">Source Account</span>
-                                        <span className="text-sm font-black uppercase tracking-tight">{activeExpense.funding_source_name}</span>
-                                    </div>
-                                </div>
-                                <div className="text-right flex flex-col">
-                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 leading-none mb-1">Available Funds</span>
-                                    <span className="text-lg font-black tracking-tight">
-                                        {formatCurrency(dashboardData.funding?.find(f => f.id === activeExpense.funding_source)?.current_balance || 0)}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
                     {/* Transaction History Flow */}
                     {activeExpense?.payments?.length > 0 && (
                         <div className="bg-gray-50/50 p-6 rounded-[2rem] border border-gray-100">
@@ -537,6 +564,37 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
                     )}
 
                     <form onSubmit={handlePaymentSubmit} className="space-y-6">
+                        {/* Dynamic Funding Source Selector */}
+                        <div>
+                            <label className="block text-xs font-black text-indigo-900 uppercase tracking-widest mb-2">Funding Source (Pay From)</label>
+                            <div className="relative">
+                                <select
+                                    value={paymentFormData.funding_source || activeExpense?.funding_source || ''}
+                                    onChange={e => {
+                                        const newFsId = e.target.value;
+                                        const fs = dashboardData.funding?.find(f => f.id === parseInt(newFsId));
+                                        setPaymentFormData({ 
+                                            ...paymentFormData, 
+                                            funding_source: newFsId,
+                                            method: fs?.default_payment_method || paymentFormData.method
+                                        });
+                                    }}
+                                    className="w-full rounded-2xl border-indigo-100 bg-indigo-50/30 p-4 border focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none appearance-none font-bold text-gray-900"
+                                    required
+                                >
+                                    <option value="">Select funding account...</option>
+                                    {dashboardData.funding?.map(f => (
+                                        <option key={f.id} value={f.id} disabled={f.current_balance <= 0}>
+                                            {f.source_type === 'LOAN' ? '🏦' : f.source_type === 'OWN_MONEY' ? '💰' : '🤝'} {f.name} (Available: {formatCurrency(f.current_balance)})
+                                        </option>
+                                    ))}
+                                </select>
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-indigo-400">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Disbursement Amount</label>
@@ -553,6 +611,18 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
                                     <span className="text-[10px] text-gray-400 font-bold uppercase">Pending balance</span>
                                     <span className="text-[10px] text-rose-500 font-black uppercase">{formatCurrency(activeExpense?.balance_due)}</span>
                                 </div>
+                                {(() => {
+                                    const fsId = paymentFormData.funding_source || activeExpense?.funding_source;
+                                    const fs = dashboardData.funding?.find(f => f.id === parseInt(fsId));
+                                    if (fs && paymentFormData.amount > fs.current_balance) {
+                                        return (
+                                            <p className="text-[10px] text-red-500 mt-2 font-bold px-1 bg-red-50 p-2 rounded-lg border border-red-100">
+                                                ⚠️ Overdraft Warning: Amount exceeds available balance of {formatCurrency(fs.current_balance)}.
+                                            </p>
+                                        );
+                                    }
+                                    return null;
+                                })()}
                             </div>
                             <div>
                                 <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Date of payment</label>
@@ -631,7 +701,11 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
                             </button>
                             <button
                                 type="submit"
-                                disabled={loading}
+                                disabled={loading || (() => {
+                                    const fsId = paymentFormData.funding_source || activeExpense?.funding_source;
+                                    const fs = dashboardData.funding?.find(f => f.id === parseInt(fsId));
+                                    return fs && paymentFormData.amount > fs.current_balance;
+                                })()}
                                 className="px-10 py-3.5 bg-emerald-600 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-xl shadow-emerald-100 hover:bg-emerald-700 hover:-translate-y-0.5 active:scale-95 transition-all disabled:opacity-50"
                             >
                                 {loading ? 'Processing...' : 'Confirm Payment'}
@@ -640,7 +714,6 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
                     </form>
                 </div>
             </Modal>
-
             <ExpenseDetailModal
                 isOpen={isDetailModalOpen}
                 onClose={() => setIsDetailModalOpen(false)}

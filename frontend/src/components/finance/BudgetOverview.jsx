@@ -1,121 +1,272 @@
 import React, { useState, useEffect } from 'react';
+import { useConstruction } from '../../context/ConstructionContext';
 import { dashboardService } from '../../services/api';
 
-const StatCard = ({ title, value, subtext, color = "blue", icon }) => (
-    <div className={`bg-white p-6 rounded-xl shadow-sm border border-${color}-100`}>
-        <div className="flex items-center justify-between mb-4">
-            <h3 className="text-gray-500 text-sm font-medium uppercase tracking-wider">{title}</h3>
-            <span className={`p-2 bg-${color}-50 text-${color}-600 rounded-lg text-xl`}>{icon}</span>
-        </div>
-        <div className="flex flex-col">
-            <span className="text-3xl font-bold text-gray-900">Rs. {value.toLocaleString()}</span>
-            {subtext && <span className="text-sm text-gray-500 mt-1">{subtext}</span>}
-        </div>
-    </div>
-);
+const BudgetOverview = ({ onResolve }) => {
+    const { formatCurrency } = useConstruction();
+    const [stats, setStats] = useState(null);
+    const [loading, setLoading] = useState(true);
 
-const ProgressBar = ({ label, current, total, color = "indigo" }) => {
-    const percentage = total > 0 ? Math.min(100, (current / total) * 100) : 0;
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                const res = await dashboardService.getBudgetOverview();
+                setStats(res.data);
+            } catch (error) {
+                console.error("Failed to fetch budget stats", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchStats();
+    }, []);
+
+    if (loading) return <div className="p-8 text-center text-gray-500 animate-pulse">Loading financial data...</div>;
+    if (!stats) return null;
+
+    const health = stats.budget_health || {};
+    const hasAlignmentIssues = health.issues?.length > 0;
 
     return (
-        <div className="mb-4">
-            <div className="flex justify-between items-center mb-1">
-                <span className="text-sm font-medium text-gray-700">{label}</span>
-                <span className="text-sm font-medium text-gray-900">{percentage.toFixed(1)}%</span>
+        <div className="space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Financial Planning & Tracking</h2>
+                    <p className="text-sm text-gray-500 mt-1">Real-time variance analysis between planned budget and actual costs</p>
+                </div>
+                <div className={`px-4 py-2 rounded-xl text-sm font-black uppercase tracking-widest border ${health.status === 'HEALTHY'
+                    ? 'bg-green-50 text-green-700 border-green-100'
+                    : health.status === 'OVER_SPENT'
+                        ? 'bg-red-500 text-white border-red-600'
+                        : 'bg-orange-50 text-orange-700 border-orange-100'
+                    }`}>
+                    Status: {health.status.replace('_', ' ')}
+                </div>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2.5">
-                <div
-                    className={`bg-${color}-600 h-2.5 rounded-full transition-all duration-500 ease-out`}
-                    style={{ width: `${percentage}%` }}
-                ></div>
+
+            {hasAlignmentIssues && (
+                <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl">
+                    <div className="flex items-center gap-3 mb-4">
+                        <span className="text-xl">🚨</span>
+                        <h4 className="text-sm font-black text-red-800 uppercase tracking-tight">Budget Risks Detected</h4>
+                    </div>
+                    <ul className="space-y-3">
+                        {health.issues.map((issue, idx) => (
+                            <li key={idx} className="flex items-center justify-between gap-4 bg-white/50 p-2 rounded-lg border border-red-100">
+                                <div className="text-xs text-red-700 font-bold flex items-center gap-2">
+                                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${issue.type.includes('SPENT') ? 'bg-red-600 animate-pulse' : 'bg-red-400'}`}></span>
+                                    {issue.message}
+                                </div>
+                                <button
+                                    onClick={() => onResolve?.(issue.type, issue.data)}
+                                    className="shrink-0 px-3 py-1.5 bg-red-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-sm active:scale-95"
+                                >
+                                    Resolve
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
+            {/* Core Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+                <StatCard
+                    title="Master Capital"
+                    amount={formatCurrency(stats.project_budget)}
+                    subtitle="Total Project Fund"
+                    icon="🏦"
+                    percent={100}
+                    color="indigo"
+                />
+                <StatCard
+                    title="Total Liquidity"
+                    amount={formatCurrency(stats.total_funding)}
+                    subtitle="Capital Received"
+                    icon="🤝"
+                    percent={(stats.total_funding / stats.project_budget) * 100}
+                    color="emerald"
+                />
+                <StatCard
+                    title="Planned Assigned"
+                    amount={formatCurrency(stats.total_category_allocation)}
+                    subtitle="Budget Distributed"
+                    icon="📋"
+                    percent={health.cat_percent}
+                    color="blue"
+                />
+                <StatCard
+                    title="Actual Cash Out"
+                    amount={formatCurrency(stats.total_spent)}
+                    subtitle="Total Purchases"
+                    icon="💸"
+                    percent={(stats.total_spent / stats.total_funding) * 100}
+                    color="rose"
+                    trend={stats.total_spent > stats.total_funding ? 'up' : 'neutral'}
+                />
+                <StatCard
+                    title="Cash Balance"
+                    amount={formatCurrency(stats.funding_balance)}
+                    subtitle="Live Bank/Cash Float"
+                    icon="📉"
+                    percent={(stats.funding_balance / stats.total_funding) * 100}
+                    color={stats.funding_balance < 0 ? 'red' : 'green'}
+                />
             </div>
-            <div className="flex justify-between text-xs text-gray-400 mt-1">
-                <span>Rs. {current.toLocaleString()}</span>
-                <span>Rs. {total.toLocaleString()}</span>
+
+            {/* Granular Allocation Analytics (Specific Phase-Category Risks) */}
+            {stats.allocation_analytics?.some(a => a.is_over) && (
+                <div className="bg-white rounded-2xl p-6 border border-red-100 shadow-sm shadow-red-50">
+                    <h3 className="text-sm font-black text-red-700 uppercase tracking-widest mb-6 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                        Phase-Category Variance Alerts
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {stats.allocation_analytics.filter(a => a.is_over).map((alloc, idx) => (
+                            <div key={idx} className="p-4 rounded-xl border border-red-50 bg-red-50/10 hover:bg-red-50/30 transition-colors">
+                                <div className="flex justify-between items-start mb-2">
+                                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">{alloc.phase_name}</span>
+                                    <span className="text-[10px] font-black text-red-600 bg-red-50 px-2 py-0.5 rounded-full uppercase tracking-tighter">Budget Blown</span>
+                                </div>
+                                <h4 className="text-sm font-bold text-gray-900 mb-3">{alloc.category_name}</h4>
+                                <div className="flex justify-between items-end">
+                                    <div className="flex flex-col">
+                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Planned</span>
+                                        <span className="text-xs font-black text-gray-700">{formatCurrency(alloc.planned)}</span>
+                                    </div>
+                                    <div className="flex flex-col text-right">
+                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Actual</span>
+                                        <span className="text-xs font-black text-red-600">{formatCurrency(alloc.actual)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Detailed Breakdowns */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+                {/* Categories Progress */}
+                <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                    <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        Category Flow (Planned vs Purchase)
+                    </h3>
+                    <div className="space-y-5">
+                        {stats.estimated_by_category?.map((cat, idx) => (
+                            <ProgressBar
+                                key={idx}
+                                label={cat.category_name}
+                                actual={cat.actual}
+                                planned={cat.planned}
+                                variance={cat.variance}
+                                formatCurrency={formatCurrency}
+                                color="emerald"
+                            />
+                        ))}
+                    </div>
+                </div>
+
+                {/* Phases Progress */}
+                <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                    <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                        Phase Utilization (Direct + Material Usage)
+                    </h3>
+                    <div className="space-y-5">
+                        {stats.estimated_by_phase?.map((phase, idx) => (
+                            <ProgressBar
+                                key={idx}
+                                label={phase.phase_name}
+                                actual={phase.actual}
+                                planned={phase.planned}
+                                variance={phase.variance}
+                                formatCurrency={formatCurrency}
+                                color="blue"
+                            />
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+const StatCard = ({ title, amount, subtitle, icon, percent, color, trend }) => {
+    const bgColors = {
+        indigo: 'bg-indigo-600 shadow-indigo-100',
+        emerald: 'bg-emerald-600 shadow-emerald-100',
+        blue: 'bg-blue-600 shadow-blue-100',
+        red: 'bg-red-600 shadow-red-100',
+        green: 'bg-green-600 shadow-green-100'
+    };
+
+    return (
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-start justify-between mb-4">
+                <div className={`p-3 rounded-xl text-white ${bgColors[color] || bgColors.indigo} shadow-lg`}>
+                    <span className="text-xl">{icon}</span>
+                </div>
+                <div className="text-right">
+                    <span className="text-xl font-black text-gray-900">{amount}</span>
+                    <div className="flex items-center justify-end gap-1 mt-1">
+                        {trend === 'up' && <span className="text-[10px] text-red-500 font-black">▲</span>}
+                        <div className={`w-1.5 h-1.5 rounded-full ${percent > 100 ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}></div>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                            {(percent || 0).toFixed(1)}%
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{title}</h4>
+                <p className="text-[10px] text-gray-500 font-medium">{subtitle}</p>
             </div>
         </div>
     );
 };
 
-const BudgetOverview = () => {
-    const [stats, setStats] = useState(null);
-    const [loading, setLoading] = useState(true);
+const ProgressBar = ({ label, actual, planned, variance, color, formatCurrency }) => {
+    const isOver = actual > planned;
+    const progressPercent = planned > 0 ? (actual / planned) * 100 : 0;
 
-    useEffect(() => {
-        fetchStats();
-    }, []);
+    // Use the max of actual/planned as the visual 100% to show overflow
+    const visualPercent = Math.min((actual / planned) * 100, 100);
 
-    const fetchStats = async () => {
-        try {
-            const response = await dashboardService.getBudgetOverview();
-            setStats(response.data);
-        } catch (error) {
-            console.error("Failed to fetch budget stats:", error);
-        } finally {
-            setLoading(false);
-        }
+    const barColors = {
+        emerald: isOver ? 'bg-red-500' : 'bg-emerald-500',
+        blue: isOver ? 'bg-red-500' : 'bg-blue-500'
     };
 
-    if (loading) return <div className="p-8 text-center text-gray-500">Loading budget data...</div>;
-    if (!stats) return null;
-
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-900">Financial Overview</h2>
-                <div className="px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm font-medium">
-                    {stats.budget_health?.status === 'HEALTHY' ? 'Budget Healthy' : 'Over Allocated'}
+        <div className="space-y-2">
+            <div className="flex justify-between items-end">
+                <div className="flex flex-col">
+                    <span className="text-xs font-black text-gray-900 uppercase tracking-tight">{label}</span>
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-gray-400 font-bold">Plan: {formatCurrency(planned)}</span>
+                        <span className={`text-[10px] font-black ${variance < 0 ? 'text-red-500' : 'text-green-500'}`}>
+                            {variance < 0 ? '▼' : '▲'} {formatCurrency(Math.abs(variance))}
+                        </span>
+                    </div>
+                </div>
+                <div className="text-right">
+                    <span className={`text-xs font-black ${isOver ? 'text-red-600' : 'text-gray-900'}`}>
+                        {formatCurrency(actual)}
+                    </span>
+                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
+                        {progressPercent.toFixed(1)}% used
+                    </div>
                 </div>
             </div>
-
-            {/* Core Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <StatCard
-                    title="Total Project Budget"
-                    value={stats.project_budget}
-                    subtext={"Estimated Category Total: Rs. " + stats.estimated_by_category.toLocaleString()}
-                    icon="💰"
-                    color="indigo"
-                />
-                <StatCard
-                    title="Total Funding Received"
-                    value={stats.total_funding}
-                    subtext={`Available Balance: Rs. ${stats.funding_balance.toLocaleString()}`}
-                    icon="🏦"
-                    color="green"
-                />
-                <StatCard
-                    title="Total Expenses"
-                    value={stats.total_spent}
-                    subtext="Actual Spent"
-                    icon="💸"
-                    color="red"
-                />
-            </div>
-
-            {/* Progress Bars */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-800 mb-6">Budget Utilization</h3>
-                <div className="space-y-6">
-                    <ProgressBar
-                        label="Project Budget Used"
-                        current={stats.total_spent}
-                        total={stats.project_budget}
-                        color="indigo"
-                    />
-                    <ProgressBar
-                        label="Available Funding Used"
-                        current={stats.total_spent}
-                        total={stats.total_funding}
-                        color="red" // Red because higher usage of funding means depleting cash
-                    />
-                    {/* Category Allocation vs Project Budget just for context */}
-                    <ProgressBar
-                        label="Budget Allocation Status"
-                        current={stats.estimated_by_category}
-                        total={stats.project_budget}
-                        color="blue"
-                    />
+            <div className="w-full h-2 bg-gray-50 rounded-full overflow-hidden border border-gray-100/50">
+                <div
+                    className={`h-full ${barColors[color] || 'bg-gray-400'} rounded-full transition-all duration-1000 relative`}
+                    style={{ width: `${visualPercent}%` }}
+                >
+                    {isOver && (
+                        <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+                    )}
                 </div>
             </div>
         </div>

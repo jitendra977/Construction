@@ -8,8 +8,8 @@ from .serializers import HouseProjectSerializer, ConstructionPhaseSerializer, Ro
 
 from apps.tasks.models import Task
 from apps.tasks.serializers import TaskSerializer
-from apps.finance.models import Expense, BudgetCategory, FundingSource
-from apps.finance.serializers import ExpenseSerializer, BudgetCategorySerializer, FundingSourceSerializer
+from apps.finance.models import Expense, BudgetCategory, FundingSource, PhaseBudgetAllocation
+from apps.finance.serializers import ExpenseSerializer, BudgetCategorySerializer, FundingSourceSerializer, PhaseBudgetAllocationSerializer
 from apps.resources.models import Material, Contractor, Supplier, MaterialTransaction, Document
 from apps.resources.serializers import MaterialSerializer, ContractorSerializer, SupplierSerializer, MaterialTransactionSerializer, DocumentSerializer
 from apps.permits.models import PermitStep
@@ -59,6 +59,7 @@ class DashboardDataView(APIView):
         transactions = MaterialTransaction.objects.select_related('material', 'supplier').all()
         permits = PermitStep.objects.prefetch_related('documents').all()
         funding = FundingSource.objects.prefetch_related('transactions').all()
+        phase_allocations = PhaseBudgetAllocation.objects.select_related('category', 'phase').all()
 
         return Response({
             'project': HouseProjectSerializer(project).data if project else None,
@@ -74,6 +75,7 @@ class DashboardDataView(APIView):
             'transactions': MaterialTransactionSerializer(transactions, many=True).data,
             'permits': PermitStepSerializer(permits, many=True).data,
             'funding': FundingSourceSerializer(funding, many=True).data,
+            'phaseBudgetAllocations': PhaseBudgetAllocationSerializer(phase_allocations, many=True).data,
         })
 
 class RoomViewSet(viewsets.ModelViewSet):

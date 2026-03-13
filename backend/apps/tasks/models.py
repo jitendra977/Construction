@@ -22,10 +22,12 @@ class Task(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     
+    category = models.ForeignKey('finance.BudgetCategory', on_delete=models.PROTECT, null=True, blank=True, related_name='tasks', help_text="Finance category this task belongs to")
     phase = models.ForeignKey(ConstructionPhase, on_delete=models.CASCADE, related_name='tasks')
     room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True, related_name='tasks')
     assigned_to = models.ForeignKey(Contractor, on_delete=models.SET_NULL, null=True, blank=True, related_name='tasks')
     
+    estimated_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, help_text="Budgeted cost for this specific task")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='MEDIUM')
     

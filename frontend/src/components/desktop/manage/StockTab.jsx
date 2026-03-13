@@ -13,12 +13,19 @@ const StockTab = ({ searchQuery = '' }) => {
     const [actionLoading, setActionLoading] = useState(false);
     const [selectedExpenseId, setSelectedExpenseId] = useState(null);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+    const [sortBy, setSortBy] = useState('date_desc'); // date_desc, date_asc
 
     const filteredTransactions = dashboardData.transactions?.filter(t =>
         t.material_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         t.supplier_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         t.room_name?.toLowerCase().includes(searchQuery.toLowerCase())
     ) || [];
+
+    const sortedTransactions = [...filteredTransactions].sort((a, b) => {
+        const dateA = new Date(a.date).getTime();
+        const dateB = new Date(b.date).getTime();
+        return sortBy === 'date_desc' ? dateB - dateA : dateA - dateB;
+    });
 
     const handleOpenModal = (item = null) => {
         setEditingItem(item);
@@ -79,12 +86,25 @@ const StockTab = ({ searchQuery = '' }) => {
         <div className="space-y-4">
             <div className="flex justify-between items-center mb-2">
                 <p className="text-sm text-gray-500">Track all material inward/outward movements and site consumption.</p>
-                <button
-                    onClick={() => handleOpenModal()}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors shadow-sm"
-                >
-                    + Register Stock Entry
-                </button>
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] uppercase font-black text-gray-400 hidden md:block">Sort:</span>
+                        <select
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value)}
+                            className="bg-white border border-gray-100 text-gray-600 text-xs font-bold rounded-xl px-3 py-2 outline-none shadow-sm focus:ring-2 focus:ring-indigo-500"
+                        >
+                            <option value="date_desc">Date (Newest First)</option>
+                            <option value="date_asc">Date (Oldest First)</option>
+                        </select>
+                    </div>
+                    <button
+                        onClick={() => handleOpenModal()}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors shadow-sm"
+                    >
+                        + Register Stock Entry
+                    </button>
+                </div>
             </div>
 
             {/* Desktop View: Table */}
@@ -99,7 +119,7 @@ const StockTab = ({ searchQuery = '' }) => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
-                        {filteredTransactions.map(t => (
+                        {sortedTransactions.map(t => (
                             <tr key={t.id} className="hover:bg-gray-50 transition-colors group text-sm">
                                 <td className="px-6 py-4">
                                     <div className="flex flex-col">
@@ -181,7 +201,7 @@ const StockTab = ({ searchQuery = '' }) => {
 
             {/* Mobile View: Cards */}
             <div className="lg:hidden space-y-4">
-                {filteredTransactions.map(t => (
+                {sortedTransactions.map(t => (
                     <div key={t.id} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex flex-col gap-4">
                         <div className="flex justify-between items-start">
                             <div>
@@ -386,20 +406,36 @@ const StockTab = ({ searchQuery = '' }) => {
                                 </select>
                             </div>
                         ) : (
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Assign to Room / Area (Optional)</label>
-                                <select
-                                    value={formData.room || ''}
-                                    onChange={e => setFormData({ ...formData, room: e.target.value })}
-                                    className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none bg-white"
-                                >
-                                    <option value="">General Site Usage</option>
-                                    {dashboardData.rooms?.map(r => (
-                                        <option key={r.id} value={r.id}>{r.name} ({r.floor_name})</option>
-                                    ))}
-                                </select>
-                                <p className="text-[10px] text-gray-400 mt-1 italic pl-1">Helps track consumption per room for material auditing.</p>
-                            </div>
+                            <React.Fragment>
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Assign to Room / Area (Optional)</label>
+                                    <select
+                                        value={formData.room || ''}
+                                        onChange={e => setFormData({ ...formData, room: e.target.value })}
+                                        className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none bg-white"
+                                    >
+                                        <option value="">General Site Usage</option>
+                                        {dashboardData.rooms?.map(r => (
+                                            <option key={r.id} value={r.id}>{r.name} ({r.floor_name})</option>
+                                        ))}
+                                    </select>
+                                    <p className="text-[10px] text-gray-400 mt-1 italic pl-1">Helps track consumption per room for material auditing.</p>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Assign to Phase (Cost Allocation)</label>
+                                    <select
+                                        value={formData.phase || ''}
+                                        onChange={e => setFormData({ ...formData, phase: e.target.value })}
+                                        className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none bg-white font-bold text-gray-700"
+                                    >
+                                        <option value="">No Specific Phase</option>
+                                        {dashboardData.phases?.map(p => (
+                                            <option key={p.id} value={p.id}>{p.name} (Phase {p.order})</option>
+                                        ))}
+                                    </select>
+                                    <p className="text-[10px] text-gray-400 mt-1 italic pl-1">Links usage cost to a specific construction phase.</p>
+                                </div>
+                            </React.Fragment>
                         )}
                     </div>
 
@@ -428,7 +464,7 @@ const StockTab = ({ searchQuery = '' }) => {
                 onClose={() => setIsDetailModalOpen(false)}
                 expenseId={selectedExpenseId}
             />
-        </div>
+        </div >
     );
 };
 export default StockTab;

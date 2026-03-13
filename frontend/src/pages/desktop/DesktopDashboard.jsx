@@ -31,7 +31,6 @@ function DesktopDashboard() {
 
     const navItems = [
         { id: 'home', icon: '🏠', label: 'Dashboard (ड्यासबोर्ड)' },
-        { id: 'budget', icon: '💰', label: 'Budget (बजेट)' },
         { id: 'estimator', icon: '🧮', label: 'Estimator (इस्टिमेटर)' },
         { id: 'permits', icon: '📜', label: 'Permits (नक्सा पास)' },
         { id: 'manage', icon: '🛠️', label: 'Manage (व्यवस्थापन)' },

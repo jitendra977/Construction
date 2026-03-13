@@ -30,18 +30,117 @@ class HouseProject(models.Model):
         return sum(cat.allocation for cat in BudgetCategory.objects.all())
 
     @property
+    def phase_allocation_total(self):
+        from apps.core.models import ConstructionPhase
+        return sum(phase.estimated_budget for phase in ConstructionPhase.objects.all())
+
+    @property
     def budget_health(self):
-        total_allocated = self.category_allocation_total
-        if total_allocated > self.total_budget:
-            return {
-                "status": "OVER_ALLOCATED",
-                "excess": total_allocated - self.total_budget,
-                "percent": (total_allocated / self.total_budget) * 100 if self.total_budget > 0 else 0
-            }
+        from apps.finance.models import BudgetCategory, PhaseBudgetAllocation
+        cat_total = self.category_allocation_total
+        phase_total = self.phase_allocation_total
+        
+        status = "HEALTHY"
+        issues = []
+        
+        # 1. Category vs Master Budget
+        if cat_total > self.total_budget:
+            status = "OVER_ALLOCATED"
+        # 1. Category-level checks (Allocated vs Project Total)
+        total_project_budget = self.total_budget
+        if cat_total > total_project_budget:
+            issues.append({
+                "type": "OVER_ALLOCATED_CAT",
+                "message": f"Total category allocation (Rs. {cat_total}) exceeds project budget (Rs. {total_project_budget})",
+                "data": {"diff": float(cat_total - total_project_budget)}
+            })
+            status = "OVER_ALLOCATED"
+
+        # 2. Sync Check (Category Total vs Phase Total)
+        if abs(cat_total - phase_total) > 0.01:
+            issues.append({
+                "type": "SYNC_MISMATCH",
+                "message": f"Category total (Rs. {cat_total}) and Phase total (Rs. {phase_total}) are out of sync",
+                "data": {"diff": float(cat_total - phase_total)}
+            })
+            if status == "HEALTHY": status = "WARNING"
+
+        # 3. Category Spending vs Allocation (Plan vs Actual - Cashflow Basis)
+        categories = BudgetCategory.objects.annotate(
+            spent=models.Sum('expenses__amount', filter=models.Q(expenses__is_inventory_usage=False))
+        )
+        for cat in categories:
+            spent = cat.spent or 0
+            # Check if over-allocated to phases
+            dist_total = PhaseBudgetAllocation.objects.filter(category=cat).aggregate(total=models.Sum('amount'))['total'] or 0
+            if cat.allocation > dist_total + models.DecimalField(default=0).to_python(0.1): # Tiny buffer for floating point
+                issues.append({
+                    "type": "UNASSIGNED_BUDGET",
+                    "message": f"Category '{cat.name}' has unassigned budget of Rs. {cat.allocation - dist_total}",
+                    "data": {"category_id": cat.id, "category_name": cat.name, "amount": float(cat.allocation - dist_total)}
+                })
+                if status == "HEALTHY": status = "WARNING"
+            
+            # Check if over-spent (Primary Budget Burn)
+            if spent > cat.allocation:
+                issues.append({
+                    "type": "OVER_SPENT_CAT",
+                    "message": f"Category '{cat.name}' is over-spent by Rs. {spent - cat.allocation}",
+                    "data": {"category_id": cat.id, "category_name": cat.name, "spent": float(spent), "planned": float(cat.allocation)}
+                })
+                status = "OVER_SPENT"
+
+        # 4. Phase Spending vs Estimates (Plan vs Actual - Consumption Basis)
+        phases = ConstructionPhase.objects.annotate(spent=models.Sum('expenses__amount'))
+        for ph in phases:
+            spent = ph.spent or 0
+            ph_dist_total = PhaseBudgetAllocation.objects.filter(phase=ph).aggregate(total=models.Sum('amount'))['total'] or 0
+            
+            # Check if over-allocated by categories
+            if ph_dist_total > ph.estimated_budget + models.DecimalField(default=0).to_python(0.1):
+                issues.append({
+                    "type": "PHASE_OVERLOAD",
+                    "message": f"Phase '{ph.name}' is over-allocated by categories (Rs. {ph_dist_total - ph.estimated_budget} over)",
+                    "data": {"phase_id": ph.id, "phase_name": ph.name, "diff": float(ph_dist_total - ph.estimated_budget)}
+                })
+                if status != "OVER_SPENT": status = "OVER_ALLOCATED"
+            
+            # Check if over-spent
+            if spent > ph.estimated_budget:
+                issues.append({
+                    "type": "OVER_SPENT_PHASE",
+                    "message": f"Phase '{ph.name}' is over-spent by Rs. {spent - ph.estimated_budget}",
+                    "data": {"phase_id": ph.id, "phase_name": ph.name, "spent": float(spent), "planned": float(ph.estimated_budget)}
+                })
+                status = "OVER_SPENT"
+
+        # 5. Granular Phase-Category Allocation Checks
+        allocations = PhaseBudgetAllocation.objects.select_related('category', 'phase').all()
+        from apps.finance.models import Expense
+        for alloc in allocations:
+            alloc_spent = Expense.objects.filter(
+                category=alloc.category, 
+                phase=alloc.phase
+            ).aggregate(total=models.Sum('amount'))['total'] or 0
+            
+            if alloc_spent > alloc.amount:
+                issues.append({
+                    "type": "OVER_SPENT_ALLOCATION",
+                    "message": f"In '{alloc.phase.name}', category '{alloc.category.name}' exceeds its allocation by Rs. {alloc_spent - alloc.amount}",
+                    "data": {
+                        "phase_id": alloc.phase.id,
+                        "category_id": alloc.category.id,
+                        "spent": float(alloc_spent),
+                        "planned": float(alloc.amount)
+                    }
+                })
+                status = "OVER_SPENT"
+
         return {
-            "status": "HEALTHY",
-            "excess": 0,
-            "percent": (total_allocated / self.total_budget) * 100 if self.total_budget > 0 else 0
+            "status": status,
+            "issues": issues,
+            "cat_percent": (cat_total / self.total_budget) * 100 if self.total_budget > 0 else 0,
+            "phase_percent": (phase_total / self.total_budget) * 100 if self.total_budget > 0 else 0
         }
 
 class ConstructionPhase(models.Model):

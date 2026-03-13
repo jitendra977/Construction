@@ -12,6 +12,7 @@ const MaterialsTab = ({ searchQuery = '' }) => {
     const [loading, setLoading] = useState(false);
     const [actionLoading, setActionLoading] = useState(null);
     const [showLowStockOnly, setShowLowStockOnly] = useState(false);
+    const [sortBy, setSortBy] = useState('name'); // 'name', 'stock_asc', 'stock_desc'
     const [emailModalOpen, setEmailModalOpen] = useState(false);
     const [selectedMaterial, setSelectedMaterial] = useState(null);
     const [selectedSupplier, setSelectedSupplier] = useState(null);
@@ -29,6 +30,18 @@ const MaterialsTab = ({ searchQuery = '' }) => {
             return matchesSearch && isLow;
         }
         return matchesSearch;
+    });
+
+    // Apply Sorting
+    const sortedMaterials = [...filteredMaterials].sort((a, b) => {
+        if (sortBy === 'name') {
+            return a.name.localeCompare(b.name);
+        } else if (sortBy === 'stock_asc') {
+            return Number(a.current_stock) - Number(b.current_stock);
+        } else if (sortBy === 'stock_desc') {
+            return Number(b.current_stock) - Number(a.current_stock);
+        }
+        return 0;
     });
 
     const handleOpenModal = (item = null) => {
@@ -182,6 +195,21 @@ const MaterialsTab = ({ searchQuery = '' }) => {
                     >
                         {actionLoading === 'ALL' ? 'Auditing...' : 'Audit All Stock'}
                     </button>
+
+                    {/* Sort Dropdown */}
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] uppercase font-black text-gray-400 hidden md:block">Sort:</span>
+                        <select
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value)}
+                            className="bg-white border border-gray-100 text-gray-600 text-xs font-bold rounded-xl px-3 py-2 outline-none shadow-sm focus:ring-2 focus:ring-indigo-500"
+                        >
+                            <option value="name">Name (A-Z)</option>
+                            <option value="stock_asc">Stock (Lowest First)</option>
+                            <option value="stock_desc">Stock (Highest First)</option>
+                        </select>
+                    </div>
+
                 </div>
                 <button
                     onClick={() => handleOpenModal()}
@@ -255,7 +283,7 @@ const MaterialsTab = ({ searchQuery = '' }) => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
-                            {filteredMaterials.map(m => {
+                            {sortedMaterials.map(m => {
                                 const isLow = Number(m.current_stock) <= Number(m.min_stock_level);
                                 const pendingQty = pendingStockMap[m.id] || 0;
 
@@ -348,7 +376,7 @@ const MaterialsTab = ({ searchQuery = '' }) => {
 
                 {/* Mobile View: Cards */}
                 <div className="lg:hidden p-4 space-y-4">
-                    {filteredMaterials.map(m => {
+                    {sortedMaterials.map(m => {
                         const isLow = Number(m.current_stock) <= Number(m.min_stock_level);
                         const pendingQty = pendingStockMap[m.id] || 0;
 

@@ -18,7 +18,7 @@ const DesktopRoutes = () => {
         <Routes>
             <Route index element={<Navigate to="home" replace />} />
             <Route path="home" element={<DesktopHome />} />
-            <Route path="budget" element={<DesktopBudget />} />
+            <Route path="budget" element={<Navigate to="../manage" replace />} />
             <Route path="estimator" element={<EstimatorHub />} />
             <Route path="permits" element={<PermitPage />} />
             <Route path="manage" element={<DesktopManage />} />

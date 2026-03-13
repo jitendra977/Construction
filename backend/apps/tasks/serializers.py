@@ -17,6 +17,7 @@ class TaskSerializer(serializers.ModelSerializer):
     phase_detail = ConstructionPhaseSerializer(source='phase', read_only=True)
     room_detail = RoomSerializer(source='room', read_only=True)
     assigned_to_detail = ContractorSerializer(source='assigned_to', read_only=True)
+    category_name = serializers.CharField(source='category.name', read_only=True)
     
     updates = TaskUpdateSerializer(many=True, read_only=True)
     media = TaskMediaSerializer(many=True, read_only=True)

@@ -16,8 +16,8 @@ class BudgetCategory(models.Model):
 
     @property
     def total_spent(self):
-        from django.db.models import Sum
-        result = self.expenses.aggregate(total=Sum('amount'))['total']
+        from django.db.models import Sum, Q
+        result = self.expenses.filter(is_inventory_usage=False).aggregate(total=Sum('amount'))['total']
         return result or Decimal('0.00')
 
     @property
@@ -53,6 +53,7 @@ class Expense(models.Model):
     supplier = models.ForeignKey('resources.Supplier', on_delete=models.SET_NULL, null=True, blank=True, related_name='expenses')
     contractor = models.ForeignKey('resources.Contractor', on_delete=models.SET_NULL, null=True, blank=True, related_name='expenses')
     funding_source = models.ForeignKey('FundingSource', on_delete=models.SET_NULL, null=True, blank=True, related_name='expenses')
+    task = models.ForeignKey('tasks.Task', on_delete=models.SET_NULL, null=True, blank=True, related_name='expenses')
     
     date = models.DateField()
     paid_to = models.CharField(max_length=200, help_text="Vendor or person paid")
@@ -60,6 +61,7 @@ class Expense(models.Model):
     
     receipt = models.ForeignKey(Document, on_delete=models.SET_NULL, null=True, blank=True, related_name='expenses')
     notes = models.TextField(blank=True)
+    is_inventory_usage = models.BooleanField(default=False, help_text="Represents internal cost allocation (Usage) to avoid double-counting in cashflow.")
     
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -85,6 +87,13 @@ class Expense(models.Model):
         return f"{self.title} - Rs. {self.amount} ({self.status})"
 
     def save(self, *args, **kwargs):
+        # 0. Hierarchy Sync: If linked to a task, auto-set category and phase
+        if self.task:
+            if not self.category and self.task.category:
+                self.category = self.task.category
+            if not self.phase and self.task.phase:
+                self.phase = self.task.phase
+
         # 1. Budget Protection: Check if this expense exceeds category allocation
         if self.category and (self.pk is None or 'amount' in kwargs.get('update_fields', [])):
             current_spent = self.category.total_spent
@@ -127,66 +136,10 @@ class Payment(models.Model):
     def __str__(self):
         return f"Payment of Rs. {self.amount} for {self.expense.title}"
 
-    def save(self, *args, **kwargs):
-        is_new = self.pk is None
-        old_payment = None
-        if not is_new:
-            old_payment = Payment.objects.get(pk=self.pk)
-
-        super().save(*args, **kwargs)
-
-        if is_new and self.funding_source:
-            # Deduct balance
-            self.funding_source.current_balance -= self.amount
-            self.funding_source.save()
-            
-            # Create debit transaction
-            FundingTransaction.objects.create(
-                funding_source=self.funding_source,
-                amount=self.amount,
-                transaction_type='DEBIT',
-                date=self.date,
-                description=f"Payment for: {self.expense.title}",
-                payment=self
-            )
-        elif not is_new and old_payment:
-            # If changed funding source or amount, we need to adjust
-            if old_payment.funding_source != self.funding_source or old_payment.amount != self.amount:
-                # Refund old
-                if old_payment.funding_source:
-                    old_payment.funding_source.current_balance += old_payment.amount
-                    old_payment.funding_source.save()
-                    old_payment.funding_transactions.all().delete()
-                
-                # Charge new
-                if self.funding_source:
-                    self.funding_source.current_balance -= self.amount
-                    self.funding_source.save()
-                    FundingTransaction.objects.create(
-                        funding_source=self.funding_source,
-                        amount=self.amount,
-                        transaction_type='DEBIT',
-                        date=self.date,
-                        description=f"Payment for: {self.expense.title}",
-                        payment=self
-                    )
-
-        # Sync Expense status
-        if self.expense:
-            self.expense.is_paid = (self.expense.total_paid >= self.expense.amount)
-            self.expense.save(update_fields=['is_paid'])
-
-    def delete(self, *args, **kwargs):
-        expense = self.expense
-        if self.funding_source:
-            self.funding_source.current_balance += self.amount
-            self.funding_source.save()
-        super().delete(*args, **kwargs)
-        
-        # Sync Expense status after deletion
-        if expense:
-            expense.is_paid = (expense.total_paid >= expense.amount)
-            expense.save(update_fields=['is_paid'])
+    # Logic moved to FinanceService. Side-effects in save() are dangerous 
+    # and should be avoided for complex business flows.
+    # We keep simple save() and delete() here for basic ORM usage, 
+    # but application logic should use FinanceService.
 
 class FundingSource(models.Model):
     """
@@ -261,3 +214,21 @@ class FundingTransaction(models.Model):
 
     def __str__(self):
         return f"{self.transaction_type}: Rs. {self.amount} - {self.description}"
+class PhaseBudgetAllocation(models.Model):
+    """
+    Allocates a portion of a BudgetCategory to a specific ConstructionPhase.
+    """
+    category = models.ForeignKey(BudgetCategory, on_delete=models.CASCADE, related_name='phase_allocations')
+    phase = models.ForeignKey(ConstructionPhase, on_delete=models.CASCADE, related_name='category_allocations')
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('category', 'phase')
+        verbose_name = "Phase Budget Allocation"
+        verbose_name_plural = "Phase Budget Allocations"
+
+    def __str__(self):
+        return f"{self.category.name} -> {self.phase.name}: Rs. {self.amount}"

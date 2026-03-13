@@ -12,12 +12,14 @@ import StockTab from './manage/StockTab';
 import FundingTab from './manage/FundingTab';
 import TasksTab from './manage/TasksTab';
 import PaymentsTab from './manage/PaymentsTab';
+import BudgetOverview from '../finance/BudgetOverview';
 
 const DesktopManage = () => {
     const { dashboardData } = useConstruction();
     const [activeSection, setActiveSection] = useState('structure');
     const [activeTab, setActiveTab] = useState('phases');
     const [searchQuery, setSearchQuery] = useState('');
+    const [resolveMetadata, setResolveMetadata] = useState(null);
 
     const sections = [
         {
@@ -40,6 +42,7 @@ const DesktopManage = () => {
             icon: '💰',
             color: 'from-emerald-500 to-teal-600',
             tabs: [
+                { id: 'overview', label: 'Overview (सारांश)' },
                 { id: 'funding', label: 'Funding (लगानी)' },
                 { id: 'categories', label: 'Categories (शिर्षक)' },
                 { id: 'expenses', label: 'Expenses (खर्च)' },
@@ -69,6 +72,20 @@ const DesktopManage = () => {
         const section = sections.find(s => s.id === sectionId);
         setActiveTab(section.tabs[0].id);
         setSearchQuery('');
+    };
+
+    const handleResolve = (type, data) => {
+        if (type === 'UNASSIGNED_BUDGET') {
+            setActiveSection('finance');
+            setActiveTab('categories');
+            setResolveMetadata({ highlightId: data.category_id, expand: true });
+        } else if (type === 'SYNC_MISMATCH' || type === 'OVER_ALLOCATED_CAT') {
+            setActiveSection('finance');
+            setActiveTab('categories');
+        } else if (type === 'PHASE_OVERLOAD' || type === 'OVER_ALLOCATED_PHASE') {
+            setActiveSection('structure');
+            setActiveTab('phases');
+        }
     };
 
     return (
@@ -179,7 +196,14 @@ const DesktopManage = () => {
                         {/* Finance Section Tabs */}
                         {activeSection === 'finance' && (
                             <>
-                                {activeTab === 'categories' && <CategoriesTab searchQuery={searchQuery} />}
+                                {activeTab === 'overview' && <BudgetOverview onResolve={handleResolve} />}
+                                {activeTab === 'categories' && (
+                                    <CategoriesTab
+                                        searchQuery={searchQuery}
+                                        resolveMetadata={resolveMetadata}
+                                        onClearMetadata={() => setResolveMetadata(null)}
+                                    />
+                                )}
                                 {activeTab === 'expenses' && <ExpensesTab searchQuery={searchQuery} />}
                                 {activeTab === 'funding' && <FundingTab searchQuery={searchQuery} />}
                                 {activeTab === 'payments' && <PaymentsTab searchQuery={searchQuery} />}

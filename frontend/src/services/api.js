@@ -30,9 +30,13 @@ api.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
 
+        // Global Error Logger for 400/401 debug
+        console.error(`❌ API Error [${error.response?.status}]: ${originalRequest?.method?.toUpperCase()} ${originalRequest?.url}`, error.response?.data);
+
         // If error is 401 and we haven't retried yet
         if (error.response?.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;
+            console.log("Attempting token refresh...");
 
             try {
                 const refreshToken = localStorage.getItem('refresh_token');
@@ -148,6 +152,10 @@ export const dashboardService = {
     updateFundingSource: (id, data) => api.patch(`/funding-sources/${id}/`, data),
     deleteFundingSource: (id) => api.delete(`/funding-sources/${id}/`),
     createFundingTransaction: (data) => api.post('/funding-transactions/', data),
+    getPhaseBudgetAllocations: () => api.get('/phase-budget-allocations/'),
+    createPhaseBudgetAllocation: (data) => api.post('/phase-budget-allocations/', data),
+    updatePhaseBudgetAllocation: (id, data) => api.patch(`/phase-budget-allocations/${id}/`, data),
+    deletePhaseBudgetAllocation: (id) => api.delete(`/phase-budget-allocations/${id}/`),
 
     // Aggregated Dashboard Data
     getContractors: () => api.get('/contractors/'),

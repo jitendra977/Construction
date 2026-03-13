@@ -12,7 +12,7 @@ from apps.core.views import HouseProjectViewSet, ConstructionPhaseViewSet, RoomV
 from apps.core.import_views import SqlImportView, RawDataPopulationView
 from apps.core.gallery_views import GalleryViewSet
 from apps.tasks.views import TaskViewSet, TaskUpdateViewSet, TaskMediaViewSet
-from apps.finance.views import BudgetCategoryViewSet, ExpenseViewSet, PaymentViewSet, FundingSourceViewSet, FundingTransactionViewSet
+from apps.finance.views import BudgetCategoryViewSet, ExpenseViewSet, PaymentViewSet, FundingSourceViewSet, FundingTransactionViewSet, PhaseBudgetAllocationViewSet
 from apps.resources.views import ContractorViewSet, MaterialViewSet, DocumentViewSet, SupplierViewSet, MaterialTransactionViewSet
 
 router = DefaultRouter()
@@ -31,6 +31,7 @@ router.register(r'expenses', ExpenseViewSet)
 router.register(r'payments', PaymentViewSet)
 router.register(r'funding-sources', FundingSourceViewSet)
 router.register(r'funding-transactions', FundingTransactionViewSet)
+router.register(r'phase-budget-allocations', PhaseBudgetAllocationViewSet)
 router.register(r'contractors', ContractorViewSet)
 router.register(r'suppliers', SupplierViewSet)
 router.register(r'materials', MaterialViewSet)

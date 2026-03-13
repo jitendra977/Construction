@@ -10,9 +10,15 @@ class HouseProjectSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class ConstructionPhaseSerializer(serializers.ModelSerializer):
+    total_spent = serializers.SerializerMethodField()
+
     class Meta:
         model = ConstructionPhase
         fields = '__all__'
+
+    def get_total_spent(self, obj):
+        from django.db.models import Sum
+        return obj.expenses.aggregate(total=Sum('amount'))['total'] or 0
 
 class RoomSerializer(serializers.ModelSerializer):
     class Meta:

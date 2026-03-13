@@ -131,16 +131,60 @@ class MaterialViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+    @action(detail=False, methods=['get'])
+    def dashboard_summary(self, request):
+        """
+        Quick inventory summary for the dashboard.
+        """
+        from django.db.models import Sum, F
+        total_items = Material.objects.count()
+        low_stock = Material.objects.filter(current_stock__lte=F('min_stock_level')).count()
+        
+        return Response({
+            'total_items': total_items,
+            'low_stock_count': low_stock,
+            'recently_used': MaterialSerializer(
+                Material.objects.order_by('-quantity_used')[:5], 
+                many=True
+            ).data
+        })
+
 class MaterialTransactionViewSet(viewsets.ModelViewSet):
     queryset = MaterialTransaction.objects.all().order_by('-date', '-created_at')
     serializer_class = MaterialTransactionSerializer
 
+    def perform_create(self, serializer):
+        from .services import ResourceService
+        data = serializer.validated_data
+        
+        # When creating a transaction via the API, route it through ResourceService
+        txn = ResourceService.process_material_transaction(
+            material=data['material'],
+            transaction_type=data['transaction_type'],
+            quantity=data['quantity'],
+            date=data['date'],
+            status=data.get('status', 'RECEIVED'),
+            unit_price=data.get('unit_price'),
+            supplier=data.get('supplier'),
+            funding_source=data.get('funding_source'),
+            phase=data.get('phase'),
+            purpose=data.get('purpose', ''),
+            notes=data.get('notes', ''),
+            create_expense=data.get('create_expense', True)
+        )
+        # MUST set instance so DRF can serialize the response
+        serializer.instance = txn
+
+    def perform_destroy(self, instance):
+        from .services import ResourceService
+        ResourceService.delete_material_transaction(instance)
+
     @action(detail=True, methods=['post'])
     def receive_order(self, request, pk=None):
         """
-        Confirm receipt of a pending order.
+        Confirm receipt of a pending order using ResourceService.
         """
-        from django.utils import timezone
+        from .services import ResourceService
         from rest_framework import status
 
         transaction = self.get_object()
@@ -150,21 +194,20 @@ class MaterialTransactionViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Optional: Allow updating quantity/price on receipt
-        if 'quantity' in request.data:
-            transaction.quantity = request.data['quantity']
-        if 'unit_price' in request.data:
-            transaction.unit_price = request.data['unit_price']
-        
-        transaction.status = 'RECEIVED'
-        transaction.date = timezone.now().date()
-        transaction.save() # This triggers stock update and expense creation
-        
-        return Response({
-            "success": True,
-            "message": f"Order received! Stock updated for {transaction.material.name}.",
-            "new_stock": transaction.material.current_stock
-        })
+        # We use a non-existent method yet, I'll add it to services.py next
+        try:
+            ResourceService.receive_pending_transaction(
+                transaction,
+                new_quantity=request.data.get('quantity'),
+                new_unit_price=request.data.get('unit_price')
+            )
+            return Response({
+                "success": True,
+                "message": f"Order received! Stock updated for {transaction.material.name}.",
+                "new_stock": transaction.material.current_stock
+            })
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['material', 'transaction_type']
 

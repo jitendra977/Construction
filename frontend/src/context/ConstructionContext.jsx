@@ -91,7 +91,10 @@ export const ConstructionProvider = ({ children }) => {
         const totalPhases = phases.length;
         const completedPhases = phases.filter(p => p.status === 'COMPLETED').length;
         const phaseProgress = totalPhases > 0 ? Math.round((completedPhases / totalPhases) * 100) : 0;
-        const totalSpent = expenses.reduce((acc, exp) => acc + Number(exp.amount), 0);
+
+        // Cashflow Total (Purcheses only)
+        const totalSpent = expenses.filter(e => !e.is_inventory_usage).reduce((acc, exp) => acc + Number(exp.amount), 0);
+
         const daysElapsed = project ? Math.floor((new Date() - new Date(project.start_date)) / (1000 * 60 * 60 * 24)) : 0;
         const currentPhase = phases.find(p => p.status === 'IN_PROGRESS') || phases[0] || { name: 'N/A' };
 
@@ -107,7 +110,9 @@ export const ConstructionProvider = ({ children }) => {
     const budgetStats = useMemo(() => {
         const expenses = dashboardData.expenses || [];
         const totalBudget = dashboardData.project ? Number(dashboardData.project.total_budget) : 0;
-        const totalSpent = expenses.reduce((acc, exp) => acc + Number(exp.amount), 0);
+
+        // Cashflow Total (Purcheses only) for master budget progress
+        const totalSpent = expenses.filter(e => !e.is_inventory_usage).reduce((acc, exp) => acc + Number(exp.amount), 0);
 
         // Funding calculations
         const fundingSources = dashboardData.funding || [];
@@ -144,7 +149,7 @@ export const ConstructionProvider = ({ children }) => {
         // Category breakdown
         const categories = (dashboardData.budgetCategories || []).map(cat => {
             const spentInCat = expenses
-                .filter(e => e.category === cat.id)
+                .filter(e => e.category === cat.id && !e.is_inventory_usage)
                 .reduce((acc, e) => acc + Number(e.amount), 0);
             return {
                 ...cat,
@@ -286,6 +291,26 @@ export const ConstructionProvider = ({ children }) => {
         }
     }, [fetchData]);
 
+    const createExpense = useCallback(async (expenseData) => {
+        try {
+            await dashboardService.createExpense(expenseData);
+            await fetchData(true);
+        } catch (error) {
+            console.error("Failed to create expense", error);
+            throw error;
+        }
+    }, [fetchData]);
+
+    const deleteExpense = useCallback(async (expenseId) => {
+        try {
+            await dashboardService.deleteExpense(expenseId);
+            await fetchData(true);
+        } catch (error) {
+            console.error("Failed to delete expense", error);
+            throw error;
+        }
+    }, [fetchData]);
+
     const updateProfile = useCallback(async (userData) => {
         setLoading(true);
         try {
@@ -301,6 +326,16 @@ export const ConstructionProvider = ({ children }) => {
             setLoading(false);
         }
     }, []);
+
+    const createMaterialTransaction = useCallback(async (transactionData) => {
+        try {
+            await dashboardService.createMaterialTransaction(transactionData);
+            await fetchData(true);
+        } catch (error) {
+            console.error("Failed to create material transaction", error);
+            throw error;
+        }
+    }, [fetchData]);
 
     const value = {
         // State
@@ -326,6 +361,9 @@ export const ConstructionProvider = ({ children }) => {
         updatePermitStatus,
         createPermitStep,
         deletePermitStep,
+        createExpense,
+        deleteExpense,
+        createMaterialTransaction,
         updateProfile,
         isCalculatorOpen,
         setIsCalculatorOpen: (val) => setIsCalculatorOpen(val),

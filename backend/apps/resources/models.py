@@ -215,115 +215,12 @@ class MaterialTransaction(models.Model):
     expense = models.ForeignKey('finance.Expense', on_delete=models.SET_NULL, null=True, blank=True, related_name='material_transactions')
     funding_source = models.ForeignKey('finance.FundingSource', on_delete=models.SET_NULL, null=True, blank=True, related_name='material_transactions')
     room = models.ForeignKey('core.Room', on_delete=models.SET_NULL, null=True, blank=True, related_name='material_usage')
+    phase = models.ForeignKey('core.ConstructionPhase', on_delete=models.SET_NULL, null=True, blank=True, related_name='material_usage')
     
     purpose = models.CharField(max_length=200, blank=True, help_text="e.g., Ground Floor Slab, Kitchen Walls")
     notes = models.TextField(blank=True)
     create_expense = models.BooleanField(default=True, help_text="Uncheck for Opening Stock or Gifts (No Expense created)")
     created_at = models.DateTimeField(auto_now_add=True)
-
-    def save(self, *args, **kwargs):
-        is_new = self.pk is None
-        old_transaction = None
-        if not is_new:
-            old_transaction = MaterialTransaction.objects.get(pk=self.pk)
-        
-        # 1. Update Linked Expense for Stock IN
-        if self.transaction_type == 'IN' and self.create_expense and self.status == 'RECEIVED':
-            from django.apps import apps
-            Expense = apps.get_model('finance', 'Expense')
-            
-            if is_new and not self.expense:
-                # Auto-create Expense
-                category = self.material.budget_category
-                if not category:
-                    BudgetCategory = apps.get_model('finance', 'BudgetCategory')
-                    category, _ = BudgetCategory.objects.get_or_create(name="Miscellaneous Materials", defaults={'allocation': 0})
-
-                new_expense = Expense(
-                    title=f"Purchase: {self.quantity} {self.material.get_unit_display()} {self.material.name}",
-                    amount=self.quantity * (self.unit_price or 0),
-                    expense_type='MATERIAL',
-                    category=category,
-                    material=self.material,
-                    quantity=self.quantity,
-                    unit_price=self.unit_price,
-                    supplier=self.supplier,
-                    funding_source=self.funding_source,
-                    date=self.date,
-                    paid_to=self.supplier.name if self.supplier else "Cash Purchase",
-                    is_paid=True,
-                    notes=f"Auto-generated from Material Transaction"
-                )
-                new_expense._from_transaction = True
-                new_expense.save()
-                self.expense = new_expense
-            elif self.expense:
-                # Sync existing expense
-                exp = self.expense
-                exp.amount = self.quantity * (self.unit_price or 0)
-                exp.material = self.material
-                exp.quantity = self.quantity
-                exp.unit_price = self.unit_price
-                exp.funding_source = self.funding_source
-                exp.supplier = self.supplier
-                exp.date = self.date
-                exp._from_transaction = True
-                exp.save()
-
-        # 2. Adjust Material Stock (Atomic-ish)
-        mat = self.material
-        
-        # Reverse old transaction impact if updating
-        if not is_new and old_transaction.status == 'RECEIVED':
-            if old_transaction.transaction_type == 'IN':
-                mat.quantity_purchased -= old_transaction.quantity
-            elif old_transaction.transaction_type in ['OUT', 'WASTAGE']:
-                mat.quantity_used -= old_transaction.quantity
-            elif old_transaction.transaction_type == 'RETURN':
-                mat.quantity_purchased += old_transaction.quantity # Return means we had it, now we don't
-
-        # Apply new/updated transaction impact ONLY IF RECEIVED
-        if self.status == 'RECEIVED':
-            if self.transaction_type == 'IN':
-                mat.quantity_purchased += self.quantity
-                # Update Average Cost on Purchase
-                if self.unit_price:
-                    # Simple weighted average
-                    total_purchased = mat.quantity_purchased
-                    if total_purchased > 0:
-                        current_avg = mat.avg_cost_per_unit or Decimal('0')
-                        new_avg = ((mat.quantity_purchased - self.quantity) * current_avg + (self.quantity * self.unit_price)) / total_purchased
-                        mat.avg_cost_per_unit = new_avg
-            elif self.transaction_type in ['OUT', 'WASTAGE']:
-                # Negative Stock Guard
-                current_available = mat.quantity_purchased - mat.quantity_used
-                if self.quantity > current_available:
-                    from django.core.exceptions import ValidationError
-                    raise ValidationError(f"Insufficient stock! Available: {current_available} {mat.get_unit_display()}, Requested: {self.quantity}")
-                    
-                mat.quantity_used += self.quantity
-            elif self.transaction_type == 'RETURN':
-                mat.quantity_purchased -= self.quantity
-
-        mat.save()
-        super().save(*args, **kwargs)
-
-    def delete(self, *args, **kwargs):
-        # Reverse stock adjustment before deleting IF it was RECEIVED
-        mat = self.material
-        if self.status == 'RECEIVED':
-            if self.transaction_type == 'IN':
-                mat.quantity_purchased -= self.quantity
-                # If it's a purchase, optionally delete linked expense
-                if self.expense:
-                    self.expense.delete()
-            elif self.transaction_type in ['OUT', 'WASTAGE']:
-                mat.quantity_used -= self.quantity
-            elif self.transaction_type == 'RETURN':
-                mat.quantity_purchased += self.quantity
-            
-            mat.save()
-        super().delete(*args, **kwargs)
 
     def __str__(self):
         return f"{self.transaction_type} - {self.quantity} {self.material.name}"

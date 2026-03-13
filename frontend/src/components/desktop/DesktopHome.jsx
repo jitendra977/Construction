@@ -471,7 +471,32 @@ const DesktopHome = () => {
                                                                 <span className="animate-pulse px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-600 text-[10px] font-bold uppercase tracking-wide">Active Phase</span>
                                                             )}
                                                         </div>
-                                                        <p className="text-sm text-gray-500 font-medium">{phase.description}</p>
+                                                        <p className="text-sm text-gray-600 font-medium line-clamp-2 leading-relaxed max-w-2xl">{phase.description}</p>
+
+                                                        {/* Detailed Meta-Data Subtitle */}
+                                                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3 text-[10px] font-black uppercase tracking-[0.12em]">
+                                                            <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-100 shadow-sm">
+                                                                <span className="text-[12px] leading-none">💰</span>
+                                                                <span className="opacity-60 mr-0.5">Budget:</span>
+                                                                {formatCurrency(phase.estimated_budget)}
+                                                            </div>
+                                                            <div className="flex items-center gap-2 text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-100 shadow-sm">
+                                                                <span className="text-[12px] leading-none">📋</span>
+                                                                <span className="opacity-60 mr-0.5">Scope:</span>
+                                                                {phaseTasks.length} {phaseTasks.length === 1 ? 'Task' : 'Tasks'}
+                                                            </div>
+                                                            {(phase.start_date || phase.end_date) && (
+                                                                <div className="flex items-center gap-2 text-slate-700 bg-slate-100/80 px-2.5 py-1 rounded-md border border-slate-200 shadow-sm">
+                                                                    <span className="text-[12px] leading-none">📅</span>
+                                                                    <span className="opacity-60 mr-0.5">Timeline:</span>
+                                                                    <span className="tracking-normal font-bold">
+                                                                        {phase.start_date ? new Date(phase.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '...'}
+                                                                        <span className="mx-1.5 opacity-40">→</span>
+                                                                        {phase.end_date ? new Date(phase.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '...'}
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                        </div>
 
                                                         {/* Progress Bar */}
                                                         <div className="mt-4 flex items-center gap-3 w-full max-w-md">

@@ -4,12 +4,24 @@ import { constructionService, getMediaUrl } from '../../../services/api';
 import { useConstruction } from '../../../context/ConstructionContext';
 
 const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
-    const { updatePhase, updateTask, refreshData, dashboardData, formatCurrency } = useConstruction();
+    const {
+        updatePhase, updateTask, createExpense, deleteExpense,
+        createMaterialTransaction, refreshData, dashboardData, formatCurrency
+    } = useConstruction();
     const [uploading, setUploading] = useState(false);
     const [completing, setCompleting] = useState(false);
     const [newTaskTitle, setNewTaskTitle] = useState('');
     const [addingTask, setAddingTask] = useState(false);
     const [selectedTask, setSelectedTask] = useState(null);
+
+    // Material Linkage State
+    const [selectedMaterialId, setSelectedMaterialId] = useState('');
+    const [selectedCategoryId, setSelectedCategoryId] = useState('');
+    const [materialQuantity, setMaterialQuantity] = useState('');
+    const [materialUnitPrice, setMaterialUnitPrice] = useState('');
+    const [linkingMaterial, setLinkingMaterial] = useState(false);
+    const [materialCart, setMaterialCart] = useState([]);
+
     const fileInputRef = useRef(null);
     const phasePhotoRef = useRef(null);
 
@@ -107,6 +119,64 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
             refreshData();
         } catch (error) {
             console.error("Failed to delete task", error);
+        }
+    };
+
+    const addToCart = (e) => {
+        e.preventDefault();
+        if (!selectedMaterialId || !materialQuantity || !materialUnitPrice) return;
+
+        const material = dashboardData.materials.find(m => m.id === parseInt(selectedMaterialId));
+        if (!material) return;
+
+        const newItem = {
+            id: Date.now(), // temporary local id
+            materialId: material.id,
+            name: material.name,
+            quantity: parseFloat(materialQuantity),
+            unitPrice: parseFloat(materialUnitPrice),
+            unit: material.unit
+        };
+
+        setMaterialCart([...materialCart, newItem]);
+
+        // Reset only selection, maybe keep price? Usually better to reset.
+        setSelectedMaterialId('');
+        setMaterialQuantity('');
+        setMaterialUnitPrice('');
+    };
+
+    const removeFromCart = (tempId) => {
+        setMaterialCart(materialCart.filter(item => item.id !== tempId));
+    };
+
+    const handleLinkMaterial = async () => {
+        if (materialCart.length === 0) return;
+
+        setLinkingMaterial(true);
+        try {
+            // Process each item in the cart
+            for (const item of materialCart) {
+                await createMaterialTransaction({
+                    material: item.materialId,
+                    transaction_type: 'OUT',
+                    quantity: item.quantity,
+                    unit_price: item.unitPrice,
+                    date: new Date().toISOString().split('T')[0],
+                    phase: phase.id,
+                    purpose: `Allocated for ${phase.name}`,
+                    create_expense: true,
+                    status: 'RECEIVED'
+                });
+            }
+            // Clear cart on success
+            setMaterialCart([]);
+            refreshData();
+        } catch (error) {
+            console.error("Failed to link materials", error);
+            alert("Failed to process some materials. Please check progress.");
+        } finally {
+            setLinkingMaterial(false);
         }
     };
 
@@ -212,25 +282,6 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
                         </div>
                     </div>
 
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                        <div className="flex justify-between items-center mb-2">
-                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Associated Materials</h4>
-                            <span className="text-[10px] font-black text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full uppercase tracking-tighter">Available on Phase</span>
-                        </div>
-                        <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1">
-                            {phaseMaterials.length > 0 ? phaseMaterials.map(m => (
-                                <div key={m.id} className="p-2 bg-gray-50 rounded-lg border border-gray-100 flex items-center justify-between">
-                                    <div className="flex flex-col">
-                                        <span className="text-[11px] font-bold text-gray-900">{m.title}</span>
-                                        <span className="text-[9px] text-gray-400">{m.quantity} {m.unit || 'units'} allocated</span>
-                                    </div>
-                                    <span className="text-[10px] font-black text-indigo-600">{formatCurrency(m.amount)}</span>
-                                </div>
-                            )) : (
-                                <p className="text-[10px] text-gray-400 italic">No materials linked to this phase yet.</p>
-                            )}
-                        </div>
-                    </div>
 
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                         <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Timeline</h4>
@@ -262,7 +313,6 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
                         </div>
                     </div>
 
-                    {/* Danger Zone */}
                     <div className="bg-red-50 p-4 rounded-xl border border-red-100">
                         <h4 className="text-xs font-bold text-red-900 uppercase tracking-wider mb-2">Danger Zone</h4>
                         <button
@@ -284,14 +334,12 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
                         </button>
                     </div>
 
-                    {/* Sub Phases / Tasks Section */}
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 max-h-[400px] overflow-y-auto">
                         <div className="flex justify-between items-center mb-3">
                             <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Sub Phases (Tasks)</h4>
                             <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{tasks?.length || 0}</span>
                         </div>
 
-                        {/* Task List */}
                         {tasks && tasks.length > 0 ? (
                             <ul className="space-y-3 mb-4">
                                 {tasks.map(task => (
@@ -319,7 +367,6 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
                                                         {task.title}
                                                     </span>
 
-                                                    {/* Task Dates */}
                                                     <div className="flex flex-wrap gap-2 mt-2 text-xs">
                                                         <div className="flex items-center gap-1 text-gray-500">
                                                             <span className="font-medium">Start:</span>
@@ -381,7 +428,6 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
                             <p className="text-xs text-gray-400 italic mb-4">No sub-phases added.</p>
                         )}
 
-                        {/* Add Task Form */}
                         <form onSubmit={handleAddTask} className="flex gap-2">
                             <input
                                 type="text"
@@ -562,6 +608,185 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
                             </div>
                         </div>
                     )}
+
+                    {/* Associated Materials - Moved from left to right bottom */}
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mt-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <div>
+                                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Phase Materials</h4>
+                                <p className="text-[10px] text-gray-500 mt-1 font-medium">Inventory items allocated to this construction phase.</p>
+                            </div>
+                            <span className="text-[10px] font-black text-green-600 bg-green-50 px-2 py-1 rounded-full uppercase tracking-tighter border border-green-100">Live Allocation</span>
+                        </div>
+
+                        <div className="overflow-x-auto mb-6">
+                            {phaseMaterials.length > 0 ? (
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="border-b border-gray-100">
+                                            <th className="pb-3 text-[10px] font-black text-gray-400 uppercase tracking-tighter">Material Item</th>
+                                            <th className="pb-3 text-[10px] font-black text-gray-400 uppercase tracking-tighter text-right">Quantity</th>
+                                            <th className="pb-3 text-[10px] font-black text-gray-400 uppercase tracking-tighter text-right">Unit Rate</th>
+                                            <th className="pb-3 text-[10px] font-black text-gray-400 uppercase tracking-tighter text-right">Total Cost</th>
+                                            <th className="pb-3 w-8"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50">
+                                        {phaseMaterials.map(m => (
+                                            <tr key={m.id} className="group hover:bg-gray-50/50 transition-colors">
+                                                <td className="py-3">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-bold text-gray-900">{m.title}</span>
+                                                        <span className="text-[10px] text-gray-400 font-medium lowercase italic">inventory movement</span>
+                                                    </div>
+                                                </td>
+                                                <td className="py-3 text-right">
+                                                    <span className="text-sm font-bold text-gray-700">{m.quantity}</span>
+                                                    <span className="text-[10px] text-gray-400 ml-1.5 uppercase font-medium">{m.unit || 'pcs'}</span>
+                                                </td>
+                                                <td className="py-3 text-right">
+                                                    <span className="text-sm text-gray-500 font-medium">Rs {parseFloat(m.unit_price).toLocaleString()}</span>
+                                                </td>
+                                                <td className="py-3 text-right">
+                                                    <span className="text-sm font-black text-indigo-600">Rs {parseFloat(m.amount).toLocaleString()}</span>
+                                                </td>
+                                                <td className="py-3 text-right">
+                                                    <button
+                                                        onClick={() => {
+                                                            if (window.confirm("Unlink this material from phase?")) {
+                                                                deleteExpense(m.id);
+                                                            }
+                                                        }}
+                                                        className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all font-bold text-xl"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr className="border-t-2 border-double border-gray-100 bg-gray-50/50">
+                                            <td colSpan="3" className="py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Phase Material Investment:</td>
+                                            <td className="py-4 text-right text-base font-black text-indigo-600">
+                                                Rs {phaseMaterials.reduce((acc, m) => acc + parseFloat(m.amount), 0).toLocaleString()}
+                                            </td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            ) : (
+                                <div className="py-12 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-100">
+                                    <div className="text-3xl mb-2 opacity-20">🧱</div>
+                                    <p className="text-sm text-gray-400 italic">No materials have been allocated to this phase yet.</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Assignment Section */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-6 border-t border-gray-100">
+                            <div>
+                                <h4 className="text-[11px] font-black text-indigo-600 uppercase tracking-widest mb-4">Allocate New Materials</h4>
+                                <form onSubmit={addToCart} className="space-y-4">
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Select Item</label>
+                                        <select
+                                            value={selectedMaterialId}
+                                            onChange={(e) => {
+                                                const matId = e.target.value;
+                                                setSelectedMaterialId(matId);
+                                                const mat = dashboardData.materials.find(m => m.id === parseInt(matId));
+                                                if (mat) setMaterialUnitPrice(mat.avg_cost_per_unit || '');
+                                            }}
+                                            className="w-full text-sm border-gray-100 bg-gray-50 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none px-4 py-3"
+                                        >
+                                            <option value="">Choose Material from Inventory...</option>
+                                            {dashboardData.materials?.map(m => (
+                                                <option key={m.id} value={m.id}>{m.name} (Available: {m.current_stock} {m.unit})</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Quantity</label>
+                                            <input
+                                                type="number"
+                                                placeholder="0.00"
+                                                value={materialQuantity}
+                                                onChange={(e) => setMaterialQuantity(e.target.value)}
+                                                className="w-full text-sm border-gray-100 bg-gray-50 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none px-4 py-3"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Unit Rate (Rs)</label>
+                                            <input
+                                                type="number"
+                                                placeholder="0.00"
+                                                value={materialUnitPrice}
+                                                onChange={(e) => setMaterialUnitPrice(e.target.value)}
+                                                className="w-full text-sm border-gray-100 bg-gray-50 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none px-4 py-3"
+                                            />
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="submit"
+                                        disabled={!selectedMaterialId || !materialQuantity}
+                                        className="w-full bg-gray-900 text-white text-xs font-black uppercase py-4 rounded-xl hover:bg-black transition-all shadow-lg shadow-gray-200 active:scale-95 disabled:opacity-30"
+                                    >
+                                        + Add to Assignment List
+                                    </button>
+                                </form>
+                            </div>
+
+                            <div className="flex flex-col h-full">
+                                <h4 className="text-[11px] font-black text-indigo-600 uppercase tracking-widest mb-4">Pending Assignments</h4>
+                                {materialCart.length > 0 ? (
+                                    <div className="bg-indigo-50/30 flex-1 flex flex-col p-4 rounded-2xl border border-indigo-100">
+                                        <div className="flex justify-between items-center mb-3">
+                                            <p className="text-xs font-bold text-indigo-900">{materialCart.length} Items Selected</p>
+                                            <button
+                                                onClick={() => setMaterialCart([])}
+                                                className="text-[10px] text-indigo-400 hover:text-red-500 font-bold uppercase transition-colors"
+                                            >
+                                                Discard All
+                                            </button>
+                                        </div>
+                                        <div className="space-y-2 max-h-[160px] overflow-y-auto pr-2 flex-1">
+                                            {materialCart.map(item => (
+                                                <div key={item.id} className="flex justify-between items-center bg-white p-3 rounded-xl border border-indigo-50 shadow-sm group animate-in zoom-in-95 duration-200">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-xs font-bold text-gray-800">{item.name}</span>
+                                                        <span className="text-[10px] text-gray-400 font-medium">{item.quantity} {item.unit} x Rs {item.unitPrice}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="text-xs font-black text-indigo-600">Rs {(item.quantity * item.unitPrice).toLocaleString()}</span>
+                                                        <button
+                                                            onClick={() => removeFromCart(item.id)}
+                                                            className="text-gray-300 hover:text-red-500 font-bold px-1 transition-colors"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <button
+                                            onClick={handleLinkMaterial}
+                                            disabled={linkingMaterial}
+                                            className="w-full mt-4 bg-indigo-600 text-white text-xs font-black uppercase py-4 rounded-xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-50"
+                                        >
+                                            {linkingMaterial ? 'Updating Stock...' : 'Confirm Bulk Allocation'}
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="flex-1 border-2 border-dashed border-gray-100 rounded-2xl flex flex-col items-center justify-center p-8 opacity-40">
+                                        <div className="text-2xl mb-2">🛒</div>
+                                        <p className="text-xs font-medium text-gray-400">Cart is empty</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </Modal>

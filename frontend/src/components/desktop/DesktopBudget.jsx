@@ -8,16 +8,27 @@ const DesktopBudget = () => {
     const { totalBudget, totalSpent, remainingBudget, budgetPercent } = budgetStats;
     const [activeTab, setActiveTab] = useState('overview');
 
-    // Calculate category breakdown
+    // Calculate category breakdown with phase depth
     const categoryBreakdown = expenses.reduce((acc, exp) => {
         const cat = exp.category_name || 'General';
-        const existing = acc.find(a => a.name === cat);
-        if (existing) {
-            existing.spent += Number(exp.amount);
-            existing.count += 1;
-        } else {
-            acc.push({ name: cat, spent: Number(exp.amount), count: 1 });
+        const phase = exp.phase_name || 'Unassigned';
+        let existingCat = acc.find(a => a.name === cat);
+
+        if (!existingCat) {
+            existingCat = { name: cat, spent: 0, count: 0, phases: [] };
+            acc.push(existingCat);
         }
+
+        existingCat.spent += Number(exp.amount);
+        existingCat.count += 1;
+
+        let existingPhase = existingCat.phases.find(p => p.name === phase);
+        if (existingPhase) {
+            existingPhase.spent += Number(exp.amount);
+        } else {
+            existingCat.phases.push({ name: phase, spent: Number(exp.amount) });
+        }
+
         return acc;
     }, []).sort((a, b) => b.spent - a.spent);
 
@@ -100,8 +111,8 @@ const DesktopBudget = () => {
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
                                 className={`px-6 py-4 font-semibold text-sm transition-all relative ${activeTab === tab.id
-                                        ? 'text-emerald-600 bg-emerald-50'
-                                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                                    ? 'text-emerald-600 bg-emerald-50'
+                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                                     }`}
                             >
                                 <span className="flex items-center gap-2">
@@ -217,12 +228,30 @@ const DesktopBudget = () => {
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                                        <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
                                             <div
                                                 className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2.5 rounded-full transition-all"
                                                 style={{ width: `${Math.min((cat.spent / totalSpent) * 100, 100)}%` }}
                                             ></div>
                                         </div>
+
+                                        {/* Phase Breakdown for Category */}
+                                        {cat.phases.length > 0 && (
+                                            <div className="mt-4 pt-4 border-t border-gray-100">
+                                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+                                                    Phase Breakdown
+                                                </h4>
+                                                <div className="space-y-1.5">
+                                                    {cat.phases.sort((a, b) => b.spent - a.spent).map((phase, pIdx) => (
+                                                        <div key={pIdx} className="flex justify-between items-center text-[11px] group">
+                                                            <span className="text-gray-500 font-medium group-hover:text-indigo-600 transition-colors">{phase.name}</span>
+                                                            <span className="text-gray-900 font-bold">{formatCurrency(phase.spent)}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>

@@ -21,6 +21,29 @@ dist/
 .env
 .env.*
 !.env.example
+!.env.needed
+
+# Tests
+**/tests/
+**/__tests__/
+test_*.py
+*_test.py
+*.test.js
+*.spec.js
+*.test.jsx
+*.spec.jsx
+*.test.ts
+*.spec.ts
+*.test.tsx
+*.spec.tsx
+
+# Migrations
+**/migrations/*
+!**/migrations/__init__.py
+
+# Scripts
+scripts/
+backend/raw_data_population/
 
 # IDEs
 .vscode/

@@ -62,16 +62,24 @@ def login_view(request):
     )
 
     # Django's authenticate() uses USERNAME_FIELD='email', so pass email=
+    print(f"DEBUG: Login attempt for email: {email}")
     user = authenticate(request, email=email, password=password)
 
     # Fallback: if the custom backend wasn't used, try via User.objects
     if user is None:
+        print(f"DEBUG: authenticate() returned None, trying User.objects fallback")
         try:
             candidate = User.objects.get(email=email)
-            if candidate.check_password(password) and candidate.is_active:
-                user = candidate
+            if candidate.check_password(password):
+                if candidate.is_active:
+                    user = candidate
+                    print(f"DEBUG: Fallback successful for {email}")
+                else:
+                    print(f"DEBUG: User {email} is inactive")
+            else:
+                print(f"DEBUG: Incorrent password for {email}")
         except User.DoesNotExist:
-            pass
+            print(f"DEBUG: User {email} does not exist")
 
     if user is not None:
         try:
