@@ -158,9 +158,6 @@ export const dashboardService = {
     deletePhaseBudgetAllocation: (id) => api.delete(`/phase-budget-allocations/${id}/`),
 
     // Aggregated Dashboard Data
-    getContractors: () => api.get('/contractors/'),
-
-    // Dashboard Data - Aggregated
     getDashboardData: async () => {
         try {
             const response = await api.get('/dashboard/combined/');

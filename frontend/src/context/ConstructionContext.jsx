@@ -10,6 +10,54 @@ export const ConstructionProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
+    
+    // Extreme Style Lab Engine
+    const DEFAULT_TYPOGRAPHY = {
+        baseSize: 16,
+        globalWeight: '500',
+        title: { family: 'Space Grotesk', scale: 1.5, weight: '900', spacing: '0em', transform: 'none' },
+        subtitle: { family: 'Space Grotesk', scale: 0.8, weight: '700', spacing: '0.2em', transform: 'none' },
+        header: { family: 'Space Grotesk', scale: 2.0, weight: '900', spacing: '-0.02em', transform: 'none' },
+        body: { family: 'Space Grotesk', scale: 1.0, weight: '400', spacing: '0em', transform: 'none' }
+    };
+
+    const [typography, setTypography] = useState(DEFAULT_TYPOGRAPHY);
+
+    // Initial Load from user profile or local storage
+    useEffect(() => {
+        if (user?.typography_settings) {
+            setTypography(user.typography_settings);
+        } else {
+            const saved = localStorage.getItem('mero-ghar-typography-v2');
+            if (saved) setTypography(JSON.parse(saved));
+        }
+    }, [user?.id]); // Only run when user changes (login/logout)
+
+
+    const resetTypography = useCallback(async () => {
+        setTypography(DEFAULT_TYPOGRAPHY);
+        if (user) {
+            await authService.updateProfile({ typography_settings: DEFAULT_TYPOGRAPHY });
+        }
+    }, [user, DEFAULT_TYPOGRAPHY]);
+
+    useEffect(() => {
+        localStorage.setItem('mero-ghar-typography-v2', JSON.stringify(typography));
+        const root = document.documentElement;
+        
+        root.style.fontSize = `${typography.baseSize}px`;
+        root.style.setProperty('--font-weight-global', typography.globalWeight);
+
+        ['title', 'subtitle', 'header', 'body'].forEach(key => {
+            const config = typography[key];
+            root.style.setProperty(`--${key}-font`, config.family);
+            root.style.setProperty(`--${key}-scale`, config.scale);
+            root.style.setProperty(`--${key}-weight`, config.weight);
+            root.style.setProperty(`--${key}-spacing`, config.spacing);
+            root.style.setProperty(`--${key}-transform`, config.transform);
+        });
+    }, [typography]);
+
     const [dashboardData, setDashboardData] = useState({
         project: null,
         rooms: [],
@@ -368,6 +416,32 @@ export const ConstructionProvider = ({ children }) => {
         isCalculatorOpen,
         setIsCalculatorOpen: (val) => setIsCalculatorOpen(val),
         toggleCalculator: () => setIsCalculatorOpen(prev => !prev),
+        
+        // Extreme Typography Settings
+        typography,
+        updateTypography: (key, settings) => {
+            let newTypography;
+            if (key === 'global') {
+                newTypography = { ...typography, ...settings };
+            } else {
+                newTypography = {
+                    ...typography,
+                    [key]: { ...typography[key], ...settings }
+                };
+            }
+            
+            setTypography(newTypography);
+            
+            // Sync to backend if user exists
+            if (user) {
+                // Debounce sync to avoid hammering API
+                if (window.typographySyncTimer) clearTimeout(window.typographySyncTimer);
+                window.typographySyncTimer = setTimeout(() => {
+                    authService.updateProfile({ typography_settings: newTypography });
+                }, 1000);
+            }
+        },
+        resetTypography
     };
 
     return (

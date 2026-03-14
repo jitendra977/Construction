@@ -20,12 +20,12 @@ const MobileNav = () => {
                         key={item.id}
                         to={`/dashboard/mobile/${item.id}`}
                         className={({ isActive }) =>
-                            `flex flex-col items-center gap-1 min-w-[64px] transition-all ${isActive ? 'text-indigo-600 scale-110' : 'text-gray-400'
+                            `flex flex-col items-center gap-1 min-w-[64px] transition-all ${isActive ? 'text-emerald-600 scale-110' : 'text-gray-400'
                             }`
                         }
                     >
                         <span className="text-2xl">{item.icon}</span>
-                        <span className="text-[10px] font-bold uppercase tracking-wider">{item.label}</span>
+                        <span className="dynamic-subtitle">{item.label}</span>
                     </NavLink>
                 ))}
             </div>

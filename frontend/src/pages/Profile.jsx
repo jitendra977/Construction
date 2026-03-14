@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import { useConstruction } from '../context/ConstructionContext';
-import { User, Mail, Shield, Phone, MapPin, Info, Bell, Settings, Camera, Save, X, Activity } from 'lucide-react';
+import { User, Mail, Shield, Phone, MapPin, Info, Bell, Settings, Camera, Save, Activity, Type, RotateCcw } from 'lucide-react';
 import { getMediaUrl } from '../services/api';
 import Modal from '../components/common/Modal';
 import { Link } from 'react-router-dom';
+import MobileLayout from '../components/mobile/MobileLayout';
 
 const Profile = () => {
-    const { user, updateProfile } = useConstruction();
+    const [isMobile] = useState(window.innerWidth < 1024);
+    const { user, updateProfile, typography, updateTypography, resetTypography } = useConstruction();
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [activeStyleTab, setActiveStyleTab] = useState('title');
     const [saving, setSaving] = useState(false);
     const [formData, setFormData] = useState({
         first_name: user?.first_name || '',
@@ -47,304 +50,271 @@ const Profile = () => {
             if (result.success) {
                 setIsEditModalOpen(false);
                 setPreviewUrl(null);
-            } else {
-                alert(typeof result.error === 'string' ? result.error : 'Failed to update profile');
             }
         } catch (error) {
             console.error("Update error", error);
-            alert("An error occurred while saving.");
         } finally {
             setSaving(false);
         }
     };
 
-    return (
-        <div className="p-6 max-w-4xl mx-auto">
+    const content = (
+        <div className="space-y-8 pb-12">
             {/* Header / Banner */}
-            <div className="relative mb-8">
-                <div className="h-48 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-3xl overflow-hidden">
+            <div className="relative mb-12">
+                <div className="h-40 bg-gradient-to-br from-emerald-600 to-teal-700 rounded-3xl overflow-hidden shadow-lg">
                     <div className="absolute top-0 right-0 p-8 opacity-10">
-                        <User size={200} />
+                        <User size={160} />
                     </div>
                 </div>
 
-                <div className="absolute -bottom-6 left-8 flex items-end gap-6">
-                    <div className="w-32 h-32 rounded-3xl bg-white p-1 shadow-xl overflow-hidden relative group">
+                <div className="absolute -bottom-6 left-6 flex items-end gap-5">
+                    <div className="w-28 h-28 rounded-3xl bg-white p-1 shadow-xl overflow-hidden relative group border border-slate-100">
                         {user.profile_image ? (
                             <img
                                 src={avatarUrl}
                                 alt={user.username}
-                                className="w-full h-full object-cover rounded-[20px]"
+                                className="w-full h-full object-cover rounded-2xl"
                                 onError={(e) => {
                                     e.target.onerror = null;
                                     e.target.style.display = 'none';
-                                    e.target.parentNode.innerHTML = `<div class="w-full h-full rounded-[20px] bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center text-4xl font-bold text-indigo-600">${user.username?.charAt(0).toUpperCase()}</div>`;
+                                    e.target.parentNode.innerHTML = `<div class="w-full h-full rounded-2xl bg-emerald-50 flex items-center justify-center text-3xl font-bold text-emerald-600">${user.username?.charAt(0).toUpperCase()}</div>`;
                                 }}
                             />
                         ) : (
-                            <div className="w-full h-full rounded-[20px] bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center text-4xl font-bold text-indigo-600">
+                            <div className="w-full h-full rounded-2xl bg-emerald-50 flex items-center justify-center text-3xl font-bold text-emerald-600">
                                 {user.username?.charAt(0).toUpperCase()}
                             </div>
                         )}
-                        <button
-                            onClick={() => setIsEditModalOpen(true)}
-                            className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                            <Camera className="text-white" size={24} />
+                        <button onClick={() => setIsEditModalOpen(true)} className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Camera className="text-white" size={20} />
                         </button>
-                    </div>
-                    <div className="mb-6">
-                        <h1 className="text-3xl font-black text-white drop-shadow-md">{user.username}</h1>
-                        <div className="flex gap-2 mt-1">
-                            <span className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1">
-                                <Shield size={12} />
-                                {roleName}
-                            </span>
-                        </div>
                     </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
-                {/* Main Info */}
+            <div className="pt-4 px-1">
+                <h1 className="text-2xl font-black text-slate-900 tracking-tight">{user.username}</h1>
+                <span className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-fit mt-2">
+                    <Shield size={10} /> {roleName}
+                </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="md:col-span-2 space-y-6">
-                    <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
-                        <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                            <Info className="text-indigo-600" size={20} />
-                            Personal Information
+                    <div className="card-glass rounded-[2rem] p-8 shadow-sm border border-slate-50">
+                        <h2 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
+                            <Info className="text-emerald-600" size={18} /> Basic Intel
                         </h2>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Full Name</label>
-                                <p className="text-gray-900 font-medium">{user.first_name || 'N/A'} {user.last_name || ''}</p>
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Email Address</label>
-                                <p className="text-gray-900 font-medium flex items-center gap-2 text-sm">
-                                    <Mail size={14} className="text-gray-400" />
-                                    {user.email}
-                                </p>
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Phone Number</label>
-                                <p className="text-gray-900 font-medium flex items-center gap-2">
-                                    <Phone size={14} className="text-gray-400" />
-                                    {user.phone_number || 'Not provided'}
-                                </p>
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Location</label>
-                                <p className="text-gray-900 font-medium flex items-center gap-2">
-                                    <MapPin size={14} className="text-gray-400" />
-                                    {user.address || 'Not provided'}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="mt-8 pt-8 border-t border-gray-50">
-                            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">About / Bio</label>
-                            <p className="mt-2 text-gray-600 text-sm leading-relaxed">
-                                {user.bio || 'You haven\'t added a bio yet. Tell us more about yourself and your role in the project.'}
-                            </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            {[
+                                { label: 'Name', value: `${user.first_name || ''} ${user.last_name || ''}`, icon: <User size={14} /> },
+                                { label: 'Email', value: user.email, icon: <Mail size={14} /> },
+                                { label: 'Phone', value: user.phone_number || 'N/A', icon: <Phone size={14} /> },
+                                { label: 'Location', value: user.address || 'N/A', icon: <MapPin size={14} /> }
+                            ].map((item, i) => (
+                                <div key={i} className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{item.label}</label>
+                                    <p className="text-slate-800 font-bold text-[11px] flex items-center gap-2 truncate">
+                                        <span className="text-emerald-400">{item.icon}</span> {item.value}
+                                    </p>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
 
-                {/* Sidebar Info */}
                 <div className="space-y-6">
-                    <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
-                        <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                            <Settings className="text-indigo-600" size={20} />
-                            Preferences
+                    <div className="card-glass rounded-[2rem] p-8 shadow-sm border border-slate-50">
+                        <h2 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
+                            <Settings className="text-emerald-600" size={18} /> System Config
                         </h2>
-
                         <div className="space-y-4">
-                            <div className="flex items-center justify-between p-3 rounded-2xl bg-gray-50">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600">
-                                        <Bell size={16} />
-                                    </div>
-                                    <span className="text-sm font-medium text-gray-700">Notifications</span>
-                                </div>
-                                <div className={`w-10 h-5 rounded-full relative transition-colors ${user.notifications_enabled ? 'bg-indigo-600' : 'bg-gray-300'}`}>
+                            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
+                                <span className="text-xs font-bold text-slate-600">Alerts</span>
+                                <div className={`w-10 h-5 rounded-full relative transition-colors ${user.notifications_enabled ? 'bg-emerald-600' : 'bg-slate-300'}`}>
                                     <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${user.notifications_enabled ? 'left-6' : 'left-1'}`} />
                                 </div>
                             </div>
-
-                            <div className="flex items-center justify-between p-3 rounded-2xl bg-gray-50">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600">
-                                        <Info size={16} />
-                                    </div>
-                                    <span className="text-sm font-medium text-gray-700">Language</span>
-                                </div>
-                                <span className="text-xs font-bold text-indigo-600 uppercase">
-                                    {user.preferred_language === 'en' ? 'English' : (user.preferred_language || 'en')}
+                            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
+                                <span className="text-[11px] font-bold text-slate-600">Language</span>
+                                <span className="text-[10px] font-black text-emerald-600 uppercase">
+                                    {user.preferred_language === 'en' ? 'English' : 'Nepali'}
                                 </span>
                             </div>
                         </div>
                     </div>
 
-                    {/* Integrated Activity Logs Link */}
-                    <Link
-                        to="../activity-logs"
-                        className="w-full flex items-center justify-center gap-2 py-4 bg-indigo-50 text-indigo-700 rounded-2xl font-bold hover:bg-indigo-100 transition-all transform hover:-translate-y-1"
-                    >
-                        <Activity size={18} />
-                        View Activity Logs
-                    </Link>
+                    <div className="card-glass rounded-[2rem] p-8 shadow-sm border border-slate-50">
+                        <div className="flex justify-between items-center mb-8">
+                            <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                                <Settings className="text-emerald-600" size={18} /> Style Lab
+                            </h2>
+                            <button 
+                                onClick={resetTypography}
+                                className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 text-slate-400 text-[9px] font-black rounded-lg border border-slate-100 uppercase tracking-widest active:scale-95 transition-all"
+                            >
+                                <RotateCcw size={10} /> Reset
+                            </button>
+                        </div>
+                        
+                        {/* Tab Navigation */}
+                        <div className="flex gap-1 bg-slate-50 p-1 rounded-2xl mb-8">
+                            {['title', 'subtitle', 'header', 'body'].map(tab => (
+                                <button
+                                    key={tab}
+                                    onClick={() => setActiveStyleTab(tab)}
+                                    className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${activeStyleTab === tab ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}
+                                >
+                                    {tab}
+                                </button>
+                            ))}
+                        </div>
 
-                    <button
-                        onClick={() => setIsEditModalOpen(true)}
-                        className="w-full py-4 bg-gray-900 text-white rounded-2xl font-bold shadow-xl shadow-gray-200 hover:bg-black transition-all transform hover:-translate-y-1"
-                    >
-                        Edit Profile
+                        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            {/* Font Family Selection */}
+                            <div className="space-y-4">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                    <Type size={12} /> {activeStyleTab} Typeface
+                                </label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {['Space Grotesk', 'JetBrains Mono', 'Inter', 'Outfit', 'Roboto'].map(font => (
+                                        <button 
+                                            key={font}
+                                            onClick={() => updateTypography(activeStyleTab, { family: font })}
+                                            className={`py-3 px-2 rounded-xl text-[10px] font-bold border transition-all ${typography[activeStyleTab].family === font ? 'bg-emerald-600 text-white border-emerald-600 shadow-emerald-100 shadow-md' : 'bg-white text-slate-500 border-slate-100'}`}
+                                            style={{ fontFamily: font }}
+                                        >
+                                            {font}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Scale Slider */}
+                            <div className="space-y-4">
+                                <div className="flex justify-between items-center">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Scaling Factor</label>
+                                    <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">{typography[activeStyleTab].scale.toFixed(2)}x</span>
+                                </div>
+                                <input 
+                                    type="range" min="0.5" max="4.0" step="0.05"
+                                    value={typography[activeStyleTab].scale}
+                                    onChange={(e) => updateTypography(activeStyleTab, { scale: parseFloat(e.target.value) })}
+                                    className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-6">
+                                {/* Spacing Control */}
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tracking</label>
+                                        <span className="text-[10px] font-black text-emerald-600">{typography[activeStyleTab].spacing}</span>
+                                    </div>
+                                    <div className="flex gap-1 bg-slate-50 p-1 rounded-xl">
+                                        {['-0.05em', '0em', '0.1em', '0.25em'].map(space => (
+                                            <button
+                                                key={space}
+                                                onClick={() => updateTypography(activeStyleTab, { spacing: space })}
+                                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${typography[activeStyleTab].spacing === space ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}
+                                            >
+                                                {space === '0em' ? 'N' : space === '-0.05em' ? 'T' : 'W'}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Transform Control */}
+                                <div className="space-y-4">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Case Matrix</label>
+                                    <div className="flex gap-1 bg-slate-50 p-1 rounded-xl">
+                                        {['none', 'uppercase', 'lowercase'].map(tx => (
+                                            <button
+                                                key={tx}
+                                                onClick={() => updateTypography(activeStyleTab, { transform: tx })}
+                                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${typography[activeStyleTab].transform === tx ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}
+                                            >
+                                                {tx[0].toUpperCase()}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Weight Matrix */}
+                            <div className="space-y-4">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Weight Matrix</label>
+                                <div className="flex gap-1 bg-slate-50 p-1 rounded-xl">
+                                    {['300', '400', '500', '700', '900'].map(w => (
+                                        <button 
+                                            key={w}
+                                            onClick={() => updateTypography(activeStyleTab, { weight: w })}
+                                            className={`flex-1 py-2.5 rounded-xl text-[10px] font-black transition-all ${typography[activeStyleTab].weight === w ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400'}`}
+                                        >
+                                            {w === '300' ? 'LT' : w === '400' ? 'RG' : w === '500' ? 'MD' : w === '700' ? 'BD' : 'BK'}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            
+                            {/* Global Base Size Integration */}
+                            {activeStyleTab === 'body' && (
+                                <div className="pt-6 border-t border-slate-100 space-y-4">
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Base Pixel Grid</label>
+                                        <span className="text-[10px] font-black text-emerald-600">{typography.baseSize}px</span>
+                                    </div>
+                                    <input 
+                                        type="range" min="12" max="24" step="1"
+                                        value={typography.baseSize}
+                                        onChange={(e) => updateTypography('global', { baseSize: parseInt(e.target.value) })}
+                                        className="w-full h-1.5 bg-emerald-50 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    
+                    <button onClick={() => setIsEditModalOpen(true)} className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-emerald-50">
+                        Modify Profile
                     </button>
+                    
+                    <Link to="../activity-logs" className="w-full flex items-center justify-center gap-2 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black uppercase tracking-widest text-[10px]">
+                        <Activity size={16} /> Audit Logs
+                    </Link>
                 </div>
             </div>
 
-            {/* Edit Profile Modal */}
-            <Modal
-                isOpen={isEditModalOpen}
-                onClose={() => setIsEditModalOpen(false)}
-                title="Edit Profile"
-                maxWidth="max-w-2xl"
-            >
-                <form onSubmit={handleSave} className="space-y-6">
-                    {/* Avatar Upload */}
-                    <div className="flex flex-col items-center gap-4 mb-8">
-                        <div className="relative w-24 h-24">
-                            <div className="w-full h-full rounded-2xl bg-gray-100 flex items-center justify-center overflow-hidden border-2 border-indigo-100">
-                                {previewUrl || user.profile_image ? (
-                                    <img
-                                        src={previewUrl || getMediaUrl(user.profile_image)}
-                                        className="w-full h-full object-cover"
-                                        alt="Preview"
-                                    />
-                                ) : (
-                                    <User size={32} className="text-gray-300" />
-                                )}
-                            </div>
-                            <label className="absolute -bottom-2 -right-2 p-2 bg-indigo-600 text-white rounded-xl cursor-pointer shadow-lg hover:bg-indigo-700 transition-colors">
-                                <Camera size={16} />
-                                <input type="file" className="hidden" accept="image/*" onChange={handleAvatarChange} />
-                            </label>
-                        </div>
-                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Change Profile Picture</p>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="PROFILE_COMMIT">
+                <form onSubmit={handleSave} className="p-6 space-y-8">
+                    <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <label className="text-xs font-black text-gray-500 uppercase tracking-widest ml-1">First Name</label>
-                            <input
-                                type="text"
-                                name="first_name"
-                                value={formData.first_name}
-                                onChange={handleInputChange}
-                                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-100 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 outline-none transition-all font-medium"
-                                placeholder="Enter first name"
-                            />
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">First</label>
+                            <input type="text" name="first_name" value={formData.first_name} onChange={handleInputChange} className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 outline-none font-bold" />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-xs font-black text-gray-500 uppercase tracking-widest ml-1">Last Name</label>
-                            <input
-                                type="text"
-                                name="last_name"
-                                value={formData.last_name}
-                                onChange={handleInputChange}
-                                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-100 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 outline-none transition-all font-medium"
-                                placeholder="Enter last name"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-xs font-black text-gray-500 uppercase tracking-widest ml-1">Phone Number</label>
-                            <input
-                                type="text"
-                                name="phone_number"
-                                value={formData.phone_number}
-                                onChange={handleInputChange}
-                                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-100 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 outline-none transition-all font-medium"
-                                placeholder="+977-98XXXXXXXX"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-xs font-black text-gray-500 uppercase tracking-widest ml-1">Preferred Language</label>
-                            <select
-                                name="preferred_language"
-                                value={formData.preferred_language}
-                                onChange={handleInputChange}
-                                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-100 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 outline-none transition-all font-medium appearance-none"
-                            >
-                                <option value="en">English</option>
-                                <option value="np">Nepali</option>
-                            </select>
-                        </div>
-                        <div className="sm:col-span-2 space-y-2">
-                            <label className="text-xs font-black text-gray-500 uppercase tracking-widest ml-1">Address</label>
-                            <input
-                                type="text"
-                                name="address"
-                                value={formData.address}
-                                onChange={handleInputChange}
-                                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-100 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 outline-none transition-all font-medium"
-                                placeholder="City, Country"
-                            />
-                        </div>
-                        <div className="sm:col-span-2 space-y-2">
-                            <label className="text-xs font-black text-gray-500 uppercase tracking-widest ml-1">Bio</label>
-                            <textarea
-                                name="bio"
-                                value={formData.bio}
-                                onChange={handleInputChange}
-                                rows="3"
-                                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-100 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 outline-none transition-all font-medium resize-none"
-                                placeholder="Tell us about yourself..."
-                            ></textarea>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Last</label>
+                            <input type="text" name="last_name" value={formData.last_name} onChange={handleInputChange} className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 outline-none font-bold" />
                         </div>
                     </div>
-
-                    <div className="flex items-center gap-3 p-4 bg-indigo-50 rounded-2xl">
-                        <div className="flex-1">
-                            <h4 className="text-sm font-bold text-indigo-900">Email Notifications</h4>
-                            <p className="text-xs text-indigo-600">Receive updates about your project via email.</p>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => setFormData(prev => ({
-                                ...prev,
-                                notifications_enabled: !prev.notifications_enabled
-                            }))}
-                            className={`w-12 h-6 rounded-full relative transition-colors ${formData.notifications_enabled ? 'bg-indigo-600' : 'bg-gray-300'}`}
-                        >
-                            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${formData.notifications_enabled ? 'left-7' : 'left-1'}`} />
-                        </button>
-                    </div>
-
-                    <div className="flex gap-3 pt-4 border-t border-gray-100">
-                        <button
-                            type="button"
-                            onClick={() => setIsEditModalOpen(false)}
-                            className="flex-1 py-4 bg-gray-100 text-gray-600 rounded-2xl font-bold hover:bg-gray-200 transition-all active:scale-95"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={saving}
-                            className="flex-3 py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
-                        >
-                            {saving ? (
-                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                            ) : (
-                                <><Save size={18} /> Save Changes</>
-                            )}
-                        </button>
-                    </div>
+                    <button type="submit" disabled={saving} className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg">
+                        {saving ? 'Syncing...' : 'Save Changes'}
+                    </button>
                 </form>
             </Modal>
         </div>
     );
+
+    if (isMobile) {
+        return (
+            <MobileLayout title="Profile" subtitle="Identity Manager">
+                {content}
+            </MobileLayout>
+        );
+    }
+
+    return <div className="p-12 max-w-5xl mx-auto">{content}</div>;
 };
 
 export default Profile;

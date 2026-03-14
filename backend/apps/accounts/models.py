@@ -118,6 +118,7 @@ class User(AbstractUser):
     address = models.TextField(blank=True)
     preferred_language = models.CharField(max_length=10, default='en')
     notifications_enabled = models.BooleanField(default=True)
+    typography_settings = models.JSONField(null=True, blank=True)
     
     # ----- ROLE SYSTEM -----
     role = models.ForeignKey(Role, on_delete=models.SET_NULL, null=True, blank=True, related_name='users')

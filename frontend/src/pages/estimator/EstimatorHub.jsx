@@ -5,90 +5,97 @@ import PlasterCalculator from './PlasterCalculator';
 import FlooringCalculator from './FlooringCalculator';
 import StructuralBudgetEstimator from './StructuralBudgetEstimator';
 import DataTab from './DataTab';
+import MobileLayout from '../../components/mobile/MobileLayout';
 
 const EstimatorHub = () => {
+    const [isMobile] = useState(window.innerWidth < 1024);
     const [activeTab, setActiveTab] = useState('budget');
 
     const tabs = [
         { id: 'budget', label: 'Full Budget', icon: '💰' },
         { id: 'data', label: 'Market Rates', icon: '📊' },
-        { id: 'wall', label: 'Walls (Garo)', icon: '🧱' },
-        { id: 'concrete', label: 'Concrete (Dhalan)', icon: '🏗️' },
+        { id: 'wall', label: 'Walls', icon: '🧱' },
+        { id: 'concrete', label: 'Concrete', icon: '🏗️' },
         { id: 'plaster', label: 'Plaster', icon: '🪄' },
-        { id: 'flooring', label: 'Flooring (PCC)', icon: '🧊' }
+        { id: 'flooring', label: 'Flooring', icon: '🧊' }
     ];
 
-    return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 font-sans pb-32 md:pb-0">
-            {/* Emerald Gradient Header (Dashboard Theme) */}
-            <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 shadow-xl pb-24 pt-12 px-6 relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-8 opacity-10 transform translate-x-12 -translate-y-12">
-                    <span className="text-[200px]">📐</span>
-                </div>
+    const headerExtra = (
+        <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide max-w-[200px]">
+            {tabs.map((tab) => (
+                <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all ${activeTab === tab.id
+                        ? 'bg-emerald-600 text-white shadow-md scale-110'
+                        : 'bg-white/50 text-slate-400'
+                        }`}
+                >
+                    <span className="text-lg">{tab.icon}</span>
+                </button>
+            ))}
+        </div>
+    );
 
-                <div className="max-w-7xl mx-auto relative z-10 text-center">
-                    <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter mb-4">
-                        Construction Estimator
-                    </h1>
-                    <p className="text-emerald-100 text-lg md:text-xl font-medium max-w-2xl mx-auto opacity-90">
-                        Advanced material calculations tailored for standard Nepali construction practices.
-                    </p>
-                </div>
-            </div>
+    const content = (
+        <div className="space-y-8">
+            <div className="card-glass rounded-[2rem] p-6 shadow-sm min-h-[500px]">
+                {activeTab === 'budget' && <StructuralBudgetEstimator />}
+                {activeTab === 'data' && <DataTab />}
+                {activeTab === 'wall' && <BrickCalculator />}
+                {activeTab === 'concrete' && <ConcreteCalculator />}
+                {activeTab === 'plaster' && <PlasterCalculator />}
+                {activeTab === 'flooring' && <FlooringCalculator />}
 
-            {/* Floating Tabs Navigation */}
-            <div className="max-w-7xl mx-auto px-6 -mt-10 relative z-30">
-                <div className="max-w-5xl mx-auto">
-                    <div className="bg-white/10 backdrop-blur-xl p-2 rounded-2xl border border-white/20 shadow-2xl flex flex-wrap md:flex-nowrap gap-2">
-                        {tabs.map((tab) => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 ${activeTab === tab.id
-                                    ? 'bg-white text-emerald-900 shadow-lg transform scale-[1.02]'
-                                    : 'text-white hover:bg-white/10'
-                                    }`}
-                            >
-                                <span className="text-xl">{tab.icon}</span>
-                                <span className="hidden sm:inline">{tab.label}</span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </div>
-
-            {/* Main Content Area */}
-            <div className="max-w-7xl mx-auto px-6 py-12 relative z-20">
-                <div className="max-w-5xl mx-auto bg-white rounded-[32px] shadow-2xl border border-gray-100 overflow-hidden min-h-[500px]">
-                    <div className="p-8 md:p-12">
-                        {activeTab === 'budget' && <StructuralBudgetEstimator />}
-                        {activeTab === 'data' && <DataTab />}
-                        {activeTab === 'wall' && <BrickCalculator />}
-                        {activeTab === 'concrete' && <ConcreteCalculator />}
-                        {activeTab === 'plaster' && <PlasterCalculator />}
-                        {activeTab === 'flooring' && <FlooringCalculator />}
-
-                        {/* Professional Note Section */}
-                        <div className="mt-12 p-8 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-[24px] border border-emerald-100 relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-100/50 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110"></div>
-                            <div className="flex flex-col md:flex-row gap-6 items-center relative z-10">
-                                <span className="text-5xl">👷‍♂️</span>
-                                <div className="text-center md:text-left">
-                                    <h4 className="font-black text-emerald-900 text-sm uppercase tracking-[0.2em] mb-2">Technical Disclaimer</h4>
-                                    <p className="text-emerald-800/70 text-sm leading-relaxed font-medium">
-                                        Calculations include <strong>Standard Nepali Wastage</strong> (5-10% for bricks/cement).
-                                        Site specific conditions like material quality and workmanship will vary actual consumption.
-                                        Please share these reports with your <strong>Project Engineer</strong> for final verification.
-                                    </p>
-                                </div>
-                                <button className="whitespace-nowrap px-6 py-3 bg-emerald-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-colors">
-                                    Full Guide
-                                </button>
-                            </div>
+                {/* Professional Note Section */}
+                <div className="mt-12 p-8 bg-emerald-50/50 rounded-[2rem] border border-emerald-100/50 relative overflow-hidden group">
+                    <div className="flex flex-col md:flex-row gap-6 items-center relative z-10">
+                        <span className="text-4xl">👷‍♂️</span>
+                        <div className="text-center md:text-left">
+                            <h4 className="font-black text-emerald-900 text-[10px] uppercase tracking-[0.2em] mb-2">Engineering Note</h4>
+                            <p className="text-slate-600 text-[11px] leading-relaxed font-medium">
+                                Calculations include **Standard Nepali Wastage** (5-10%). 
+                                Please share these reports with your **Project Engineer** for final verification.
+                            </p>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
+    );
+
+    if (isMobile) {
+        return (
+            <MobileLayout 
+                title="Estimator" 
+                subtitle="Material Intelligence"
+                headerExtra={headerExtra}
+            >
+                {content}
+            </MobileLayout>
+        );
+    }
+
+    return (
+        <div className="p-8 max-w-7xl mx-auto space-y-8">
+            <header className="flex justify-between items-center">
+                <div>
+                    <h1 className="text-4xl font-black text-slate-900 tracking-tight">Estimator Engine</h1>
+                    <p className="text-slate-500 font-medium">Advanced material calculations for construction.</p>
+                </div>
+                <div className="flex bg-white p-2 rounded-2xl shadow-sm border border-slate-100 gap-2">
+                    {tabs.map(tab => (
+                        <button 
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === tab.id ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-emerald-600'}`}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
+            </header>
+            {content}
         </div>
     );
 };

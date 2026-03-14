@@ -1,8 +1,98 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700;900&family=JetBrains+Mono:wght@300;400;700&family=Inter:wght@300;400;500;700;900&family=Outfit:wght@300;400;500;700;900&family=Roboto:wght@300;400;500;700;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --accent: #059669; /* emerald-600 */
+  --accent-bright: #34d399; /* emerald-400 */
+  --bg-main: #f8fafc;
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  
+  /* Extreme Style Lab Tokens */
+  --body-font: 'Space Grotesk';
+  --body-weight: 400;
+  --body-spacing: 0em;
+  --font-weight-global: 500;
+  
+  --title-font: 'Space Grotesk';
+  --title-scale: 1.5;
+  --title-weight: 900;
+  --title-spacing: 0em;
+  --title-transform: none;
+
+  --subtitle-font: 'Space Grotesk';
+  --subtitle-scale: 0.8;
+  --subtitle-weight: 700;
+  --subtitle-spacing: 0.2em;
+  --subtitle-transform: uppercase;
+
+  --header-font: 'Space Grotesk';
+  --header-scale: 2.0;
+  --header-weight: 900;
+  --header-spacing: -0.02em;
+  --header-transform: none;
+}
+
+@layer base {
+  *, ::before, ::after {
+    border-color: #e2e8f0;
+    font-family: inherit;
+  }
+
+  body {
+    font-family: var(--body-font), sans-serif !important;
+    background: var(--bg-main);
+    color: #1e293b;
+    font-weight: var(--body-weight) !important;
+    letter-spacing: var(--body-spacing) !important;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  button, input, optgroup, select, textarea {
+    font-family: inherit !important;
+    font-weight: inherit !important;
+    letter-spacing: inherit !important;
+    color: inherit;
+  }
+}
+
 @layer utilities {
+  .dynamic-body {
+    font-family: var(--body-font) !important;
+    font-size: calc(1rem * var(--body-scale)) !important;
+    font-weight: var(--body-weight) !important;
+    letter-spacing: var(--body-spacing) !important;
+    text-transform: var(--body-transform) !important;
+  }
+
+  .dynamic-title {
+    font-family: var(--title-font) !important;
+    font-size: calc(1rem * var(--title-scale)) !important;
+    font-weight: var(--title-weight) !important;
+    letter-spacing: var(--title-spacing) !important;
+    text-transform: var(--title-transform) !important;
+  }
+
+  .dynamic-subtitle {
+    font-family: var(--subtitle-font) !important;
+    font-size: calc(1rem * var(--subtitle-scale)) !important;
+    font-weight: var(--subtitle-weight) !important;
+    letter-spacing: var(--subtitle-spacing) !important;
+    text-transform: var(--subtitle-transform) !important;
+  }
+
+  .dynamic-header {
+    font-family: var(--header-font) !important;
+    font-size: calc(1rem * var(--header-scale)) !important;
+    font-weight: var(--header-weight) !important;
+    letter-spacing: var(--header-spacing) !important;
+    text-transform: var(--header-transform) !important;
+  }
+
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
@@ -12,7 +102,114 @@
     scrollbar-width: none;
   }
 
-  .safe-area-inset-bottom {
-    padding-bottom: env(safe-area-inset-bottom);
+  /* Luminous Interface Effects */
+  .ambient-glow {
+    position: fixed;
+    width: 80vw;
+    height: 80vw;
+    background: radial-gradient(circle, rgba(5, 150, 105, 0.05) 0%, transparent 70%);
+    top: -20vw;
+    right: -20vw;
+    z-index: -1;
+    filter: blur(100px);
+    pointer-events: none;
+    animation: glow-pulse 8s ease-in-out infinite alternate;
+  }
+
+  @keyframes glow-pulse {
+    from { opacity: 0.6; transform: scale(1); }
+    to { opacity: 1; transform: scale(1.05); }
+  }
+
+  .grid-floor {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 40%;
+    background-image: 
+        linear-gradient(to right, rgba(5, 150, 105, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(5, 150, 105, 0.05) 1px, transparent 1px);
+    background-size: 40px 40px;
+    perspective: 1000px;
+    transform: rotateX(60deg) scale(2);
+    z-index: -1;
+    mask-image: linear-gradient(to top, white, transparent);
+    pointer-events: none;
+  }
+
+  .card-glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.03);
+    transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card-glass:hover {
+    border-color: rgba(5, 150, 105, 0.2);
+    background: rgba(255, 255, 255, 0.9);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px -10px rgba(5, 150, 105, 0.1);
+  }
+
+  .hud-border {
+    position: relative;
+  }
+  .hud-border::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; width: 10px; height: 10px;
+    border-top: 2px solid var(--accent);
+    border-left: 2px solid var(--accent);
+    pointer-events: none;
+  }
+  .hud-border::after {
+    content: '';
+    position: absolute;
+    bottom: 0; right: 0; width: 10px; height: 10px;
+    border-bottom: 2px solid var(--accent);
+    border-right: 2px solid var(--accent);
+    pointer-events: none;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { opacity: 0.5; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.05); }
+  }
+  .glow-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    box-shadow: 0 0 12px rgba(5, 150, 105, 0.4);
+    animation: pulse-glow 2s infinite;
+  }
+
+  .animate-spin-slow { animation: spin-slow 12s linear infinite; }
+  @keyframes spin-slow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .animate-shimmer-text {
+    background: linear-gradient(
+      90deg,
+      #1e293b 0%,
+      var(--accent-bright) 30%,
+      #1e293b 60%,
+      var(--accent-bright) 100%
+    );
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shimmer-text 6s linear infinite;
+  }
+  @keyframes shimmer-text {
+    0% { background-position: -200% center; }
+    100% { background-position: 200% center; }
   }
 }
