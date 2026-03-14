@@ -12,20 +12,21 @@
   
   /* Extreme Style Lab Tokens */
   --body-font: 'Space Grotesk';
+  --body-scale: 0.95;
   --body-weight: 400;
-  --body-spacing: 0em;
+  --body-spacing: 0.01em;
   --font-weight-global: 500;
   
   --title-font: 'Space Grotesk';
-  --title-scale: 1.5;
+  --title-scale: 1.4;
   --title-weight: 900;
-  --title-spacing: 0em;
+  --title-spacing: -0.01em;
   --title-transform: none;
 
   --subtitle-font: 'Space Grotesk';
-  --subtitle-scale: 0.8;
-  --subtitle-weight: 700;
-  --subtitle-spacing: 0.2em;
+  --subtitle-scale: 0.75;
+  --subtitle-weight: 800;
+  --subtitle-spacing: 0.08em;
   --subtitle-transform: uppercase;
 
   --header-font: 'Space Grotesk';

@@ -157,6 +157,7 @@ export const ConstructionProvider = ({ children }) => {
     // Budget & Funding Stats
     const budgetStats = useMemo(() => {
         const expenses = dashboardData.expenses || [];
+        const phases = dashboardData.phases || [];
         const totalBudget = dashboardData.project ? Number(dashboardData.project.total_budget) : 0;
 
         // Cashflow Total (Purcheses only) for master budget progress
@@ -215,6 +216,12 @@ export const ConstructionProvider = ({ children }) => {
             return { ...m, pendingTransaction: pending };
         });
 
+        const tasks = dashboardData.tasks || [];
+        const completedTasks = tasks.filter(t => t.status === 'COMPLETED').length;
+        const activeTasks = tasks.filter(t => t.status === 'IN_PROGRESS').length;
+        const pendingTasks = tasks.filter(t => t.status === 'PENDING').length;
+        const activePhases = phases.filter(p => p.status === 'IN_PROGRESS').length;
+
         return {
             totalBudget,
             totalSpent,
@@ -231,7 +238,11 @@ export const ConstructionProvider = ({ children }) => {
             isUnderFunded: totalFunded < totalSpent,
             categories,
             lowStockItems,
-            projectHealth: dashboardData.project?.budget_health || { status: 'UNKNOWN' }
+            projectHealth: dashboardData.project?.budget_health || { status: 'UNKNOWN' },
+            completedTasks,
+            activeTasks,
+            pendingTasks,
+            activePhases
         };
     }, [dashboardData]);
 

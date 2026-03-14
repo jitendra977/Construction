@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { getMediaUrl } from '../../services/api';
 import { useConstruction } from '../../context/ConstructionContext';
 
-const MobileHeader = ({ project, stats, onLogout }) => {
+const MobileHeader = ({ project, stats, onLogout, onShowGuide }) => {
     const { user } = useConstruction();
 
     return (
@@ -22,32 +22,50 @@ const MobileHeader = ({ project, stats, onLogout }) => {
                         <p className="text-emerald-100 opacity-90 dynamic-subtitle">Core Interface</p>
                     </div>
                 </div>
-                <div className="flex gap-3">
-                    <Link
-                        to="/dashboard/mobile/profile"
-                        className="w-11 h-11 bg-white/10 backdrop-blur-xl rounded-2xl text-white border border-white/20 active:scale-90 transition-all flex items-center justify-center overflow-hidden shadow-lg"
-                    >
-                        {user?.profile_image ? (
-                            <img
-                                src={getMediaUrl(user.profile_image)}
-                                alt={user.username}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                    e.target.onerror = null;
-                                    e.target.style.display = 'none';
-                                    e.target.parentNode.innerHTML = '<span class="text-xl">👤</span>';
-                                }}
-                            />
-                        ) : (
-                            <span className="text-xl">👤</span>
-                        )}
-                    </Link>
-                    <button
-                        onClick={onLogout}
-                        className="w-11 h-11 bg-white/10 backdrop-blur-xl rounded-2xl text-white border border-white/20 active:bg-red-500/40 transition-all flex items-center justify-center shadow-lg"
-                    >
-                        <span className="text-xl">🚪</span>
-                    </button>
+                <div className="flex items-center gap-4">
+                    {/* Live Indicator */}
+                    <div className="flex items-center gap-2 bg-white/10 backdrop-blur-xl px-3 py-1.5 rounded-xl border border-white/10 shadow-lg">
+                        <div className="glow-dot w-1.5 h-1.5 shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
+                        <span className="dynamic-subtitle text-[10px] text-emerald-300 font-black tracking-widest uppercase">Live</span>
+                    </div>
+
+                    <div className="flex gap-3">
+                        <button
+                            onClick={onShowGuide}
+                            className="w-11 h-11 bg-white/10 backdrop-blur-xl rounded-2xl text-white border border-white/20 active:scale-90 transition-all flex items-center justify-center shadow-lg group relative"
+                        >
+                            <span className="text-xl">📒</span>
+                            <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 border border-white/20"></span>
+                            </span>
+                        </button>
+                        <Link
+                            to="/dashboard/mobile/profile"
+                            className="w-11 h-11 bg-white/10 backdrop-blur-xl rounded-2xl text-white border border-white/20 active:scale-90 transition-all flex items-center justify-center overflow-hidden shadow-lg"
+                        >
+                            {user?.profile_image ? (
+                                <img
+                                    src={getMediaUrl(user.profile_image)}
+                                    alt={user.username}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.style.display = 'none';
+                                        e.target.parentNode.innerHTML = '<span class="text-xl">👤</span>';
+                                    }}
+                                />
+                            ) : (
+                                <span className="text-xl">👤</span>
+                            )}
+                        </Link>
+                        <button
+                            onClick={onLogout}
+                            className="w-11 h-11 bg-white/10 backdrop-blur-xl rounded-2xl text-white border border-white/20 active:bg-red-500/40 transition-all flex items-center justify-center shadow-lg"
+                        >
+                            <span className="text-xl">🚪</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
