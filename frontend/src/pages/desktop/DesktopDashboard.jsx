@@ -19,8 +19,8 @@ function DesktopDashboard() {
     };
 
     if (loading) {
-        return <div className="flex justify-center items-center h-screen bg-gray-50">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        return <div className="flex justify-center items-center h-screen bg-[var(--t-bg)]">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--t-primary)]"></div>
         </div>;
     }
 
@@ -35,7 +35,7 @@ function DesktopDashboard() {
     ];
 
     return (
-        <div className="flex h-screen bg-gray-50">
+        <div className="flex h-screen bg-[var(--t-bg)]">
             <DesktopSidebar
                 user={user}
                 onLogout={handleLogout}

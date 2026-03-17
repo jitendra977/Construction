@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useConstruction } from '../../context/ConstructionContext';
 import PhasesTab from './manage/PhasesTab';
 import FloorsTab from './manage/FloorsTab';
-import RoomsManageTab from './manage/RoomsManageTab';
+
 import CategoriesTab from './manage/CategoriesTab';
 import ExpensesTab from './manage/ExpensesTab';
 import ContractorsTab from './manage/ContractorsTab';
@@ -31,8 +31,7 @@ const DesktopManage = () => {
             tabs: [
                 { id: 'phases', label: 'Phases (चरणहरू)' },
                 { id: 'tasks', label: 'Tasks (कामहरू)' },
-                { id: 'floors', label: 'Floors (तल्लाहरू)' },
-                { id: 'rooms', label: 'Rooms (कोठाहरू)' },
+                { id: 'floors', label: 'Structure (संरचना)' },
             ]
         },
         {
@@ -89,7 +88,7 @@ const DesktopManage = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 font-sans">
+        <div className="min-h-screen bg-[var(--t-bg)] font-sans transition-colors duration-300">
             {/* Header Section */}
             <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 shadow-xl pb-16 pt-8 px-6 relative overflow-hidden">
                 <div className="max-w-7xl mx-auto relative z-10">
@@ -115,7 +114,7 @@ const DesktopManage = () => {
                                 placeholder={`Search in ${tabs.find(t => t.id === activeTab)?.label}...`}
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-12 pr-4 py-3 bg-white/10 backdrop-blur-md border border-emerald-400/30 rounded-xl text-white placeholder-emerald-200/70 focus:ring-2 focus:ring-white/50 focus:border-white/50 transition-all outline-none font-medium shadow-lg"
+                                className="w-full pl-12 pr-4 py-3 bg-[var(--t-surface)]/10 backdrop-blur-md border border-emerald-400/30 rounded-xl text-white placeholder-emerald-200/70 focus:ring-2 focus:ring-white/50 focus:border-white/50 transition-all outline-none font-medium shadow-lg"
                             />
                         </div>
                     </div>
@@ -131,15 +130,15 @@ const DesktopManage = () => {
                             key={section.id}
                             onClick={() => handleSectionChange(section.id)}
                             className={`relative overflow-hidden p-5 rounded-2xl border transition-all duration-300 text-left group ${activeSection === section.id
-                                ? 'bg-white border-white shadow-xl ring-2 ring-emerald-500 ring-offset-2 ring-offset-gray-100 transform -translate-y-1'
-                                : 'bg-white/80 border-white/50 hover:bg-white hover:border-white shadow-sm hover:shadow-md backdrop-blur-sm'
+                                ? 'bg-[var(--t-surface)] border-[var(--t-primary)] shadow-xl ring-2 ring-[var(--t-primary)]/30 ring-offset-2 ring-offset-[var(--t-bg)] transform -translate-y-1'
+                                : 'bg-[var(--t-surface)]/80 border-white/50 hover:bg-[var(--t-surface)] hover:border-white shadow-sm hover:shadow-md backdrop-blur-sm'
                                 }`}
                         >
-                            <div className={`p-3 rounded-xl inline-flex mb-3 transition-colors ${activeSection === section.id ? 'bg-gradient-to-br ' + section.color + ' text-white shadow-lg' : 'bg-gray-100 text-gray-500 group-hover:bg-gray-200'}`}>
+                            <div className={`p-3 rounded-xl inline-flex mb-3 transition-colors ${activeSection === section.id ? 'bg-gradient-to-br ' + section.color + ' text-white shadow-lg' : 'bg-[var(--t-surface3)] text-[var(--t-text2)] group-hover:bg-gray-200'}`}>
                                 <span className="text-2xl">{section.icon}</span>
                             </div>
-                            <h3 className={`text-lg font-bold ${activeSection === section.id ? 'text-gray-900' : 'text-gray-600'}`}>{section.label}</h3>
-                            <p className="text-sm text-gray-400 mt-1 font-medium">{section.description}</p>
+                            <h3 className={`text-lg font-bold ${activeSection === section.id ? 'text-[var(--t-text)]' : 'text-[var(--t-text2)]'}`}>{section.label}</h3>
+                            <p className="text-sm text-[var(--t-text3)] mt-1 font-medium">{section.description}</p>
 
                             {/* Active Indicator */}
                             {activeSection === section.id && (
@@ -152,17 +151,16 @@ const DesktopManage = () => {
                 </div>
 
                 {/* Main Content Card */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-h-[600px]">
-                    {/* Tabs Navigation - Sticky */}
-                    <div className="border-b border-gray-100 bg-gray-50/50 sticky top-0 z-30 backdrop-blur-md">
+                <div className="bg-[var(--t-surface)] rounded-2xl shadow-sm border border-[var(--t-border)] overflow-hidden min-h-[600px]">
+                    <div className="border-b border-[var(--t-border)] bg-[var(--t-surface)]/80 sticky top-0 z-30 backdrop-blur-md">
                         <div className="flex overflow-x-auto no-scrollbar px-2">
                             {tabs.map((tab) => (
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
                                     className={`relative min-w-[120px] px-6 py-4 text-sm font-bold uppercase tracking-wide transition-all duration-300 ${activeTab === tab.id
-                                        ? 'text-emerald-600 bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.02)] z-10'
-                                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100/50'
+                                        ? 'text-[var(--t-primary)] bg-[var(--t-surface)] shadow-[0_-2px_10px_rgba(0,0,0,0.02)] z-10'
+                                        : 'text-[var(--t-text2)] hover:text-[var(--t-text2)] hover:bg-[var(--t-surface3)]/50'
                                         }`}
                                 >
                                     {/* Active Tab Top Line Indicator */}
@@ -173,23 +171,20 @@ const DesktopManage = () => {
                                     <span className="relative z-10">{tab.label}</span>
 
                                     {/* Active Tab Bottom Fade */}
-                                    {activeTab === tab.id && (
-                                        <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-white to-transparent opacity-50"></div>
-                                    )}
+                                    <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-[var(--t-surface)] to-transparent opacity-50"></div>
                                 </button>
                             ))}
                         </div>
                     </div>
 
                     {/* Tab Content */}
-                    <div className="p-6 bg-white">
+                    <div className="p-6 bg-[var(--t-surface)]">
                         {/* Structure Section Tabs */}
                         {activeSection === 'structure' && (
                             <>
                                 {activeTab === 'phases' && <PhasesTab searchQuery={searchQuery} />}
                                 {activeTab === 'tasks' && <TasksTab searchQuery={searchQuery} />}
                                 {activeTab === 'floors' && <FloorsTab searchQuery={searchQuery} />}
-                                {activeTab === 'rooms' && <RoomsManageTab searchQuery={searchQuery} />}
                             </>
                         )}
 

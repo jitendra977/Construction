@@ -2,83 +2,78 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { getMediaUrl } from '../../services/api';
 import { useConstruction } from '../../context/ConstructionContext';
+import ThemeToggle from '../common/ThemeToggle';
 
 const MobileHeader = ({ project, stats, onLogout, onShowGuide }) => {
     const { user } = useConstruction();
 
+    const isHome = window.location.pathname.endsWith('/home');
+
     return (
-        <header className="px-4 pt-10 pb-12 bg-gradient-to-br from-emerald-600 via-teal-700 to-cyan-800 shadow-2xl overflow-hidden relative border-b border-white/10">
-            {/* Ambient Background Accent */}
-            <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none transform translate-x-1/4 -translate-y-1/4">
-                <span className="text-9xl">🏗️</span>
-            </div>
-            <div className="absolute -top-20 -left-20 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
+        <header className={`${isHome ? 'h-0 opacity-0 overflow-hidden' : 'px-4 pt-3 pb-4'} bg-[var(--t-surface)] border-b border-[var(--t-border)] relative z-20 transition-all duration-500`}>
+            {/* Luminous accents */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--t-primary)]/5 rounded-full blur-3xl pointer-events-none transform translate-x-1/2 -translate-y-1/2"></div>
 
-            <div className="flex justify-between items-start mb-10 relative z-10">
+            <div className="flex justify-between items-start mb-6 relative z-10">
                 <div>
-                    <h1 className="text-white drop-shadow-sm dynamic-header">{project?.name || 'Mero Ghar'}</h1>
-                    <div className="flex items-center gap-2 mt-1.5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse"></div>
-                        <p className="text-emerald-100 opacity-90 dynamic-subtitle">Core Interface</p>
+                    <div className="flex items-center gap-2 mb-1">
+                        <div className="w-1.5 h-1.5 bg-[var(--t-primary)] rounded-full animate-pulse shadow-[0_0_8px_var(--t-primary)]"></div>
+                        <p className="text-[9px] uppercase tracking-[0.2em] text-[var(--t-text2)] font-['DM_Mono',monospace]">System Active</p>
                     </div>
+                    <h1 className="text-2xl text-[var(--t-text)] uppercase tracking-wide leading-none font-['Bebas_Neue',sans-serif]">
+                        {project?.name || 'Site Link'}
+                    </h1>
                 </div>
-                <div className="flex items-center gap-4">
-                    {/* Live Indicator */}
-                    <div className="flex items-center gap-2 bg-white/10 backdrop-blur-xl px-3 py-1.5 rounded-xl border border-white/10 shadow-lg">
-                        <div className="glow-dot w-1.5 h-1.5 shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
-                        <span className="dynamic-subtitle text-[10px] text-emerald-300 font-black tracking-widest uppercase">Live</span>
-                    </div>
-
-                    <div className="flex gap-3">
-                        <button
-                            onClick={onShowGuide}
-                            className="w-11 h-11 bg-white/10 backdrop-blur-xl rounded-2xl text-white border border-white/20 active:scale-90 transition-all flex items-center justify-center shadow-lg group relative"
-                        >
-                            <span className="text-xl">📒</span>
-                            <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 border border-white/20"></span>
-                            </span>
-                        </button>
-                        <Link
-                            to="/dashboard/mobile/profile"
-                            className="w-11 h-11 bg-white/10 backdrop-blur-xl rounded-2xl text-white border border-white/20 active:scale-90 transition-all flex items-center justify-center overflow-hidden shadow-lg"
-                        >
-                            {user?.profile_image ? (
-                                <img
-                                    src={getMediaUrl(user.profile_image)}
-                                    alt={user.username}
-                                    className="w-full h-full object-cover"
-                                    onError={(e) => {
-                                        e.target.onerror = null;
-                                        e.target.style.display = 'none';
-                                        e.target.parentNode.innerHTML = '<span class="text-xl">👤</span>';
-                                    }}
-                                />
-                            ) : (
-                                <span className="text-xl">👤</span>
-                            )}
-                        </Link>
-                        <button
-                            onClick={onLogout}
-                            className="w-11 h-11 bg-white/10 backdrop-blur-xl rounded-2xl text-white border border-white/20 active:bg-red-500/40 transition-all flex items-center justify-center shadow-lg"
-                        >
-                            <span className="text-xl">🚪</span>
-                        </button>
-                    </div>
+                <div className="flex items-center gap-2">
+                    <ThemeToggle />
+                    <button
+                        onClick={onShowGuide}
+                        className="w-9 h-9 bg-[var(--t-surface2)] rounded text-[var(--t-text2)] border border-[var(--t-border)] active:bg-[var(--t-surface3)] transition-all flex items-center justify-center group relative hover:border-[var(--t-primary)] hover:text-[var(--t-primary)]"
+                    >
+                        <span className="text-sm">📒</span>
+                    </button>
+                    <Link
+                        to="/dashboard/mobile/profile"
+                        className="w-9 h-9 bg-[var(--t-surface2)] rounded text-[var(--t-text2)] border border-[var(--t-border)] active:bg-[var(--t-surface3)] transition-all flex items-center justify-center overflow-hidden hover:border-[var(--t-primary)]"
+                    >
+                        {user?.profile_image ? (
+                            <img
+                                src={getMediaUrl(user.profile_image)}
+                                alt={user.username}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.style.display = 'none';
+                                    e.target.parentNode.innerHTML = '<span class="text-sm">👤</span>';
+                                }}
+                            />
+                        ) : (
+                            <span className="text-sm">👤</span>
+                        )}
+                    </Link>
+                    <button
+                        onClick={onLogout}
+                        className="w-9 h-9 bg-[var(--t-surface2)] rounded text-[var(--t-text2)] border border-[var(--t-border)] hover:bg-[var(--t-danger)]/10 hover:text-[var(--t-danger)] hover:border-[var(--t-danger)] transition-all flex items-center justify-center"
+                    >
+                        <span className="text-sm">🚪</span>
+                    </button>
                 </div>
             </div>
 
-            {/* Luminous Stats Cards - Horizontal Scroll */}
-            <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 scrollbar-hide relative z-10">
+            {/* Tight Stats Strip */}
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide relative z-10">
                 {stats.map((stat, index) => (
                     <div
                         key={index}
-                        className="flex-shrink-0 w-36 bg-white/10 backdrop-blur-2xl rounded-3xl p-5 border border-white/20 shadow-xl group cursor-default"
+                        className="flex-shrink-0 w-[110px] bg-[var(--t-surface2)] rounded border border-[var(--t-border)] p-3 cursor-default transition-colors hover:border-[var(--t-primary)]"
                     >
-                        <div className="text-2xl mb-3 transform group-hover:scale-110 transition-transform">{stat.icon}</div>
-                        <div className="text-white truncate leading-none mb-1 shadow-sm dynamic-title">{stat.value}</div>
-                        <div className="text-emerald-100 opacity-70 dynamic-subtitle">{stat.title}</div>
+                        <div className="text-[10px] text-[var(--t-text2)] mb-1 opacity-70 flex items-center gap-1.5 uppercase font-['DM_Mono',monospace] tracking-wider">
+                            <span className="text-[var(--t-primary)] scale-75 origin-left">{stat.icon}</span>
+                            {stat.title}
+                        </div>
+                        <div className="text-xl text-[var(--t-text)] truncate leading-none font-['Bebas_Neue',sans-serif] tracking-wide mt-1">
+                            {stat.value}
+                        </div>
                     </div>
                 ))}
             </div>

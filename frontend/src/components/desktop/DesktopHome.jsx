@@ -227,104 +227,128 @@ const DesktopHome = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 font-sans">
+        <div className="min-h-screen bg-[var(--t-bg)] font-sans">
             {/* Header Section with Stats */}
-            <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 shadow-xl pb-12 pt-8 px-6">
+            <div className="bg-[var(--t-surface)] border-b border-[var(--t-border)] pb-12 pt-8 px-6 relative overflow-hidden">
+                {/* Decorative Pattern */}
+                <div className="absolute inset-0 opacity-5 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, var(--t-primary) 1px, transparent 0)', backgroundSize: '32px 32px' }}></div>
                 <div className="max-w-7xl mx-auto">
                     <div className="flex items-center justify-between mb-8">
                         <div>
-                            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                                <span className="text-4xl">🏗️</span>
+                            <h1 className="text-3xl font-black text-[var(--t-text)] flex items-center gap-3 tracking-tight">
+                                <span className="text-4xl drop-shadow-[0_0_10px_rgba(var(--t-primary-rgb),0.3)]">🏗️</span>
                                 Project Dashboard
                             </h1>
-                            <p className="text-emerald-100 mt-2 text-lg">
+                            <p className="text-[var(--t-text2)] mt-2 text-lg font-medium opacity-80">
                                 Dream Home Construction - Overview & Progress
                             </p>
                         </div>
-                        <div className="hidden md:flex items-center gap-3 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg border border-white/20">
+                        <div className="hidden md:flex items-center gap-3 bg-[var(--t-bg)]/30 backdrop-blur-sm px-4 py-2 rounded-xl border border-[var(--t-border)]">
                             <span className="relative flex h-3 w-3">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--t-primary2)] opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-3 w-3 bg-[var(--t-primary2)] shadow-[0_0_8px_var(--t-primary2)]"></span>
                             </span>
-                            <span className="text-white font-semibold">Live Project Status</span>
+                            <span className="text-[var(--t-text)] text-xs font-black uppercase tracking-widest">Live Project Status</span>
                         </div>
                     </div>
 
                     {/* Stats Grid inside Header */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 hover:bg-white/20 transition-colors">
-                            <div className="flex justify-between items-start">
+                        <div className="bg-[var(--t-bg)]/40 hover:bg-[var(--t-bg)]/60 backdrop-blur-md rounded-2xl p-5 border border-[var(--t-border)] transition-all group overflow-hidden relative">
+                            <div className="absolute top-0 right-0 p-2 opacity-5 group-hover:opacity-20 transition-opacity">
+                                <span className="text-4xl">💰</span>
+                            </div>
+                            <div className="flex justify-between items-start relative z-10">
                                 <div>
-                                    <div className="text-emerald-100 text-xs font-bold uppercase tracking-wide opacity-80">Budget Utilization</div>
-                                    <div className="text-2xl font-bold text-white mt-1 leading-none">
+                                    <div className="text-[var(--t-text3)] text-[10px] font-black uppercase tracking-[0.2em]">Budget Utilization</div>
+                                    <div className="text-2xl font-black text-[var(--t-primary)] mt-1.5 leading-none">
                                         {budgetStats.budgetPercent.toFixed(1)}%
                                     </div>
                                 </div>
-                                <div className="text-2xl opacity-80">💰</div>
                             </div>
-                            <div className="mt-2 text-[10px] text-emerald-200 font-medium whitespace-nowrap overflow-hidden text-ellipsis">
-                                {formatCurrency(budgetStats.totalSpent)} of {formatCurrency(budgetStats.totalBudget)}
+                            <div className="mt-4 text-[11px] text-[var(--t-text2)] font-bold flex items-center gap-2">
+                                <span className="text-[var(--t-primary)] font-black">{formatCurrency(budgetStats.totalSpent)}</span>
+                                <span className="opacity-40">/</span>
+                                <span className="opacity-60">{formatCurrency(budgetStats.totalBudget)}</span>
                             </div>
                         </div>
 
-                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 hover:bg-white/20 transition-colors">
-                            <div className="flex justify-between items-start">
+                        <div className="bg-[var(--t-bg)]/40 hover:bg-[var(--t-bg)]/60 backdrop-blur-md rounded-2xl p-5 border border-[var(--t-border)] transition-all group overflow-hidden relative">
+                            <div className="absolute top-0 right-0 p-2 opacity-5 group-hover:opacity-20 transition-opacity">
+                                <span className="text-4xl">💵</span>
+                            </div>
+                            <div className="flex justify-between items-start relative z-10">
                                 <div>
-                                    <div className="text-emerald-100 text-xs font-bold uppercase tracking-wide opacity-80">Available Cash</div>
-                                    <div className="text-2xl font-bold text-white mt-1 leading-none">
+                                    <div className="text-[var(--t-text3)] text-[10px] font-black uppercase tracking-[0.2em]">Available Cash</div>
+                                    <div className="text-2xl font-black text-[var(--t-text)] mt-1.5 leading-none">
                                         {formatCurrency(budgetStats.availableCash)}
                                     </div>
                                 </div>
-                                <div className="text-2xl opacity-80">💵</div>
                             </div>
-                            <div className={`inline-flex items-center mt-2 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${budgetStats.availableCash > 0 ? 'bg-emerald-400/20 text-emerald-100' : 'bg-red-400/20 text-red-100'}`}>
-                                {budgetStats.availableCash > 0 ? 'Liquid' : 'Cash Tight'}
+                            <div className="mt-4 flex items-center">
+                                <div className={`inline-flex items-center px-2 py-0.5 rounded-[4px] text-[9px] font-black uppercase tracking-widest border ${budgetStats.availableCash > 0 ? 'bg-[var(--t-primary)]/10 text-[var(--t-primary)] border-[var(--t-primary)]/30 shadow-[0_0_8px_rgba(var(--t-primary-rgb),0.1)]' : 'bg-[var(--t-danger)]/10 text-[var(--t-danger)] border-[var(--t-danger)]/30'}`}>
+                                    {budgetStats.availableCash > 0 ? 'Liquid' : 'Cash Tight'}
+                                </div>
                             </div>
                         </div>
 
-                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 hover:bg-white/20 transition-colors">
-                            <div className="flex justify-between items-start">
+                        <div className="bg-[var(--t-bg)]/40 hover:bg-[var(--t-bg)]/60 backdrop-blur-md rounded-2xl p-5 border border-[var(--t-border)] transition-all group overflow-hidden relative">
+                            <div className="absolute top-0 right-0 p-2 opacity-5 group-hover:opacity-20 transition-opacity">
+                                <span className="text-4xl">🏗️</span>
+                            </div>
+                            <div className="flex justify-between items-start relative z-10">
                                 <div>
-                                    <div className="text-emerald-100 text-xs font-bold uppercase tracking-wide opacity-80">Stock Value</div>
-                                    <div className="text-2xl font-bold text-white mt-1 leading-none">
+                                    <div className="text-[var(--t-text3)] text-[10px] font-black uppercase tracking-[0.2em]">Stock Value</div>
+                                    <div className="text-2xl font-black text-[var(--t-info)] mt-1.5 leading-none">
                                         {formatCurrency(budgetStats.inventoryValue)}
                                     </div>
                                 </div>
-                                <div className="text-2xl opacity-80">🏗️</div>
                             </div>
-                            <div className="mt-2 text-[10px] text-emerald-200 font-medium">
+                            <div className="mt-4 text-[11px] text-[var(--t-text3)] font-black uppercase tracking-widest">
                                 {dashboardData.materials?.length || 0} Resource types
                             </div>
                         </div>
 
-                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 hover:bg-white/20 transition-colors">
-                            <div className="flex justify-between items-start">
+                        <div className="bg-[var(--t-bg)]/40 hover:bg-[var(--t-bg)]/60 backdrop-blur-md rounded-2xl p-5 border border-[var(--t-border)] transition-all group overflow-hidden relative">
+                            <div className="absolute top-0 right-0 p-2 opacity-5 group-hover:opacity-20 transition-opacity">
+                                <span className="text-4xl">🛡️</span>
+                            </div>
+                            <div className="flex justify-between items-start relative z-10">
                                 <div>
-                                    <div className="text-emerald-100 text-xs font-bold uppercase tracking-wide opacity-80">Funding Coverage</div>
-                                    <div className="text-2xl font-bold text-white mt-1 leading-none">
+                                    <div className="text-[var(--t-text3)] text-[10px] font-black uppercase tracking-[0.2em]">Funding Coverage</div>
+                                    <div className="text-2xl font-black text-[var(--t-primary2)] mt-1.5 leading-none">
                                         {budgetStats.fundingCoverage.toFixed(0)}%
                                     </div>
                                 </div>
-                                <div className="text-2xl opacity-80">🛡️</div>
                             </div>
-                            <div className="mt-2 text-[10px] text-emerald-200 font-medium">
+                            <div className="mt-4 text-[11px] text-[var(--t-text3)] font-black uppercase tracking-widest flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[var(--t-primary2)] shadow-[0_0_6px_var(--t-primary2)]"></span>
                                 Securing total project
                             </div>
                         </div>
                     </div>
-                    {/* Master Budget Card */}
                     {stats.find(s => s.title === 'Master Budget') && (
-                        <div className="bg-gradient-to-br from-indigo-500/80 to-purple-600/80 backdrop-blur-sm rounded-xl p-4 border border-white/20 relative overflow-hidden group">
-                            <div className="absolute -right-4 -bottom-4 text-6xl opacity-20 rotate-12 transition-transform group-hover:scale-110">💰</div>
-                            <div className="text-indigo-100 text-xs font-bold uppercase tracking-wide opacity-90">Master Budget</div>
-                            <div className="text-2xl font-bold text-white mt-1 leading-none">
-                                Rs. {stats.find(s => s.title === 'Master Budget').value}
-                            </div>
-                            <div className="mt-3 flex items-center gap-2">
-                                <div className="h-1.5 flex-1 bg-black/20 rounded-full overflow-hidden">
-                                    <div className="h-full bg-emerald-400 rounded-full shadow-[0_0_10px_rgba(52,211,153,0.5)]" style={{ width: `${budgetStats.budgetPercent}%` }} />
+                        <div className="mt-6 bg-[var(--t-surface2)]/40 backdrop-blur-md rounded-2xl p-5 border border-[var(--t-border)] relative overflow-hidden group">
+                            <div className="absolute -right-4 -bottom-4 text-7xl opacity-5 rotate-12 transition-transform group-hover:scale-110">💰</div>
+                            <div className="flex items-center justify-between mb-4">
+                                <div>
+                                    <div className="text-[var(--t-text3)] text-[10px] font-black uppercase tracking-[0.2em]">Master Budget Plan</div>
+                                    <div className="text-3xl font-black text-[var(--t-text)] mt-1 leading-none">
+                                        Rs. {stats.find(s => s.title === 'Master Budget').value}
+                                    </div>
                                 </div>
-                                <span className="text-[10px] font-bold text-white">{budgetStats.budgetPercent}% Used</span>
+                                <div className="text-right">
+                                    <div className="text-[var(--t-text3)] text-[10px] font-black uppercase tracking-[0.2em]">Utilization</div>
+                                    <div className="text-xl font-black text-[var(--t-primary)] mt-1">
+                                        {budgetStats.budgetPercent}%
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="h-2 w-full bg-[var(--t-bg)]/40 rounded-full overflow-hidden border border-[var(--t-border)]">
+                                <div 
+                                    className="h-full bg-gradient-to-r from-[var(--t-primary)] to-[var(--t-primary2)] rounded-full shadow-[0_0_15px_var(--t-primary)] transition-all duration-1000 ease-out" 
+                                    style={{ width: `${budgetStats.budgetPercent}%` }} 
+                                />
                             </div>
                         </div>
                     )}
@@ -335,33 +359,33 @@ const DesktopHome = () => {
             <div className="max-w-7xl mx-auto px-6 -mt-6 pb-12 relative z-10">
                 {/* Action Required Section */}
                 {(budgetStats.lowStockItems?.length > 0 || budgetStats.projectHealth?.status === 'OVER_ALLOCATED') && (
-                    <div className="bg-white rounded-2xl border border-red-100 shadow-lg mb-8 overflow-hidden animate-fadeIn">
-                        <div className="bg-gradient-to-r from-red-50 to-white px-6 py-3 border-b border-red-100 flex items-center justify-between">
+                    <div className="bg-[var(--t-surface)] rounded-2xl border border-[var(--t-danger)]/20 shadow-lg mb-8 overflow-hidden animate-fadeIn">
+                        <div className="bg-[var(--t-danger)]/5 px-6 py-3 border-b border-[var(--t-danger)]/10 flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <span className="text-xl">⚠️</span>
-                                <h2 className="text-sm font-black text-red-900 uppercase tracking-widest">Action Required (तत्काल ध्यान दिनुहोस्)</h2>
+                                <h2 className="text-sm font-black text-[var(--t-danger)] uppercase tracking-widest">Action Required (तत्काल ध्यान दिनुहोस्)</h2>
                             </div>
-                            <span className="text-[10px] font-bold text-red-600 bg-red-100 px-3 py-1 rounded-full uppercase tracking-wide">High Priority</span>
+                            <span className="text-[10px] font-bold text-[var(--t-danger)] bg-[var(--t-danger)]/10 px-3 py-1 rounded-full uppercase tracking-wide">High Priority</span>
                         </div>
                         <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                             {/* Low Stock Items */}
                             {budgetStats.lowStockItems?.length > 0 && (
                                 <div className="space-y-4">
-                                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                                    <h3 className="text-xs font-bold text-[var(--t-text2)] uppercase tracking-wider flex items-center gap-2">
                                         <span className="w-2 h-2 rounded-full bg-red-500"></span>
                                         Critical Inventory Level
                                     </h3>
                                     <div className="space-y-2">
                                         {budgetStats.lowStockItems.slice(0, 3).map(item => (
-                                            <div key={item.id} className="flex items-center justify-between p-3 bg-red-50/30 rounded-xl border border-red-100 hover:border-red-200 transition-colors">
+                                            <div key={item.id} className="flex items-center justify-between p-3 bg-[var(--t-danger)]/5 rounded-xl border border-[var(--t-danger)]/10 hover:border-[var(--t-danger)]/30 transition-colors">
                                                 <div className="flex flex-col">
-                                                    <span className="text-sm font-bold text-gray-900">{item.name}</span>
-                                                    <span className="text-[10px] text-red-600 font-bold uppercase tracking-tight">Stock: {item.current_stock} {item.unit} (Min: {item.min_stock_level})</span>
+                                                    <span className="text-sm font-bold text-[var(--t-text)]">{item.name}</span>
+                                                    <span className="text-[10px] text-[var(--t-danger)] font-bold uppercase tracking-tight">Stock: {item.current_stock} {item.unit} (Min: {item.min_stock_level})</span>
                                                 </div>
                                                 {item.pendingTransaction ? (
                                                     <button
                                                         onClick={() => handleReceiveOrder(item.pendingTransaction)}
-                                                        className="text-[10px] font-bold text-green-600 bg-green-50 border border-green-100 px-3 py-1.5 rounded-lg shadow-sm hover:bg-green-100 transition-colors flex items-center gap-1.5"
+                                                        className="text-[10px] font-bold text-[var(--t-primary2)] bg-[var(--t-primary2)]/5 border border-[var(--t-primary2)]/20 px-3 py-1.5 rounded-lg shadow-sm hover:bg-[var(--t-primary2)]/10 transition-colors flex items-center gap-1.5"
                                                     >
                                                         <span>✅</span>
                                                         Confirm Received
@@ -369,7 +393,7 @@ const DesktopHome = () => {
                                                 ) : (
                                                     <button
                                                         onClick={() => handleOpenOrderModal(item)}
-                                                        className="text-[10px] font-bold text-red-600 bg-white border border-red-100 px-3 py-1.5 rounded-lg shadow-sm hover:bg-red-50 hover:text-red-700 transition-colors"
+                                                        className="text-[10px] font-bold text-[var(--t-danger)] bg-[var(--t-surface)] border border-[var(--t-danger)]/20 px-3 py-1.5 rounded-lg shadow-sm hover:bg-[var(--t-danger)]/10 transition-colors"
                                                     >
                                                         Order Now
                                                     </button>
@@ -377,7 +401,7 @@ const DesktopHome = () => {
                                             </div>
                                         ))}
                                         {budgetStats.lowStockItems.length > 3 && (
-                                            <p className="text-[10px] text-gray-400 italic pl-1">+ {budgetStats.lowStockItems.length - 3} more items need attention</p>
+                                            <p className="text-[10px] text-[var(--t-text3)] italic pl-1">+ {budgetStats.lowStockItems.length - 3} more items need attention</p>
                                         )}
                                     </div>
                                 </div>
@@ -386,19 +410,19 @@ const DesktopHome = () => {
                             {/* Budget Validation */}
                             {budgetStats.projectHealth?.status === 'OVER_ALLOCATED' && (
                                 <div className="space-y-4">
-                                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                                        <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+                                    <h3 className="text-xs font-bold text-[var(--t-text2)] uppercase tracking-wider flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-[var(--t-warn)]"></span>
                                         Budget Warning
                                     </h3>
-                                    <div className="p-4 bg-orange-50 rounded-2xl border border-orange-100 flex items-start gap-4">
-                                        <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center text-xl flex-shrink-0">💰</div>
+                                    <div className="p-4 bg-[var(--t-warn)]/5 rounded-2xl border border-[var(--t-warn)]/20 flex items-start gap-4">
+                                        <div className="w-10 h-10 bg-[var(--t-warn)]/10 rounded-full flex items-center justify-center text-xl flex-shrink-0">💰</div>
                                         <div className="flex flex-col flex-1">
-                                            <span className="text-sm font-bold text-orange-900">Allocation Overflow</span>
-                                            <p className="text-xs text-orange-800 mt-1 leading-relaxed">
+                                            <span className="text-sm font-bold text-[var(--t-warn)]">Allocation Overflow</span>
+                                            <p className="text-xs text-[var(--t-text2)] mt-1 leading-relaxed">
                                                 Category allocation exceeds master budget by <span className="font-bold">{formatCurrency(budgetStats.projectHealth.excess)}</span>. Check the "Expenses" tab to rebalance.
                                             </p>
-                                            <div className="h-1.5 w-full bg-orange-200/50 rounded-full mt-3 overflow-hidden">
-                                                <div className="h-full bg-orange-500 rounded-full animate-pulse" style={{ width: '100%' }}></div>
+                                            <div className="h-1.5 w-full bg-[var(--t-warn)]/10 rounded-full mt-3 overflow-hidden">
+                                                <div className="h-full bg-[var(--t-warn)] rounded-full animate-pulse" style={{ width: '100%' }}></div>
                                             </div>
                                         </div>
                                     </div>
@@ -411,31 +435,31 @@ const DesktopHome = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Left Column: Construction Journey */}
                     <div className="lg:col-span-2 space-y-8">
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                        <div className="bg-[var(--t-surface)] rounded-2xl shadow-sm border border-[var(--t-border)] overflow-hidden">
+                            <div className="px-6 py-4 border-b border-[var(--t-border)] flex justify-between items-center bg-[var(--t-surface2)]/50">
                                 <div>
-                                    <h2 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Construction Journey</h2>
-                                    <h1 className="text-xl font-black text-gray-900 mt-1">Timeline & Phases</h1>
+                                    <h2 className="text-xs font-black text-[var(--t-text3)] uppercase tracking-[0.2em]">Construction Journey</h2>
+                                    <h1 className="text-xl font-black text-[var(--t-text)] mt-1">Timeline & Phases</h1>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <button
                                         onClick={expandAll}
-                                        className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors"
+                                        className="text-[10px] font-bold uppercase tracking-wider text-[var(--t-primary)] hover:text-[var(--t-nav-active-text)] bg-[var(--t-nav-active-bg)] px-3 py-1.5 rounded-lg transition-colors"
                                     >
                                         Expand All
                                     </button>
                                     <button
                                         onClick={collapseAll}
-                                        className="text-[10px] font-bold uppercase tracking-wider text-gray-500 hover:text-gray-700 bg-gray-100 px-3 py-1.5 rounded-lg transition-colors"
+                                        className="text-[10px] font-bold uppercase tracking-wider text-[var(--t-text2)] hover:text-[var(--t-text2)] bg-[var(--t-surface3)] px-3 py-1.5 rounded-lg transition-colors"
                                     >
                                         Collapse All
                                     </button>
                                 </div>
                             </div>
 
-                            <div className="p-6 relative pl-4 space-y-12 bg-white">
+                            <div className="p-6 relative pl-4 space-y-12 bg-[var(--t-surface)]">
                                 {/* Vertical Progress Line */}
-                                <div className="absolute left-10 top-6 bottom-6 w-[2px] bg-gray-100 rounded-full -translate-x-1/2"></div>
+                                <div className="absolute left-10 top-6 bottom-6 w-[2px] bg-[var(--t-surface3)] rounded-full -translate-x-1/2"></div>
                                 {/* Phases Rendering */}
                                 {dashboardData.phases.map((phase) => {
                                     const phaseTasks = dashboardData.tasks.filter(t => t.phase === phase.id);
@@ -446,17 +470,17 @@ const DesktopHome = () => {
                                     const isInProgress = phase.status === 'IN_PROGRESS';
 
                                     return (
-                                        <div key={phase.id} className="relative group pl-12">
+                                        <div key={phase.id} className="relative group pl-16">
                                             {/* Phase Connector Node */}
-                                            <div className={`absolute top-0 left-6 -ml-3 mt-6 w-10 h-10 rounded-full border-4 flex items-center justify-center font-black text-xs z-10 transition-all duration-500 bg-white ${isCompleted ? 'border-green-500 text-green-600 shadow-lg shadow-green-100' :
-                                                isInProgress ? 'border-indigo-600 text-indigo-600 shadow-lg shadow-indigo-100 scale-110 ring-4 ring-indigo-50' :
-                                                    'border-gray-200 text-gray-300'
+                                            <div className={`absolute top-0 left-6 -ml-3 mt-6 w-10 h-10 rounded-full border-4 flex items-center justify-center font-black text-xs z-10 transition-all duration-500 bg-[var(--t-surface)] ${isCompleted ? 'border-[var(--t-primary2)] text-[var(--t-primary2)] shadow-lg shadow-[var(--t-primary2)]/10' :
+                                                isInProgress ? 'border-[var(--t-primary)] text-[var(--t-primary)] shadow-lg shadow-[var(--t-primary)]/10 scale-110 ring-4 ring-[var(--t-primary)]/5' :
+                                                    'border-[var(--t-border)] text-[var(--t-text3)]'
                                                 }`}>
                                                 {isCompleted ? '✓' : phase.order}
                                             </div>
 
                                             {/* Phase Content */}
-                                            <div className={`bg-white rounded-2xl border transition-all duration-300 overflow-hidden ${isInProgress ? 'border-indigo-200 shadow-md ring-1 ring-indigo-50' : 'border-gray-200 hover:border-gray-300 shadow-sm'}`}>
+                                            <div className={`bg-[var(--t-surface)] rounded-2xl border transition-all duration-300 overflow-hidden ${isInProgress ? 'border-[var(--t-primary)]/30 shadow-md ring-1 ring-[var(--t-primary)]/10' : 'border-[var(--t-border)] hover:border-[var(--t-border2)] shadow-sm'}`}>
 
                                                 <div
                                                     className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer select-none"
@@ -464,29 +488,29 @@ const DesktopHome = () => {
                                                 >
                                                     <div className="flex-1">
                                                         <div className="flex items-center gap-3 mb-1">
-                                                            <h3 className={`font-black text-lg tracking-tight ${isInProgress ? 'text-indigo-900' : 'text-gray-900'}`}>
+                                                            <h3 className={`font-black text-lg tracking-tight ${isInProgress ? 'text-[var(--t-primary)]' : 'text-[var(--t-text)]'}`}>
                                                                 {phase.name}
                                                             </h3>
                                                             {isInProgress && (
-                                                                <span className="animate-pulse px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-600 text-[10px] font-bold uppercase tracking-wide">Active Phase</span>
+                                                                <span className="animate-pulse px-2 py-0.5 rounded-full bg-[var(--t-nav-active-bg)] text-[var(--t-primary)] text-[10px] font-bold uppercase tracking-wide">Active Phase</span>
                                                             )}
                                                         </div>
-                                                        <p className="text-sm text-gray-600 font-medium line-clamp-2 leading-relaxed max-w-2xl">{phase.description}</p>
+                                                        <p className="text-sm text-[var(--t-text2)] font-medium line-clamp-2 leading-relaxed max-w-2xl">{phase.description}</p>
 
                                                         {/* Detailed Meta-Data Subtitle */}
                                                         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3 text-[10px] font-black uppercase tracking-[0.12em]">
-                                                            <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-100 shadow-sm">
+                                                            <div className="flex items-center gap-2 text-[var(--t-primary2)] bg-[var(--t-primary2)]/5 px-2.5 py-1 rounded-md border border-[var(--t-primary2)]/10 shadow-sm">
                                                                 <span className="text-[12px] leading-none">💰</span>
                                                                 <span className="opacity-60 mr-0.5">Budget:</span>
                                                                 {formatCurrency(phase.estimated_budget)}
                                                             </div>
-                                                            <div className="flex items-center gap-2 text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-100 shadow-sm">
+                                                            <div className="flex items-center gap-2 text-[var(--t-nav-active-text)] bg-[var(--t-nav-active-bg)] px-2.5 py-1 rounded-md border border-[var(--t-border)] shadow-sm">
                                                                 <span className="text-[12px] leading-none">📋</span>
                                                                 <span className="opacity-60 mr-0.5">Scope:</span>
                                                                 {phaseTasks.length} {phaseTasks.length === 1 ? 'Task' : 'Tasks'}
                                                             </div>
                                                             {(phase.start_date || phase.end_date) && (
-                                                                <div className="flex items-center gap-2 text-slate-700 bg-slate-100/80 px-2.5 py-1 rounded-md border border-slate-200 shadow-sm">
+                                                                <div className="flex items-center gap-2 text-[var(--t-text2)] bg-[var(--t-surface2)]/50 px-2.5 py-1 rounded-md border border-[var(--t-border)] shadow-sm">
                                                                     <span className="text-[12px] leading-none">📅</span>
                                                                     <span className="opacity-60 mr-0.5">Timeline:</span>
                                                                     <span className="tracking-normal font-bold">
@@ -500,13 +524,13 @@ const DesktopHome = () => {
 
                                                         {/* Progress Bar */}
                                                         <div className="mt-4 flex items-center gap-3 w-full max-w-md">
-                                                            <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                                            <div className="flex-1 h-2 bg-[var(--t-surface3)] rounded-full overflow-hidden">
                                                                 <div
-                                                                    className={`h-full rounded-full transition-all duration-1000 ease-out ${isCompleted ? 'bg-green-500' : isInProgress ? 'bg-indigo-500' : 'bg-gray-300'}`}
+                                                                    className={`h-full rounded-full transition-all duration-1000 ease-out ${isCompleted ? 'bg-[var(--t-primary2)]' : isInProgress ? 'bg-[var(--t-primary)]' : 'bg-[var(--t-border)]'}`}
                                                                     style={{ width: `${isCompleted ? 100 : progress}%` }}
                                                                 />
                                                             </div>
-                                                            <span className="text-[10px] font-bold text-gray-400 uppercase">
+                                                            <span className="text-[10px] font-bold text-[var(--t-text3)] uppercase">
                                                                 {isCompleted ? '100%' : `${progress}%`}
                                                             </span>
                                                         </div>
@@ -519,7 +543,7 @@ const DesktopHome = () => {
                                                                     e.stopPropagation();
                                                                     setDetailPhase(phase);
                                                                 }}
-                                                                className="p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-indigo-600 transition-all"
+                                                                className="p-2 rounded-lg text-[var(--t-text3)] hover:bg-[var(--t-surface3)] hover:text-[var(--t-primary)] transition-all"
                                                                 title="Manage Phase Details (Mockups, Photos, Docs)"
                                                             >
                                                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
@@ -527,9 +551,9 @@ const DesktopHome = () => {
                                                             <select
                                                                 value={phase.status}
                                                                 onChange={(e) => handleStatusChange(phase.id, e.target.value)}
-                                                                className={`text-[10px] font-bold uppercase tracking-wide border-0 rounded-lg py-1.5 px-3 cursor-pointer outline-none focus:ring-2 focus:ring-offset-1 ${isCompleted ? 'bg-green-50 text-green-700 focus:ring-green-500' :
-                                                                    isInProgress ? 'bg-indigo-50 text-indigo-700 focus:ring-indigo-500' :
-                                                                        'bg-gray-100 text-gray-600 focus:ring-gray-400'
+                                                                className={`text-[10px] font-bold uppercase tracking-wide border-0 rounded-lg py-1.5 px-3 cursor-pointer outline-none focus:ring-2 focus:ring-offset-1 ${isCompleted ? 'bg-[var(--t-primary2)]/10 text-[var(--t-primary2)] focus:ring-[var(--t-primary2)]' :
+                                                                    isInProgress ? 'bg-[var(--t-nav-active-bg)] text-[var(--t-nav-active-text)] focus:ring-[var(--t-primary)]' :
+                                                                        'bg-[var(--t-surface3)] text-[var(--t-text2)] focus:ring-[var(--t-border2)]'
                                                                     }`}
                                                             >
                                                                 <option value="NOT_STARTED">To Do</option>
@@ -544,7 +568,7 @@ const DesktopHome = () => {
                                                                 <img
                                                                     src={getMediaUrl(phase.completion_photo)}
                                                                     alt="Completion"
-                                                                    className="inline-block h-8 w-8 rounded-full ring-2 ring-white object-cover cursor-pointer hover:scale-110 transition-transform"
+                                                                    className="inline-block h-8 w-8 rounded-full ring-2 ring-[var(--t-surface)] object-cover cursor-pointer hover:scale-110 transition-transform"
                                                                     title="Completion Photo"
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
@@ -553,14 +577,14 @@ const DesktopHome = () => {
                                                                 />
                                                             )}
                                                             {phase.naksa_file && (
-                                                                <div className="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-blue-100 flex items-center justify-center text-[8px] font-bold text-blue-600 cursor-pointer" title="Blueprint">BP</div>
+                                                                <div className="inline-block h-8 w-8 rounded-full ring-2 ring-[var(--t-surface)] bg-[var(--t-primary)]/10 flex items-center justify-center text-[8px] font-bold text-[var(--t-primary)] cursor-pointer" title="Blueprint">BP</div>
                                                             )}
                                                         </div>
 
                                                         <div className="flex gap-2">
                                                             <button
                                                                 onClick={() => openAddTaskModal(phase)}
-                                                                className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-50 text-gray-400 hover:bg-emerald-50 hover:text-emerald-600 transition-all font-bold text-lg"
+                                                                className="w-8 h-8 flex items-center justify-center rounded-lg bg-[var(--t-surface2)] text-[var(--t-text3)] hover:bg-[var(--t-nav-active-bg)] hover:text-[var(--t-primary)] transition-all font-bold text-lg"
                                                                 title="Add Task"
                                                             >
                                                                 +
@@ -571,27 +595,27 @@ const DesktopHome = () => {
 
                                                 {/* Expanded Tasks */}
                                                 {expandedPhases.has(phase.id) && (
-                                                    <div className="border-t border-gray-100 bg-gray-50/50 p-5 animate-slideDown">
+                                                    <div className="border-t border-[var(--t-border)] bg-[var(--t-surface2)]/30 p-5 animate-slideDown">
                                                         <div className="grid grid-cols-1 gap-2">
                                                             {phaseTasks.map(task => (
-                                                                <div key={task.id} className="bg-white p-3 rounded-xl border border-gray-100 flex items-center justify-between group hover:border-indigo-200 transition-all shadow-sm">
+                                                                <div key={task.id} className="bg-[var(--t-surface)] p-3 rounded-xl border border-[var(--t-border)] flex items-center justify-between group hover:border-[var(--t-border)] transition-all shadow-sm">
                                                                     <div className="flex items-center gap-3">
                                                                         <input
                                                                             type="checkbox"
                                                                             checked={task.status === 'COMPLETED'}
                                                                             onChange={() => handleTaskToggle(task)}
-                                                                            className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                                                            className="w-4 h-4 rounded border-[var(--t-border2)] text-[var(--t-primary)] focus:ring-[var(--t-primary)] cursor-pointer"
                                                                         />
-                                                                        <span className={`text-sm font-medium transition-colors ${task.status === 'COMPLETED' ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
+                                                                        <span className={`text-sm font-medium transition-colors ${task.status === 'COMPLETED' ? 'text-[var(--t-text3)] line-through' : 'text-[var(--t-text2)]'}`}>
                                                                             {task.title}
                                                                         </span>
                                                                     </div>
-                                                                    <button onClick={() => handleDeleteTask(task.id)} className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity px-2">×</button>
+                                                                    <button onClick={() => handleDeleteTask(task.id)} className="text-[var(--t-text3)] hover:text-[var(--t-danger)] opacity-0 group-hover:opacity-100 transition-opacity px-2">×</button>
                                                                 </div>
                                                             ))}
                                                             <button
                                                                 onClick={() => openAddTaskModal(phase)}
-                                                                className="p-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50/30 transition-all text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2"
+                                                                className="p-3 border-2 border-dashed border-[var(--t-border)] rounded-xl text-[var(--t-text3)] hover:text-[var(--t-primary)] hover:border-[var(--t-primary)] hover:bg-[var(--t-primary)]/5 transition-all text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2"
                                                             >
                                                                 + Add New Task
                                                             </button>
@@ -609,14 +633,30 @@ const DesktopHome = () => {
                     {/* Right Column: Activity & Quick Actions */}
                     <div className="space-y-6">
                         {/* Quick Actions Card */}
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                            <h2 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Quick Actions</h2>
+                        <div className="bg-[var(--t-surface)] rounded-2xl shadow-sm border border-[var(--t-border)] p-6">
+                            <h2 className="text-xs font-black text-[var(--t-text3)] uppercase tracking-[0.2em] mb-4">Quick Actions</h2>
                             <div className="grid grid-cols-2 gap-3">
                                 {[
-                                    { title: 'New Expense', icon: '💸', color: 'bg-red-50 text-red-600 border-red-100 hover:bg-red-100' },
-                                    { title: 'Add Material', icon: '📦', color: 'bg-green-50 text-green-600 border-green-100 hover:bg-green-100' },
-                                    { title: 'Upload Photo', icon: '📷', color: 'bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100' },
-                                    { title: 'Create Task', icon: '📋', color: 'bg-purple-50 text-purple-600 border-purple-100 hover:bg-purple-100' },
+                                {
+                                    title: 'New Expense',
+                                    icon: '💸',
+                                    color: 'bg-[var(--t-danger)]/5 text-[var(--t-danger)] border-[var(--t-danger)]/10 hover:bg-[var(--t-danger)]/10'
+                                },
+                                {
+                                    title: 'Add Material',
+                                    icon: '📦',
+                                    color: 'bg-[var(--t-primary2)]/5 text-[var(--t-primary2)] border-[var(--t-primary2)]/10 hover:bg-[var(--t-primary2)]/10'
+                                },
+                                {
+                                    title: 'Upload Photo',
+                                    icon: '📷',
+                                    color: 'bg-[var(--t-primary)]/5 text-[var(--t-primary)] border-[var(--t-primary)]/10 hover:bg-[var(--t-primary)]/10'
+                                },
+                                {
+                                    title: 'Create Task',
+                                    icon: '📋',
+                                    color: 'bg-indigo-500/5 text-indigo-500 border-indigo-500/10 hover:bg-indigo-500/10'
+                                },
                                 ].map((a, i) => (
                                     <button key={i} className={`p-4 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all group ${a.color}`}>
                                         <span className="text-2xl group-hover:scale-110 transition-transform">{a.icon}</span>
@@ -627,21 +667,21 @@ const DesktopHome = () => {
                         </div>
 
                         {/* Log Stream Card */}
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col h-[500px]">
-                            <div className="px-6 py-4 border-b border-gray-100">
-                                <h2 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Activity Log</h2>
+                        <div className="bg-[var(--t-surface)] rounded-2xl shadow-sm border border-[var(--t-border)] flex flex-col h-[500px]">
+                            <div className="px-6 py-4 border-b border-[var(--t-border)]">
+                                <h2 className="text-xs font-black text-[var(--t-text3)] uppercase tracking-[0.2em]">Activity Log</h2>
                             </div>
                             <div className="flex-1 overflow-y-auto p-6 space-y-6">
                                 {recentActivities.map((activity) => (
-                                    <div key={activity.id} className="relative pl-6 pb-6 border-l border-gray-100 last:pb-0 last:border-0">
-                                        <div className="absolute left-0 top-0 -translate-x-1/2 w-3 h-3 rounded-full bg-white border-2 border-indigo-200"></div>
+                                    <div key={activity.id} className="relative pl-6 pb-6 border-l border-[var(--t-border)] last:pb-0 last:border-0">
+                                        <div className="absolute left-0 top-0 -translate-x-1/2 w-3 h-3 rounded-full bg-[var(--t-surface)] border-2 border-[var(--t-border)]"></div>
                                         <div className="flex gap-3">
-                                            <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-lg flex-shrink-0 text-gray-400">
+                                            <div className="w-10 h-10 rounded-xl bg-[var(--t-surface2)] border border-[var(--t-border)] flex items-center justify-center text-lg flex-shrink-0 text-[var(--t-text2)]">
                                                 {activity.icon}
                                             </div>
                                             <div>
-                                                <p className="text-sm font-bold text-gray-800 leading-tight">{activity.message}</p>
-                                                <p className="text-xs text-gray-400 font-medium mt-1">{activity.time}</p>
+                                                <p className="text-sm font-bold text-[var(--t-text)] leading-tight">{activity.message}</p>
+                                                <p className="text-xs text-[var(--t-text3)] font-medium mt-1">{activity.time}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -660,26 +700,26 @@ const DesktopHome = () => {
                 title={`📧 Order Material: ${selectedOrderMaterial?.name || ''}`}
             >
                 <div className="space-y-4 p-4">
-                    <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4">
-                        <h4 className="text-sm font-bold text-indigo-900 mb-2">Material Details</h4>
+                    <div className="bg-[var(--t-nav-active-bg)] border border-[var(--t-border)] rounded-xl p-4">
+                        <h4 className="text-sm font-bold text-[var(--t-primary)] mb-2">Material Details</h4>
                         <div className="space-y-1 text-sm">
                             <div className="flex justify-between">
-                                <span className="text-gray-600">Material:</span>
-                                <span className="font-bold text-gray-900">{selectedOrderMaterial?.name}</span>
+                                <span className="text-[var(--t-text2)]">Material:</span>
+                                <span className="font-bold text-[var(--t-text)]">{selectedOrderMaterial?.name}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-gray-600">Current Stock:</span>
-                                <span className="font-bold text-red-600">{selectedOrderMaterial?.current_stock} {selectedOrderMaterial?.unit}</span>
+                                <span className="text-[var(--t-text2)]">Current Stock:</span>
+                                <span className="font-bold text-[var(--t-danger)]">{selectedOrderMaterial?.current_stock} {selectedOrderMaterial?.unit}</span>
                             </div>
                         </div>
                     </div>
 
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Select Supplier *</label>
+                        <label className="block text-sm font-semibold text-[var(--t-text2)] mb-2">Select Supplier *</label>
                         <select
                             value={selectedOrderSupplier || ''}
                             onChange={(e) => setSelectedOrderSupplier(Number(e.target.value))}
-                            className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none bg-white font-bold"
+                            className="w-full rounded-xl border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-3 border outline-none bg-[var(--t-surface)] font-bold"
                             required
                         >
                             <option value="">Choose a supplier...</option>
@@ -694,47 +734,47 @@ const DesktopHome = () => {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Quantity to Order</label>
+                        <label className="block text-sm font-semibold text-[var(--t-text2)] mb-2">Quantity to Order</label>
                         <input
                             type="number"
                             value={orderQuantity}
                             onChange={(e) => setOrderQuantity(e.target.value)}
-                            className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none text-lg font-black text-center"
+                            className="w-full rounded-xl border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-3 border outline-none text-lg font-black text-center"
                             min="1"
                         />
                     </div>
 
-                    <div className="space-y-4 pt-2 border-t border-gray-100">
-                        <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Email Content (अनुकूलन गर्नुहोस्)</h4>
+                    <div className="space-y-4 pt-2 border-t border-[var(--t-border)]">
+                        <h4 className="text-xs font-black text-[var(--t-text3)] uppercase tracking-widest">Email Content (अनुकूलन गर्नुहोस्)</h4>
 
                         <div>
-                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Subject</label>
+                            <label className="block text-[10px] font-bold text-[var(--t-text2)] uppercase mb-1">Subject</label>
                             <input
                                 type="text"
                                 value={orderSubject}
                                 onChange={(e) => setOrderSubject(e.target.value)}
-                                className="w-full rounded-lg border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-2 border outline-none text-sm font-medium"
+                                className="w-full rounded-lg border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-2 border outline-none text-sm font-medium"
                                 placeholder="Email Subject"
                             />
                         </div>
 
                         <div>
-                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Custom Message / Notes</label>
+                            <label className="block text-[10px] font-bold text-[var(--t-text2)] uppercase mb-1">Custom Message / Notes</label>
                             <textarea
                                 value={orderBody}
                                 onChange={(e) => setOrderBody(e.target.value)}
-                                className="w-full rounded-lg border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none text-sm min-h-[100px] leading-relaxed"
+                                className="w-full rounded-lg border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-3 border outline-none text-sm min-h-[100px] leading-relaxed"
                                 placeholder="Add specific delivery instructions, deadlines, or site details..."
                             />
                         </div>
                     </div>
 
                     <div className="flex justify-end gap-3 mt-6">
-                        <button type="button" onClick={() => setOrderModalOpen(false)} className="px-6 py-2.5 text-xs font-black text-gray-400 uppercase tracking-widest">Cancel</button>
+                        <button type="button" onClick={() => setOrderModalOpen(false)} className="px-6 py-2.5 text-xs font-black text-[var(--t-text3)] uppercase tracking-widest">Cancel</button>
                         <button
                             onClick={handleSendOrder}
                             disabled={!orderQuantity || !selectedOrderSupplier || orderLoading}
-                            className="px-8 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all flex items-center gap-2"
+                            className="px-8 py-2.5 bg-[var(--t-primary)] text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-[var(--t-primary)]/10 hover:bg-[var(--t-primary2)] hover:-translate-y-0.5 transition-all flex items-center gap-2"
                         >
                             {orderLoading ? 'Sending...' : '🚀 Send Order Email'}
                         </button>
@@ -749,12 +789,12 @@ const DesktopHome = () => {
                         value={newTaskTitle}
                         onChange={(e) => setNewTaskTitle(e.target.value)}
                         placeholder="e.g. Ground Floor Slab Casting"
-                        className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none font-bold"
+                        className="w-full rounded-xl border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-3 border outline-none font-bold"
                         autoFocus
                     />
                     <div className="flex justify-end gap-3">
-                        <button type="button" onClick={() => setIsTaskModalOpen(false)} className="px-6 py-2.5 text-xs font-black text-gray-400 uppercase tracking-widest">Cancel</button>
-                        <button type="submit" disabled={loading || !newTaskTitle.trim()} className="px-8 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-100">
+                        <button type="button" onClick={() => setIsTaskModalOpen(false)} className="px-6 py-2.5 text-xs font-black text-[var(--t-text3)] uppercase tracking-widest">Cancel</button>
+                        <button type="submit" disabled={loading || !newTaskTitle.trim()} className="px-8 py-2.5 bg-[var(--t-primary)] text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-[var(--t-primary)]/10">
                             {loading ? 'Adding...' : 'Confirm Item'}
                         </button>
                     </div>
@@ -768,12 +808,12 @@ const DesktopHome = () => {
                         value={newPermitTitle}
                         onChange={(e) => setNewPermitTitle(e.target.value)}
                         placeholder="e.g. Ward Clearance"
-                        className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-blue-500 p-3 border outline-none font-bold"
+                        className="w-full rounded-xl border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-3 border outline-none font-bold"
                         autoFocus
                     />
                     <div className="flex justify-end gap-3">
-                        <button type="button" onClick={() => setIsPermitModalOpen(false)} className="px-6 py-2.5 text-xs font-black text-gray-400 uppercase tracking-widest">Cancel</button>
-                        <button type="submit" disabled={loading || !newPermitTitle.trim()} className="px-8 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-100">
+                        <button type="button" onClick={() => setIsPermitModalOpen(false)} className="px-6 py-2.5 text-xs font-black text-[var(--t-text3)] uppercase tracking-widest">Cancel</button>
+                        <button type="submit" disabled={loading || !newPermitTitle.trim()} className="px-8 py-2.5 bg-[var(--t-primary)] text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-[var(--t-primary)]/10">
                             Create Step
                         </button>
                     </div>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useConstruction } from '../../context/ConstructionContext';
 import ExpenseDetailModal from '../common/ExpenseDetailModal';
 import MobileLayout from './MobileLayout';
+import MobilePageHeader from './MobilePageHeader';
 
 const BudgetTab = () => {
     const { dashboardData, budgetStats, formatCurrency } = useConstruction();
@@ -28,119 +29,136 @@ const BudgetTab = () => {
     };
 
     const headerExtra = (
-        <div className={`px-3 py-1 rounded-full dynamic-subtitle shadow-sm ${availableCash > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+        <div className={`px-3 py-1 rounded-full dynamic-subtitle shadow-sm ${availableCash > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-[var(--t-danger)]'}`}>
             {availableCash > 0 ? 'Stable' : 'Deficit'}
         </div>
     );
 
     return (
-        <MobileLayout 
-            title="Finance Engine" 
-            subtitle="Capital Distribution Data"
-            headerExtra={headerExtra}
-        >
-            {/* Main Stats Grid */}
-            <div className="grid grid-cols-1 gap-6">
-                <div className="card-glass rounded-[2rem] p-7 shadow-sm hud-border relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-6 opacity-10 text-6xl rotate-12">💰</div>
-                    <div className="relative z-10">
-                        <p className="text-slate-400 font-black dynamic-subtitle mb-2">Total Utilization</p>
-                        <h3 className="text-slate-800 leading-tight dynamic-title">{formatCurrency(totalSpent)}</h3>
-                        <p className="text-slate-400 mt-2 dynamic-body italic">of {formatCurrency(totalBudget)} planned</p>
+        <MobileLayout>
+            <MobilePageHeader
+                title="Finance Engine"
+                subtitle={availableCash > 0 ? 'Budget Stable' : 'Budget Deficit'}
+                rightExtra={
+                    <span style={{
+                        padding: '2px 8px',
+                        borderRadius: 2,
+                        fontSize: 8,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.2em',
+                        fontFamily: "'DM Mono', monospace",
+                        background: availableCash > 0 ? 'color-mix(in srgb, var(--t-primary) 10%, transparent)' : 'color-mix(in srgb, var(--t-danger) 10%, transparent)',
+                        color: availableCash > 0 ? 'var(--t-primary)' : 'var(--t-danger)',
+                        border: `1px solid ${availableCash > 0 ? 'color-mix(in srgb, var(--t-primary) 30%, transparent)' : 'color-mix(in srgb, var(--t-danger) 30%, transparent)'}`,
+                    }}>{availableCash > 0 ? 'Stable' : 'Deficit'}</span>
+                }
+            />
+            <div className="cyber-wrap pb-28 pt-4">
+                {/* Main Stats Grid */}
+                <div className="ht-sec">
+                        <div className="cyber-card group">
+                            <div className="absolute top-0 right-0 p-4 opacity-10 text-4xl rotate-12 grayscale group-hover:grayscale-0 transition-all">💰</div>
+                            <div className="relative z-10">
+                                <p className="text-[9px] uppercase tracking-[0.2em] text-[var(--t-text2)] font-['DM_Mono',monospace] mb-1">Total Utilization</p>
+                                <h3 className="text-4xl text-[var(--t-text)] leading-none font-['Bebas_Neue',sans-serif] tracking-wide">{formatCurrency(totalSpent)}</h3>
+                                <p className="text-[10px] text-[var(--t-text3)] font-['DM_Mono',monospace] mt-1">of {formatCurrency(totalBudget)} planned</p>
 
-                        <div className="mt-8 space-y-3">
-                            <div className="flex justify-between dynamic-subtitle text-slate-500">
-                                <span>Used</span>
-                                <span className="text-emerald-600">{budgetPercent.toFixed(1)}%</span>
+                                <div className="mt-6">
+                                    <div className="flex justify-between text-[9px] uppercase tracking-widest font-['DM_Mono',monospace] text-[var(--t-text2)] mb-2">
+                                        <span>Used</span>
+                                        <span className="text-[var(--t-primary)]">{budgetPercent.toFixed(1)}%</span>
+                                    </div>
+                                    <div className="h-1 bg-[var(--t-surface3)] rounded-sm overflow-hidden">
+                                        <div
+                                            className="h-full bg-[var(--t-primary)] transition-all duration-1000 ease-out"
+                                            style={{ width: `${Math.min(budgetPercent, 100)}%` }}
+                                        ></div>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="progress-bar h-3">
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="cyber-card flex flex-col justify-end group cursor-default">
+                                <div className="absolute -bottom-2 -right-2 text-3xl opacity-10 -rotate-6 grayscale group-hover:grayscale-0 transition-all">💵</div>
+                                <p className="text-[8px] uppercase tracking-widest text-[var(--t-text2)] font-['DM_Mono',monospace] mb-1">Liquid</p>
+                                <p className="text-2xl text-[var(--t-primary)] font-['Bebas_Neue',sans-serif] tracking-wide leading-none">{formatCurrency(availableCash)}</p>
+                            </div>
+
+                            <div className="cyber-card flex flex-col justify-end group cursor-default">
+                                <div className="absolute -bottom-2 -right-2 text-3xl opacity-10 -rotate-6 grayscale group-hover:grayscale-0 transition-all">🏗️</div>
+                                <p className="text-[8px] uppercase tracking-widest text-[var(--t-text2)] font-['DM_Mono',monospace] mb-1">Inventory</p>
+                                <p className="text-2xl text-[var(--t-text)] font-['Bebas_Neue',sans-serif] tracking-wide leading-none">{formatCurrency(inventoryValue)}</p>
+                            </div>
+                        </div>
+                </div>
+
+                {/* Funding & Debt Section */}
+                <div className="ht-sec">
+                    <div className="cyber-card border-l-2 border-l-[var(--t-info)]">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-[10px] uppercase tracking-widest text-[var(--t-text2)] font-['DM_Mono',monospace]">Equity Matrix</h3>
+                            <span className="text-[8px] uppercase tracking-widest font-['DM_Mono',monospace] bg-[var(--t-info)]/10 text-[var(--t-info)] px-2 py-0.5 rounded border border-[var(--t-info)]/20">
+                                {fundingCoverage.toFixed(0)}% Cover
+                            </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                            <div className="flex flex-col">
+                                <span className="text-[8px] uppercase tracking-widest text-[var(--t-text3)] font-['DM_Mono',monospace] mb-1">Funded</span>
+                                <span className="text-lg text-[var(--t-text)] font-['Bebas_Neue',sans-serif] leading-none tracking-wide">{formatCurrency(totalFunded)}</span>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-[8px] uppercase tracking-widest text-[var(--t-text3)] font-['DM_Mono',monospace] mb-1">Debt</span>
+                                <span className="text-lg text-[var(--t-danger)] font-['Bebas_Neue',sans-serif] leading-none tracking-wide">{formatCurrency(totalDebt)}</span>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-[8px] uppercase tracking-widest text-[var(--t-text3)] font-['DM_Mono',monospace] mb-1">Ratio</span>
+                                <span className="text-lg text-[var(--t-warn)] font-['Bebas_Neue',sans-serif] leading-none tracking-wide">{debtToEquity}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Transaction Log */}
+                <div className="ht-sec">
+                    <div className="ht-sec-head">
+                        <span className="ht-sec-label">Transactions</span>
+                        {lowStockItems?.length > 0 && (
+                            <span className="text-[8px] uppercase tracking-widest text-[var(--t-warn)] font-['DM_Mono',monospace] animate-pulse">
+                                {lowStockItems.length} Low Stock
+                            </span>
+                        )}
+                    </div>
+
+                    <div className="flex flex-col gap-0.5">
+                        {expenses && expenses.length === 0 ? (
+                            <div className="ht-empty">
+                                <p>No records found</p>
+                            </div>
+                        ) : (
+                            expenses?.slice(0, 10).map((expense) => (
                                 <div
-                                    className="progress-fill"
-                                    style={{ width: `${Math.min(budgetPercent, 100)}%`, background: 'linear-gradient(90deg, #059669, #34d399)' }}
-                                ></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 px-1">
-                    <div className="bg-emerald-600 rounded-3xl p-5 shadow-lg shadow-emerald-50 relative overflow-hidden group active:scale-95 transition-all">
-                        <div className="absolute -bottom-2 -right-2 text-5xl opacity-20 rotate-6">💵</div>
-                        <p className="text-emerald-100 font-black dynamic-subtitle mb-1.5">Liquid</p>
-                        <p className="text-white dynamic-title">{formatCurrency(availableCash)}</p>
-                    </div>
-
-                    <div className="bg-teal-600 rounded-3xl p-5 shadow-lg shadow-teal-50 relative overflow-hidden group active:scale-95 transition-all">
-                        <div className="absolute -bottom-2 -right-2 text-5xl opacity-20 -rotate-6">🏗️</div>
-                        <p className="text-teal-100 font-black dynamic-subtitle mb-1.5">Inventory</p>
-                        <p className="text-white dynamic-title">{formatCurrency(inventoryValue)}</p>
-                    </div>
-                </div>
-            </div>
-
-            {/* Funding & Debt Section */}
-            <div className="card-glass rounded-3xl p-6 shadow-sm border border-slate-100">
-                <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-slate-400 dynamic-subtitle">Equity Matrix</h3>
-                    <span className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full border border-emerald-100 dynamic-subtitle">{fundingCoverage.toFixed(0)}% Cover</span>
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                    <div className="flex flex-col">
-                        <span className="text-slate-400 dynamic-subtitle mb-1">Funded</span>
-                        <span className="text-base font-black text-slate-800">{formatCurrency(totalFunded)}</span>
-                    </div>
-                    <div className="flex flex-col">
-                        <span className="text-slate-400 dynamic-subtitle mb-1">Debt</span>
-                        <span className="text-base font-black text-red-600">{formatCurrency(totalDebt)}</span>
-                    </div>
-                    <div className="flex flex-col">
-                        <span className="text-slate-400 dynamic-subtitle mb-1">Ratio</span>
-                        <span className="text-orange-600 dynamic-title">{debtToEquity}</span>
-                    </div>
-                </div>
-            </div>
-
-            {/* Transaction Log */}
-            <div className="px-1">
-                <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-slate-800 dynamic-header pl-1">Transaction Feed</h3>
-                    {lowStockItems?.length > 0 && (
-                        <div className="flex items-center gap-1 bg-amber-50 text-amber-700 px-3 py-1 rounded-full border border-amber-100 animate-pulse">
-                            <span className="dynamic-subtitle">{lowStockItems.length} Low Stock</span>
-                        </div>
-                    )}
-                </div>
-
-                <div className="space-y-4">
-                    {expenses && expenses.length === 0 ? (
-                        <div className="text-center py-16 card-glass rounded-[2rem] border-dashed">
-                            <p className="text-slate-300 dynamic-body italic">No records found</p>
-                        </div>
-                    ) : (
-                        expenses?.slice(0, 10).map((expense) => (
-                            <div
-                                key={expense.id}
-                                onClick={() => handleViewDetail(expense.id)}
-                                className="card-glass p-5 rounded-3xl flex items-center justify-between active:scale-[0.98] transition-all group"
-                            >
-                                <div className="flex items-center gap-5">
-                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-sm ${expense.expense_type === 'MATERIAL' ? 'bg-blue-50' : expense.expense_type === 'LABOR' ? 'bg-orange-50' : 'bg-purple-50' }`}>
+                                    key={expense.id}
+                                    onClick={() => handleViewDetail(expense.id)}
+                                    className="bg-[var(--t-surface)] border border-[var(--t-border)] p-3 flex items-center gap-3 cursor-pointer hover:border-[var(--t-primary)] transition-colors rounded-[2px]"
+                                >
+                                    <div className={`w-8 h-8 rounded shrink-0 flex items-center justify-center text-sm border ${expense.expense_type === 'MATERIAL' ? 'bg-[var(--t-info)]/10 border-[var(--t-info)]/30' : expense.expense_type === 'LABOR' ? 'bg-[var(--t-warn)]/10 border-[var(--t-warn)]/30' : 'bg-[var(--t-surface3)] border-[var(--t-border)]'}`}>
                                         {expense.expense_type === 'MATERIAL' ? '📦' : expense.expense_type === 'LABOR' ? '👷' : '💸'}
                                     </div>
-                                    <div>
-                                        <p className="text-slate-800 leading-tight mb-1 dynamic-body font-black">{expense.title}</p>
-                                        <span className="text-slate-400 dynamic-subtitle">{new Date(expense.date).toLocaleDateString()}</span>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[13px] text-[var(--t-text)] font-semibold truncate leading-tight">{expense.title}</p>
+                                        <p className="text-[9px] text-[var(--t-text3)] font-['DM_Mono',monospace] mt-1">{new Date(expense.date).toLocaleDateString()}</p>
+                                    </div>
+                                    <div className="text-right shrink-0">
+                                        <p className="text-[16px] text-[var(--t-text)] font-['Bebas_Neue',sans-serif] tracking-wide leading-none mb-1">{formatCurrency(expense.amount)}</p>
+                                        <span className={`text-[7px] uppercase tracking-widest font-['DM_Mono',monospace] ${Number(expense.balance_due) > 0 ? 'text-[var(--t-warn)]' : 'text-[var(--t-primary)]'}`}>
+                                            {Number(expense.balance_due) > 0 ? 'Due' : 'Paid'}
+                                        </span>
                                     </div>
                                 </div>
-                                <div className="text-right">
-                                    <p className="text-slate-800 mb-1 dynamic-body font-bold">{formatCurrency(expense.amount)}</p>
-                                    <span className={`px-2 py-1 rounded-lg dynamic-subtitle ${Number(expense.balance_due) > 0 ? 'bg-amber-50 text-amber-600' : 'bg-green-50 text-green-600' }`}>
-                                        {Number(expense.balance_due) > 0 ? 'Due' : 'Paid'}
-                                    </span>
-                                </div>
-                            </div>
-                        ))
-                    )}
+                            ))
+                        )}
+                    </div>
                 </div>
             </div>
 

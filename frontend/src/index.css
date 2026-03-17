@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700;900&family=JetBrains+Mono:wght@300;400;700&family=Inter:wght@300;400;500;700;900&family=Outfit:wght@300;400;500;700;900&family=Roboto:wght@300;400;500;700;900&display=swap');
+@import "./styles/CyberTheme.css";
 
 @tailwind base;
 @tailwind components;
@@ -44,11 +45,12 @@
 
   body {
     font-family: var(--body-font), sans-serif !important;
-    background: var(--bg-main);
-    color: #1e293b;
+    background: var(--t-bg, #f8fafc) !important;
+    color: var(--t-text, #1e293b) !important;
     font-weight: var(--body-weight) !important;
     letter-spacing: var(--body-spacing) !important;
     -webkit-font-smoothing: antialiased;
+    transition: background 0.25s ease, color 0.25s ease;
   }
 
   button, input, optgroup, select, textarea {

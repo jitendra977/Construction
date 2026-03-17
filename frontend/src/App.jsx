@@ -4,6 +4,7 @@ import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import { authService } from './services/auth';
 import { ConstructionProvider } from './context/ConstructionContext';
+import { ThemeProvider } from './context/ThemeContext';
 
 // Lazy load dashboard components
 const DesktopDashboard = lazy(() => import('./pages/desktop/DesktopDashboard'));
@@ -12,8 +13,8 @@ const DesktopRoutes = lazy(() => import('./routes/desktop/DesktopRoutes'));
 const MobileRoutes = lazy(() => import('./routes/mobile/MobileRoutes'));
 
 const LoadingFallback = () => (
-  <div className="flex justify-center items-center h-screen bg-gray-50">
-    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+  <div className="flex justify-center items-center h-screen bg-[var(--t-bg)]">
+    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--t-primary)]"></div>
   </div>
 );
 
@@ -64,52 +65,54 @@ function App() {
   const isAuthenticated = authService.isAuthenticated();
 
   return (
-    <ConstructionProvider>
-      <Router>
-        <ResponsiveRedirector>
-          <Routes>
-            <Route
-              path="/login"
-              element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />}
-            />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <DashboardRouter />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/desktop/*"
-              element={
-                <ProtectedRoute>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <DesktopDashboard />
-                  </Suspense>
-                </ProtectedRoute>
-              }
-            >
-              <Route path="*" element={<Suspense fallback={<LoadingFallback />}><DesktopRoutes /></Suspense>} />
-            </Route>
-            <Route
-              path="/dashboard/mobile/*"
-              element={
-                <ProtectedRoute>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <MobileDashboard />
-                  </Suspense>
-                </ProtectedRoute>
-              }
-            >
-              <Route path="*" element={<Suspense fallback={<LoadingFallback />}><MobileRoutes /></Suspense>} />
-            </Route>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </ResponsiveRedirector>
-      </Router>
-    </ConstructionProvider>
+    <ThemeProvider>
+      <ConstructionProvider>
+        <Router>
+          <ResponsiveRedirector>
+            <Routes>
+              <Route
+                path="/login"
+                element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />}
+              />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <DashboardRouter />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/desktop/*"
+                element={
+                  <ProtectedRoute>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <DesktopDashboard />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="*" element={<Suspense fallback={<LoadingFallback />}><DesktopRoutes /></Suspense>} />
+              </Route>
+              <Route
+                path="/dashboard/mobile/*"
+                element={
+                  <ProtectedRoute>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <MobileDashboard />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="*" element={<Suspense fallback={<LoadingFallback />}><MobileRoutes /></Suspense>} />
+              </Route>
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          </ResponsiveRedirector>
+        </Router>
+      </ConstructionProvider>
+    </ThemeProvider>
   );
 }
 

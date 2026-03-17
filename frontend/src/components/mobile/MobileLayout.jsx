@@ -6,11 +6,12 @@ const MobileLayout = ({
     subtitle, 
     headerExtra, 
     showBackground = true,
-    padding = "px-6",
-    spacing = "space-y-10"
+    padding = "px-0",
+    spacing = "space-y-0"
 }) => {
     return (
-        <div className="min-h-screen bg-[#f8fafc] text-[#1e293b] overflow-x-hidden pb-40 pt-12 relative transition-colors duration-500">
+        <div className="min-h-screen overflow-x-hidden pb-24 pt-0 relative transition-colors duration-300"
+            style={{ background: 'var(--t-bg)', color: 'var(--t-text)' }}>
             {/* LUMINOUS BACKGROUND ELEMENTS */}
             {showBackground && (
                 <>
@@ -23,15 +24,15 @@ const MobileLayout = ({
                 {/* CONSISTENT HEADER */}
                 {(title || subtitle || headerExtra) && (
                     <header className="flex flex-col gap-6 mb-12 animate-stagger">
-                        <div className="flex justify-between items-center px-1">
+                        <div className="flex justify-between items-center">
                             <div>
                                 {title && (
-                                    <h1 className="font-black tracking-tight text-slate-900 leading-none dynamic-title">
+                                    <h1 className="font-black tracking-tight text-[var(--t-text)] leading-none dynamic-title">
                                         {title}
                                     </h1>
                                 )}
                                 {subtitle && (
-                                    <p className="text-emerald-600 mt-2 dynamic-subtitle">
+                                    <p className="text-[var(--t-primary)] mt-2 dynamic-subtitle">
                                         {subtitle}
                                     </p>
                                 )}

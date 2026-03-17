@@ -23,8 +23,8 @@ const CategoriesTab = ({ searchQuery = '', resolveMetadata, onClearMetadata }) =
                 if (el) {
                     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     // Visual feedback
-                    el.classList.add('ring-2', 'ring-indigo-500', 'ring-offset-2');
-                    setTimeout(() => el.classList.remove('ring-2', 'ring-indigo-500', 'ring-offset-2'), 3000);
+                    el.classList.add('ring-2', 'ring-[var(--t-primary)]', 'ring-offset-2');
+                    setTimeout(() => el.classList.remove('ring-2', 'ring-[var(--t-primary)]', 'ring-offset-2'), 3000);
                 }
             }, 100);
             onClearMetadata();
@@ -115,31 +115,32 @@ const CategoriesTab = ({ searchQuery = '', resolveMetadata, onClearMetadata }) =
 
     return (
         <div className="space-y-4">
-            <div className="flex justify-between items-center mb-2">
-                <p className="text-sm text-gray-500">Plan budgets and distributions directly in the table below. Use "Manage" to assign funds to phases.</p>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                <p className="text-[11px] text-[var(--t-text2)] font-['DM_Mono',monospace] uppercase tracking-widest">Plan budgets and distributions directly in the table below.</p>
+                <div className="flex-1 sm:hidden"></div>
                 <button
                     onClick={handleCreateCategory}
                     disabled={loading}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors shadow-sm disabled:opacity-50"
+                    className="w-full sm:w-auto px-4 py-2.5 bg-[var(--t-primary)] text-[var(--t-bg)] rounded-[2px] hover:opacity-90 font-['DM_Mono',monospace] uppercase tracking-widest text-[10px] sm:text-xs transition-colors shadow-sm disabled:opacity-50"
                 >
                     {loading ? 'Creating...' : '+ New Category'}
                 </button>
             </div>
 
             {/* Desktop View: Table */}
-            <div className="hidden lg:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="hidden lg:block bg-[var(--t-surface)] rounded-xl shadow-sm border border-[var(--t-border)] overflow-hidden">
                 <table className="w-full text-left border-collapse">
                     <thead>
-                        <tr className="bg-gray-50 border-b border-gray-100">
-                            <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Category & Code</th>
-                            <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Planned (Target)</th>
-                            <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Actual Spent</th>
-                            <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Variance</th>
-                            <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Phase Dist.</th>
-                            <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Actions</th>
+                        <tr className="bg-[var(--t-surface2)] border-b border-[var(--t-border)]">
+                            <th className="px-6 py-4 text-xs font-bold text-[var(--t-text3)] uppercase tracking-wider">Category & Code</th>
+                            <th className="px-6 py-4 text-xs font-bold text-[var(--t-text3)] uppercase tracking-wider">Planned (Target)</th>
+                            <th className="px-6 py-4 text-xs font-bold text-[var(--t-text3)] uppercase tracking-wider">Actual Spent</th>
+                            <th className="px-6 py-4 text-xs font-bold text-[var(--t-text3)] uppercase tracking-wider">Variance</th>
+                            <th className="px-6 py-4 text-xs font-bold text-[var(--t-text3)] uppercase tracking-wider">Phase Dist.</th>
+                            <th className="px-6 py-4 text-xs font-bold text-[var(--t-text3)] uppercase tracking-wider text-right">Actions</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="divide-y divide-[var(--t-border)]">
                         {filteredCategories.map(c => {
                             const isExpanded = expandedId === c.id;
                             const currentBudget = localBudgets[c.id] !== undefined ? localBudgets[c.id] : c.allocation;
@@ -162,11 +163,11 @@ const CategoriesTab = ({ searchQuery = '', resolveMetadata, onClearMetadata }) =
 
                             return (
                                 <React.Fragment key={c.id}>
-                                    <tr id={'category-row-' + c.id} className={`hover:bg-gray-50 transition-colors group ${isExpanded ? 'bg-indigo-50/30' : ''}`}>
+                                    <tr id={'category-row-' + c.id} className={`hover:bg-[var(--t-surface2)] transition-colors group ${isExpanded ? 'bg-[var(--t-primary)]/5' : ''}`}>
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col">
-                                                <span className="font-bold text-gray-900">{c.name}</span>
-                                                <span className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">{c.code || 'PLANNING'} {isOverSpent && '🚨'}</span>
+                                                <span className="font-bold text-[var(--t-text)]">{c.name}</span>
+                                                <span className="text-[10px] text-[var(--t-text3)] font-medium uppercase tracking-widest">{c.code || 'PLANNING'} {isOverSpent && '🚨'}</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
@@ -175,35 +176,35 @@ const CategoriesTab = ({ searchQuery = '', resolveMetadata, onClearMetadata }) =
                                                     type="number"
                                                     value={currentBudget}
                                                     onChange={(e) => setLocalBudgets({ ...localBudgets, [c.id]: parseFloat(e.target.value) || 0 })}
-                                                    className="w-full bg-white border border-gray-100 rounded-lg px-2 py-1.5 text-xs font-black text-indigo-600 focus:ring-2 focus:ring-indigo-500 outline-none transition-all shadow-sm"
+                                                    className="w-full bg-[var(--t-surface)] border border-[var(--t-border)] rounded-lg px-2 py-1.5 text-xs font-black text-[var(--t-primary)] focus:ring-2 focus:ring-[var(--t-primary)] outline-none transition-all shadow-sm"
                                                 />
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col">
-                                                <span className={`text-xs font-black ${isOverSpent ? 'text-red-600' : 'text-gray-900'}`}>
+                                                <span className={`text-xs font-black ${isOverSpent ? 'text-[var(--t-danger)]' : 'text-[var(--t-text)]'}`}>
                                                     Rs. {spent.toLocaleString()}
                                                 </span>
-                                                <div className="w-16 h-1 bg-gray-100 rounded-full mt-1 overflow-hidden">
+                                                <div className="w-16 h-1 bg-[var(--t-surface3)] rounded-full mt-1 overflow-hidden">
                                                     <div
-                                                        className={`h-full ${isOverSpent ? 'bg-red-500' : 'bg-emerald-500'}`}
+                                                        className={`h-full ${isOverSpent ? 'bg-[var(--t-danger)]' : 'bg-green-500'}`}
                                                         style={{ width: `${Math.min((spent / (currentBudget || 1)) * 100, 100)}%` }}
                                                     ></div>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className={`text-xs font-black ${variance < 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                                            <div className={`text-xs font-black ${variance < 0 ? 'text-[var(--t-danger)]' : 'text-[var(--t-primary)]'}`}>
                                                 {variance < 0 ? '-' : '+'} Rs. {Math.abs(variance).toLocaleString()}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-2">
-                                                <span className={`text-[11px] font-black ${isCorrect ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                                <span className={`text-[11px] font-black ${isCorrect ? 'text-[var(--t-primary)]' : 'text-orange-500'}`}>
                                                     {((currentDistTotal / (currentBudget || 1)) * 100).toFixed(0)}%
                                                 </span>
                                                 <div className="flex flex-col">
-                                                    {!isCorrect && <span className="text-[8px] font-bold text-amber-600 animate-pulse">FIX PLAN</span>}
+                                                    {!isCorrect && <span className="text-[8px] font-bold text-orange-500 animate-pulse">FIX PLAN</span>}
                                                 </div>
                                             </div>
                                         </td>
@@ -211,7 +212,7 @@ const CategoriesTab = ({ searchQuery = '', resolveMetadata, onClearMetadata }) =
                                             <div className="flex justify-end gap-1 opacity-10 md:opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button
                                                     onClick={() => setExpandedId(isExpanded ? null : c.id)}
-                                                    className={`p-2 rounded-lg transition-all border ${isExpanded ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-400 border-gray-100 hover:border-indigo-200 hover:text-indigo-600'}`}
+                                                    className={`p-2 rounded-lg transition-all border ${isExpanded ? 'bg-[var(--t-primary)] text-[var(--t-bg)] border-[var(--t-primary2)]' : 'bg-[var(--t-surface)] text-[var(--t-text3)] border-[var(--t-border)] hover:border-[var(--t-primary)] hover:text-[var(--t-primary)]'}`}
                                                     title="Distribute to Phases"
                                                 >
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
@@ -220,7 +221,7 @@ const CategoriesTab = ({ searchQuery = '', resolveMetadata, onClearMetadata }) =
                                                     <button
                                                         onClick={() => handleInlineSave(c)}
                                                         disabled={isSaving}
-                                                        className="p-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all disabled:opacity-50"
+                                                        className="p-2 bg-[var(--t-primary)] text-white rounded-lg hover:bg-emerald-700 transition-all disabled:opacity-50"
                                                         title="Save Changes"
                                                     >
                                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
@@ -228,7 +229,7 @@ const CategoriesTab = ({ searchQuery = '', resolveMetadata, onClearMetadata }) =
                                                 )}
                                                 <button
                                                     onClick={() => handleDelete(c.id)}
-                                                    className="p-2 text-rose-300 hover:text-rose-600 transition-colors"
+                                                    className="p-2 text-[var(--t-danger)] hover:opacity-80 transition-colors"
                                                     title="Delete Category"
                                                 >
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -240,21 +241,21 @@ const CategoriesTab = ({ searchQuery = '', resolveMetadata, onClearMetadata }) =
                                     {/* Expansion Row for Phase Distribution */}
                                     {isExpanded && (
                                         <tr>
-                                            <td colSpan="5" className="bg-gray-50/80 px-12 py-8 border-b border-indigo-100">
+                                            <td colSpan="5" className="bg-[var(--t-surface2)] px-12 py-8 border-b border-[var(--t-border)]">
                                                 <div className="flex flex-col gap-6 animate-in slide-in-from-top-4 duration-300">
                                                     <div className="flex justify-between items-center">
                                                         <div>
-                                                            <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">Phase-wise distribution for {c.name}</h4>
-                                                            <p className="text-[11px] text-gray-500 font-medium">Assign specific portions of the category budget to construction phases.</p>
+                                                            <h4 className="text-sm font-black text-[var(--t-text)] uppercase tracking-tight">Phase-wise distribution for {c.name}</h4>
+                                                            <p className="text-[11px] text-[var(--t-text2)] font-medium">Assign specific portions of the category budget to construction phases.</p>
                                                         </div>
-                                                        <div className="bg-white px-6 py-3 rounded-2xl border border-indigo-100 shadow-sm flex gap-8">
+                                                        <div className="bg-[var(--t-surface)] px-6 py-3 rounded-2xl border border-[var(--t-border)] shadow-sm flex gap-8">
                                                             <div className="flex flex-col">
-                                                                <span className="text-[9px] font-black text-gray-400 uppercase">Target Budget</span>
-                                                                <span className="text-base font-black text-indigo-600">Rs. {currentBudget.toLocaleString()}</span>
+                                                                <span className="text-[9px] font-black text-[var(--t-text3)] uppercase">Target Budget</span>
+                                                                <span className="text-base font-black text-[var(--t-primary)]">Rs. {currentBudget.toLocaleString()}</span>
                                                             </div>
-                                                            <div className="flex flex-col border-l border-gray-100 pl-8">
-                                                                <span className="text-[9px] font-black text-gray-400 uppercase">Total Distributed</span>
-                                                                <span className={`text-base font-black ${isCorrect ? 'text-emerald-600' : 'text-amber-500'}`}>Rs. {currentDistTotal.toLocaleString()}</span>
+                                                            <div className="flex flex-col border-l border-[var(--t-border)] pl-8">
+                                                                <span className="text-[9px] font-black text-[var(--t-text3)] uppercase">Total Distributed</span>
+                                                                <span className={`text-base font-black ${isCorrect ? 'text-[var(--t-primary)]' : 'text-amber-500'}`}>Rs. {currentDistTotal.toLocaleString()}</span>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -269,24 +270,24 @@ const CategoriesTab = ({ searchQuery = '', resolveMetadata, onClearMetadata }) =
                                                             const phaseSpent = dashboardData.expenses?.filter(e => e.phase === phase.id && e.category === c.id).reduce((sum, e) => sum + Number(e.amount), 0) || 0;
 
                                                             return (
-                                                                <div key={phase.id} className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden transition-all hover:border-indigo-200">
-                                                                    <div className="p-6 flex items-center justify-between bg-white border-b border-gray-50">
+                                                                <div key={phase.id} className="bg-[var(--t-surface)] rounded-[2rem] border border-[var(--t-border)] shadow-sm overflow-hidden transition-all hover:border-[var(--t-border)]">
+                                                                    <div className="p-6 flex items-center justify-between bg-[var(--t-surface)] border-b border-[var(--t-border)]">
                                                                         <div className="flex items-center gap-5">
-                                                                            <div className="w-10 h-10 bg-indigo-50 rounded-2xl flex items-center justify-center text-xs font-black text-indigo-600">
+                                                                            <div className="w-10 h-10 bg-[var(--t-nav-active-bg)] rounded-2xl flex items-center justify-center text-xs font-black text-[var(--t-primary)]">
                                                                                 {phase.order}
                                                                             </div>
                                                                             <div className="flex flex-col">
-                                                                                <span className="text-sm font-black text-gray-900 uppercase tracking-tight">{phase.name}</span>
-                                                                                <span className="text-[10px] text-gray-400 font-bold">Phase Total Estimate: Rs. {Number(phase.estimated_budget).toLocaleString()}</span>
+                                                                                <span className="text-sm font-black text-[var(--t-text)] uppercase tracking-tight">{phase.name}</span>
+                                                                                <span className="text-[10px] text-[var(--t-text3)] font-bold">Phase Total Estimate: Rs. {Number(phase.estimated_budget).toLocaleString()}</span>
                                                                             </div>
                                                                         </div>
                                                                         <div className="flex items-center gap-10">
                                                                             <div className="flex flex-col items-end">
-                                                                                <span className="text-[9px] font-black text-gray-400 uppercase">Phase Spent</span>
-                                                                                <span className="text-sm font-black text-gray-900">Rs. {phaseSpent.toLocaleString()}</span>
+                                                                                <span className="text-[9px] font-black text-[var(--t-text3)] uppercase">Phase Spent</span>
+                                                                                <span className="text-sm font-black text-[var(--t-text)]">Rs. {phaseSpent.toLocaleString()}</span>
                                                                             </div>
                                                                             <div className="w-32">
-                                                                                <label className="block text-[9px] font-black text-gray-400 uppercase mb-1 ml-1 text-right">Phase Allocation</label>
+                                                                                <label className="block text-[9px] font-black text-[var(--t-text3)] uppercase mb-1 ml-1 text-right">Phase Allocation</label>
                                                                                 <input
                                                                                     type="number"
                                                                                     placeholder="0.00"
@@ -298,7 +299,7 @@ const CategoriesTab = ({ searchQuery = '', resolveMetadata, onClearMetadata }) =
                                                                                             [phase.id]: e.target.value
                                                                                         }
                                                                                     })}
-                                                                                    className="w-full text-right text-sm font-black text-emerald-600 border-none bg-emerald-50/50 rounded-xl focus:ring-4 focus:ring-emerald-100 px-4 py-2 outline-none transition-all"
+                                                                                    className="w-full text-right text-sm font-black text-[var(--t-primary)] border-none bg-[var(--t-surface2)] rounded-xl focus:ring-2 focus:ring-[var(--t-primary)]/30 px-4 py-2 outline-none transition-all"
                                                                                 />
                                                                             </div>
                                                                         </div>
@@ -306,8 +307,8 @@ const CategoriesTab = ({ searchQuery = '', resolveMetadata, onClearMetadata }) =
 
                                                                     {/* Tasks Breakdown */}
                                                                     {tasks.length > 0 && (
-                                                                        <div className="bg-gray-50/30 p-4 px-8 border-t border-gray-50 animate-in fade-in slide-in-from-top-2">
-                                                                            <h5 className="text-[9px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-4">Task-Level Breakdown</h5>
+                                                                        <div className="bg-[var(--t-bg)]/50 p-4 px-8 border-t border-[var(--t-border)] animate-in fade-in slide-in-from-top-2">
+                                                                            <h5 className="text-[9px] font-black text-[var(--t-primary)] uppercase tracking-[0.2em] mb-4">Task-Level Breakdown</h5>
                                                                             <div className="space-y-3">
                                                                                 {tasks.map(task => {
                                                                                     const taskSpent = dashboardData.expenses?.filter(e => e.task === task.id).reduce((sum, e) => sum + Number(e.amount), 0) || 0;
@@ -316,17 +317,17 @@ const CategoriesTab = ({ searchQuery = '', resolveMetadata, onClearMetadata }) =
                                                                                     return (
                                                                                         <div key={task.id} className="flex justify-between items-center group/task py-1">
                                                                                             <div className="flex items-center gap-3">
-                                                                                                <div className="w-1.5 h-1.5 rounded-full bg-gray-200 group-hover/task:bg-indigo-400 transition-colors"></div>
-                                                                                                <span className="text-xs font-bold text-gray-600">{task.title}</span>
+                                                                                                <div className="w-1.5 h-1.5 rounded-full bg-[var(--t-border)] group-hover/task:bg-[var(--t-primary)] transition-colors"></div>
+                                                                                                <span className="text-xs font-bold text-[var(--t-text2)]">{task.title}</span>
                                                                                             </div>
                                                                                             <div className="flex items-center gap-8">
                                                                                                 <div className="flex flex-col items-end">
-                                                                                                    <span className="text-[8px] font-bold text-gray-400 uppercase">Est. Cost</span>
-                                                                                                    <span className="text-[11px] font-black text-gray-500">Rs. {Number(task.estimated_cost).toLocaleString()}</span>
+                                                                                                    <span className="text-[8px] font-bold text-[var(--t-text3)] uppercase">Est. Cost</span>
+                                                                                                    <span className="text-[11px] font-black text-[var(--t-text2)]">Rs. {Number(task.estimated_cost).toLocaleString()}</span>
                                                                                                 </div>
                                                                                                 <div className="flex flex-col items-end w-24">
-                                                                                                    <span className="text-[8px] font-bold text-gray-400 uppercase">Spent</span>
-                                                                                                    <span className={`text-[11px] font-black ${isOver ? 'text-red-500' : 'text-emerald-600'}`}>Rs. {taskSpent.toLocaleString()}</span>
+                                                                                                    <span className="text-[8px] font-bold text-[var(--t-text3)] uppercase">Spent</span>
+                                                                                                    <span className={`text-[11px] font-black ${isOver ? 'text-[var(--t-danger)]' : 'text-[var(--t-primary)]'}`}>Rs. {taskSpent.toLocaleString()}</span>
                                                                                                 </div>
                                                                                             </div>
                                                                                         </div>
@@ -340,17 +341,17 @@ const CategoriesTab = ({ searchQuery = '', resolveMetadata, onClearMetadata }) =
                                                         })}
                                                     </div>
 
-                                                    <div className="flex justify-end gap-3 mt-4 border-t border-gray-100 pt-6">
+                                                    <div className="flex justify-end gap-3 mt-4 border-t border-[var(--t-border)] pt-6">
                                                         <button
                                                             onClick={() => setExpandedId(null)}
-                                                            className="px-6 py-2.5 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-gray-600 transition-colors"
+                                                            className="px-6 py-2.5 text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest hover:text-[var(--t-text2)] transition-colors"
                                                         >
                                                             Discard Changes
                                                         </button>
                                                         <button
                                                             onClick={() => handleInlineSave(c)}
                                                             disabled={isSaving}
-                                                            className="px-12 py-3 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-indigo-100 hover:bg-black hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+                                                            className="px-12 py-3 bg-[var(--t-primary)] text-[var(--t-bg)] rounded-xl text-[10px] font-black uppercase shadow-lg shadow-[var(--t-primary)]/10 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
                                                         >
                                                             {isSaving ? 'Updating Database...' : 'Finalize Planning'}
                                                         </button>
@@ -364,15 +365,15 @@ const CategoriesTab = ({ searchQuery = '', resolveMetadata, onClearMetadata }) =
                         })}
                         {filteredCategories.length === 0 && (
                             <tr>
-                                <td colSpan="3" className="px-6 py-10 text-center text-gray-400 italic text-sm">No categories found matching your search.</td>
+                                <td colSpan="3" className="px-6 py-10 text-center text-[var(--t-text3)] italic text-sm">No categories found matching your search.</td>
                             </tr>
                         )}
                     </tbody>
                 </table>
             </div>
 
-            {/* Mobile View: High-End Interactive Cards */}
-            <div className="lg:hidden space-y-5">
+            {/* Mobile View: Cyber List */}
+            <div className="lg:hidden flex flex-col gap-0.5">
                 {filteredCategories.map(c => {
                     const isExpanded = expandedId === c.id;
                     const currentBudget = localBudgets[c.id] !== undefined ? localBudgets[c.id] : c.allocation;
@@ -381,148 +382,122 @@ const CategoriesTab = ({ searchQuery = '', resolveMetadata, onClearMetadata }) =
                     const currentDistTotal = Object.keys(localCatAllocations).length > 0
                         ? dashboardData.phases?.reduce((sum, p) => sum + (parseFloat(localCatAllocations[p.id] !== undefined ? localCatAllocations[p.id] : (phaseAllocations.find(a => a.phase === p.id)?.amount || 0))), 0)
                         : phaseAllocations.reduce((sum, a) => sum + Number(a.amount), 0);
-
                     const isCorrect = currentBudget <= currentDistTotal + 0.1;
                     const isSaving = loadingRow === c.id;
-
-                    // Plan vs Actual Stats
                     const spent = Number(c.spent) || 0;
-                    const variance = currentBudget - spent;
                     const isOverSpent = spent > currentBudget;
+                    const spentPct = Math.min((spent / (currentBudget || 1)) * 100, 100);
 
                     return (
-                        <div key={c.id} className={`bg-white rounded-3xl p-6 border shadow-xl transition-all ${isCorrect ? 'border-gray-100' : 'border-amber-100 shadow-amber-50'}`}>
-                            <div className="flex justify-between items-start mb-6">
-                                <div>
-                                    <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight leading-none mb-1">{c.name}</h3>
-                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">Category Plan</span>
+                        <div key={c.id} className={`border rounded-[2px] transition-all ${isExpanded ? 'border-[var(--t-primary)]' : 'border-[var(--t-border)] hover:border-[var(--t-primary)]'} bg-[var(--t-surface)]`}>
+                            {/* Summary row */}
+                            <div className="p-3 flex items-center gap-3">
+                                {/* Status icon */}
+                                <div className={`w-9 h-9 rounded shrink-0 flex items-center justify-center text-xs font-['DM_Mono',monospace] font-bold border
+                                    ${isOverSpent ? 'bg-[var(--t-danger)]/10 border-[var(--t-danger)]/40 text-[var(--t-danger)]' :
+                                      isCorrect ? 'bg-[var(--t-primary)]/10 border-[var(--t-primary)]/30 text-[var(--t-primary)]' :
+                                      'bg-[var(--t-warn)]/10 border-[var(--t-warn)]/30 text-[var(--t-warn)]'}`}>
+                                    {isOverSpent ? '🚨' : isCorrect ? '✓' : '!'}
                                 </div>
-                                <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                                    {isCorrect ? 'Plan Ready' : 'Planning Error'}
-                                </div>
-                            </div>
-
-                            <div className="space-y-4 mb-6">
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Allocated Budget (Rs.)</label>
-                                    <input
-                                        type="number"
-                                        value={currentBudget}
-                                        onChange={(e) => setLocalBudgets({ ...localBudgets, [c.id]: parseFloat(e.target.value) || 0 })}
-                                        className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-base font-black text-indigo-600 focus:ring-4 focus:ring-indigo-100 outline-none transition-all"
-                                    />
-                                </div>
-
-                                {/* Spending Progress Section */}
-                                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                                    <div className="flex justify-between items-center text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
-                                        <span>Actual Spent</span>
-                                        <span className={variance < 0 ? 'text-red-500' : 'text-emerald-600'}>
-                                            {variance < 0 ? 'Over' : 'Remaining'}: Rs. {Math.abs(variance).toLocaleString()}
+                                {/* Middle */}
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-[13px] text-[var(--t-text)] font-semibold truncate leading-tight">{c.name}</p>
+                                    <div className="flex items-center gap-1 mt-0.5">
+                                        <span className="text-[8px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-widest">
+                                            {c.code || 'BUDGET'}
                                         </span>
+                                        <span className="h-px bg-[var(--t-border)] flex-1" />
                                     </div>
-                                    <div className="flex justify-between items-end mb-2">
-                                        <span className={`text-lg font-black ${isOverSpent ? 'text-red-600' : 'text-gray-900'}`}>Rs. {Number(c.spent || 0).toLocaleString()}</span>
-                                        <span className="text-[10px] font-bold text-gray-400">
-                                            {((Number(c.spent || 0) / (currentBudget || 1)) * 100).toFixed(1)}% used
-                                        </span>
-                                    </div>
-                                    <div className="w-full h-2 bg-white rounded-full overflow-hidden border border-gray-100">
-                                        <div
-                                            className={`h-full transition-all duration-1000 ${isOverSpent ? 'bg-red-500' : 'bg-emerald-500'}`}
-                                            style={{ width: `${Math.min((Number(c.spent || 0) / (currentBudget || 1)) * 100, 100)}%` }}
-                                        ></div>
+                                    <div className="mt-1.5 h-1 bg-[var(--t-surface3)] rounded-sm overflow-hidden">
+                                        <div className={`h-full transition-all duration-700 ${isOverSpent ? 'bg-[var(--t-danger)]' : 'bg-[var(--t-primary)]'}`}
+                                            style={{ width: `${spentPct}%` }} />
                                     </div>
                                 </div>
-
-                                <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100">
-                                    <div className="flex justify-between items-center text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2">
-                                        <span>Phase Distributions</span>
-                                        <span>{((currentDistTotal / (currentBudget || 1)) * 100).toFixed(1)}%</span>
+                                {/* Right */}
+                                <div className="text-right shrink-0 flex flex-col gap-1">
+                                    <p className="text-[16px] text-[var(--t-text)] font-['Bebas_Neue',sans-serif] tracking-wide leading-none">
+                                        {Number(currentBudget).toLocaleString()}
+                                    </p>
+                                    <span className={`text-[7px] uppercase tracking-widest font-['DM_Mono',monospace] ${isOverSpent ? 'text-[var(--t-danger)]' : 'text-[var(--t-text3)]'}`}>
+                                        spent {spent.toLocaleString()}
+                                    </span>
+                                    <div className="flex gap-1 justify-end">
+                                        <button onClick={() => setExpandedId(isExpanded ? null : c.id)}
+                                            className={`px-2 py-0.5 text-[8px] uppercase tracking-widest font-['DM_Mono',monospace] border rounded-[1px] transition-colors
+                                                ${isExpanded ? 'border-[var(--t-primary)] bg-[var(--t-primary)]/10 text-[var(--t-primary)]' :
+                                                  'border-[var(--t-border)] text-[var(--t-text3)] hover:border-[var(--t-primary)] hover:text-[var(--t-primary)]'}`}>
+                                            {isExpanded ? 'Close' : 'Plan'}
+                                        </button>
+                                        <button onClick={() => handleDelete(c.id)}
+                                            className="px-2 py-0.5 text-[8px] uppercase tracking-widest font-['DM_Mono',monospace] border border-[var(--t-danger)]/30 text-[var(--t-danger)] rounded-[1px] hover:bg-[var(--t-danger)]/10 transition-colors">
+                                            Del
+                                        </button>
                                     </div>
-                                    <span className={`text-xl font-black ${isCorrect ? 'text-emerald-600' : 'text-amber-500'}`}>Rs. {currentDistTotal.toLocaleString()}</span>
-                                    {!isCorrect && <p className="text-[8px] font-black text-amber-600 mt-2">⚠️ ALLOCATED BUDGET MUST BE ≤ DISTRIBUTED FUNDS</p>}
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
-                                <button
-                                    onClick={() => setExpandedId(isExpanded ? null : c.id)}
-                                    className="py-4 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center active:scale-95 transition-all shadow-lg shadow-gray-200"
-                                >
-                                    {isExpanded ? 'Close Plan' : 'View Phases'}
-                                </button>
-                                <button
-                                    onClick={() => handleDelete(c.id)}
-                                    className="py-4 bg-rose-50 text-rose-600 rounded-2xl text-[10px] font-black uppercase flex items-center justify-center active:scale-95 transition-all border border-rose-100"
-                                >
-                                    Delete
-                                </button>
-                                {(localBudgets[c.id] !== undefined || localAllocations[c.id]) && (
-                                    <button
-                                        onClick={() => handleInlineSave(c)}
-                                        disabled={isSaving}
-                                        className="col-span-2 py-4 bg-emerald-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-emerald-100 hover:bg-emerald-700 transition-all disabled:opacity-50"
-                                    >
-                                        {isSaving ? 'Processing Plan...' : 'Save Category Changes'}
-                                    </button>
-                                )}
-                            </div>
-
-                            {/* Mobile Expansion */}
+                            {/* Expanded phase distribution */}
                             {isExpanded && (
-                                <div className="mt-8 space-y-3 pt-6 border-t border-gray-100 animate-in slide-in-from-top-4">
+                                <div className="border-t border-[var(--t-border)] p-3 space-y-3 bg-[var(--t-surface2)]">
+                                    <div className="flex items-center justify-between mb-1">
+                                        <span className="text-[8px] font-['DM_Mono',monospace] uppercase tracking-widest text-[var(--t-text3)]">Phase Allocations</span>
+                                        <span className={`text-[8px] font-['DM_Mono',monospace] uppercase tracking-widest ${isCorrect ? 'text-[var(--t-primary)]' : 'text-[var(--t-warn)]'}`}>
+                                            {isCorrect ? 'PLAN OK' : '⚠ FIX PLAN'}
+                                        </span>
+                                    </div>
+
+                                    {/* Budget input */}
+                                    <div>
+                                        <label className="text-[8px] font-['DM_Mono',monospace] uppercase tracking-widest text-[var(--t-text3)] block mb-1">Allocated Budget (Rs)</label>
+                                        <input
+                                            type="number"
+                                            value={currentBudget}
+                                            onChange={(e) => setLocalBudgets({ ...localBudgets, [c.id]: parseFloat(e.target.value) || 0 })}
+                                            className="w-full bg-[var(--t-surface)] border border-[var(--t-border)] rounded-[2px] px-3 py-2 text-sm font-bold text-[var(--t-primary)] focus:border-[var(--t-primary)] outline-none transition-colors font-['DM_Mono',monospace]"
+                                        />
+                                    </div>
+
                                     {dashboardData.phases?.map(phase => {
                                         const existingAlloc = phaseAllocations.find(a => a.phase === phase.id)?.amount || 0;
                                         const currentValue = localCatAllocations[phase.id] !== undefined ? localCatAllocations[phase.id] : existingAlloc;
-                                        const tasks = dashboardData.tasks?.filter(t => t.phase === phase.id && t.category === c.id) || [];
-
                                         return (
-                                            <div key={phase.id} className="bg-gray-50 p-5 rounded-3xl border border-gray-100 space-y-4">
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-3">
-                                                        <span className="w-8 h-8 bg-white rounded-xl flex items-center justify-center text-[11px] font-black text-gray-400 shadow-sm">{phase.order}</span>
-                                                        <span className="text-sm font-black text-gray-700">{phase.name}</span>
-                                                    </div>
-                                                    <input
-                                                        type="number"
-                                                        value={currentValue || ''}
-                                                        onChange={(e) => setLocalAllocations({
-                                                            ...localAllocations,
-                                                            [c.id]: {
-                                                                ...(localAllocations[c.id] || {}),
-                                                                [phase.id]: e.target.value
-                                                            }
-                                                        })}
-                                                        className="w-28 bg-white border border-gray-100 rounded-2xl px-4 py-2.5 text-right text-sm font-black text-emerald-600 outline-none focus:ring-4 focus:ring-emerald-100"
-                                                        placeholder="0.00"
-                                                    />
+                                            <div key={phase.id} className="flex items-center gap-2 bg-[var(--t-surface)] border border-[var(--t-border)] rounded-[2px] p-2">
+                                                <div className="w-6 h-6 rounded shrink-0 flex items-center justify-center text-[10px] font-['DM_Mono',monospace] bg-[var(--t-primary)]/10 border border-[var(--t-primary)]/30 text-[var(--t-primary)]">
+                                                    {phase.order}
                                                 </div>
-
-                                                {tasks.length > 0 && (
-                                                    <div className="space-y-2 pl-2">
-                                                        {tasks.map(task => {
-                                                            const taskSpent = dashboardData.expenses?.filter(e => e.task === task.id).reduce((sum, e) => sum + Number(e.amount), 0) || 0;
-                                                            return (
-                                                                <div key={task.id} className="flex justify-between items-center text-[10px]">
-                                                                    <span className="font-bold text-gray-500">{task.title}</span>
-                                                                    <div className="flex gap-4">
-                                                                        <span className="text-gray-400">Est: {Number(task.estimated_cost).toLocaleString()}</span>
-                                                                        <span className="font-black text-indigo-500">{taskSpent.toLocaleString()}</span>
-                                                                    </div>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                )}
+                                                <span className="flex-1 text-[11px] text-[var(--t-text)] font-semibold truncate">{phase.name}</span>
+                                                <input
+                                                    type="number"
+                                                    value={currentValue || ''}
+                                                    onChange={(e) => setLocalAllocations({
+                                                        ...localAllocations,
+                                                        [c.id]: { ...(localAllocations[c.id] || {}), [phase.id]: e.target.value }
+                                                    })}
+                                                    className="w-24 bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-[2px] px-2 py-1.5 text-right text-sm font-bold text-[var(--t-primary)] outline-none focus:border-[var(--t-primary)] transition-colors font-['DM_Mono',monospace]"
+                                                    placeholder="0.00"
+                                                />
                                             </div>
                                         );
                                     })}
+
+                                    <div className="flex gap-2 pt-1">
+                                        <button onClick={() => setExpandedId(null)}
+                                            className="flex-1 py-2 text-[8px] uppercase tracking-widest font-['DM_Mono',monospace] text-[var(--t-text3)] border border-[var(--t-border)] rounded-[1px] hover:text-[var(--t-text2)] transition-colors">
+                                            Cancel
+                                        </button>
+                                        <button onClick={() => handleInlineSave(c)} disabled={isSaving}
+                                            className="flex-1 py-2 text-[8px] uppercase tracking-widest font-['DM_Mono',monospace] bg-[var(--t-primary)] text-[var(--t-bg)] rounded-[1px] disabled:opacity-50 transition-colors hover:opacity-90">
+                                            {isSaving ? 'Saving...' : 'Save Plan'}
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </div>
                     );
                 })}
+                {filteredCategories.length === 0 && (
+                    <div className="ht-empty"><p>No categories found.</p></div>
+                )}
             </div>
         </div>
     );

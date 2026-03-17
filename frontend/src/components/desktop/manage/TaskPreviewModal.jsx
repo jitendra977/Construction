@@ -14,18 +14,18 @@ const TaskPreviewModal = ({ isOpen, onClose, task }) => {
     const getStatusStyle = (status) => {
         switch (status) {
             case 'COMPLETED': return 'bg-green-100 text-green-700 border-green-200';
-            case 'IN_PROGRESS': return 'bg-indigo-100 text-indigo-700 border-indigo-200';
-            case 'BLOCKED': return 'bg-red-100 text-red-700 border-red-200';
-            default: return 'bg-gray-100 text-gray-700 border-gray-200';
+            case 'IN_PROGRESS': return 'bg-[var(--t-nav-active-bg)] text-[var(--t-nav-active-text)] border-[var(--t-border)]';
+            case 'BLOCKED': return 'bg-red-100 text-[var(--t-danger)] border-[var(--t-danger)]/30';
+            default: return 'bg-[var(--t-surface3)] text-[var(--t-text2)] border-[var(--t-border)]';
         }
     };
 
     const getPriorityStyle = (priority) => {
         switch (priority) {
-            case 'CRITICAL': return 'bg-red-50 text-red-700 border-red-200';
+            case 'CRITICAL': return 'bg-[var(--t-danger)]/10 text-[var(--t-danger)] border-[var(--t-danger)]/30';
             case 'HIGH': return 'bg-orange-50 text-orange-700 border-orange-200';
-            case 'MEDIUM': return 'bg-indigo-50 text-indigo-700 border-indigo-200';
-            default: return 'bg-gray-50 text-gray-700 border-gray-200';
+            case 'MEDIUM': return 'bg-[var(--t-nav-active-bg)] text-[var(--t-nav-active-text)] border-[var(--t-border)]';
+            default: return 'bg-[var(--t-surface2)] text-[var(--t-text2)] border-[var(--t-border)]';
         }
     };
 
@@ -35,7 +35,7 @@ const TaskPreviewModal = ({ isOpen, onClose, task }) => {
 
                 {/* Header Information */}
                 <div>
-                    <h2 className="text-xl font-bold text-gray-900 leading-tight">
+                    <h2 className="text-xl font-bold text-[var(--t-text)] leading-tight">
                         {task.title}
                     </h2>
                     <div className="flex flex-wrap items-center gap-2 mt-3">
@@ -49,20 +49,20 @@ const TaskPreviewModal = ({ isOpen, onClose, task }) => {
                 </div>
 
                 {/* Details Grid */}
-                <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-[var(--t-surface2)] rounded-xl p-4 border border-[var(--t-border)] grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                        <div className="text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest mb-1">
                             Phase
                         </div>
-                        <div className="text-sm font-semibold text-gray-800">
+                        <div className="text-sm font-semibold text-[var(--t-text)]">
                             {getPhaseName(task.phase)}
                         </div>
                     </div>
                     <div>
-                        <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                        <div className="text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest mb-1">
                             Assigned To
                         </div>
-                        <div className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                        <div className="text-sm font-semibold text-[var(--t-text)] flex items-center gap-2">
                             <span>👤</span> {getContractorName(task.assigned_to)}
                         </div>
                     </div>
@@ -71,10 +71,10 @@ const TaskPreviewModal = ({ isOpen, onClose, task }) => {
                 {/* Description Box */}
                 {task.description && (
                     <div>
-                        <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2 border-b border-gray-100 pb-1">
+                        <div className="text-[10px] font-black text-[var(--t-primary)] uppercase tracking-widest mb-2 border-b border-[var(--t-border)] pb-1">
                             Task Description
                         </div>
-                        <p className="text-sm text-gray-700 leading-relaxed font-medium whitespace-pre-wrap">
+                        <p className="text-sm text-[var(--t-text2)] leading-relaxed font-medium whitespace-pre-wrap">
                             {task.description}
                         </p>
                     </div>
@@ -83,7 +83,7 @@ const TaskPreviewModal = ({ isOpen, onClose, task }) => {
                 {/* Task Proofs (Media) */}
                 {task.media && task.media.length > 0 && (
                     <div>
-                        <div className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                        <div className="text-[10px] font-black text-[var(--t-primary)] uppercase tracking-widest mb-3 flex items-center gap-2">
                             <span>📸</span> Uploaded Proofs
                             <span className="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-[9px]">
                                 {task.media.length} items
@@ -96,7 +96,7 @@ const TaskPreviewModal = ({ isOpen, onClose, task }) => {
                                     href={getMediaUrl(m.file)}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="block group relative rounded-xl overflow-hidden shadow-sm border border-gray-200 aspect-square"
+                                    className="block group relative rounded-xl overflow-hidden shadow-sm border border-[var(--t-border)] aspect-square"
                                 >
                                     <img
                                         src={getMediaUrl(m.file)}

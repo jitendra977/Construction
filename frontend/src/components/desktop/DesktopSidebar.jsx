@@ -1,38 +1,46 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { getMediaUrl } from '../../services/api';
+import ThemeToggle from '../common/ThemeToggle';
 
 const DesktopSidebar = ({ user, onLogout, navItems }) => {
     const linkClasses = ({ isActive }) =>
         `w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left font-medium transition-all ${isActive
-            ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-            : 'text-gray-600 hover:bg-gray-50'
+            ? 'bg-[var(--t-nav-active-bg)] text-[var(--t-nav-active-text)] shadow-sm font-semibold'
+            : 'text-[var(--t-text2)] hover:bg-[var(--t-nav-hover-bg)] hover:text-[var(--t-text)]'
         }`;
 
     return (
-        <aside className="w-64 bg-white border-r border-gray-200 flex flex-col fixed h-full z-10">
-            <div className="p-6 border-b border-gray-100 relative overflow-hidden group">
-                {/* Background Decoration */}
-                <div className="absolute -top-4 -right-4 w-20 h-20 bg-indigo-50/50 rounded-full blur-2xl group-hover:bg-indigo-100/50 transition-colors duration-500"></div>
+        <aside className="w-64 flex flex-col fixed h-full z-10 transition-colors duration-200"
+            style={{ background: 'var(--t-surface)', borderRight: '1px solid var(--t-border)' }}>
+            {/* Logo */}
+            <div className="p-6 relative overflow-hidden group" style={{ borderBottom: '1px solid var(--t-border)' }}>
+                <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full blur-2xl pointer-events-none"
+                    style={{ background: 'color-mix(in srgb, var(--t-primary) 8%, transparent)' }} />
 
                 <div className="flex items-center gap-3 relative z-10">
-                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200 shrink-0 transform group-hover:scale-110 transition-transform duration-500">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shrink-0"
+                        style={{ background: 'var(--t-primary)' }}>
                         <span className="text-xl">🏠</span>
                     </div>
                     <div>
-                        <h1 className="text-xl font-black bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent leading-none tracking-tight">
+                        <h1 className="text-xl font-black leading-none tracking-tight"
+                            style={{ color: 'var(--t-text)' }}>
                             Mero Ghar
                         </h1>
-                        <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest mt-1 opacity-80">
+                        <p className="text-[10px] font-bold uppercase tracking-widest mt-1"
+                            style={{ color: 'var(--t-primary)' }}>
                             Construction Manager
                         </p>
                     </div>
                 </div>
             </div>
 
+            {/* Navigation */}
             <nav className="flex-1 px-4 py-4 space-y-6 overflow-y-auto">
                 <div>
-                    <p className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Overview</p>
+                    <p className="px-4 text-xs font-semibold uppercase tracking-wider mb-2"
+                        style={{ color: 'var(--t-text3)' }}>Overview</p>
                     <div className="space-y-1">
                         {navItems.filter(item => ['home', 'budget', 'photos', 'estimator'].includes(item.id)).map((item) => (
                             <NavLink
@@ -48,7 +56,8 @@ const DesktopSidebar = ({ user, onLogout, navItems }) => {
                 </div>
 
                 <div>
-                    <p className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Construction Journey</p>
+                    <p className="px-4 text-xs font-semibold uppercase tracking-wider mb-2"
+                        style={{ color: 'var(--t-text3)' }}>Construction Journey</p>
                     <div className="space-y-1">
                         {navItems.filter(item => ['permits', 'manage'].includes(item.id)).map((item) => (
                             <NavLink
@@ -65,7 +74,8 @@ const DesktopSidebar = ({ user, onLogout, navItems }) => {
 
                 {navItems.some(item => ['import', 'users'].includes(item.id)) && (
                     <div>
-                        <p className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">System Control</p>
+                        <p className="px-4 text-xs font-semibold uppercase tracking-wider mb-2"
+                            style={{ color: 'var(--t-text3)' }}>System Control</p>
                         <div className="space-y-1">
                             {navItems.filter(item => ['import', 'users'].includes(item.id)).map((item) => (
                                 <NavLink
@@ -82,24 +92,37 @@ const DesktopSidebar = ({ user, onLogout, navItems }) => {
                 )}
             </nav>
 
-            <div className="p-4 border-t border-gray-100 space-y-2">
+            {/* Footer */}
+            <div className="p-4 space-y-2" style={{ borderTop: '1px solid var(--t-border)' }}>
                 <NavLink
                     to="/dashboard/desktop/activity-logs"
                     className={({ isActive }) =>
-                        `flex items-center gap-3 px-4 py-2 rounded-xl transition-all ${isActive ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`
+                        `flex items-center gap-3 px-4 py-2 rounded-xl transition-all text-sm font-medium ${isActive
+                            ? 'font-bold'
+                            : ''
+                        }`
                     }
+                    style={({ isActive }) => ({
+                        background: isActive ? 'var(--t-nav-active-bg)' : 'transparent',
+                        color: isActive ? 'var(--t-nav-active-text)' : 'var(--t-text2)'
+                    })}
                 >
                     <span className="text-xl">📊</span>
-                    <span className="text-sm font-medium">Activity Logs</span>
+                    <span>Activity Logs</span>
                 </NavLink>
 
                 <NavLink
                     to="/dashboard/desktop/profile"
                     className={({ isActive }) =>
-                        `flex items-center gap-3 px-4 py-3 mb-2 rounded-xl transition-all ${isActive ? 'bg-indigo-50 border border-indigo-100' : 'hover:bg-gray-50'}`
+                        `flex items-center gap-3 px-4 py-3 mb-2 rounded-xl transition-all ${isActive ? 'border' : ''}`
                     }
+                    style={({ isActive }) => ({
+                        background: isActive ? 'var(--t-nav-active-bg)' : 'transparent',
+                        borderColor: isActive ? 'var(--t-border2)' : 'transparent'
+                    })}
                 >
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold shadow-sm overflow-hidden">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold shadow-sm overflow-hidden"
+                        style={{ background: 'var(--t-primary)', color: 'var(--t-primary-btn-text)' }}>
                         {user?.profile_image ? (
                             <img
                                 src={getMediaUrl(user.profile_image)}
@@ -116,19 +139,28 @@ const DesktopSidebar = ({ user, onLogout, navItems }) => {
                         )}
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-gray-900 truncate">{user?.username}</p>
-                        <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest opacity-70">
+                        <p className="text-sm font-bold truncate" style={{ color: 'var(--t-text)' }}>{user?.username}</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest opacity-70"
+                            style={{ color: 'var(--t-primary)' }}>
                             {user?.role?.name || 'Admin'}
                         </p>
                     </div>
-                    <span className="text-gray-400 text-xs">👤</span>
+                    <span className="text-xs" style={{ color: 'var(--t-text3)' }}>👤</span>
                 </NavLink>
-                <button
-                    onClick={onLogout}
-                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                >
-                    <span>🚪</span> Logout
-                </button>
+
+                {/* Theme toggle + Logout row */}
+                <div className="flex items-center gap-2">
+                    <ThemeToggle className="flex-shrink-0" />
+                    <button
+                        onClick={onLogout}
+                        className="flex-1 flex items-center gap-2 px-4 py-2 text-sm rounded-lg transition-colors"
+                        style={{ color: 'var(--t-danger)' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'color-mix(in srgb, var(--t-danger) 10%, transparent)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                        <span>🚪</span> Logout
+                    </button>
+                </div>
             </div>
         </aside>
     );

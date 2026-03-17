@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useConstruction } from '../../context/ConstructionContext';
 import MobileLayout from './MobileLayout';
+import MobilePageHeader from './MobilePageHeader';
 
 // Import Desktop Components (Reused)
 import PhasesTab from '../desktop/manage/PhasesTab';
 import FloorsTab from '../desktop/manage/FloorsTab';
-import RoomsManageTab from '../desktop/manage/RoomsManageTab';
+
 import TasksTab from '../desktop/manage/TasksTab';
 import CategoriesTab from '../desktop/manage/CategoriesTab';
 import ExpensesTab from '../desktop/manage/ExpensesTab';
@@ -32,8 +33,7 @@ const MobileManage = () => {
             color: 'from-emerald-500 to-teal-600',
             tabs: [
                 { id: 'phases', label: 'Phases', nepali: 'चरणहरू' },
-                { id: 'floors', label: 'Floors', nepali: 'तल्लाहरू' },
-                { id: 'rooms', label: 'Rooms', nepali: 'कोठाहरू' },
+                { id: 'floors', label: 'Structure', nepali: 'संरचना' },
                 { id: 'tasks', label: 'Tasks', nepali: 'कामहरू' },
             ]
         },
@@ -78,83 +78,87 @@ const MobileManage = () => {
     };
 
     return (
-        <MobileLayout 
-            title="Manage" 
-            subtitle="Project Engine"
-            spacing="space-y-6"
-        >
-            <div className="sticky top-[-1rem] z-30 bg-[#f8fafc]/80 backdrop-blur-xl pt-4 -mx-6 px-6 pb-6 border-b border-emerald-50 mb-4 h-full">
-                <div className="flex gap-4 overflow-x-auto pb-4 -mx-2 px-2 scrollbar-hide">
-                    {sections.map(section => (
-                        <button
-                            key={section.id}
-                            onClick={() => handleSectionChange(section.id)}
-                            className={`flex-shrink-0 w-[140px] p-4 rounded-3xl border transition-all ${activeSection === section.id
-                                ? 'bg-white border-emerald-600 shadow-lg shadow-emerald-50 scale-105 z-10'
-                                : 'bg-white/50 border-slate-100 opacity-60'
-                                }`}
-                        >
-                            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-xl mb-3 bg-gradient-to-br ${section.color} text-white shadow-sm`}>
-                                {section.icon}
+        <MobileLayout>
+
+            <div className="cyber-wrap pb-28">
+                <div className="ht-sec">
+                    <div className="sticky top-[57px] z-30 bg-[var(--t-bg)]/95 backdrop-blur-md -mx-4 px-4 border-b border-[var(--t-border)]">
+                        <div className="flex gap-2 mb-1 overflow-x-auto pb-2 scrollbar-hide">
+                            {sections.map(section => (
+                                <button
+                                    key={section.id}
+                                    onClick={() => handleSectionChange(section.id)}
+                                    className={`flex-shrink-0 w-[120px] p-3 rounded-[2px] border transition-all truncate text-left ${activeSection === section.id
+                                        ? 'bg-[var(--t-surface2)] border-[var(--t-primary)]'
+                                        : 'bg-[var(--t-surface)] border-[var(--t-border)] opacity-60 hover:opacity-100 hover:border-[var(--t-border2)]'
+                                        }`}
+                                >
+                                    <div className={`w-8 h-8 rounded shrink-0 flex items-center justify-center text-sm border mb-2 ${activeSection === section.id ? 'bg-[var(--t-primary)]/10 border-[var(--t-primary)]/30 drop-shadow-[0_0_8px_var(--t-primary)]' : 'bg-[var(--t-surface3)] border-[var(--t-border)] grayscale'}`}>
+                                        {section.icon}
+                                    </div>
+                                    <h3 className={`text-[12px] uppercase tracking-widest font-['DM_Mono',monospace] leading-tight ${activeSection === section.id ? 'text-[var(--t-primary)] flex items-center gap-1 before:content-[""] before:w-1 before:h-1 before:bg-[var(--t-primary)] before:rounded-full before:animate-pulse' : 'text-[var(--t-text2)]'}`}>
+                                        {section.label}
+                                    </h3>
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="flex gap-1.5 mb-1 overflow-x-auto pb-1 scrollbar-hide">
+                            {tabs.map(tab => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={`px-3 py-1.5 rounded-[1px] whitespace-nowrap transition-all text-[9px] uppercase tracking-[0.2em] font-['DM_Mono',monospace] ${activeTab === tab.id
+                                        ? 'bg-[var(--t-primary)] text-[var(--t-bg)] font-bold'
+                                        : 'bg-[var(--t-surface)] text-[var(--t-text3)] border border-[var(--t-border)] hover:text-[var(--t-text2)] hover:border-[var(--t-border2)]'
+                                        }`}
+                                >
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="relative mb-2">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[var(--t-text3)]">
+                                🔍
                             </div>
-                            <h3 className="text-slate-800 leading-tight dynamic-subtitle">
-                                {section.label}
-                            </h3>
-                        </button>
-                    ))}
-                </div>
+                            <input
+                                type="text"
+                                placeholder={`SEARCH ${tabs.find(t => t.id === activeTab)?.label.toUpperCase()}...`}
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 bg-[var(--t-surface)] border border-[var(--t-border)] rounded-[2px] text-[var(--t-text)] text-[10px] uppercase tracking-widest font-['DM_Mono',monospace] placeholder-[var(--t-text3)] outline-none focus:border-[var(--t-primary)] transition-colors"
+                            />
+                        </div>
+                    </div>
 
-                <div className="flex gap-3 mb-5 overflow-x-auto pb-1 scrollbar-hide px-1 mt-2">
-                    {tabs.map(tab => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`px-5 py-2 rounded-xl whitespace-nowrap transition-all dynamic-subtitle ${activeTab === tab.id
-                                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-100'
-                                : 'bg-white text-slate-400 border border-slate-100'
-                                }`}
-                        >
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
+                    <div className="bg-[var(--t-surface)] border border-[var(--t-border)] rounded-[3px] p-4 mt-36 min-h-[400px]">
+                        {activeSection === 'structure' && (
+                            <>
+                                {activeTab === 'phases' && <PhasesTab searchQuery={searchQuery} />}
+                                {activeTab === 'floors' && <FloorsTab searchQuery={searchQuery} />}
 
-                <div className="relative px-1">
-                    <input
-                        type="text"
-                        placeholder={`Search ${tabs.find(t => t.id === activeTab)?.label}...`}
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-6 pr-6 py-3.5 bg-white border border-slate-100 rounded-2xl text-slate-800 placeholder-slate-300 outline-none dynamic-body font-bold shadow-sm"
-                    />
+                                {activeTab === 'tasks' && <TasksTab searchQuery={searchQuery} />}
+                            </>
+                        )}
+                        {activeSection === 'finance' && (
+                            <>
+                                {activeTab === 'categories' && <CategoriesTab searchQuery={searchQuery} />}
+                                {activeTab === 'expenses' && <ExpensesTab searchQuery={searchQuery} />}
+                                {activeTab === 'funding' && <FundingTab searchQuery={searchQuery} />}
+                                {activeTab === 'payments' && <PaymentsTab searchQuery={searchQuery} />}
+                            </>
+                        )}
+                        {activeSection === 'resources' && (
+                            <>
+                                {activeTab === 'contractors' && <ContractorsTab searchQuery={searchQuery} />}
+                                {activeTab === 'suppliers' && <SuppliersTab searchQuery={searchQuery} />}
+                                {activeTab === 'materials' && <MaterialsTab searchQuery={searchQuery} />}
+                                {activeTab === 'stock' && <StockTab searchQuery={searchQuery} />}
+                            </>
+                        )}
+                    </div>
                 </div>
-            </div>
-
-            <div className="card-glass rounded-[2rem] p-4 shadow-sm min-h-[400px]">
-                {activeSection === 'structure' && (
-                    <>
-                        {activeTab === 'phases' && <PhasesTab searchQuery={searchQuery} />}
-                        {activeTab === 'floors' && <FloorsTab searchQuery={searchQuery} />}
-                        {activeTab === 'rooms' && <RoomsManageTab searchQuery={searchQuery} />}
-                        {activeTab === 'tasks' && <TasksTab searchQuery={searchQuery} />}
-                    </>
-                )}
-                {activeSection === 'finance' && (
-                    <>
-                        {activeTab === 'categories' && <CategoriesTab searchQuery={searchQuery} />}
-                        {activeTab === 'expenses' && <ExpensesTab searchQuery={searchQuery} />}
-                        {activeTab === 'funding' && <FundingTab searchQuery={searchQuery} />}
-                        {activeTab === 'payments' && <PaymentsTab searchQuery={searchQuery} />}
-                    </>
-                )}
-                {activeSection === 'resources' && (
-                    <>
-                        {activeTab === 'contractors' && <ContractorsTab searchQuery={searchQuery} />}
-                        {activeTab === 'suppliers' && <SuppliersTab searchQuery={searchQuery} />}
-                        {activeTab === 'materials' && <MaterialsTab searchQuery={searchQuery} />}
-                        {activeTab === 'stock' && <StockTab searchQuery={searchQuery} />}
-                    </>
-                )}
             </div>
         </MobileLayout>
     );

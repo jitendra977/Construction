@@ -34,7 +34,6 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
             if (!selectedTask) {
                 setSelectedTask(tasks[0]);
             } else {
-                // Update currently selected task with fresh data if it exists in the new tasks array
                 const updatedTask = tasks.find(t => t.id === selectedTask.id);
                 if (updatedTask && JSON.stringify(updatedTask) !== JSON.stringify(selectedTask)) {
                     setSelectedTask(updatedTask);
@@ -139,8 +138,6 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
         };
 
         setMaterialCart([...materialCart, newItem]);
-
-        // Reset only selection, maybe keep price? Usually better to reset.
         setSelectedMaterialId('');
         setMaterialQuantity('');
         setMaterialUnitPrice('');
@@ -155,7 +152,6 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
 
         setLinkingMaterial(true);
         try {
-            // Process each item in the cart
             for (const item of materialCart) {
                 await createMaterialTransaction({
                     material: item.materialId,
@@ -169,7 +165,6 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
                     status: 'RECEIVED'
                 });
             }
-            // Clear cart on success
             setMaterialCart([]);
             refreshData();
         } catch (error) {
@@ -181,611 +176,368 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={`${phase.name} - Task Management`} maxWidth="max-w-5xl">
-            <div className="flex flex-col md:flex-row gap-6">
-                {/* Left: Phase Details & Task List */}
-                <div className="w-full md:w-1/3 space-y-4">
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Current Status</h4>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${phase.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                            phase.status === 'IN_PROGRESS' ? 'bg-indigo-100 text-indigo-800' :
-                                'bg-gray-100 text-gray-800'
+        <Modal isOpen={isOpen} onClose={onClose} title={`${phase.name} - Task Management`} maxWidth="max-w-6xl">
+            <div className="p-4 flex flex-col lg:flex-row gap-6 bg-[var(--t-bg)]">
+                {/* Left Column: Info & Tasks */}
+                <div className="w-full lg:w-1/3 flex flex-col gap-4">
+                    
+                    {/* Status & Name */}
+                    <div className="bg-[var(--t-surface)] p-4 rounded-[2px] border border-[var(--t-border)] space-y-4">
+                        <div className="flex justify-between items-center">
+                            <h4 className="text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-widest">Phase Details</h4>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-[1px] text-[9px] font-['DM_Mono',monospace] uppercase tracking-widest border ${
+                                phase.status === 'COMPLETED' ? 'bg-[var(--t-primary)]/10 text-[var(--t-primary)] border-[var(--t-primary)]/40' :
+                                phase.status === 'IN_PROGRESS' ? 'bg-[var(--t-info)]/10 text-[var(--t-info)] border-[var(--t-info)]/40' :
+                                'bg-[var(--t-surface2)] text-[var(--t-text)] border-[var(--t-border)]'
                             }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${phase.status === 'COMPLETED' ? 'bg-green-400' :
-                                phase.status === 'IN_PROGRESS' ? 'bg-indigo-400' :
-                                    'bg-gray-400'
+                                <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                                    phase.status === 'COMPLETED' ? 'bg-[var(--t-primary)]' :
+                                    phase.status === 'IN_PROGRESS' ? 'bg-[var(--t-info)]' :
+                                    'bg-[var(--t-text3)]'
                                 }`}></span>
-                            {phase.status.replace('_', ' ')}
-                        </span>
-                    </div>
-
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-3">
+                                {phase.status.replace('_', ' ')}
+                            </span>
+                        </div>
                         <div>
-                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Phase Name</h4>
                             <input
                                 type="text"
                                 value={phase.name}
                                 onChange={(e) => updatePhase(phase.id, { name: e.target.value })}
-                                className="w-full text-sm font-bold text-gray-900 bg-gray-50 border-gray-100 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                className="w-full text-[14px] font-bold text-[var(--t-text)] bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-[2px] px-3 py-2 outline-none focus:border-[var(--t-primary)] transition-colors"
                             />
                         </div>
                         <div>
-                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Description</h4>
                             <textarea
                                 value={phase.description || ''}
                                 onChange={(e) => updatePhase(phase.id, { description: e.target.value })}
-                                rows="3"
-                                className="w-full text-sm text-gray-600 bg-gray-50 border-gray-100 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
-                                placeholder="Describe the goals of this phase..."
+                                rows="2"
+                                className="w-full text-[12px] text-[var(--t-text2)] bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-[2px] px-3 py-2 outline-none focus:border-[var(--t-primary)] transition-colors resize-none"
+                                placeholder="Describe the goals..."
                             />
                         </div>
                     </div>
 
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Construction Documents</h4>
-                        <div className="space-y-3">
-                            <div className="flex items-center justify-between p-2.5 bg-blue-50/50 rounded-xl border border-blue-100 hover:border-blue-300 transition-colors">
-                                <div className="flex items-center gap-3">
-                                    <div className="text-xl">📐</div>
-                                    <div className="flex flex-col">
-                                        <span className="text-xs font-black text-blue-900 uppercase">Blueprints (Naksa)</span>
-                                        {phase.naksa_file ? (
-                                            <a href={getMediaUrl(phase.naksa_file)} target="_blank" rel="noreferrer" className="text-[10px] text-blue-600 font-bold underline">View Blueprint</a>
-                                        ) : (
-                                            <span className="text-[10px] text-blue-400 font-medium italic">Not Uploaded</span>
-                                        )}
-                                    </div>
-                                </div>
-                                <input
-                                    type="file"
-                                    className="hidden"
-                                    id="naksa-upload"
-                                    onChange={(e) => {
-                                        const file = e.target.files[0];
-                                        if (file) {
-                                            const fd = new FormData();
-                                            fd.append('naksa_file', file);
-                                            updatePhase(phase.id, fd).then(() => refreshData());
-                                        }
-                                    }}
-                                />
-                                <label htmlFor="naksa-upload" className="p-1 px-2 bg-white rounded-lg shadow-sm border border-blue-100 text-[10px] font-black text-blue-600 cursor-pointer hover:bg-blue-50 transition-colors">↑</label>
-                            </div>
-
-                            <div className="flex items-center justify-between p-2.5 bg-purple-50/50 rounded-xl border border-purple-100 hover:border-purple-300 transition-colors">
-                                <div className="flex items-center gap-3">
-                                    <div className="text-xl">🏗️</div>
-                                    <div className="flex flex-col">
-                                        <span className="text-xs font-black text-purple-900 uppercase">Structure Design</span>
-                                        {phase.structure_design ? (
-                                            <a href={getMediaUrl(phase.structure_design)} target="_blank" rel="noreferrer" className="text-[10px] text-purple-600 font-bold underline">View Design</a>
-                                        ) : (
-                                            <span className="text-[10px] text-purple-400 font-medium italic">Not Uploaded</span>
-                                        )}
-                                    </div>
-                                </div>
-                                <input
-                                    type="file"
-                                    className="hidden"
-                                    id="structure-upload"
-                                    onChange={(e) => {
-                                        const file = e.target.files[0];
-                                        if (file) {
-                                            const fd = new FormData();
-                                            fd.append('structure_design', file);
-                                            updatePhase(phase.id, fd).then(() => refreshData());
-                                        }
-                                    }}
-                                />
-                                <label htmlFor="structure-upload" className="p-1 px-2 bg-white rounded-lg shadow-sm border border-purple-100 text-[10px] font-black text-purple-600 cursor-pointer hover:bg-purple-50 transition-colors">↑</label>
-                            </div>
-                        </div>
-                    </div>
-
-
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Timeline</h4>
-                        <div className="space-y-3">
-                            <div className="flex flex-col gap-1">
-                                <span className="text-xs text-gray-500">Start Date</span>
+                    {/* Timeline */}
+                    <div className="bg-[var(--t-surface)] p-4 rounded-[2px] border border-[var(--t-border)]">
+                        <h4 className="text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-widest mb-3">Timeline</h4>
+                        <div className="flex gap-4">
+                            <div className="flex-1 space-y-1">
+                                <span className="text-[9px] font-['DM_Mono',monospace] text-[var(--t-text2)] uppercase">Start Date</span>
                                 <input
                                     type="date"
                                     value={phase.start_date || ''}
-                                    onChange={(e) => {
-                                        updatePhase(phase.id, { start_date: e.target.value || null })
-                                            .catch(err => console.error('Failed to update start date', err));
-                                    }}
-                                    className="border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    onChange={(e) => updatePhase(phase.id, { start_date: e.target.value || null })}
+                                    className="w-full bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-[2px] px-2 py-1.5 text-[12px] text-[var(--t-text)] outline-none focus:border-[var(--t-primary)]"
                                 />
                             </div>
-                            <div className="flex flex-col gap-1">
-                                <span className="text-xs text-gray-500">End Date</span>
+                            <div className="flex-1 space-y-1">
+                                <span className="text-[9px] font-['DM_Mono',monospace] text-[var(--t-text2)] uppercase">End Date</span>
                                 <input
                                     type="date"
                                     value={phase.end_date || ''}
-                                    onChange={(e) => {
-                                        updatePhase(phase.id, { end_date: e.target.value || null })
-                                            .catch(err => console.error('Failed to update end date', err));
-                                    }}
-                                    className="border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    onChange={(e) => updatePhase(phase.id, { end_date: e.target.value || null })}
+                                    className="w-full bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-[2px] px-2 py-1.5 text-[12px] text-[var(--t-text)] outline-none focus:border-[var(--t-primary)]"
                                 />
                             </div>
                         </div>
                     </div>
 
-                    <div className="bg-red-50 p-4 rounded-xl border border-red-100">
-                        <h4 className="text-xs font-bold text-red-900 uppercase tracking-wider mb-2">Danger Zone</h4>
-                        <button
-                            onClick={async () => {
-                                if (window.confirm(`Are you sure you want to delete "${phase.name}"? This action cannot be undone.`)) {
-                                    try {
-                                        await constructionService.deletePhase(phase.id);
-                                        refreshData();
-                                        onClose();
-                                    } catch (err) {
-                                        console.error("Failed to delete phase", err);
-                                        alert("Failed to delete phase. Ensure there are no linked expenses or tasks.");
+                    {/* Documents */}
+                    <div className="bg-[var(--t-surface)] p-4 rounded-[2px] border border-[var(--t-border)]">
+                        <h4 className="text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-widest mb-3">Documents</h4>
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between p-2 bg-[var(--t-info)]/5 border border-[var(--t-info)]/20 rounded-[2px]">
+                                <div className="flex items-center gap-3">
+                                    <span className="text-lg">📐</span>
+                                    <div className="flex flex-col">
+                                        <span className="text-[11px] font-semibold text-[var(--t-text)] uppercase">Blueprints</span>
+                                        {phase.naksa_file ? (
+                                            <a href={getMediaUrl(phase.naksa_file)} target="_blank" rel="noreferrer" className="text-[9px] font-['DM_Mono',monospace] text-[var(--t-info)] hover:underline">View File</a>
+                                        ) : (
+                                            <span className="text-[9px] font-['DM_Mono',monospace] text-[var(--t-text3)]">Not Uploaded</span>
+                                        )}
+                                    </div>
+                                </div>
+                                <input type="file" className="hidden" id="naksa-upload" onChange={(e) => {
+                                    if (e.target.files[0]) {
+                                        const fd = new FormData();
+                                        fd.append('naksa_file', e.target.files[0]);
+                                        updatePhase(phase.id, fd).then(() => refreshData());
                                     }
-                                }
-                            }}
-                            className="w-full py-2 bg-white text-red-600 text-[10px] font-black uppercase rounded-lg border border-red-200 hover:bg-red-600 hover:text-white transition-all shadow-sm"
-                        >
-                            Delete Phase
-                        </button>
+                                }}/>
+                                <label htmlFor="naksa-upload" className="px-2 py-1 bg-[var(--t-surface)] border border-[var(--t-info)]/30 text-[var(--t-info)] text-[10px] rounded-[2px] cursor-pointer hover:bg-[var(--t-info)]/10 transition">↑</label>
+                            </div>
+
+                            <div className="flex items-center justify-between p-2 bg-[var(--t-warn)]/5 border border-[var(--t-warn)]/20 rounded-[2px]">
+                                <div className="flex items-center gap-3">
+                                    <span className="text-lg">🏗️</span>
+                                    <div className="flex flex-col">
+                                        <span className="text-[11px] font-semibold text-[var(--t-text)] uppercase">Structure</span>
+                                        {phase.structure_design ? (
+                                            <a href={getMediaUrl(phase.structure_design)} target="_blank" rel="noreferrer" className="text-[9px] font-['DM_Mono',monospace] text-[var(--t-warn)] hover:underline">View Design</a>
+                                        ) : (
+                                            <span className="text-[9px] font-['DM_Mono',monospace] text-[var(--t-text3)]">Not Uploaded</span>
+                                        )}
+                                    </div>
+                                </div>
+                                <input type="file" className="hidden" id="structure-upload" onChange={(e) => {
+                                    if (e.target.files[0]) {
+                                        const fd = new FormData();
+                                        fd.append('structure_design', e.target.files[0]);
+                                        updatePhase(phase.id, fd).then(() => refreshData());
+                                    }
+                                }}/>
+                                <label htmlFor="structure-upload" className="px-2 py-1 bg-[var(--t-surface)] border border-[var(--t-warn)]/30 text-[var(--t-warn)] text-[10px] rounded-[2px] cursor-pointer hover:bg-[var(--t-warn)]/10 transition">↑</label>
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 max-h-[400px] overflow-y-auto">
-                        <div className="flex justify-between items-center mb-3">
-                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Sub Phases (Tasks)</h4>
-                            <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{tasks?.length || 0}</span>
+                    {/* Task List */}
+                    <div className="bg-[var(--t-surface)] p-4 rounded-[2px] border border-[var(--t-border)] flex-1 flex flex-col min-h-[300px]">
+                        <div className="flex justify-between items-center mb-4">
+                            <h4 className="text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-widest">Sub-Phases ({tasks?.length || 0})</h4>
                         </div>
-
-                        {tasks && tasks.length > 0 ? (
-                            <ul className="space-y-3 mb-4">
-                                {tasks.map(task => (
-                                    <li
-                                        key={task.id}
-                                        className={`group flex flex-col gap-2 p-3 rounded-lg transition-all cursor-pointer border ${selectedTask?.id === task.id
-                                            ? 'bg-indigo-50 border-indigo-300 shadow-sm'
-                                            : 'hover:bg-gray-50 border-gray-200'
-                                            }`}
-                                        onClick={() => setSelectedTask(task)}
-                                    >
-                                        <div className="flex items-start justify-between gap-2">
-                                            <div className="flex items-start gap-3 flex-1">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={task.status === 'COMPLETED'}
-                                                    onChange={(e) => {
-                                                        e.stopPropagation();
-                                                        handleTaskToggle(task);
-                                                    }}
-                                                    className="w-4 h-4 mt-0.5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer flex-shrink-0"
-                                                />
-                                                <div className="flex-1 min-w-0">
-                                                    <span className={`text-sm font-medium block ${task.status === 'COMPLETED' ? 'line-through text-gray-400' : 'text-gray-700'}`}>
-                                                        {task.title}
-                                                    </span>
-
-                                                    <div className="flex flex-wrap gap-2 mt-2 text-xs">
-                                                        <div className="flex items-center gap-1 text-gray-500">
-                                                            <span className="font-medium">Start:</span>
-                                                            <input
-                                                                type="date"
-                                                                value={task.start_date || ''}
-                                                                onChange={(e) => {
-                                                                    e.stopPropagation();
-                                                                    constructionService.updateTask(task.id, { start_date: e.target.value || null })
-                                                                        .then(() => refreshData())
-                                                                        .catch(err => console.error('Failed to update start date', err));
-                                                                }}
-                                                                onClick={(e) => e.stopPropagation()}
-                                                                className="border-gray-200 rounded px-1.5 py-0.5 text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
-                                                            />
-                                                        </div>
-                                                        <div className="flex items-center gap-1 text-gray-500">
-                                                            <span className="font-medium">Due:</span>
-                                                            <input
-                                                                type="date"
-                                                                value={task.due_date || ''}
-                                                                onChange={(e) => {
-                                                                    e.stopPropagation();
-                                                                    constructionService.updateTask(task.id, { due_date: e.target.value || null })
-                                                                        .then(() => refreshData())
-                                                                        .catch(err => console.error('Failed to update due date', err));
-                                                                }}
-                                                                onClick={(e) => e.stopPropagation()}
-                                                                className="border-gray-200 rounded px-1.5 py-0.5 text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
-                                                            />
-                                                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto pr-1 space-y-2 mb-4 max-h-[300px]">
+                            {tasks?.length > 0 ? tasks.map(task => (
+                                <div key={task.id} 
+                                     onClick={() => setSelectedTask(task)}
+                                     className={`group flex flex-col p-3 rounded-[2px] cursor-pointer border transition-colors ${
+                                         selectedTask?.id === task.id ? 'bg-[var(--t-primary)]/5 border-[var(--t-primary)]/40' : 'bg-[var(--t-surface2)] border-[var(--t-border)] hover:border-[var(--t-border2)]'
+                                     }`}>
+                                    <div className="flex items-start justify-between gap-2">
+                                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                                            <input type="checkbox" checked={task.status === 'COMPLETED'}
+                                                onChange={(e) => { e.stopPropagation(); handleTaskToggle(task); }}
+                                                className="mt-1 w-3.5 h-3.5 accent-[var(--t-primary)] cursor-pointer" />
+                                            <div className="flex-1">
+                                                <span className={`text-[13px] font-semibold leading-tight ${task.status === 'COMPLETED' ? 'line-through text-[var(--t-text3)]' : 'text-[var(--t-text)]'}`}>
+                                                    {task.title}
+                                                </span>
+                                                <div className="flex gap-3 mt-2">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="text-[8px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase">Due</span>
+                                                        <input type="date" value={task.due_date || ''}
+                                                            onClick={e => e.stopPropagation()}
+                                                            onChange={e => constructionService.updateTask(task.id, { due_date: e.target.value || null }).then(refreshData)}
+                                                            className="text-[9px] bg-transparent border-b border-[var(--t-border)] text-[var(--t-text2)] outline-none focus:border-[var(--t-primary)]" />
                                                     </div>
-
-                                                    {/* Media Counter */}
-                                                    {task.media && task.media.length > 0 && (
-                                                        <div className="mt-2">
-                                                            <span className="inline-flex items-center gap-1 text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
-                                                                📷 {task.media.length} {task.media.length === 1 ? 'file' : 'files'}
-                                                            </span>
-                                                        </div>
+                                                    {task.media?.length > 0 && (
+                                                        <span className="text-[8px] font-['DM_Mono',monospace] bg-[var(--t-surface3)] px-1.5 py-0.5 rounded-[1px] text-[var(--t-text)]">
+                                                            {task.media.length} MEDIA
+                                                        </span>
                                                     )}
                                                 </div>
                                             </div>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleDeleteTask(task.id);
-                                                }}
-                                                className="text-gray-300 hover:text-red-500 transition-opacity p-1 flex-shrink-0"
-                                                title="Delete Task"
-                                            >
-                                                ×
-                                            </button>
                                         </div>
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <p className="text-xs text-gray-400 italic mb-4">No sub-phases added.</p>
-                        )}
+                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }}
+                                                className="opacity-0 group-hover:opacity-100 text-[14px] text-[var(--t-danger)] p-1 hover:bg-[var(--t-danger)]/10 rounded-[2px]">
+                                            ×
+                                        </button>
+                                    </div>
+                                </div>
+                            )) : (
+                                <p className="text-[11px] text-[var(--t-text3)] italic">No sub-phases added.</p>
+                            )}
+                        </div>
 
-                        <form onSubmit={handleAddTask} className="flex gap-2">
-                            <input
-                                type="text"
-                                value={newTaskTitle}
-                                onChange={(e) => setNewTaskTitle(e.target.value)}
+                        <form onSubmit={handleAddTask} className="flex gap-2 mt-auto">
+                            <input type="text" value={newTaskTitle} onChange={e => setNewTaskTitle(e.target.value)}
                                 placeholder="Add new task..."
-                                className="flex-1 text-sm border-gray-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 px-3 py-1.5 bg-gray-50"
-                            />
-                            <button
-                                type="submit"
-                                disabled={addingTask || !newTaskTitle.trim()}
-                                className="bg-indigo-600 text-white p-1.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                                </svg>
+                                className="flex-1 text-[12px] bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-[2px] px-3 py-2 outline-none focus:border-[var(--t-primary)]" />
+                            <button type="submit" disabled={addingTask || !newTaskTitle.trim()}
+                                className="bg-[var(--t-primary)] text-[var(--t-bg)] px-3 rounded-[2px] font-bold text-lg disabled:opacity-50">
+                                +
                             </button>
                         </form>
                     </div>
+
+                    <button onClick={async () => {
+                        if (window.confirm("Delete this phase?")) {
+                            try {
+                                await constructionService.deletePhase(phase.id);
+                                refreshData();
+                                onClose();
+                            } catch (e) { alert("Delete failed"); }
+                        }
+                    }} className="w-full py-2 border border-[var(--t-danger)]/40 text-[var(--t-danger)] text-[10px] font-['DM_Mono',monospace] uppercase tracking-widest rounded-[2px] hover:bg-[var(--t-danger)] hover:text-white transition-colors">
+                        Delete Phase
+                    </button>
                 </div>
 
-                {/* Right: Media Gallery for Selected Task */}
-                <div className="w-full md:w-2/3">
-                    {selectedTask ? (
-                        <div className="space-y-6">
-                            {/* Phase Completion Section */}
-                            {phase.status !== 'COMPLETED' ? (
-                                <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-6 shadow-sm">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-12 h-12 bg-white rounded-xl shadow-sm border border-emerald-50 flex items-center justify-center text-2xl">
-                                                ✅
-                                            </div>
-                                            <div>
-                                                <h3 className="font-black text-emerald-900 uppercase tracking-tight text-sm">Finish this Phase</h3>
-                                                <p className="text-xs text-emerald-600 font-medium italic">Upload a completion photo to mark project progress.</p>
-                                            </div>
-                                        </div>
+                {/* Right Column: Media Gallery & Material Cart */}
+                <div className="w-full lg:w-2/3 flex flex-col gap-4">
+                    
+                    {/* Phase Completion */}
+                    {phase.status !== 'COMPLETED' ? (
+                        <div className="bg-[var(--t-surface)] p-4 border border-[var(--t-primary)]/40 rounded-[2px] flex flex-col md:flex-row gap-4 items-center">
+                            <div className="w-full md:w-32 h-24 bg-[var(--t-surface2)] border border-dashed border-[var(--t-primary)]/50 rounded-[2px] flex items-center justify-center cursor-pointer overflow-hidden group relative"
+                                 onClick={() => phasePhotoRef.current.click()}>
+                                {phase.completion_photo ? (
+                                    <img src={getMediaUrl(phase.completion_photo)} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-xl group-hover:scale-110 transition-transform">📸</span>
+                                        <span className="text-[8px] font-['DM_Mono',monospace] text-[var(--t-text2)] uppercase mt-1">Proof Photo</span>
                                     </div>
-
-                                    <div className="flex flex-col md:flex-row gap-4 items-center">
-                                        <div
-                                            className="w-full md:w-32 h-32 bg-white rounded-xl border-2 border-dashed border-emerald-200 flex flex-col items-center justify-center cursor-pointer hover:bg-emerald-100/30 transition-all overflow-hidden relative group"
-                                            onClick={() => phasePhotoRef.current.click()}
-                                        >
-                                            {phase.completion_photo ? (
-                                                <img src={getMediaUrl(phase.completion_photo)} alt="Completion" className="w-full h-full object-cover" />
-                                            ) : (
-                                                <>
-                                                    <span className="text-2xl mb-1 group-hover:scale-110 transition-transform">📸</span>
-                                                    <span className="text-[9px] font-black text-emerald-500 uppercase">Proof Photo</span>
-                                                </>
-                                            )}
-                                        </div>
-                                        <div className="flex-1 space-y-3 w-full">
-                                            <button
-                                                onClick={async () => {
-                                                    if (!phase.completion_photo) {
-                                                        alert("Please upload a completion photo first.");
-                                                        return;
-                                                    }
-                                                    setCompleting(true);
-                                                    try {
-                                                        await updatePhase(phase.id, { status: 'COMPLETED' });
-                                                        refreshData();
-                                                    } catch (err) {
-                                                        console.error("Failed to complete phase", err);
-                                                    } finally {
-                                                        setCompleting(false);
-                                                    }
-                                                }}
-                                                disabled={completing}
-                                                className="w-full bg-emerald-600 text-white font-black py-3 rounded-xl shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all uppercase tracking-widest text-xs disabled:opacity-50"
-                                            >
-                                                {completing ? 'Closing Phase...' : 'Finalize & Mark Completed'}
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <input
-                                        type="file"
-                                        ref={phasePhotoRef}
-                                        className="hidden"
-                                        accept="image/*"
-                                        onChange={async (e) => {
-                                            const file = e.target.files[0];
-                                            if (file) {
-                                                const fd = new FormData();
-                                                fd.append('completion_photo', file);
-                                                await updatePhase(phase.id, fd);
-                                                refreshData();
-                                            }
-                                        }}
-                                    />
-                                </div>
-                            ) : (
-                                <div className="bg-gray-50 border border-gray-100 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
-                                    <div className="w-16 h-16 bg-white rounded-full shadow-lg border border-green-100 flex items-center justify-center text-3xl mb-3">
-                                        🏆
-                                    </div>
-                                    <h3 className="font-black text-gray-900 uppercase tracking-widest text-sm">Phase Successfully Completed</h3>
-                                    <p className="text-xs text-gray-500 mt-1 font-medium italic">Project advanced on {new Date(phase.updated_at).toLocaleDateString()}</p>
-                                    {phase.completion_photo && (
-                                        <div className="mt-4 w-48 h-32 rounded-xl overflow-hidden shadow-md border-4 border-white rotate-2 hover:rotate-0 transition-transform">
-                                            <img src={getMediaUrl(phase.completion_photo)} alt="Completion Proof" className="w-full h-full object-cover" />
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            <hr className="border-gray-100" />
-
-                            <div>
-                                <div className="flex justify-between items-center mb-4">
-                                    <div>
-                                        <h3 className="font-bold text-gray-800">Task Photos & Videos</h3>
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            Media Log for <span className="font-medium text-indigo-600">{selectedTask.title}</span>
-                                        </p>
-                                    </div>
-                                    <button
-                                        onClick={() => fileInputRef.current.click()}
-                                        disabled={uploading}
-                                        className="bg-indigo-600 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-sm"
-                                    >
-                                        {uploading ? 'Uploading...' : (
-                                            <>
-                                                <span>+</span> Upload Task Media
-                                            </>
-                                        )}
-                                    </button>
-                                    <input
-                                        type="file"
-                                        ref={fileInputRef}
-                                        onChange={handleFileUpload}
-                                        className="hidden"
-                                        accept="image/*,video/*"
-                                    />
-                                </div>
-
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[400px] overflow-y-auto pr-1">
-                                    {selectedTask.media && selectedTask.media.length > 0 ? (
-                                        selectedTask.media.map((item) => (
-                                            <div key={item.id} className="group relative rounded-xl overflow-hidden border border-gray-200 aspect-square shadow-sm hover:shadow-md transition-shadow bg-gray-50">
-                                                {item.media_type === 'VIDEO' ? (
-                                                    <video src={getMediaUrl(item.file)} className="w-full h-full object-cover" controls />
-                                                ) : (
-                                                    <img src={getMediaUrl(item.file)} alt="Construction update" className="w-full h-full object-cover transform hover:scale-105 transition-transform duration-500" />
-                                                )}
-
-                                                <button
-                                                    onClick={() => handleDeleteMedia(item.id)}
-                                                    className="absolute top-2 right-2 bg-white/90 text-red-500 w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50 hover:text-red-600 shadow-sm backdrop-blur-sm"
-                                                    title="Delete"
-                                                >
-                                                    ×
-                                                </button>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div
-                                            className="col-span-full py-16 text-center text-gray-400 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all cursor-pointer group"
-                                            onClick={() => fileInputRef.current.click()}
-                                        >
-                                            <div className="text-4xl mb-3 opacity-50 group-hover:scale-110 transition-transform duration-300">📸</div>
-                                            <p className="font-medium text-gray-900">No media yet</p>
-                                            <p className="text-xs text-gray-500 mt-1 max-w-[200px] mx-auto">Upload photos or videos to track progress for this task.</p>
-                                        </div>
-                                    )}
-                                </div>
+                                )}
                             </div>
+                            <div className="flex-1">
+                                <h3 className="text-[13px] font-bold text-[var(--t-primary)] uppercase tracking-tight mb-2">Finalize Phase</h3>
+                                <button onClick={async () => {
+                                    if (!phase.completion_photo) return alert("Upload proof first.");
+                                    setCompleting(true);
+                                    await updatePhase(phase.id, { status: 'COMPLETED' });
+                                    refreshData();
+                                    setCompleting(false);
+                                }} disabled={completing}
+                                className="w-full bg-[var(--t-primary)] text-[var(--t-bg)] text-[10px] font-['DM_Mono',monospace] uppercase tracking-widest py-2.5 rounded-[2px] hover:opacity-90 disabled:opacity-50 transition-opacity">
+                                    {completing ? 'Closing...' : 'Mark Completed'}
+                                </button>
+                            </div>
+                            <input type="file" ref={phasePhotoRef} className="hidden" accept="image/*" onChange={async (e) => {
+                                if (e.target.files[0]) {
+                                    const fd = new FormData();
+                                    fd.append('completion_photo', e.target.files[0]);
+                                    await updatePhase(phase.id, fd);
+                                    refreshData();
+                                }
+                            }} />
                         </div>
                     ) : (
-                        <div className="flex items-center justify-center h-full bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-                            <div className="text-center">
-                                <div className="text-5xl mb-4 opacity-30">📋</div>
-                                <p className="text-gray-500 font-medium">Select a sub-phase to view/add media</p>
-                                <p className="text-xs text-gray-400 mt-2">Click on a task from the list on the left</p>
+                        <div className="bg-[var(--t-surface)] p-4 border border-[var(--t-primary)] rounded-[2px] flex items-center gap-4">
+                            <div className="w-12 h-12 bg-[var(--t-primary)]/10 flex items-center justify-center text-2xl rounded-[2px]">🏆</div>
+                            <div>
+                                <h3 className="text-[13px] font-bold text-[var(--t-text)] uppercase tracking-widest">Phase Completed</h3>
+                                <p className="text-[10px] font-['DM_Mono',monospace] text-[var(--t-text2)] uppercase">Updated {new Date(phase.updated_at).toLocaleDateString()}</p>
                             </div>
                         </div>
                     )}
 
-                    {/* Associated Materials - Moved from left to right bottom */}
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mt-6">
-                        <div className="flex justify-between items-center mb-4">
-                            <div>
-                                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Phase Materials</h4>
-                                <p className="text-[10px] text-gray-500 mt-1 font-medium">Inventory items allocated to this construction phase.</p>
+                    {/* Task Media Gallery */}
+                    <div className="bg-[var(--t-surface)] p-4 rounded-[2px] border border-[var(--t-border)]">
+                        {selectedTask ? (
+                            <>
+                                <div className="flex justify-between items-center mb-4">
+                                    <div>
+                                        <h4 className="text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-widest">Task Media: {selectedTask.title}</h4>
+                                    </div>
+                                    <button onClick={() => fileInputRef.current.click()} disabled={uploading}
+                                        className="bg-[var(--t-primary)] text-[var(--t-bg)] text-[9px] font-['DM_Mono',monospace] uppercase tracking-widest px-3 py-1.5 rounded-[2px] hover:opacity-90 disabled:opacity-50">
+                                        {uploading ? 'Uploading...' : 'Upload Media'}
+                                    </button>
+                                    <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*,video/*" />
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-h-[300px] overflow-y-auto">
+                                    {selectedTask.media?.length > 0 ? selectedTask.media.map(m => (
+                                        <div key={m.id} className="aspect-square bg-[var(--t-surface2)] rounded-[2px] border border-[var(--t-border)] relative group overflow-hidden">
+                                            {m.media_type === 'VIDEO' ? (
+                                                <video src={getMediaUrl(m.file)} className="w-full h-full object-cover" controls />
+                                            ) : (
+                                                <img src={getMediaUrl(m.file)} className="w-full h-full object-cover" />
+                                            )}
+                                            <button onClick={() => handleDeleteMedia(m.id)}
+                                                className="absolute top-1 right-1 w-6 h-6 bg-[var(--t-bg)]/80 text-[var(--t-danger)] backdrop-blur text-[14px] flex items-center justify-center rounded-[2px] opacity-0 group-hover:opacity-100 hover:bg-[var(--t-danger)] hover:text-[var(--t-bg)] transition-all">
+                                                ×
+                                            </button>
+                                        </div>
+                                    )) : (
+                                        <div className="col-span-full py-10 flex flex-col items-center justify-center border border-dashed border-[var(--t-border)] rounded-[2px] text-[var(--t-text3)]">
+                                            <span className="text-2xl mb-2">📸</span>
+                                            <span className="text-[10px] font-['DM_Mono',monospace] uppercase">No media uploaded</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        ) : (
+                            <div className="py-20 flex flex-col items-center justify-center text-[var(--t-text3)]">
+                                <span className="text-3xl mb-2">👈</span>
+                                <span className="text-[10px] font-['DM_Mono',monospace] uppercase tracking-widest">Select a task to view media</span>
                             </div>
-                            <span className="text-[10px] font-black text-green-600 bg-green-50 px-2 py-1 rounded-full uppercase tracking-tighter border border-green-100">Live Allocation</span>
-                        </div>
+                        )}
+                    </div>
 
-                        <div className="overflow-x-auto mb-6">
+                    {/* Associated Materials Box */}
+                    <div className="bg-[var(--t-surface)] p-4 rounded-[2px] border border-[var(--t-border)] flex-1 flex flex-col">
+                        <h4 className="text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-widest mb-4">Allocated Materials</h4>
+                        
+                        {/* Material List */}
+                        <div className="max-h-[200px] overflow-y-auto mb-4 border border-[var(--t-border)] rounded-[2px]">
                             {phaseMaterials.length > 0 ? (
-                                <table className="w-full text-left border-collapse">
-                                    <thead>
-                                        <tr className="border-b border-gray-100">
-                                            <th className="pb-3 text-[10px] font-black text-gray-400 uppercase tracking-tighter">Material Item</th>
-                                            <th className="pb-3 text-[10px] font-black text-gray-400 uppercase tracking-tighter text-right">Quantity</th>
-                                            <th className="pb-3 text-[10px] font-black text-gray-400 uppercase tracking-tighter text-right">Unit Rate</th>
-                                            <th className="pb-3 text-[10px] font-black text-gray-400 uppercase tracking-tighter text-right">Total Cost</th>
-                                            <th className="pb-3 w-8"></th>
+                                <table className="w-full text-left">
+                                    <thead className="bg-[var(--t-surface2)] border-b border-[var(--t-border)] sticky top-0">
+                                        <tr>
+                                            <th className="px-3 py-2 text-[8px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-widest">Item</th>
+                                            <th className="px-3 py-2 text-[8px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-widest text-right">Qty</th>
+                                            <th className="px-3 py-2 text-[8px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-widest text-right">Total</th>
+                                            <th className="px-3 py-2 w-8"></th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-50">
+                                    <tbody className="divide-y divide-[var(--t-border)]">
                                         {phaseMaterials.map(m => (
-                                            <tr key={m.id} className="group hover:bg-gray-50/50 transition-colors">
-                                                <td className="py-3">
-                                                    <div className="flex flex-col">
-                                                        <span className="text-sm font-bold text-gray-900">{m.title}</span>
-                                                        <span className="text-[10px] text-gray-400 font-medium lowercase italic">inventory movement</span>
-                                                    </div>
+                                            <tr key={m.id} className="hover:bg-[var(--t-surface2)]">
+                                                <td className="px-3 py-2 text-[12px] font-bold text-[var(--t-text)]">{m.title}</td>
+                                                <td className="px-3 py-2 text-right">
+                                                    <span className="text-[12px] font-['Bebas_Neue',sans-serif] text-[var(--t-text)]">{m.quantity}</span>
+                                                    <span className="text-[8px] font-['DM_Mono',monospace] ml-1 uppercase text-[var(--t-text3)]">{m.unit}</span>
                                                 </td>
-                                                <td className="py-3 text-right">
-                                                    <span className="text-sm font-bold text-gray-700">{m.quantity}</span>
-                                                    <span className="text-[10px] text-gray-400 ml-1.5 uppercase font-medium">{m.unit || 'pcs'}</span>
+                                                <td className="px-3 py-2 text-right text-[12px] font-['Bebas_Neue',sans-serif] text-[var(--t-primary)]">
+                                                    {formatCurrency(m.amount)}
                                                 </td>
-                                                <td className="py-3 text-right">
-                                                    <span className="text-sm text-gray-500 font-medium">Rs {parseFloat(m.unit_price).toLocaleString()}</span>
-                                                </td>
-                                                <td className="py-3 text-right">
-                                                    <span className="text-sm font-black text-indigo-600">Rs {parseFloat(m.amount).toLocaleString()}</span>
-                                                </td>
-                                                <td className="py-3 text-right">
-                                                    <button
-                                                        onClick={() => {
-                                                            if (window.confirm("Unlink this material from phase?")) {
-                                                                deleteExpense(m.id);
-                                                            }
-                                                        }}
-                                                        className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all font-bold text-xl"
-                                                    >
-                                                        ×
-                                                    </button>
+                                                <td className="px-3 py-2 text-center">
+                                                    <button onClick={() => window.confirm("Unlink?") && deleteExpense(m.id)}
+                                                        className="text-[var(--t-border2)] hover:text-[var(--t-danger)]">×</button>
                                                 </td>
                                             </tr>
                                         ))}
                                     </tbody>
-                                    <tfoot>
-                                        <tr className="border-t-2 border-double border-gray-100 bg-gray-50/50">
-                                            <td colSpan="3" className="py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Phase Material Investment:</td>
-                                            <td className="py-4 text-right text-base font-black text-indigo-600">
-                                                Rs {phaseMaterials.reduce((acc, m) => acc + parseFloat(m.amount), 0).toLocaleString()}
-                                            </td>
-                                            <td></td>
-                                        </tr>
-                                    </tfoot>
                                 </table>
                             ) : (
-                                <div className="py-12 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-100">
-                                    <div className="text-3xl mb-2 opacity-20">🧱</div>
-                                    <p className="text-sm text-gray-400 italic">No materials have been allocated to this phase yet.</p>
-                                </div>
+                                <div className="p-6 text-center text-[var(--t-text3)] text-[10px] font-['DM_Mono',monospace] uppercase">No materials allocated</div>
                             )}
                         </div>
 
-                        {/* Assignment Section */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-6 border-t border-gray-100">
-                            <div>
-                                <h4 className="text-[11px] font-black text-indigo-600 uppercase tracking-widest mb-4">Allocate New Materials</h4>
-                                <form onSubmit={addToCart} className="space-y-4">
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Select Item</label>
-                                        <select
-                                            value={selectedMaterialId}
-                                            onChange={(e) => {
-                                                const matId = e.target.value;
-                                                setSelectedMaterialId(matId);
-                                                const mat = dashboardData.materials.find(m => m.id === parseInt(matId));
-                                                if (mat) setMaterialUnitPrice(mat.avg_cost_per_unit || '');
-                                            }}
-                                            className="w-full text-sm border-gray-100 bg-gray-50 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none px-4 py-3"
-                                        >
-                                            <option value="">Choose Material from Inventory...</option>
-                                            {dashboardData.materials?.map(m => (
-                                                <option key={m.id} value={m.id}>{m.name} (Available: {m.current_stock} {m.unit})</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-1.5">
-                                            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Quantity</label>
-                                            <input
-                                                type="number"
-                                                placeholder="0.00"
-                                                value={materialQuantity}
-                                                onChange={(e) => setMaterialQuantity(e.target.value)}
-                                                className="w-full text-sm border-gray-100 bg-gray-50 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none px-4 py-3"
-                                            />
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Unit Rate (Rs)</label>
-                                            <input
-                                                type="number"
-                                                placeholder="0.00"
-                                                value={materialUnitPrice}
-                                                onChange={(e) => setMaterialUnitPrice(e.target.value)}
-                                                className="w-full text-sm border-gray-100 bg-gray-50 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none px-4 py-3"
-                                            />
-                                        </div>
-                                    </div>
-                                    <button
-                                        type="submit"
-                                        disabled={!selectedMaterialId || !materialQuantity}
-                                        className="w-full bg-gray-900 text-white text-xs font-black uppercase py-4 rounded-xl hover:bg-black transition-all shadow-lg shadow-gray-200 active:scale-95 disabled:opacity-30"
-                                    >
-                                        + Add to Assignment List
-                                    </button>
-                                </form>
-                            </div>
-
-                            <div className="flex flex-col h-full">
-                                <h4 className="text-[11px] font-black text-indigo-600 uppercase tracking-widest mb-4">Pending Assignments</h4>
-                                {materialCart.length > 0 ? (
-                                    <div className="bg-indigo-50/30 flex-1 flex flex-col p-4 rounded-2xl border border-indigo-100">
-                                        <div className="flex justify-between items-center mb-3">
-                                            <p className="text-xs font-bold text-indigo-900">{materialCart.length} Items Selected</p>
-                                            <button
-                                                onClick={() => setMaterialCart([])}
-                                                className="text-[10px] text-indigo-400 hover:text-red-500 font-bold uppercase transition-colors"
-                                            >
-                                                Discard All
-                                            </button>
-                                        </div>
-                                        <div className="space-y-2 max-h-[160px] overflow-y-auto pr-2 flex-1">
-                                            {materialCart.map(item => (
-                                                <div key={item.id} className="flex justify-between items-center bg-white p-3 rounded-xl border border-indigo-50 shadow-sm group animate-in zoom-in-95 duration-200">
-                                                    <div className="flex flex-col">
-                                                        <span className="text-xs font-bold text-gray-800">{item.name}</span>
-                                                        <span className="text-[10px] text-gray-400 font-medium">{item.quantity} {item.unit} x Rs {item.unitPrice}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-3">
-                                                        <span className="text-xs font-black text-indigo-600">Rs {(item.quantity * item.unitPrice).toLocaleString()}</span>
-                                                        <button
-                                                            onClick={() => removeFromCart(item.id)}
-                                                            className="text-gray-300 hover:text-red-500 font-bold px-1 transition-colors"
-                                                        >
-                                                            ×
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                        <button
-                                            onClick={handleLinkMaterial}
-                                            disabled={linkingMaterial}
-                                            className="w-full mt-4 bg-indigo-600 text-white text-xs font-black uppercase py-4 rounded-xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-50"
-                                        >
-                                            {linkingMaterial ? 'Updating Stock...' : 'Confirm Bulk Allocation'}
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <div className="flex-1 border-2 border-dashed border-gray-100 rounded-2xl flex flex-col items-center justify-center p-8 opacity-40">
-                                        <div className="text-2xl mb-2">🛒</div>
-                                        <p className="text-xs font-medium text-gray-400">Cart is empty</p>
-                                    </div>
-                                )}
+                        {/* Add Materials Row */}
+                        <div className="border border-[var(--t-border)] bg-[var(--t-surface2)] rounded-[2px] p-3 flex flex-col md:flex-row gap-3">
+                            <select value={selectedMaterialId} onChange={e => {
+                                setSelectedMaterialId(e.target.value);
+                                const mat = dashboardData.materials.find(m => m.id === parseInt(e.target.value));
+                                if(mat) setMaterialUnitPrice(mat.avg_cost_per_unit || '');
+                            }} className="flex-1 bg-[var(--t-surface)] border border-[var(--t-border)] outline-none text-[11px] p-2 focus:border-[var(--t-primary)] rounded-[2px]">
+                                <option value="">Select Inventory Item...</option>
+                                {dashboardData.materials?.map(m => <option key={m.id} value={m.id}>{m.name} ({m.current_stock} {m.unit})</option>)}
+                            </select>
+                            <div className="flex gap-2">
+                                <input type="number" placeholder="Qty" value={materialQuantity} onChange={e => setMaterialQuantity(e.target.value)}
+                                       className="w-16 bg-[var(--t-surface)] border border-[var(--t-border)] text-[12px] p-2 outline-none focus:border-[var(--t-primary)] rounded-[2px] text-center"/>
+                                <button onClick={addToCart} disabled={!selectedMaterialId || !materialQuantity}
+                                    className="bg-[var(--t-text)] text-[var(--t-bg)] px-3 text-[10px] font-['DM_Mono',monospace] uppercase rounded-[2px] hover:opacity-90 disabled:opacity-50">Add</button>
                             </div>
                         </div>
+
+                        {/* Pending Cart */}
+                        {materialCart.length > 0 && (
+                            <div className="mt-3 bg-[var(--t-primary)]/10 border border-[var(--t-primary)]/30 rounded-[2px] p-3">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-[9px] font-['DM_Mono',monospace] uppercase text-[var(--t-primary)]">Pending ({materialCart.length})</span>
+                                    <button onClick={handleLinkMaterial} disabled={linkingMaterial}
+                                        className="bg-[var(--t-primary)] text-[var(--t-bg)] text-[9px] font-['DM_Mono',monospace] uppercase px-3 py-1.5 rounded-[2px] hover:opacity-90">
+                                        {linkingMaterial ? 'Allocating...' : 'Confirm Allocation'}
+                                    </button>
+                                </div>
+                                <div className="space-y-1">
+                                    {materialCart.map(item => (
+                                        <div key={item.id} className="flex justify-between text-[11px] bg-[var(--t-bg)] p-1.5 rounded-[2px] border border-[var(--t-border)]">
+                                            <span>{item.name} ({item.quantity} {item.unit})</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-['Bebas_Neue',sans-serif] text-[13px]">{formatCurrency(item.quantity * item.unitPrice)}</span>
+                                                <button onClick={() => removeFromCart(item.id)} className="text-[var(--t-danger)]">×</button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

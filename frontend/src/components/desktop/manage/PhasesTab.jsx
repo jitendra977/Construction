@@ -21,6 +21,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useConstruction } from '../../../context/ConstructionContext';
 
 const SortableCard = ({ phase, tasks = [], onEdit, onDelete }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
     const {
         attributes,
         listeners,
@@ -37,88 +38,108 @@ const SortableCard = ({ phase, tasks = [], onEdit, onDelete }) => {
     };
 
     return (
-        <div ref={setNodeRef} style={style} className={`bg-white rounded-2xl p-4 border border-gray-100 shadow-sm mb-3 transition-all ${isDragging ? 'shadow-xl scale-[1.02] border-indigo-200' : ''}`}>
-            <div className="flex justify-between items-start mb-3">
+        <div ref={setNodeRef} style={style} className={`cyber-card mb-3 transition-all ${isDragging ? 'shadow-xl scale-[1.02] border-[var(--t-primary)]' : ''}`}>
+            <div
+                className="flex justify-between items-start cursor-pointer"
+                onClick={() => setIsExpanded(!isExpanded)}
+            >
                 <div className="flex items-center gap-3">
-                    <div className="cursor-move p-2 -ml-2 text-gray-400 hover:text-indigo-600 active:scale-125 transition-all" {...attributes} {...listeners}>
+                    <div
+                        className="cursor-move p-2 -ml-2 text-[var(--t-text2)] hover:text-[var(--t-primary)] active:scale-125 transition-all"
+                        {...attributes}
+                        {...listeners}
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8h16M4 16h16" />
                         </svg>
                     </div>
                     <div>
-                        <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Phase {phase.order}</div>
-                        <h3 className="font-bold text-gray-900">{phase.name}</h3>
+                        <div className="text-[10px] font-black text-[var(--t-text2)] uppercase tracking-widest" style={{ fontFamily: 'var(--f-mono)' }}>Phase {phase.order}</div>
+                        <h3 className="font-bold text-[var(--t-text)]" style={{ fontFamily: 'var(--f-body)' }}>{phase.name}</h3>
                     </div>
                 </div>
-                <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${phase.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                    phase.status === 'IN_PROGRESS' ? 'bg-indigo-100 text-indigo-700' :
-                        phase.status === 'HALTED' ? 'bg-red-100 text-red-700' :
-                            'bg-gray-100 text-gray-500'
-                    }`}>
-                    {phase.status}
-                </span>
-            </div>
-
-            {phase.description && (
-                <p className="text-[11px] text-gray-500 mb-3 line-clamp-2 leading-relaxed italic">
-                    {phase.description}
-                </p>
-            )}
-
-            <div className="flex justify-between items-center bg-gray-50 rounded-xl p-3 mb-3">
-                <div>
-                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Est. Budget</div>
-                    <div className="text-sm font-black text-gray-900">Rs. {Number(phase.estimated_budget).toLocaleString()}</div>
-                </div>
-                <div className="text-right">
-                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Timeline</div>
-                    <div className="text-[11px] font-bold text-gray-600">
-                        {phase.start_date ? new Date(phase.start_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'TBD'} -
-                        {phase.end_date ? new Date(phase.end_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'TBD'}
-                    </div>
+                <div className="flex items-center gap-2">
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${phase.status === 'COMPLETED' ? 'bg-[var(--t-primary)]/20 text-[var(--t-primary)]' :
+                        phase.status === 'IN_PROGRESS' ? 'bg-[var(--t-info)]/20 text-[var(--t-info)]' :
+                            phase.status === 'HALTED' ? 'bg-[var(--t-danger)]/20 text-[var(--t-danger)]' :
+                                'bg-[var(--t-surface3)] text-[var(--t-text2)]'
+                        }`}>
+                        {phase.status}
+                    </span>
+                    <svg
+                        className={`w-5 h-5 text-[var(--t-text2)] transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                        fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                    >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
                 </div>
             </div>
 
-            {/* Associated Tasks Section */}
-            <div className="mb-4 bg-indigo-50/30 rounded-xl p-3 border border-indigo-100/50">
-                <div className="flex justify-between items-center mb-2">
-                    <h4 className="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
-                        <span>🔧</span> Tasks ({tasks.length})
-                    </h4>
-                </div>
-                {tasks.length > 0 ? (
-                    <div className="space-y-1.5">
-                        {tasks.map(task => (
-                            <div key={task.id} className="flex items-center justify-between bg-white/60 p-2 rounded-lg text-[11px]">
-                                <span className="font-bold text-gray-700 truncate mr-2">{task.title}</span>
-                                <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase ${task.status === 'COMPLETED' ? 'bg-green-100 text-green-600' :
-                                    task.status === 'IN_PROGRESS' ? 'bg-indigo-100 text-indigo-600' :
-                                        'bg-gray-200 text-gray-500'
-                                    }`}>
-                                    {task.status === 'IN_PROGRESS' ? 'Active' : task.status}
-                                </span>
+            {isExpanded && (
+                <div className="mt-4 animate-fadeIn">
+                    {phase.description && (
+                        <p className="text-[11px] text-[var(--t-text2)] mb-3 line-clamp-2 leading-relaxed italic" style={{ fontFamily: 'var(--f-body)' }}>
+                            {phase.description}
+                        </p>
+                    )}
+
+                    <div className="flex justify-between items-center bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-xl p-3 mb-3">
+                        <div>
+                            <div className="text-[9px] font-bold text-[var(--t-text2)] uppercase tracking-tighter" style={{ fontFamily: 'var(--f-mono)' }}>Est. Budget</div>
+                            <div className="text-sm font-black text-[var(--t-text)]" style={{ fontFamily: 'var(--f-disp)', letterSpacing: '1px' }}>Rs. {Number(phase.estimated_budget).toLocaleString()}</div>
+                        </div>
+                        <div className="text-right">
+                            <div className="text-[9px] font-bold text-[var(--t-text2)] uppercase tracking-tighter" style={{ fontFamily: 'var(--f-mono)' }}>Timeline</div>
+                            <div className="text-[11px] font-bold text-[var(--t-text3)]">
+                                {phase.start_date ? new Date(phase.start_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'TBD'} -
+                                {phase.end_date ? new Date(phase.end_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'TBD'}
                             </div>
-                        ))}
+                        </div>
                     </div>
-                ) : (
-                    <p className="text-[10px] text-gray-400 italic">No tasks assigned yet.</p>
-                )}
-            </div>
 
-            <div className="flex gap-2">
-                <button
-                    onClick={() => onEdit(phase)}
-                    className="flex-1 py-2.5 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-bold hover:bg-indigo-100 transition-colors"
-                >
-                    Edit Details
-                </button>
-                <button
-                    onClick={() => onDelete(phase.id)}
-                    className="px-4 py-2.5 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100 transition-colors"
-                >
-                    Delete
-                </button>
-            </div>
+                    {/* Associated Tasks Section */}
+                    <div className="mb-4 bg-[var(--t-surface2)] rounded-xl p-3 border border-[var(--t-border)]">
+                        <div className="flex justify-between items-center mb-2">
+                            <h4 className="text-[10px] font-black text-[var(--t-primary)] uppercase tracking-widest flex items-center gap-2">
+                                <span>🔧</span> Tasks ({tasks.length})
+                            </h4>
+                        </div>
+                        {tasks.length > 0 ? (
+                            <div className="space-y-1.5">
+                                {tasks.map(task => (
+                                    <div key={task.id} className="flex items-center justify-between bg-[var(--t-surface3)] p-2 rounded-lg text-[11px] border border-[var(--t-border2)]">
+                                        <span className="font-bold text-[var(--t-text)] truncate mr-2" style={{ fontFamily: 'var(--f-body)' }}>{task.title}</span>
+                                        <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase ${task.status === 'COMPLETED' ? 'bg-[var(--t-primary)]/20 text-[var(--t-primary)]' :
+                                            task.status === 'IN_PROGRESS' ? 'bg-[var(--t-info)]/20 text-[var(--t-info)]' :
+                                                'bg-[var(--t-surface)] text-[var(--t-text3)] border border-[var(--t-border)]'
+                                            }`}>
+                                            {task.status === 'IN_PROGRESS' ? 'Active' : task.status}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-[10px] text-[var(--t-text3)] italic">No tasks assigned yet.</p>
+                        )}
+                    </div>
+
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => onEdit(phase)}
+                            className="flex-1 py-2.5 bg-[var(--t-surface3)] text-[var(--t-text)] border border-[var(--t-border)] rounded-xl text-xs font-bold hover:border-[var(--t-primary)] transition-colors"
+                        >
+                            Edit Details
+                        </button>
+                        <button
+                            onClick={() => onDelete(phase.id)}
+                            className="px-4 py-2.5 bg-[var(--t-danger)]/10 text-[var(--t-danger)] border border-[var(--t-danger)]/30 rounded-xl text-xs font-bold hover:bg-[var(--t-danger)]/20 transition-colors"
+                        >
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -140,55 +161,55 @@ const SortableRow = ({ phase, tasks = [], onEdit, onDelete }) => {
     };
 
     return (
-        <tr ref={setNodeRef} style={style} className={`hover:bg-gray-50 transition-colors ${isDragging ? 'bg-indigo-50 shadow-lg relative' : ''}`}>
-            <td className="px-6 py-4">
+        <tr ref={setNodeRef} style={style} className={`hover:bg-[var(--t-surface2)] transition-colors ${isDragging ? 'bg-[var(--t-surface3)] shadow-lg relative' : ''}`}>
+            <td className="px-6 py-4 border-b border-[var(--t-border)]">
                 <div className="flex items-center gap-3">
-                    <div className="cursor-move p-1 text-gray-400 hover:text-indigo-600" {...attributes} {...listeners}>
+                    <div className="cursor-move p-1 text-[var(--t-text2)] hover:text-[var(--t-primary)]" {...attributes} {...listeners}>
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8h16M4 16h16" />
                         </svg>
                     </div>
-                    <span className="font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded text-xs">{phase.order}</span>
+                    <span className="font-bold text-[var(--t-text)] bg-[var(--t-surface3)] px-2 py-0.5 rounded text-xs border border-[var(--t-border)]" style={{ fontFamily: 'var(--f-mono)' }}>{phase.order}</span>
                 </div>
             </td>
-            <td className="px-6 py-4">
-                <div className="text-gray-700 font-bold">{phase.name}</div>
+            <td className="px-6 py-4 border-b border-[var(--t-border)]">
+                <div className="text-[var(--t-text)] font-bold" style={{ fontFamily: 'var(--f-body)' }}>{phase.name}</div>
                 {phase.description && (
-                    <div className="text-[10px] text-gray-400 mt-0.5 line-clamp-1 italic max-w-xs">
+                    <div className="text-[10px] text-[var(--t-text2)] mt-0.5 line-clamp-1 italic max-w-xs">
                         {phase.description}
                     </div>
                 )}
                 <div className="flex flex-wrap gap-1.5 mt-2">
                     {tasks.length > 0 ? (
                         tasks.slice(0, 3).map(task => (
-                            <div key={task.id} className="flex items-center gap-1.5 bg-gray-100/80 px-2 py-1 rounded-md text-[10px] font-bold text-gray-500 whitespace-nowrap">
-                                <span className={task.status === 'COMPLETED' ? 'text-green-500' : 'text-indigo-400'}>●</span>
+                            <div key={task.id} className="flex items-center gap-1.5 bg-[var(--t-surface3)] px-2 py-1 rounded-md text-[10px] font-bold text-[var(--t-text2)] whitespace-nowrap border border-[var(--t-border)]">
+                                <span className={task.status === 'COMPLETED' ? 'text-[var(--t-primary)]' : 'text-[var(--t-info)]'}>●</span>
                                 {task.title}
                             </div>
                         ))
                     ) : (
-                        <span className="text-[10px] text-gray-400 font-medium italic">No tasks</span>
+                        <span className="text-[10px] text-[var(--t-text3)] font-medium italic">No tasks</span>
                     )}
                     {tasks.length > 3 && (
-                        <div className="bg-indigo-50 px-2 py-1 rounded-md text-[10px] font-black text-indigo-600">
+                        <div className="bg-[var(--t-surface2)] px-2 py-1 rounded-md text-[10px] font-black text-[var(--t-text)] border border-[var(--t-border2)]">
                             +{tasks.length - 3} MORE
                         </div>
                     )}
                 </div>
             </td>
-            <td className="px-6 py-4 text-xs font-bold">
-                <span className={`px-2.5 py-1 rounded-full uppercase ${phase.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                    phase.status === 'IN_PROGRESS' ? 'bg-indigo-100 text-indigo-700' :
-                        phase.status === 'HALTED' ? 'bg-red-100 text-red-700' :
-                            'bg-gray-100 text-gray-500'
-                    }`}>
+            <td className="px-6 py-4 text-xs font-bold border-b border-[var(--t-border)]">
+                <span className={`px-2.5 py-1 rounded-full uppercase ${phase.status === 'COMPLETED' ? 'bg-[var(--t-primary)]/20 text-[var(--t-primary)]' :
+                    phase.status === 'IN_PROGRESS' ? 'bg-[var(--t-info)]/20 text-[var(--t-info)]' :
+                        phase.status === 'HALTED' ? 'bg-[var(--t-danger)]/20 text-[var(--t-danger)]' :
+                            'bg-[var(--t-surface3)] text-[var(--t-text2)]'
+                    }`} style={{ fontFamily: 'var(--f-mono)' }}>
                     {phase.status}
                 </span>
             </td>
-            <td className="px-6 py-4 font-black text-gray-900 text-sm">Rs. {Number(phase.estimated_budget).toLocaleString()}</td>
-            <td className="px-6 py-4 text-right space-x-3">
-                <button onClick={() => onEdit(phase)} className="text-indigo-600 hover:text-indigo-900 font-bold text-xs uppercase tracking-widest">Edit</button>
-                <button onClick={() => onDelete(phase.id)} className="text-red-500 hover:text-red-700 font-bold text-xs uppercase tracking-widest">Delete</button>
+            <td className="px-6 py-4 font-black text-[var(--t-text)] text-sm border-b border-[var(--t-border)]" style={{ fontFamily: 'var(--f-disp)', letterSpacing: '1px' }}>Rs. {Number(phase.estimated_budget).toLocaleString()}</td>
+            <td className="px-6 py-4 text-right space-x-3 border-b border-[var(--t-border)]">
+                <button onClick={() => onEdit(phase)} className="text-[var(--t-primary)] hover:opacity-80 font-bold text-xs uppercase tracking-widest" style={{ fontFamily: 'var(--f-mono)' }}>Edit</button>
+                <button onClick={() => onDelete(phase.id)} className="text-[var(--t-danger)] hover:opacity-80 font-bold text-xs uppercase tracking-widest" style={{ fontFamily: 'var(--f-mono)' }}>Delete</button>
             </td>
         </tr>
     );
@@ -268,12 +289,12 @@ const PhasesTab = ({ searchQuery = '' }) => {
 
     return (
         <div className="space-y-4">
-            <div className="flex justify-between items-center mb-2">
-                <p className="text-sm text-gray-500 hidden sm:block">Manage construction timeline and budget allocation per phase.</p>
-                <div className="sm:hidden" /> {/* Spacer for mobile */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+                <p className="text-sm text-[var(--t-text2)]">Manage construction timeline and budget allocation per phase.</p>
+                <div className="flex-1 sm:hidden"></div> {/* Takes up space to push button right */}
                 <button
                     onClick={() => handleOpenModal()}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors shadow-sm text-sm"
+                    className="w-full sm:w-auto px-4 py-2.5 bg-[var(--t-primary)] text-[var(--t-bg)] rounded-[2px] hover:opacity-90 font-['DM_Mono',monospace] uppercase tracking-widest text-[10px] sm:text-xs transition-colors shadow-sm"
                 >
                     + Add New Phase
                 </button>
@@ -281,18 +302,18 @@ const PhasesTab = ({ searchQuery = '' }) => {
 
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 {/* Desktop View: Table */}
-                <div className="hidden lg:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="hidden lg:block bg-[var(--t-surface)] rounded-xl shadow-sm border border-[var(--t-border)] overflow-hidden">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="bg-gray-50 border-b border-gray-100">
-                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Order</th>
-                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Phase Name</th>
-                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Estimated Budget</th>
-                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Actions</th>
+                            <tr className="bg-[var(--t-surface2)] border-b border-[var(--t-border)]">
+                                <th className="px-6 py-4 text-xs font-bold text-[var(--t-text2)] uppercase tracking-wider" style={{ fontFamily: 'var(--f-mono)' }}>Order</th>
+                                <th className="px-6 py-4 text-xs font-bold text-[var(--t-text2)] uppercase tracking-wider" style={{ fontFamily: 'var(--f-mono)' }}>Phase Name</th>
+                                <th className="px-6 py-4 text-xs font-bold text-[var(--t-text2)] uppercase tracking-wider" style={{ fontFamily: 'var(--f-mono)' }}>Status</th>
+                                <th className="px-6 py-4 text-xs font-bold text-[var(--t-text2)] uppercase tracking-wider" style={{ fontFamily: 'var(--f-mono)' }}>Estimated Budget</th>
+                                <th className="px-6 py-4 text-xs font-bold text-[var(--t-text2)] uppercase tracking-wider text-right" style={{ fontFamily: 'var(--f-mono)' }}>Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-50">
+                        <tbody className="divide-y divide-[var(--t-border)]">
                             <SortableContext items={filteredPhases.map(p => p.id)} strategy={verticalListSortingStrategy}>
                                 {filteredPhases.map(p => (
                                     <SortableRow
@@ -306,7 +327,7 @@ const PhasesTab = ({ searchQuery = '' }) => {
                             </SortableContext>
                             {filteredPhases.length === 0 && (
                                 <tr>
-                                    <td colSpan="5" className="px-6 py-10 text-center text-gray-400 italic">No phases found matching your search.</td>
+                                    <td colSpan="5" className="px-6 py-10 text-center text-[var(--t-text3)] italic">No phases found matching your search.</td>
                                 </tr>
                             )}
                         </tbody>
@@ -327,7 +348,7 @@ const PhasesTab = ({ searchQuery = '' }) => {
                         ))}
                     </SortableContext>
                     {filteredPhases.length === 0 && (
-                        <div className="py-10 text-center text-gray-400 italic bg-white rounded-2xl border-2 border-dashed border-gray-100">
+                        <div className="py-10 text-center text-[var(--t-text3)] italic bg-[var(--t-surface)] rounded-2xl border border-dashed border-[var(--t-border)]">
                             No phases found matching your search.
                         </div>
                     )}
@@ -337,63 +358,63 @@ const PhasesTab = ({ searchQuery = '' }) => {
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Add New Phase">
                 <form onSubmit={handleSubmit} className="space-y-4 p-1">
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Phase Name</label>
+                        <label className="block text-sm font-semibold text-[var(--t-text2)] mb-1">Phase Name</label>
                         <input
                             type="text"
                             value={formData.name || ''}
                             onChange={e => setFormData({ ...formData, name: e.target.value })}
-                            className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none"
+                            className="cyber-input w-full rounded-xl border border-[var(--t-border)] bg-[var(--t-surface2)] text-[var(--t-text)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] focus:border-[var(--t-primary)] p-3 outline-none"
                             placeholder="e.g. Foundation & Plinth"
                             required
                         />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">Order</label>
+                            <label className="block text-sm font-semibold text-[var(--t-text2)] mb-1">Order</label>
                             <input
                                 type="number"
                                 value={formData.order || 0}
                                 onChange={e => setFormData({ ...formData, order: e.target.value })}
-                                className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none"
+                                className="cyber-input w-full rounded-xl border border-[var(--t-border)] bg-[var(--t-surface2)] text-[var(--t-text)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] focus:border-[var(--t-primary)] p-3 outline-none"
                                 required
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">Estimated Budget (Rs.)</label>
+                            <label className="block text-sm font-semibold text-[var(--t-text2)] mb-1">Estimated Budget (Rs.)</label>
                             <input
                                 type="number"
                                 value={formData.estimated_budget || 0}
                                 onChange={e => setFormData({ ...formData, estimated_budget: e.target.value })}
-                                className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none"
+                                className="cyber-input w-full rounded-xl border border-[var(--t-border)] bg-[var(--t-surface2)] text-[var(--t-text)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] focus:border-[var(--t-primary)] p-3 outline-none"
                             />
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">Start Date</label>
+                            <label className="block text-sm font-semibold text-[var(--t-text2)] mb-1">Start Date</label>
                             <input
                                 type="date"
                                 value={formData.start_date || ''}
                                 onChange={e => setFormData({ ...formData, start_date: e.target.value })}
-                                className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none"
+                                className="cyber-input w-full rounded-xl border border-[var(--t-border)] bg-[var(--t-surface2)] text-[var(--t-text)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] focus:border-[var(--t-primary)] p-3 outline-none"
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">End Date</label>
+                            <label className="block text-sm font-semibold text-[var(--t-text2)] mb-1">End Date</label>
                             <input
                                 type="date"
                                 value={formData.end_date || ''}
                                 onChange={e => setFormData({ ...formData, end_date: e.target.value })}
-                                className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none"
+                                className="cyber-input w-full rounded-xl border border-[var(--t-border)] bg-[var(--t-surface2)] text-[var(--t-text)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] focus:border-[var(--t-primary)] p-3 outline-none"
                             />
                         </div>
                     </div>
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Status</label>
+                        <label className="block text-sm font-semibold text-[var(--t-text2)] mb-1">Status</label>
                         <select
                             value={formData.status || 'PENDING'}
                             onChange={e => setFormData({ ...formData, status: e.target.value })}
-                            className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none appearance-none bg-white"
+                            className="cyber-input w-full rounded-xl border border-[var(--t-border)] bg-[var(--t-surface2)] text-[var(--t-text)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] focus:border-[var(--t-primary)] p-3 outline-none appearance-none"
                         >
                             <option value="PENDING">Pending (Baki Cha)</option>
                             <option value="IN_PROGRESS">In Progress (Hudai Cha)</option>
@@ -402,17 +423,17 @@ const PhasesTab = ({ searchQuery = '' }) => {
                         </select>
                     </div>
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Description</label>
+                        <label className="block text-sm font-semibold text-[var(--t-text2)] mb-1">Description</label>
                         <textarea
                             value={formData.description || ''}
                             onChange={e => setFormData({ ...formData, description: e.target.value })}
-                            className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 p-3 border outline-none min-h-[100px] text-sm"
+                            className="cyber-input w-full rounded-xl border border-[var(--t-border)] bg-[var(--t-surface2)] text-[var(--t-text)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] focus:border-[var(--t-primary)] p-3 outline-none min-h-[100px] text-sm"
                             placeholder="Detailed description of the phase work..."
                         />
                     </div>
                     <div className="flex justify-end gap-3 mt-8">
-                        <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700">Cancel</button>
-                        <button type="submit" disabled={loading} className="px-8 py-2.5 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 disabled:opacity-50 transition-all">
+                        <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 text-sm font-bold text-[var(--t-text2)] hover:text-[var(--t-text)]">Cancel</button>
+                        <button type="submit" disabled={loading} className="px-8 py-2.5 bg-[var(--t-primary)] text-[var(--t-bg)] rounded-xl font-bold shadow-lg hover:bg-[var(--t-primary2)] disabled:opacity-50 transition-all">
                             {loading ? 'Creating...' : 'Create Phase'}
                         </button>
                     </div>
