@@ -1,55 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Bebas+Neue&family=Outfit:wght@300;400;600;700&display=swap');
 
-/* ─── DARK THEME (default) ────────────────────────────────── */
+/* ─── LIGHT THEME (default) ────────────────────────────────── */
 :root,
-[data-theme="dark"] {
-  --c-bg:      #0c0d0f;
-  --c-s1:      #131417;
-  --c-s2:      #1b1d21;
-  --c-s3:      #242629;
-  --c-bd:      #2e3035;
-  --c-bd2:     #3d4047;
-  --c-lime:    #c9f731;
-  --c-lime2:   #9bbf1e;
-  --c-lime3:   #e8ffa0;
-  --c-red:     #ff4429;
-  --c-amber:   #f5a623;
-  --c-blue:    #4a9eff;
-  --c-txt:     #edeef0;
-  --c-txt2:    #8b8f9a;
-  --c-txt3:    #54575f;
-  --c-accent:  #c9f731;
-  --c-accent2: #ff4429;
-
-  /* Semantic aliases for desktop compat */
-  --t-bg:      var(--c-bg);
-  --t-surface: var(--c-s1);
-  --t-surface2: var(--c-s2);
-  --t-surface3: var(--c-s3);
-  --t-border:  var(--c-bd);
-  --t-border2: var(--c-bd2);
-  --t-text:    var(--c-txt);
-  --t-text2:   var(--c-txt2);
-  --t-text3:   var(--c-txt3);
-  --t-primary: var(--c-lime);
-  --t-primary2: var(--c-lime2);
-  --t-danger:  var(--c-red);
-  --t-info:    var(--c-blue);
-  --t-warn:    var(--c-amber);
-  --t-nav-active-bg: rgba(201,247,49,0.08);
-  --t-nav-active-text: var(--c-lime);
-  --t-nav-hover-bg: rgba(255,255,255,0.04);
-  --t-primary-btn-bg: var(--c-lime);
-  --t-primary-btn-text: #0c0d0f;
-  --t-danger-btn-bg: var(--c-red);
-  --t-input-bg: var(--c-s2);
-
-  --f-disp:    'Bebas Neue', sans-serif;
-  --f-body:    'Outfit', sans-serif;
-  --f-mono:    'DM Mono', monospace;
-}
-
-/* ─── LIGHT THEME ─────────────────────────────────────────── */
 [data-theme="light"] {
   --c-bg:      #f1f5f9;
   --c-s1:      #ffffff;
@@ -91,6 +43,54 @@
   --t-primary-btn-text: #ffffff;
   --t-danger-btn-bg: #ef4444;
   --t-input-bg: #ffffff;
+
+  --f-disp:    'Bebas Neue', sans-serif;
+  --f-body:    'Outfit', sans-serif;
+  --f-mono:    'DM Mono', monospace;
+}
+
+/* ─── DARK THEME ─────────────────────────────────────────── */
+[data-theme="dark"] {
+  --c-bg:      #0c0d0f;
+  --c-s1:      #131417;
+  --c-s2:      #1b1d21;
+  --c-s3:      #242629;
+  --c-bd:      #2e3035;
+  --c-bd2:     #3d4047;
+  --c-lime:    #c9f731;
+  --c-lime2:   #9bbf1e;
+  --c-lime3:   #e8ffa0;
+  --c-red:     #ff4429;
+  --c-amber:   #f5a623;
+  --c-blue:    #4a9eff;
+  --c-txt:     #edeef0;
+  --c-txt2:    #8b8f9a;
+  --c-txt3:    #54575f;
+  --c-accent:  #c9f731;
+  --c-accent2: #ff4429;
+
+  /* Semantic aliases for desktop compat */
+  --t-bg:      var(--c-bg);
+  --t-surface: var(--c-s1);
+  --t-surface2: var(--c-s2);
+  --t-surface3: var(--c-s3);
+  --t-border:  var(--c-bd);
+  --t-border2: var(--c-bd2);
+  --t-text:    var(--c-txt);
+  --t-text2:   var(--c-txt2);
+  --t-text3:   var(--c-txt3);
+  --t-primary: var(--c-lime);
+  --t-primary2: var(--c-lime2);
+  --t-danger:  var(--c-red);
+  --t-info:    var(--c-blue);
+  --t-warn:    var(--c-amber);
+  --t-nav-active-bg: rgba(201,247,49,0.08);
+  --t-nav-active-text: var(--c-lime);
+  --t-nav-hover-bg: rgba(255,255,255,0.04);
+  --t-primary-btn-bg: var(--c-lime);
+  --t-primary-btn-text: #0c0d0f;
+  --t-danger-btn-bg: var(--c-red);
+  --t-input-bg: var(--c-s2);
 
   --f-disp:    'Bebas Neue', sans-serif;
   --f-body:    'Outfit', sans-serif;

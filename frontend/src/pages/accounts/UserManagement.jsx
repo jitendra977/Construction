@@ -12,10 +12,15 @@ const UserManagement = () => {
     const [roles, setRoles] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [selectedUser, setSelectedUser] = useState(null);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editingUser, setEditingUser] = useState(null);
     const [isDeleting, setIsDeleting] = useState(null);
+
+    const stats = {
+        total: users.length,
+        active: users.filter(u => u.is_active).length,
+    };
 
     const fetchData = async () => {
         setLoading(true);
@@ -40,8 +45,8 @@ const UserManagement = () => {
     }, []);
 
     const handleEditStart = (user) => {
-        setSelectedUser(user);
-        setIsEditModalOpen(true);
+        setEditingUser(user);
+        setShowEditModal(true);
     };
 
     const handleUserSave = () => {
@@ -63,25 +68,22 @@ const UserManagement = () => {
         }
     };
 
-    const getRoleBadgeColor = (roleCode) => {
+    const getRoleBadgeStyle = (roleCode) => {
         switch (roleCode) {
-            case 'SUPER_ADMIN': return 'bg-purple-100 text-purple-700 border-purple-200';
-            case 'HOME_OWNER': return 'bg-blue-100 text-blue-700 border-blue-200';
-            case 'LEAD_ENGINEER': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-            case 'CONTRACTOR': return 'bg-orange-100 text-orange-700 border-orange-200';
-            default: return 'bg-gray-100 text-gray-700 border-gray-200';
+            case 'SUPER_ADMIN': return 'bg-purple-500/10 text-purple-600 border-purple-500/20';
+            case 'HOME_OWNER': return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
+            case 'LEAD_ENGINEER': return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20';
+            case 'CONTRACTOR': return 'bg-orange-500/10 text-orange-600 border-orange-500/20';
+            default: return 'bg-[var(--t-surface3)] text-[var(--t-text3)] border-[var(--t-border)]';
         }
     };
 
     return (
-        <div className="p-6 max-w-6xl mx-auto">
-            <div className="flex justify-between items-center mb-8">
+        <div className="p-8 max-w-7xl mx-auto space-y-8 min-h-screen bg-[var(--t-bg)]">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div>
-                    <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2">
-                        <Users className="text-indigo-600" size={28} />
-                        User Management
-                    </h1>
-                    <p className="text-gray-500 mt-1">Manage system access, roles, and permissions for all team members.</p>
+                    <h1 className="text-4xl font-black text-[var(--t-text)] tracking-tight">Access Control</h1>
+                    <p className="text-[var(--t-text2)] mt-1 font-medium">Manage team members and project permissions.</p>
                 </div>
                 <div className="flex gap-3">
                     <button
@@ -93,8 +95,8 @@ const UserManagement = () => {
                         Refresh
                     </button>
                     <button
-                        onClick={() => setIsCreateModalOpen(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-95"
+                        onClick={() => setShowCreateModal(true)}
+                        className="px-6 py-3 bg-[var(--t-primary)] text-[var(--t-bg)] rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-lg hover:opacity-90 transition-all flex items-center gap-2"
                     >
                         <UserPlus size={18} />
                         Add User
@@ -104,18 +106,18 @@ const UserManagement = () => {
 
             {/* Modals */}
             <UserCreateModal
-                isOpen={isCreateModalOpen}
-                onClose={() => setIsCreateModalOpen(false)}
+                isOpen={showCreateModal}
+                onClose={() => setShowCreateModal(false)}
                 onUserCreated={handleUserSave}
             />
-            {selectedUser && (
+            {editingUser && (
                 <UserEditModal
-                    isOpen={isEditModalOpen}
+                    isOpen={showEditModal}
                     onClose={() => {
-                        setIsEditModalOpen(false);
-                        setSelectedUser(null);
+                        setShowEditModal(false);
+                        setEditingUser(null);
                     }}
-                    user={selectedUser}
+                    user={editingUser}
                     onUserUpdated={handleUserSave}
                 />
             )}
@@ -127,7 +129,23 @@ const UserManagement = () => {
                 </div>
             )}
 
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+            {/* Dashboard Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                    { label: 'Total Users', value: stats.total, color: 'indigo-500' },
+                    { label: 'Active Sessions', value: stats.active, color: 'emerald-500' },
+                    { label: 'Pending Invitations', value: '1', color: 'orange-500' },
+                    { label: 'Security Level', value: 'High', color: 'purple-500' }
+                ].map((s, i) => (
+                    <div key={i} className="bg-[var(--t-surface)] p-5 rounded-2xl border border-[var(--t-border)] shadow-sm">
+                        <div className="text-[var(--t-text3)] text-[10px] font-black uppercase tracking-widest">{s.label}</div>
+                        <div className="text-2xl font-black mt-1 text-[var(--t-text)]">{s.value}</div>
+                    </div>
+                ))}
+            </div>
+
+            {/* User Table Card */}
+            <div className="bg-[var(--t-surface)] rounded-3xl shadow-sm border border-[var(--t-border)] overflow-hidden">
                 {loading && !users.length ? (
                     <div className="p-12 flex flex-col items-center justify-center text-gray-400">
                         <div className="w-10 h-10 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
@@ -135,89 +153,71 @@ const UserManagement = () => {
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
+                        <table className="w-full text-left">
                             <thead>
-                                <tr className="bg-gray-50/50 border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500 font-bold">
-                                    <th className="p-4 pl-6">Member</th>
-                                    <th className="p-4">Contact</th>
-                                    <th className="p-4">Role / Permissions</th>
-                                    <th className="p-4 text-center">Admin</th>
-                                    <th className="p-4 pr-6 text-right">Actions</th>
+                                <tr className="bg-[var(--t-surface2)] border-b border-[var(--t-border)]">
+                                    <th className="px-6 py-4 text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest">User Details</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest">Role & Permissions</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest">Status</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest">Joined Date</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest text-right">Settings</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-50">
+                            <tbody className="divide-y divide-[var(--t-border)]">
                                 {users.map((user) => (
-                                    <tr key={user.id} className="hover:bg-gray-50/50 transition-colors group">
-                                        <td className="p-4 pl-6 whitespace-nowrap">
-                                            <div className="flex items-center gap-3">
-                                                <div className="relative">
-                                                    {user.profile_image ? (
-                                                        <img
-                                                            src={user.profile_image}
-                                                            alt={user.username}
-                                                            className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm"
-                                                        />
-                                                    ) : (
-                                                        <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-black text-sm border-2 border-white shadow-sm">
-                                                            {user.first_name?.[0] || user.username?.[0]?.toUpperCase()}
-                                                        </div>
-                                                    )}
-                                                    {user.is_verified && (
-                                                        <div className="absolute -bottom-1 -right-1 bg-blue-500 text-white rounded-full p-0.5 border-2 border-white shadow-sm">
-                                                            <Check size={8} strokeWidth={4} />
-                                                        </div>
-                                                    )}
-                                                </div>
+                                    <tr key={user.id} className="hover:bg-[var(--t-surface2)]/50 transition-colors group">
+                                        <td className="px-6 py-5">
+                                            <div className="flex items-center gap-4">
+                                                {user.profile_image ? (
+                                                    <img
+                                                        src={user.profile_image}
+                                                        alt={user.username}
+                                                        className="w-10 h-10 rounded-full object-cover ring-2 ring-[var(--t-primary)]/20"
+                                                    />
+                                                ) : (
+                                                    <div className="w-10 h-10 rounded-full bg-[var(--t-primary)]/10 flex items-center justify-center text-[var(--t-primary)] font-black text-xs ring-2 ring-[var(--t-primary)]/20">
+                                                        {user.first_name?.[0] || user.username?.[0]?.toUpperCase()}
+                                                    </div>
+                                                )}
                                                 <div>
-                                                    <p className="text-sm font-bold text-gray-900">
-                                                        {user.first_name ? `${user.first_name} ${user.last_name}` : user.username}
-                                                    </p>
-                                                    <p className="text-xs text-gray-500">@{user.username}</p>
+                                                    <div className="text-sm font-black text-[var(--t-text)]">{user.first_name ? `${user.first_name} ${user.last_name}` : user.username}</div>
+                                                    <div className="text-[10px] font-medium text-[var(--t-text3)]">{user.email || 'no-email@project.com'}</div>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="p-4 whitespace-nowrap">
-                                            <div className="flex flex-col gap-1">
-                                                <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                                                    <Mail size={12} className="text-gray-400" />
-                                                    {user.email}
-                                                </div>
-                                                <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                                                    <Phone size={12} className="text-gray-400" />
-                                                    {user.phone_number || 'No phone'}
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="p-4 whitespace-nowrap">
-                                            <span className={`px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg border shadow-sm ${getRoleBadgeColor(user.role?.code)}`}>
+                                        <td className="px-6 py-5">
+                                            <span className={`px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg border shadow-sm ${getRoleBadgeStyle(user.role?.code)}`}>
                                                 {user.role?.name || 'Unassigned'}
                                             </span>
                                         </td>
-                                        <td className="p-4 text-center">
-                                            {user.is_system_admin ? (
-                                                <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-indigo-50 text-indigo-600" title="System Administrator">
-                                                    <Shield size={16} strokeWidth={2.5} />
-                                                </div>
-                                            ) : (
-                                                <span className="text-gray-300">—</span>
-                                            )}
+                                        <td className="px-6 py-5">
+                                            <span className={`px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg border shadow-sm ${user.is_active ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-red-500/10 text-red-600 border-red-500/20'}`}>
+                                                {user.is_active ? 'Active' : 'Inactive'}
+                                            </span>
                                         </td>
-                                        <td className="p-4 pr-6 text-right whitespace-nowrap">
+                                        <td className="px-6 py-5 text-sm text-[var(--t-text2)]">
+                                            {new Date(user.date_joined).toLocaleDateString()}
+                                        </td>
+                                        <td className="px-6 py-5 text-right whitespace-nowrap">
                                             <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button
                                                     onClick={() => handleEditStart(user)}
-                                                    className="p-1.5 text-gray-400 hover:bg-gray-100 hover:text-indigo-600 rounded-lg transition-all"
+                                                    className="p-2 text-[var(--t-text3)] hover:text-[var(--t-primary)] hover:bg-[var(--t-primary)]/10 rounded-lg transition-all"
                                                     title="Edit User"
                                                 >
-                                                    <Edit2 size={18} />
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                    </svg>
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteUser(user.id)}
                                                     disabled={isDeleting === user.id || user.is_system_admin}
-                                                    className="p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-all disabled:opacity-30 disabled:hover:bg-transparent"
+                                                    className="p-2 text-[var(--t-text3)] hover:text-[var(--t-danger)] hover:bg-[var(--t-danger)]/10 rounded-lg transition-all disabled:opacity-30 disabled:hover:bg-transparent"
                                                     title={user.is_system_admin ? "Cannot delete system admin" : "Delete User"}
                                                 >
-                                                    <Trash2 size={18} />
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
                                                 </button>
                                             </div>
                                         </td>

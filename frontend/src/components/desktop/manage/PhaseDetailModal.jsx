@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import Modal from '../../common/Modal';
 import { constructionService, getMediaUrl } from '../../../services/api';
 import { useConstruction } from '../../../context/ConstructionContext';
+import ConfirmModal from '../../common/ConfirmModal';
 
 const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
     const {
@@ -24,6 +25,106 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
 
     const fileInputRef = useRef(null);
     const phasePhotoRef = useRef(null);
+
+    const [localPhase, setLocalPhase] = useState({
+        name: phase.name,
+        description: phase.description || '',
+        start_date: phase.start_date || '',
+        end_date: phase.end_date || ''
+    });
+    const [taskDueDateUpdates, setTaskDueDateUpdates] = useState({}); // userId -> dueDate
+    const [pendingTaskDeletions, setPendingTaskDeletions] = useState(new Set());
+    const [pendingExpenseDeletions, setPendingExpenseDeletions] = useState(new Set());
+    const [deleteConfirmTarget, setDeleteConfirmTarget] = useState(null); // { id, type, title }
+    const [isDirty, setIsDirty] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [showCloseWarning, setShowCloseWarning] = useState(false);
+
+    // Sync local state when phase prop changes (e.g. modal opened for different phase)
+    React.useEffect(() => {
+        if (phase) {
+            setLocalPhase({
+                name: phase.name,
+                description: phase.description || '',
+                start_date: phase.start_date || '',
+                end_date: phase.end_date || ''
+            });
+            setTaskDueDateUpdates({});
+            setPendingTaskDeletions(new Set());
+            setPendingExpenseDeletions(new Set());
+            setIsDirty(false);
+        }
+    }, [phase.id]);
+
+    const handleLocalChange = (field, value) => {
+        setLocalPhase(prev => ({ ...prev, [field]: value }));
+        setIsDirty(true);
+    };
+
+    const handleTaskDateChange = (taskId, date) => {
+        setTaskDueDateUpdates(prev => ({ ...prev, [taskId]: date }));
+        setIsDirty(true);
+    };
+
+    const handleGlobalSave = async () => {
+        setSaving(true);
+        try {
+            // 1. Save Phase Details if changed
+            await updatePhase(phase.id, localPhase);
+
+            // 2. Save Task Due Dates if changed
+            for (const taskId in taskDueDateUpdates) {
+                await constructionService.updateTask(taskId, { due_date: taskDueDateUpdates[taskId] || null });
+            }
+
+            // 3. Process Pending Task Deletions
+            for (const taskId of pendingTaskDeletions) {
+                await constructionService.deleteTask(taskId);
+            }
+
+            // 4. Process Pending Expense Deletions
+            for (const expenseId of pendingExpenseDeletions) {
+                await constructionService.deleteExpense(expenseId);
+            }
+
+            // 5. Process Material Cart if any
+            if (materialCart.length > 0) {
+                for (const item of materialCart) {
+                    await createMaterialTransaction({
+                        material: item.materialId,
+                        transaction_type: 'OUT',
+                        quantity: item.quantity,
+                        unit_price: item.unitPrice,
+                        date: new Date().toISOString().split('T')[0],
+                        phase: phase.id,
+                        purpose: `Allocated for ${phase.name}`,
+                        create_expense: true,
+                        status: 'RECEIVED'
+                    });
+                }
+                setMaterialCart([]);
+            }
+
+            setIsDirty(false);
+            setTaskDueDateUpdates({});
+            setPendingTaskDeletions(new Set());
+            setPendingExpenseDeletions(new Set());
+            refreshData();
+        } catch (error) {
+            console.error("Failed to save changes", error);
+            alert("Failed to save some changes. Please try again.");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleCloseAttempt = () => {
+        if (isDirty || materialCart.length > 0 || pendingTaskDeletions.size > 0 || pendingExpenseDeletions.size > 0) {
+            setShowCloseWarning(true);
+        } else {
+            onClose();
+        }
+    };
 
     // Get materials associated with this phase
     const phaseMaterials = (phase && dashboardData.expenses) ? dashboardData.expenses.filter(e => e.phase === phase.id && e.expense_type === 'MATERIAL') : [];
@@ -108,17 +209,14 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
         }
     };
 
-    const handleDeleteTask = async (taskId) => {
-        if (!window.confirm("Are you sure you want to delete this task?")) return;
-        try {
-            await constructionService.deleteTask(taskId);
-            if (selectedTask?.id === taskId) {
-                setSelectedTask(null);
-            }
-            refreshData();
-        } catch (error) {
-            console.error("Failed to delete task", error);
-        }
+    const confirmDeleteTask = (task) => {
+        setDeleteConfirmTarget({ id: task.id, type: 'TASK', title: task.title });
+    };
+
+    const handleMarkTaskForDeletion = (taskId) => {
+        setPendingTaskDeletions(prev => new Set([...prev, taskId]));
+        setIsDirty(true);
+        setDeleteConfirmTarget(null);
     };
 
     const addToCart = (e) => {
@@ -144,39 +242,12 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
     };
 
     const removeFromCart = (tempId) => {
-        setMaterialCart(materialCart.filter(item => item.id !== tempId));
-    };
-
-    const handleLinkMaterial = async () => {
-        if (materialCart.length === 0) return;
-
-        setLinkingMaterial(true);
-        try {
-            for (const item of materialCart) {
-                await createMaterialTransaction({
-                    material: item.materialId,
-                    transaction_type: 'OUT',
-                    quantity: item.quantity,
-                    unit_price: item.unitPrice,
-                    date: new Date().toISOString().split('T')[0],
-                    phase: phase.id,
-                    purpose: `Allocated for ${phase.name}`,
-                    create_expense: true,
-                    status: 'RECEIVED'
-                });
-            }
-            setMaterialCart([]);
-            refreshData();
-        } catch (error) {
-            console.error("Failed to link materials", error);
-            alert("Failed to process some materials. Please check progress.");
-        } finally {
-            setLinkingMaterial(false);
-        }
+        const newCart = materialCart.filter(item => item.id !== tempId);
+        setMaterialCart(newCart);
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={`${phase.name} - Task Management`} maxWidth="max-w-6xl">
+        <Modal isOpen={isOpen} onClose={handleCloseAttempt} title={`${phase.name} - Task Management`} maxWidth="max-w-6xl">
             <div className="p-4 flex flex-col lg:flex-row gap-6 bg-[var(--t-bg)]">
                 {/* Left Column: Info & Tasks */}
                 <div className="w-full lg:w-1/3 flex flex-col gap-4">
@@ -185,31 +256,62 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
                     <div className="bg-[var(--t-surface)] p-4 rounded-[2px] border border-[var(--t-border)] space-y-4">
                         <div className="flex justify-between items-center">
                             <h4 className="text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-widest">Phase Details</h4>
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-[1px] text-[9px] font-['DM_Mono',monospace] uppercase tracking-widest border ${
-                                phase.status === 'COMPLETED' ? 'bg-[var(--t-primary)]/10 text-[var(--t-primary)] border-[var(--t-primary)]/40' :
-                                phase.status === 'IN_PROGRESS' ? 'bg-[var(--t-info)]/10 text-[var(--t-info)] border-[var(--t-info)]/40' :
-                                'bg-[var(--t-surface2)] text-[var(--t-text)] border-[var(--t-border)]'
-                            }`}>
-                                <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
-                                    phase.status === 'COMPLETED' ? 'bg-[var(--t-primary)]' :
-                                    phase.status === 'IN_PROGRESS' ? 'bg-[var(--t-info)]' :
-                                    'bg-[var(--t-text3)]'
-                                }`}></span>
-                                {phase.status.replace('_', ' ')}
-                            </span>
+                            <div className="flex items-center gap-2">
+                                {(isDirty || materialCart.length > 0 || pendingTaskDeletions.size > 0 || pendingExpenseDeletions.size > 0) && (
+                                    <div className="flex items-center gap-1">
+                                        <button 
+                                            onClick={() => {
+                                                setLocalPhase({
+                                                    name: phase.name,
+                                                    description: phase.description || '',
+                                                    start_date: phase.start_date || '',
+                                                    end_date: phase.end_date || ''
+                                                });
+                                                setTaskDueDateUpdates({});
+                                                setPendingTaskDeletions(new Set());
+                                                setPendingExpenseDeletions(new Set());
+                                                setMaterialCart([]);
+                                                setIsDirty(false);
+                                            }}
+                                            className="px-2 py-0.5 bg-[var(--t-surface2)] text-[var(--t-text2)] text-[9px] font-['DM_Mono',monospace] uppercase rounded-[1px] border border-[var(--t-border)] hover:bg-[var(--t-surface3)]"
+                                        >
+                                            Discard All
+                                        </button>
+                                        <button 
+                                            onClick={handleGlobalSave}
+                                            disabled={saving}
+                                            className="px-2 py-0.5 bg-[var(--t-primary)] text-[var(--t-bg)] text-[9px] font-['DM_Mono',monospace] uppercase rounded-[1px] hover:opacity-90 disabled:opacity-50"
+                                        >
+                                            {saving ? 'Saving...' : 'Save All'}
+                                        </button>
+                                    </div>
+                                )}
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-[1px] text-[9px] font-['DM_Mono',monospace] uppercase tracking-widest border ${
+                                    phase.status === 'COMPLETED' ? 'bg-[var(--t-primary)]/10 text-[var(--t-primary)] border-[var(--t-primary)]/40' :
+                                    phase.status === 'IN_PROGRESS' ? 'bg-[var(--t-info)]/10 text-[var(--t-info)] border-[var(--t-info)]/40' :
+                                    'bg-[var(--t-surface2)] text-[var(--t-text)] border-[var(--t-border)]'
+                                }`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                                        phase.status === 'COMPLETED' ? 'bg-[var(--t-primary)]' :
+                                        phase.status === 'IN_PROGRESS' ? 'bg-[var(--t-info)]' :
+                                        'bg-[var(--t-text3)]'
+                                    }`}></span>
+                                    {phase.status.replace('_', ' ')}
+                                </span>
+                            </div>
                         </div>
                         <div>
                             <input
                                 type="text"
-                                value={phase.name}
-                                onChange={(e) => updatePhase(phase.id, { name: e.target.value })}
+                                value={localPhase.name}
+                                onChange={(e) => handleLocalChange('name', e.target.value)}
                                 className="w-full text-[14px] font-bold text-[var(--t-text)] bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-[2px] px-3 py-2 outline-none focus:border-[var(--t-primary)] transition-colors"
                             />
                         </div>
                         <div>
                             <textarea
-                                value={phase.description || ''}
-                                onChange={(e) => updatePhase(phase.id, { description: e.target.value })}
+                                value={localPhase.description}
+                                onChange={(e) => handleLocalChange('description', e.target.value)}
                                 rows="2"
                                 className="w-full text-[12px] text-[var(--t-text2)] bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-[2px] px-3 py-2 outline-none focus:border-[var(--t-primary)] transition-colors resize-none"
                                 placeholder="Describe the goals..."
@@ -225,8 +327,8 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
                                 <span className="text-[9px] font-['DM_Mono',monospace] text-[var(--t-text2)] uppercase">Start Date</span>
                                 <input
                                     type="date"
-                                    value={phase.start_date || ''}
-                                    onChange={(e) => updatePhase(phase.id, { start_date: e.target.value || null })}
+                                    value={localPhase.start_date}
+                                    onChange={(e) => handleLocalChange('start_date', e.target.value || null)}
                                     className="w-full bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-[2px] px-2 py-1.5 text-[12px] text-[var(--t-text)] outline-none focus:border-[var(--t-primary)]"
                                 />
                             </div>
@@ -234,8 +336,8 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
                                 <span className="text-[9px] font-['DM_Mono',monospace] text-[var(--t-text2)] uppercase">End Date</span>
                                 <input
                                     type="date"
-                                    value={phase.end_date || ''}
-                                    onChange={(e) => updatePhase(phase.id, { end_date: e.target.value || null })}
+                                    value={localPhase.end_date}
+                                    onChange={(e) => handleLocalChange('end_date', e.target.value || null)}
                                     className="w-full bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-[2px] px-2 py-1.5 text-[12px] text-[var(--t-text)] outline-none focus:border-[var(--t-primary)]"
                                 />
                             </div>
@@ -299,7 +401,7 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
                         </div>
                         
                         <div className="flex-1 overflow-y-auto pr-1 space-y-2 mb-4 max-h-[300px]">
-                            {tasks?.length > 0 ? tasks.map(task => (
+                            {tasks?.length > 0 ? tasks.filter(t => !pendingTaskDeletions.has(t.id)).map(task => (
                                 <div key={task.id} 
                                      onClick={() => setSelectedTask(task)}
                                      className={`group flex flex-col p-3 rounded-[2px] cursor-pointer border transition-colors ${
@@ -317,10 +419,10 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
                                                 <div className="flex gap-3 mt-2">
                                                     <div className="flex items-center gap-1.5">
                                                         <span className="text-[8px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase">Due</span>
-                                                        <input type="date" value={task.due_date || ''}
+                                                        <input type="date" value={taskDueDateUpdates[task.id] !== undefined ? taskDueDateUpdates[task.id] : (task.due_date || '')}
                                                             onClick={e => e.stopPropagation()}
-                                                            onChange={e => constructionService.updateTask(task.id, { due_date: e.target.value || null }).then(refreshData)}
-                                                            className="text-[9px] bg-transparent border-b border-[var(--t-border)] text-[var(--t-text2)] outline-none focus:border-[var(--t-primary)]" />
+                                                            onChange={e => handleTaskDateChange(task.id, e.target.value)}
+                                                            className={`text-[9px] bg-transparent border-b text-[var(--t-text2)] outline-none focus:border-[var(--t-primary)] ${taskDueDateUpdates[task.id] !== undefined ? 'border-[var(--t-primary)]' : 'border-[var(--t-border)]'}`} />
                                                     </div>
                                                     {task.media?.length > 0 && (
                                                         <span className="text-[8px] font-['DM_Mono',monospace] bg-[var(--t-surface3)] px-1.5 py-0.5 rounded-[1px] text-[var(--t-text)]">
@@ -330,7 +432,7 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
                                                 </div>
                                             </div>
                                         </div>
-                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }}
+                                        <button onClick={(e) => { e.stopPropagation(); confirmDeleteTask(task); }}
                                                 className="opacity-0 group-hover:opacity-100 text-[14px] text-[var(--t-danger)] p-1 hover:bg-[var(--t-danger)]/10 rounded-[2px]">
                                             ×
                                         </button>
@@ -463,7 +565,7 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
                         
                         {/* Material List */}
                         <div className="max-h-[200px] overflow-y-auto mb-4 border border-[var(--t-border)] rounded-[2px]">
-                            {phaseMaterials.length > 0 ? (
+                            {phaseMaterials.filter(m => !pendingExpenseDeletions.has(m.id)).length > 0 ? (
                                 <table className="w-full text-left">
                                     <thead className="bg-[var(--t-surface2)] border-b border-[var(--t-border)] sticky top-0">
                                         <tr>
@@ -474,7 +576,7 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-[var(--t-border)]">
-                                        {phaseMaterials.map(m => (
+                                        {phaseMaterials.filter(m => !pendingExpenseDeletions.has(m.id)).map(m => (
                                             <tr key={m.id} className="hover:bg-[var(--t-surface2)]">
                                                 <td className="px-3 py-2 text-[12px] font-bold text-[var(--t-text)]">{m.title}</td>
                                                 <td className="px-3 py-2 text-right">
@@ -485,7 +587,7 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
                                                     {formatCurrency(m.amount)}
                                                 </td>
                                                 <td className="px-3 py-2 text-center">
-                                                    <button onClick={() => window.confirm("Unlink?") && deleteExpense(m.id)}
+                                                    <button onClick={() => setDeleteConfirmTarget({ id: m.id, type: 'EXPENSE', title: m.title })}
                                                         className="text-[var(--t-border2)] hover:text-[var(--t-danger)]">×</button>
                                                 </td>
                                             </tr>
@@ -520,10 +622,7 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
                             <div className="mt-3 bg-[var(--t-primary)]/10 border border-[var(--t-primary)]/30 rounded-[2px] p-3">
                                 <div className="flex justify-between items-center mb-2">
                                     <span className="text-[9px] font-['DM_Mono',monospace] uppercase text-[var(--t-primary)]">Pending ({materialCart.length})</span>
-                                    <button onClick={handleLinkMaterial} disabled={linkingMaterial}
-                                        className="bg-[var(--t-primary)] text-[var(--t-bg)] text-[9px] font-['DM_Mono',monospace] uppercase px-3 py-1.5 rounded-[2px] hover:opacity-90">
-                                        {linkingMaterial ? 'Allocating...' : 'Confirm Allocation'}
-                                    </button>
+                                    <span className="text-[8px] font-['DM_Mono',monospace] uppercase text-[var(--t-text3)]">Press 'Save All' above to apply</span>
                                 </div>
                                 <div className="space-y-1">
                                     {materialCart.map(item => (
@@ -541,6 +640,39 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
                     </div>
                 </div>
             </div>
+
+            <ConfirmModal 
+                isOpen={showCloseWarning}
+                title="Unsaved Changes"
+                message="You have modified phase details, task dates, or pending materials. Closing will discard these changes."
+                confirmText="Discard & Close"
+                cancelText="Keep Editing"
+                type="warning"
+                onConfirm={() => {
+                    setShowCloseWarning(false);
+                    onClose();
+                }}
+                onCancel={() => setShowCloseWarning(false)}
+            />
+
+            <ConfirmModal 
+                isOpen={!!deleteConfirmTarget}
+                title={`Delete ${deleteConfirmTarget?.type === 'TASK' ? 'Sub-Phase' : 'Material'}`}
+                message={`Are you sure you want to remove "${deleteConfirmTarget?.title}"? This action will be finalized when you click 'Save All'.`}
+                confirmText="Mark for Deletion"
+                cancelText="Keep Item"
+                type="danger"
+                onConfirm={() => {
+                    if (deleteConfirmTarget.type === 'TASK') {
+                        handleMarkTaskForDeletion(deleteConfirmTarget.id);
+                    } else {
+                        setPendingExpenseDeletions(prev => new Set([...prev, deleteConfirmTarget.id]));
+                        setIsDirty(true);
+                        setDeleteConfirmTarget(null);
+                    }
+                }}
+                onCancel={() => setDeleteConfirmTarget(null)}
+            />
         </Modal>
     );
 };

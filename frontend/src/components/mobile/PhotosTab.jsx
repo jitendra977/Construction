@@ -33,9 +33,9 @@ const PhotosTab = () => {
 
     const FileIcon = ({ type }) => {
         switch (type) {
-            case 'PDF': return <span className="dynamic-subtitle text-red-500">PDF</span>;
+            case 'PDF': return <span className="text-[var(--t-danger)] font-bold">PDF</span>;
             case 'VIDEO': return <span className="text-xl">🎬</span>;
-            default: return <span className="text-xl">📄</span>;
+            default: return <span className="text-[var(--t-text2)] text-xl">📄</span>;
         }
     };
 
@@ -143,7 +143,7 @@ const PhotosTab = () => {
                 </div>
             </div>
 
-            <button className="fixed bottom-24 right-6 w-12 h-12 bg-[var(--t-primary)] text-[var(--t-bg)] flex items-center justify-center rounded-full shadow-[0_0_15px_var(--t-primary)] hover:scale-110 active:scale-90 transition-all z-40 border-2 border-[var(--t-primary)] focus:outline-none">
+            <button className="fixed bottom-24 right-6 w-12 h-12 bg-[var(--t-primary)] text-[var(--t-bg)] flex items-center justify-center rounded-full shadow-lg hover:scale-110 active:scale-90 transition-all z-40 border border-[var(--t-primary)]/20 focus:outline-none">
                 <span className="text-xl">📸</span>
             </button>
         </MobileLayout>

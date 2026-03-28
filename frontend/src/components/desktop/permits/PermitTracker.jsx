@@ -104,10 +104,10 @@ const PermitTracker = ({ onUpdate }) => {
 
     const getStatusColor = (status) => {
         switch (status) {
-            case 'APPROVED': return 'bg-green-100 text-green-800 border-green-200';
-            case 'IN_PROGRESS': return 'bg-blue-100 text-blue-800 border-blue-200';
-            case 'REJECTED': return 'bg-red-100 text-red-800 border-red-200';
-            default: return 'bg-gray-100 text-gray-800 border-gray-200';
+            case 'APPROVED': return 'bg-[var(--t-primary)]/10 text-[var(--t-primary)] border-[var(--t-primary)]/20';
+            case 'IN_PROGRESS': return 'bg-blue-100/10 text-blue-500 border-blue-500/20';
+            case 'REJECTED': return 'bg-[var(--t-danger)]/10 text-[var(--t-danger)] border-[var(--t-danger)]/20';
+            default: return 'bg-[var(--t-surface3)] text-[var(--t-text3)] border-[var(--t-border)]';
         }
     };
 
@@ -116,10 +116,10 @@ const PermitTracker = ({ onUpdate }) => {
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center">
-                <h3 className="text-lg font-bold text-gray-800">Naksha Pass Process (Nagar Palika)</h3>
+                <h3 className="text-lg font-bold text-[var(--t-text)]">Naksha Pass Process (Nagar Palika)</h3>
                 <button
                     onClick={() => handleOpenModal()}
-                    className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                    className="px-4 py-2 bg-[var(--t-primary)] text-[var(--t-bg)] text-sm font-semibold rounded-lg hover:opacity-90 transition-colors flex items-center gap-2"
                 >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -129,26 +129,26 @@ const PermitTracker = ({ onUpdate }) => {
             </div>
 
             {steps.length === 0 ? (
-                <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-300">
-                    <p className="text-gray-500">No permit steps defined yet.</p>
+                <div className="text-center py-10 bg-[var(--t-surface2)] rounded-xl border border-dashed border-[var(--t-border)]">
+                    <p className="text-[var(--t-text3)]">No permit steps defined yet.</p>
                     <button
                         onClick={() => handleOpenModal()}
-                        className="mt-4 text-indigo-600 hover:text-indigo-700 font-semibold"
+                        className="mt-4 text-[var(--t-primary)] hover:opacity-80 font-semibold"
                     >
                         Create your first step
                     </button>
                 </div>
             ) : (
-                <div className="relative border-l-2 border-indigo-200 ml-3 space-y-8 pb-4">
+                <div className="relative border-l-2 border-[var(--t-primary)]/30 ml-3 space-y-8 pb-4">
                     {steps.map((step) => (
                         <div key={step.id} className="relative pl-8">
-                            <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 ${step.status === 'APPROVED' ? 'bg-green-500 border-green-500' : 'bg-white border-indigo-300'}`}></div>
+                            <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 ${step.status === 'APPROVED' ? 'bg-[var(--t-primary)] border-[var(--t-primary)]' : 'bg-[var(--t-surface)] border-[var(--t-primary)]/30'}`}></div>
 
-                            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                            <div className="bg-[var(--t-surface)] p-4 rounded-xl shadow-sm border border-[var(--t-border)]">
                                 <div className="flex justify-between items-start">
                                     <div className="flex-1">
-                                        <h4 className="font-bold text-gray-900">{step.title}</h4>
-                                        <p className="text-sm text-gray-500 mt-1">{step.description}</p>
+                                        <h4 className="font-bold text-[var(--t-text)]">{step.title}</h4>
+                                        <p className="text-sm text-[var(--t-text2)] mt-1">{step.description}</p>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <span className={`px-2 py-1 text-xs font-bold rounded-lg border ${getStatusColor(step.status)}`}>
@@ -156,7 +156,7 @@ const PermitTracker = ({ onUpdate }) => {
                                         </span>
                                         <button
                                             onClick={() => handleOpenModal(step)}
-                                            className="p-1.5 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                                            className="p-1.5 text-[var(--t-text2)] hover:bg-[var(--t-surface2)] rounded transition-colors"
                                             title="Edit"
                                         >
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -165,7 +165,7 @@ const PermitTracker = ({ onUpdate }) => {
                                         </button>
                                         <button
                                             onClick={() => setDeleteConfirm(step)}
-                                            className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                                            className="p-1.5 text-[var(--t-danger)] hover:bg-[var(--t-danger)]/10 rounded transition-colors"
                                             title="Delete"
                                         >
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -175,24 +175,24 @@ const PermitTracker = ({ onUpdate }) => {
                                     </div>
                                 </div>
                                 {step.date_issued && (
-                                    <div className="mt-2 text-xs text-gray-500">
+                                    <div className="mt-2 text-xs text-[var(--t-text3)]">
                                         Issued: {new Date(step.date_issued).toLocaleDateString()}
                                     </div>
                                 )}
                                 {step.notes && (
-                                    <div className="mt-2 p-2 bg-yellow-50 text-yellow-800 text-xs rounded border border-yellow-100">
+                                    <div className="mt-2 p-2 bg-[var(--t-surface2)] text-[var(--t-text2)] text-xs rounded border border-[var(--t-border)]">
                                         Note: {step.notes}
                                     </div>
                                 )}
 
                                 {/* Documents Section */}
                                 {step.documents && step.documents.length > 0 && (
-                                    <div className="mt-3 pt-3 border-t border-gray-100">
+                                    <div className="mt-3 pt-3 border-t border-[var(--t-border)]">
                                         <div className="flex items-center gap-2 mb-2">
-                                            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg className="w-4 h-4 text-[var(--t-text3)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                             </svg>
-                                            <span className="text-xs font-semibold text-gray-700">
+                                            <span className="text-xs font-semibold text-[var(--t-text2)]">
                                                 Documents ({step.documents.length})
                                             </span>
                                         </div>
@@ -200,7 +200,7 @@ const PermitTracker = ({ onUpdate }) => {
                                             {step.documents.map((doc) => (
                                                 <div
                                                     key={doc.id}
-                                                    className="flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
+                                                    className="flex items-center justify-between p-2 bg-[var(--t-surface2)] rounded-lg border border-[var(--t-border)] hover:bg-[var(--t-surface3)] transition-colors"
                                                 >
                                                     <div className="flex items-center gap-2 flex-1 min-w-0">
                                                         <div className="flex-shrink-0">
@@ -223,11 +223,11 @@ const PermitTracker = ({ onUpdate }) => {
                                                             )}
                                                         </div>
                                                         <div className="flex-1 min-w-0">
-                                                            <p className="text-xs font-medium text-gray-900 truncate">
+                                                            <p className="text-xs font-medium text-[var(--t-text)] truncate">
                                                                 {doc.title}
                                                             </p>
                                                             {doc.description && (
-                                                                <p className="text-[10px] text-gray-500 truncate">
+                                                                <p className="text-[10px] text-[var(--t-text2)] truncate">
                                                                     {doc.description}
                                                                 </p>
                                                             )}
@@ -238,7 +238,7 @@ const PermitTracker = ({ onUpdate }) => {
                                                             href={doc.file}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
-                                                            className="flex-shrink-0 p-1.5 text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                                                            className="flex-shrink-0 p-1.5 text-[var(--t-primary)] hover:bg-[var(--t-primary)]/10 rounded transition-colors"
                                                             title="View/Download"
                                                         >
                                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -259,16 +259,16 @@ const PermitTracker = ({ onUpdate }) => {
 
             {/* Add/Edit Modal */}
             {showModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                        <div className="p-6 border-b border-gray-200">
-                            <h3 className="text-xl font-bold text-gray-900">
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-[var(--t-surface)] rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-[var(--t-border)]">
+                        <div className="p-6 border-b border-[var(--t-border)]">
+                            <h3 className="text-xl font-bold text-[var(--t-text)]">
                                 {editingStep ? 'Edit Permit Step' : 'Add New Permit Step'}
                             </h3>
                         </div>
                         <form onSubmit={handleSubmit} className="p-6 space-y-4">
                             <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                                <label className="block text-sm font-semibold text-[var(--t-text2)] mb-1">
                                     Title *
                                 </label>
                                 <input
@@ -276,19 +276,19 @@ const PermitTracker = ({ onUpdate }) => {
                                     required
                                     value={formData.title}
                                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    className="w-full px-3 py-2 bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-lg focus:ring-2 focus:ring-[var(--t-primary)] focus:border-[var(--t-primary)] text-[var(--t-text)] outline-none"
                                     placeholder="e.g., Darta / Chalani (File Registration)"
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                                <label className="block text-sm font-semibold text-[var(--t-text2)] mb-1">
                                     Description
                                 </label>
                                 <textarea
                                     value={formData.description}
                                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    className="w-full px-3 py-2 bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-lg focus:ring-2 focus:ring-[var(--t-primary)] focus:border-[var(--t-primary)] text-[var(--t-text)] outline-none"
                                     rows="3"
                                     placeholder="Detailed description of this permit step"
                                 />
@@ -296,13 +296,13 @@ const PermitTracker = ({ onUpdate }) => {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                                    <label className="block text-sm font-semibold text-[var(--t-text2)] mb-1">
                                         Status *
                                     </label>
                                     <select
                                         value={formData.status}
                                         onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        className="w-full px-3 py-2 bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-lg focus:ring-2 focus:ring-[var(--t-primary)] focus:border-[var(--t-primary)] text-[var(--t-text)] outline-none"
                                     >
                                         <option value="PENDING">Pending</option>
                                         <option value="IN_PROGRESS">In Progress</option>
@@ -312,39 +312,39 @@ const PermitTracker = ({ onUpdate }) => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                                    <label className="block text-sm font-semibold text-[var(--t-text2)] mb-1">
                                         Order
                                     </label>
                                     <input
                                         type="number"
                                         value={formData.order}
                                         onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) })}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        className="w-full px-3 py-2 bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-lg focus:ring-2 focus:ring-[var(--t-primary)] focus:border-[var(--t-primary)] text-[var(--t-text)] outline-none"
                                         min="0"
                                     />
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                                <label className="block text-sm font-semibold text-[var(--t-text2)] mb-1">
                                     Date Issued
                                 </label>
                                 <input
                                     type="date"
                                     value={formData.date_issued}
                                     onChange={(e) => setFormData({ ...formData, date_issued: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    className="w-full px-3 py-2 bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-lg focus:ring-2 focus:ring-[var(--t-primary)] focus:border-[var(--t-primary)] text-[var(--t-text)] outline-none"
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                                <label className="block text-sm font-semibold text-[var(--t-text2)] mb-1">
                                     Notes
                                 </label>
                                 <textarea
                                     value={formData.notes}
                                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    className="w-full px-3 py-2 bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-lg focus:ring-2 focus:ring-[var(--t-primary)] focus:border-[var(--t-primary)] text-[var(--t-text)] outline-none"
                                     rows="2"
                                     placeholder="Additional notes, permit numbers, etc."
                                 />
@@ -352,18 +352,18 @@ const PermitTracker = ({ onUpdate }) => {
 
                             {/* Document Management Section - Only show when editing existing step */}
                             {editingStep && (
-                                <div className="pt-4 border-t border-gray-200">
-                                    <h4 className="text-sm font-semibold text-gray-700 mb-3">Attached Documents</h4>
+                                <div className="pt-4 border-t border-[var(--t-border)]">
+                                    <h4 className="text-sm font-semibold text-[var(--t-text)] mb-3">Attached Documents</h4>
 
                                     {editingStep.documents && editingStep.documents.length > 0 ? (
                                         <div className="space-y-2 mb-4">
                                             {editingStep.documents.map((doc) => (
-                                                <div key={doc.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-200">
+                                                <div key={doc.id} className="flex items-center justify-between p-2 bg-[var(--t-surface2)] rounded-lg border border-[var(--t-border)]">
                                                     <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                        <svg className="w-4 h-4 text-gray-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <svg className="w-4 h-4 text-[var(--t-text3)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                                         </svg>
-                                                        <span className="text-xs font-medium text-gray-900 truncate">{doc.title}</span>
+                                                        <span className="text-xs font-medium text-[var(--t-text)] truncate">{doc.title}</span>
                                                     </div>
                                                     <button
                                                         type="button"
@@ -380,7 +380,7 @@ const PermitTracker = ({ onUpdate }) => {
                                                                 alert("Failed to remove document");
                                                             }
                                                         }}
-                                                        className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                                                        className="p-1 text-[var(--t-danger)] hover:bg-[var(--t-danger)]/10 rounded transition-colors"
                                                         title="Remove document"
                                                     >
                                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -436,7 +436,7 @@ const PermitTracker = ({ onUpdate }) => {
                                                     e.target.value = '';
                                                 }}
                                             />
-                                            <div className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2">
+                                            <div className="px-4 py-2 bg-[var(--t-primary)] text-[var(--t-bg)] text-sm font-semibold rounded-lg hover:opacity-90 transition-colors flex items-center justify-center gap-2">
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                                                 </svg>
@@ -447,17 +447,17 @@ const PermitTracker = ({ onUpdate }) => {
                                 </div>
                             )}
 
-                            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                            <div className="flex justify-end gap-3 pt-4 border-t border-[var(--t-border)]">
                                 <button
                                     type="button"
                                     onClick={handleCloseModal}
-                                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-semibold"
+                                    className="px-4 py-2 text-[var(--t-text2)] bg-[var(--t-surface2)] rounded-lg hover:bg-[var(--t-surface3)] transition-colors font-semibold"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-semibold"
+                                    className="px-4 py-2 bg-[var(--t-primary)] text-[var(--t-bg)] rounded-lg hover:opacity-90 transition-colors font-semibold"
                                 >
                                     {editingStep ? 'Update Step' : 'Create Step'}
                                 </button>
@@ -469,32 +469,32 @@ const PermitTracker = ({ onUpdate }) => {
 
             {/* Delete Confirmation Modal */}
             {deleteConfirm && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-[var(--t-surface)] rounded-xl shadow-2xl max-w-md w-full p-6 border border-[var(--t-border)]">
                         <div className="flex items-center gap-3 mb-4">
-                            <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="flex-shrink-0 w-12 h-12 bg-[var(--t-danger)]/10 rounded-full flex items-center justify-center">
+                                <svg className="w-6 h-6 text-[var(--t-danger)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                                 </svg>
                             </div>
                             <div>
-                                <h3 className="text-lg font-bold text-gray-900">Delete Permit Step</h3>
-                                <p className="text-sm text-gray-500">This action cannot be undone</p>
+                                <h3 className="text-lg font-bold text-[var(--t-text)]">Delete Permit Step</h3>
+                                <p className="text-sm text-[var(--t-text3)]">This action cannot be undone</p>
                             </div>
                         </div>
-                        <p className="text-gray-700 mb-6">
+                        <p className="text-[var(--t-text2)] mb-6">
                             Are you sure you want to delete "<strong>{deleteConfirm.title}</strong>"?
                         </p>
                         <div className="flex justify-end gap-3">
                             <button
                                 onClick={() => setDeleteConfirm(null)}
-                                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-semibold"
+                                className="px-4 py-2 text-[var(--t-text2)] bg-[var(--t-surface2)] rounded-lg hover:bg-[var(--t-surface3)] transition-colors font-semibold"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={() => handleDelete(deleteConfirm.id)}
-                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold"
+                                className="px-4 py-2 bg-[var(--t-danger)] text-[var(--t-bg)] rounded-lg hover:opacity-90 transition-colors font-semibold"
                             >
                                 Delete
                             </button>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Lock, Phone, Shield, Save } from 'lucide-react';
+import { User, Mail, Lock, Phone, Shield, Save } from 'lucide-react';
 import Modal from './Modal';
 import { accountsService } from '../../services/api';
 
@@ -69,100 +69,105 @@ const UserEditModal = ({ isOpen, onClose, user, onUserUpdated }) => {
     if (!user) return null;
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Edit User Profile">
-            <form onSubmit={handleSubmit} className="space-y-4 p-1">
+        <Modal isOpen={isOpen} onClose={onClose} title="Edit User Profile" maxWidth="max-w-xl">
+            <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Username</label>
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest ml-1">Username</label>
                         <div className="relative">
-                            <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                            <User className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--t-text3)]" size={16} />
                             <input
                                 name="username"
                                 type="text"
+                                required
                                 value={formData.username}
                                 onChange={handleChange}
-                                className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm transition-all"
-                                required
+                                className="w-full pl-10 pr-3 py-2.5 bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-xl text-sm font-medium focus:ring-2 focus:ring-[var(--t-primary)]/20 focus:border-[var(--t-primary)] outline-none transition-all placeholder:text-[var(--t-text3)]/50 text-[var(--t-text)]"
+                                placeholder="johndoe"
                             />
                         </div>
                     </div>
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Email Address</label>
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest ml-1">Email Address</label>
                         <div className="relative">
-                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--t-text3)]" size={16} />
                             <input
                                 name="email"
                                 type="email"
+                                required
                                 value={formData.email}
                                 onChange={handleChange}
-                                className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm transition-all"
-                                required
+                                className="w-full pl-10 pr-3 py-2.5 bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-xl text-sm font-medium focus:ring-2 focus:ring-[var(--t-primary)]/20 focus:border-[var(--t-primary)] outline-none transition-all placeholder:text-[var(--t-text3)]/50 text-[var(--t-text)]"
+                                placeholder="john@example.com"
                             />
                         </div>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">First Name</label>
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest ml-1">First Name</label>
                         <input
                             name="first_name"
                             type="text"
                             value={formData.first_name}
                             onChange={handleChange}
-                            className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm transition-all"
+                            className="w-full px-4 py-2.5 bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-xl text-sm font-medium focus:ring-2 focus:ring-[var(--t-primary)]/20 focus:border-[var(--t-primary)] outline-none transition-all placeholder:text-[var(--t-text3)]/50 text-[var(--t-text)]"
+                            placeholder="John"
                         />
                     </div>
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Last Name</label>
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest ml-1">Last Name</label>
                         <input
                             name="last_name"
                             type="text"
                             value={formData.last_name}
                             onChange={handleChange}
-                            className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm transition-all"
+                            className="w-full px-4 py-2.5 bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-xl text-sm font-medium focus:ring-2 focus:ring-[var(--t-primary)]/20 focus:border-[var(--t-primary)] outline-none transition-all placeholder:text-[var(--t-text3)]/50 text-[var(--t-text)]"
+                            placeholder="Doe"
                         />
                     </div>
                 </div>
 
-                <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Change Password (Leave blank to keep current)</label>
+                <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest ml-1">Change Password</label>
                     <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--t-text3)]" size={16} />
                         <input
                             name="password"
                             type="password"
                             value={formData.password}
                             onChange={handleChange}
-                            className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm transition-all"
-                            placeholder="New Password (optional)"
+                            className="w-full pl-10 pr-3 py-2.5 bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-xl text-sm font-medium focus:ring-2 focus:ring-[var(--t-primary)]/20 focus:border-[var(--t-primary)] outline-none transition-all placeholder:text-[var(--t-text3)]/50 text-[var(--t-text)]"
+                            placeholder="Leave blank to keep current"
                         />
                     </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Phone Number</label>
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest ml-1">Phone Number</label>
                         <div className="relative">
-                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--t-text3)]" size={16} />
                             <input
                                 name="phone_number"
                                 type="text"
                                 value={formData.phone_number}
                                 onChange={handleChange}
-                                className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm transition-all"
+                                className="w-full pl-10 pr-3 py-2.5 bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-xl text-sm font-medium focus:ring-2 focus:ring-[var(--t-primary)]/20 focus:border-[var(--t-primary)] outline-none transition-all placeholder:text-[var(--t-text3)]/50 text-[var(--t-text)]"
+                                placeholder="+977"
                             />
                         </div>
                     </div>
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">System Role</label>
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest ml-1">Role</label>
                         <div className="relative">
-                            <Shield className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                            <Shield className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--t-text3)]" size={16} />
                             <select
                                 name="role_id"
                                 value={formData.role_id}
                                 onChange={handleChange}
-                                className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm transition-all appearance-none bg-white"
+                                className="w-full pl-10 pr-3 py-2.5 bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-xl text-sm font-medium focus:ring-2 focus:ring-[var(--t-primary)]/20 focus:border-[var(--t-primary)] outline-none transition-all text-[var(--t-text)] appearance-none"
                                 required
                             >
                                 <option value="">Select Role</option>
@@ -174,18 +179,18 @@ const UserEditModal = ({ isOpen, onClose, user, onUserUpdated }) => {
                     </div>
                 </div>
 
-                <div className="pt-4 flex gap-3">
+                <div className="pt-4 flex gap-4">
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex-1 px-4 py-3 border border-gray-100 text-gray-500 font-bold rounded-2xl hover:bg-gray-50 transition-all"
+                        className="flex-1 px-6 py-3 text-[10px] font-black uppercase tracking-widest text-[var(--t-text2)] hover:text-[var(--t-text)] transition-colors"
                     >
                         Cancel
                     </button>
                     <button
                         type="submit"
                         disabled={loading}
-                        className="flex-[2] px-4 py-3 bg-indigo-600 text-white font-black rounded-2xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                        className="flex-[2] px-8 py-3 bg-[var(--t-primary)] text-[var(--t-bg)] rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-[var(--t-primary)]/20 hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                         <Save size={18} />
                         {loading ? 'Saving...' : 'Save Changes'}
