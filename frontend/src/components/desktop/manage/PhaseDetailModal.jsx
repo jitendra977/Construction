@@ -27,10 +27,10 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks }) => {
     const phasePhotoRef = useRef(null);
 
     const [localPhase, setLocalPhase] = useState({
-        name: phase.name,
-        description: phase.description || '',
-        start_date: phase.start_date || '',
-        end_date: phase.end_date || ''
+        name: phase?.name || '',
+        description: phase?.description || '',
+        start_date: phase?.start_date || '',
+        end_date: phase?.end_date || ''
     });
     const [taskDueDateUpdates, setTaskDueDateUpdates] = useState({}); // userId -> dueDate
     const [pendingTaskDeletions, setPendingTaskDeletions] = useState(new Set());

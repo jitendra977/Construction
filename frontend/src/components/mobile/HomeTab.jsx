@@ -700,12 +700,14 @@ const HomeTab = () => {
         <MobileLayout>
             <style>{CSS}</style>
 
-            <PhaseDetailModal
-                isOpen={!!detailPhase}
-                onClose={() => setDetailPhase(null)}
-                phase={detailPhase}
-                tasks={allTasks.filter(t => t.phase === detailPhase?.id)}
-            />
+            {detailPhase && (
+                <PhaseDetailModal
+                    isOpen={!!detailPhase}
+                    onClose={() => setDetailPhase(null)}
+                    phase={detailPhase}
+                    tasks={allTasks.filter(t => t.phase === detailPhase?.id)}
+                />
+            )}
 
             <div className="ht">
 

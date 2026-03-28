@@ -820,13 +820,15 @@ const DesktopHome = () => {
                 </form>
             </Modal>
 
-            <PhaseDetailModal
-                isOpen={!!detailPhase}
-                onClose={() => setDetailPhase(null)}
-                phase={detailPhase ? dashboardData.phases.find(p => p.id === detailPhase.id) : null}
-                tasks={detailPhase ? dashboardData.tasks.filter(t => t.phase === detailPhase.id) : []}
-                onRefresh={refreshData}
-            />
+            {detailPhase && (
+                <PhaseDetailModal
+                    isOpen={!!detailPhase}
+                    onClose={() => setDetailPhase(null)}
+                    phase={detailPhase ? dashboardData.phases.find(p => p.id === detailPhase.id) : null}
+                    tasks={detailPhase ? dashboardData.tasks.filter(t => t.phase === detailPhase.id) : []}
+                    onRefresh={refreshData}
+                />
+            )}
             {/* Success Reinforcement Modal */}
             <SuccessModal
                 isOpen={successModalInfo.isOpen}
