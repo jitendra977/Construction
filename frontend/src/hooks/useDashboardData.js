@@ -52,13 +52,19 @@ export const useDashboardData = () => {
         const phaseProgress = totalPhases > 0 ? Math.round((completedPhases / totalPhases) * 100) : 0;
         const totalSpent = expenses.reduce((acc, exp) => acc + Number(exp.amount), 0);
         const daysElapsed = project ? Math.floor((new Date() - new Date(project.start_date)) / (1000 * 60 * 60 * 24)) : 0;
-        const currentPhase = phases.find(p => p.status === 'IN_PROGRESS') || phases[0] || { name: 'N/A' };
+        
+        // Ensure currentPhase is robust
+        const inProgressPhase = phases.find(p => p && p.status === 'IN_PROGRESS');
+        const firstPhase = phases.find(p => p !== null && p !== undefined);
+        const currentPhase = inProgressPhase || firstPhase || { name: 'N/A' };
+        
+        const phaseName = (currentPhase && typeof currentPhase.name === 'string') ? currentPhase.name : 'N/A';
 
         return [
             { id: 'progress', title: 'Overall Progress', value: `${phaseProgress}%`, change: 'On Track', trend: 'up', icon: '🏗️', color: 'from-purple-500 to-indigo-500' },
             { id: 'spent', title: 'Budget Spent', value: formatCurrency(totalSpent), change: 'Low', trend: 'down', icon: '💰', color: 'from-green-500 to-emerald-500' },
             { id: 'days', title: 'Days Elapsed', value: daysElapsed.toString(), change: '+1', trend: 'up', icon: '📅', color: 'from-blue-500 to-cyan-500' },
-            { id: 'phase', title: 'Current Phase', value: currentPhase.name.split(' ')[0], change: 'Active', trend: 'neutral', icon: '🚧', color: 'from-orange-500 to-red-500' },
+            { id: 'phase', title: 'Current Phase', value: phaseName.split(' ')[0], change: 'Active', trend: 'neutral', icon: '🚧', color: 'from-orange-500 to-red-500' },
         ];
     }, [dashboardData]);
 

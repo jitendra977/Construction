@@ -713,7 +713,7 @@ const HomeTab = () => {
                 <header className="ht-header">
                     <div className="ht-header-brand">
                         <div className="ht-header-title">
-                            {project.name
+                            {project && typeof project.name === 'string'
                                 ? project.name.split(' ').map((word, i) =>
                                     i === 0
                                         ? <span key={i}>{word}</span>
