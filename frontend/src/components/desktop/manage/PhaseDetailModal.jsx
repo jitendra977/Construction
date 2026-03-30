@@ -449,7 +449,17 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks, initialMode = 'read' 
                                     return liveTask && liveTask.media?.length > 0 ? liveTask.media.map(m => (
                                         <div key={m.id} className="group relative aspect-video bg-[var(--t-surface2)] rounded-sm border border-[var(--t-border)] overflow-hidden">
                                             {m.media_type === 'VIDEO' ? (
-                                                <video src={getMediaUrl(m.file)} className="w-full h-full object-cover" />
+                                                <div className="relative w-full h-full group">
+                                                    <video src={getMediaUrl(m.file)} className="w-full h-full object-cover" />
+                                                    <a
+                                                        href={getMediaUrl(m.file)}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10"
+                                                    >
+                                                        <span className="text-white text-[7px] font-black uppercase tracking-widest border border-white/30 px-2 py-0.5 rounded-full backdrop-blur-sm">View</span>
+                                                    </a>
+                                                </div>
                                             ) : m.file?.toLowerCase().endsWith('.pdf') ? (
                                                 <div className="w-full h-full bg-red-50 flex flex-col items-center justify-center relative p-2 group">
                                                     <div className="absolute top-1 left-1 bg-red-600 text-white text-[7px] font-black px-1 py-0.5 rounded-xs z-10 shadow-sm uppercase">PDF</div>
@@ -470,7 +480,17 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks, initialMode = 'read' 
                                                     </a>
                                                 </div>
                                             ) : (
-                                                <img src={getMediaUrl(m.file)} className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-500" />
+                                                <div className="relative w-full h-full group">
+                                                    <img src={getMediaUrl(m.file)} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" />
+                                                    <a
+                                                        href={getMediaUrl(m.file)}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10"
+                                                    >
+                                                        <span className="text-white text-[7px] font-black uppercase tracking-widest border border-white/30 px-2 py-0.5 rounded-full backdrop-blur-sm">View</span>
+                                                    </a>
+                                                </div>
                                             )}
                                         </div>
                                     )) : (
