@@ -353,9 +353,16 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks, initialMode = 'read' 
                             }).map(task => (
                                 <div key={task.id} 
                                      onClick={() => setSelectedTask(task)}
-                                     className={`group flex flex-col p-3 rounded-sm border transition-all cursor-pointer ${
-                                         selectedTask?.id === task.id ? 'bg-[var(--t-primary)]/5 border-[var(--t-primary)]/50 shadow-[0_0_15px_rgba(var(--t-primary-rgb),0.05)]' : 'bg-[var(--t-surface2)]/40 border-[var(--t-border)] hover:border-[var(--t-border2)]'
-                                     }`}>
+                                      className={`group flex flex-col p-3 rounded-sm border transition-all cursor-pointer relative overflow-hidden ${
+                                          selectedTask?.id === task.id 
+                                          ? 'bg-[var(--t-primary)]/15 border-[var(--t-primary)] border-l-[3px] shadow-[0_4px_20px_-5px_rgba(0,0,0,0.1)] scale-[1.01] -translate-y-0.5' 
+                                          : 'bg-[var(--t-surface2)]/40 border-[var(--t-border)] hover:bg-[var(--t-surface2)]/60 hover:border-[var(--t-border2)] opacity-70 hover:opacity-100'
+                                      }`}>
+                                     {selectedTask?.id === task.id && (
+                                         <div className="absolute top-0 right-0 p-1 opacity-40">
+                                            <div className="w-1 h-1 rounded-full bg-[var(--t-primary)] animate-pulse"></div>
+                                         </div>
+                                     )}
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 mb-1">
@@ -443,6 +450,25 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks, initialMode = 'read' 
                                         <div key={m.id} className="group relative aspect-video bg-[var(--t-surface2)] rounded-sm border border-[var(--t-border)] overflow-hidden">
                                             {m.media_type === 'VIDEO' ? (
                                                 <video src={getMediaUrl(m.file)} className="w-full h-full object-cover" />
+                                            ) : m.file?.toLowerCase().endsWith('.pdf') ? (
+                                                <div className="w-full h-full bg-red-50 flex flex-col items-center justify-center relative p-2 group">
+                                                    <div className="absolute top-1 left-1 bg-red-600 text-white text-[7px] font-black px-1 py-0.5 rounded-xs z-10 shadow-sm uppercase">PDF</div>
+                                                    <div className="w-10 h-12 bg-white border border-red-100 rounded-xs shadow-xs flex flex-col items-center justify-center gap-0.5 group-hover:scale-105 transition-transform">
+                                                        <span className="text-lg">📄</span>
+                                                        <div className="w-5 h-0.5 bg-red-50"></div>
+                                                    </div>
+                                                    <p className="mt-1.5 text-[7px] font-black text-red-900/60 uppercase tracking-tighter truncate w-full text-center px-1">
+                                                        {m.file.split('/').pop()}
+                                                    </p>
+                                                    <a
+                                                        href={getMediaUrl(m.file)}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 z-20"
+                                                    >
+                                                        <span className="text-white text-[7px] font-black uppercase tracking-widest border border-white/30 px-2 py-0.5 rounded-full backdrop-blur-sm">View</span>
+                                                    </a>
+                                                </div>
                                             ) : (
                                                 <img src={getMediaUrl(m.file)} className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-500" />
                                             )}

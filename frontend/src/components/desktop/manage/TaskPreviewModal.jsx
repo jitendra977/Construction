@@ -451,10 +451,23 @@ const TaskPreviewModal = ({ isOpen, onClose, task, initialMode = 'read' }) => {
                                                 />
                                             ) : m.media_type === 'VIDEO' ? (
                                                 <video src={getMediaUrl(m.file)} className="w-full h-full object-contain" controls />
+                                            ) : m.file?.toLowerCase().endsWith('.pdf') ? (
+                                                <div className="w-full h-full bg-red-600/10 flex flex-col items-center justify-center relative p-4 group">
+                                                    <div className="absolute top-3 left-3 bg-red-600 text-white text-[9px] font-black px-2 py-0.5 rounded-sm shadow-lg z-10">PDF</div>
+                                                    <div className="w-16 h-20 bg-white border-2 border-red-200 rounded-sm shadow-sm flex flex-col items-center justify-center gap-1 group-hover:scale-110 transition-transform">
+                                                        <span className="text-2xl">📄</span>
+                                                        <div className="w-8 h-1 bg-red-100"></div>
+                                                        <div className="w-6 h-1 bg-red-50"></div>
+                                                    </div>
+                                                    <p className="mt-3 text-[9px] font-black text-red-900/80 uppercase tracking-tighter truncate w-full text-center px-4 relative z-10">
+                                                        {m.file.split('/').pop()}
+                                                    </p>
+                                                </div>
                                             ) : (
-                                                <div className="flex flex-col items-center gap-2">
+                                                <div className="flex flex-col items-center gap-2 p-4 text-center">
                                                     <span className="text-3xl">📄</span>
-                                                    <span className="text-[10px] text-white/70 uppercase">Document File</span>
+                                                    <span className="text-[10px] text-white/70 uppercase font-black">Document File</span>
+                                                    <p className="text-[8px] text-white/40 truncate w-full px-2">{m.file.split('/').pop()}</p>
                                                 </div>
                                             )}
                                             <a
