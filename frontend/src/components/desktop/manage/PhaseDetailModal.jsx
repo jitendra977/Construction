@@ -11,6 +11,7 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks, initialMode = 'read' 
         createMaterialTransaction, refreshData, dashboardData, formatCurrency
     } = useConstruction();
     const [uploading, setUploading] = useState(false);
+    const fileInputRef = useRef(null);
     const [completing, setCompleting] = useState(false);
     const [selectedTask, setSelectedTask] = useState(null);
 
@@ -22,7 +23,6 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks, initialMode = 'read' 
     const [linkingMaterial, setLinkingMaterial] = useState(false);
     const [materialCart, setMaterialCart] = useState([]);
 
-    const fileInputRef = useRef(null);
     const phasePhotoRef = useRef(null);
 
     const [localPhase, setLocalPhase] = useState({
@@ -147,35 +147,31 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks, initialMode = 'read' 
 
     if (!phase) return null;
 
+
     const handleFileUpload = async (e) => {
         const file = e.target.files[0];
         if (!file || !selectedTask) return;
 
-        const formData = new FormData();
-        formData.append('task', selectedTask.id);
-        formData.append('file', file);
-        formData.append('media_type', file.type.startsWith('image/') ? 'IMAGE' : 'VIDEO');
-
         setUploading(true);
+        const uploadData = new FormData();
+        uploadData.append('task', selectedTask.id);
+        uploadData.append('file', file);
+        
+        // Dynamic Media Type Detection
+        let mediaType = 'DOCUMENT';
+        const type = file.type.toLowerCase();
+        if (type.startsWith('image/')) mediaType = 'IMAGE';
+        else if (type.startsWith('video/')) mediaType = 'VIDEO';
+        uploadData.append('media_type', mediaType);
+
         try {
-            await constructionService.uploadTaskMedia(formData);
+            await constructionService.uploadTaskMedia(uploadData);
             refreshData();
-            e.target.value = null;
         } catch (error) {
-            console.error("Failed to upload media", error);
-            alert("Failed to upload media. Please try again.");
+            alert('Upload failed.');
         } finally {
             setUploading(false);
-        }
-    };
-
-    const handleDeleteMedia = async (mediaId) => {
-        if (!window.confirm("Delete this file?")) return;
-        try {
-            await constructionService.deleteTaskMedia(mediaId);
-            refreshData();
-        } catch (error) {
-            console.error("Failed to delete media", error);
+            if (fileInputRef.current) fileInputRef.current.value = '';
         }
     };
 
@@ -421,51 +417,46 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks, initialMode = 'read' 
                     
                     {/* Visual Evidence (Media) */}
                     <div className="cyber-card p-4 sm:p-5 flex flex-col min-h-[300px]">
-                        <div className="flex justify-between items-center mb-4 pb-2 border-b border-[var(--t-border)]">
+                        <div className="flex items-center justify-between mb-2">
                             <h4 className="text-[10px] font-black text-[var(--t-text)] uppercase tracking-[.2em]" style={{ fontFamily: 'var(--f-mono)' }}>
                                 {selectedTask ? `Evidence Lab: ${selectedTask.title}` : 'Select Task for Evidence'}
                             </h4>
-                            {selectedTask && isEditing && (
+                            {selectedTask && (
                                 <div className="flex gap-2">
-                                    <button onClick={() => fileInputRef.current.click()} disabled={uploading}
-                                        className="px-3 py-1 bg-[var(--t-primary)]/10 text-[var(--t-primary)] text-[9px] font-black uppercase tracking-widest border border-[var(--t-primary)]/30 hover:bg-[var(--t-primary)]/20 transition-all rounded-sm">
-                                        {uploading ? 'UPLOADING...' : 'UPLOAD MEDIA'}
+                                    <button 
+                                        onClick={() => fileInputRef.current?.click()} 
+                                        disabled={uploading}
+                                        className="px-3 py-1 bg-emerald-500/10 text-emerald-600 text-[9px] font-black uppercase tracking-widest border border-emerald-500/30 hover:bg-emerald-500 hover:text-white transition-all rounded-sm flex items-center gap-1"
+                                    >
+                                        <span>📤</span> {uploading ? 'UPLOADING...' : 'UPLOAD MEDIA'}
                                     </button>
-                                    <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*,video/*" />
+                                    <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*,video/*,.pdf,.doc,.docx" />
                                 </div>
                             )}
                         </div>
 
                         <div className="flex-1 min-h-[200px] overflow-y-auto custom-scrollbar">
-                            {selectedTask ? (
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                    {selectedTask.media?.length > 0 ? selectedTask.media.map(m => (
-                                        <div key={m.id} className="aspect-square bg-[var(--t-surface2)] rounded-sm border border-[var(--t-border)] relative group overflow-hidden shadow-inner">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4">
+                                {(() => {
+                                    const liveTask = selectedTask ? dashboardData.tasks?.find(t => t.id === selectedTask.id) || selectedTask : null;
+                                    return liveTask && liveTask.media?.length > 0 ? liveTask.media.map(m => (
+                                        <div key={m.id} className="group relative aspect-video bg-[var(--t-surface2)] rounded-sm border border-[var(--t-border)] overflow-hidden">
                                             {m.media_type === 'VIDEO' ? (
-                                                <video src={getMediaUrl(m.file)} className="w-full h-full object-cover" controls />
+                                                <video src={getMediaUrl(m.file)} className="w-full h-full object-cover" />
                                             ) : (
                                                 <img src={getMediaUrl(m.file)} className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-500" />
                                             )}
-                                            {isEditing && (
-                                                <button onClick={() => handleDeleteMedia(m.id)}
-                                                    className="absolute top-1 right-1 w-6 h-6 bg-[var(--t-danger)] text-white text-xs opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-sm transition-all shadow-lg">
-                                                    ×
-                                                </button>
-                                            )}
                                         </div>
                                     )) : (
-                                        <div className="col-span-full py-16 flex flex-col items-center justify-center border border-dashed border-[var(--t-border2)] rounded-sm grayscale opacity-50">
-                                            <span className="text-3xl mb-3">📁</span>
-                                            <span className="text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest">No evidence logged</span>
+                                        <div className="col-span-full py-16 flex flex-col items-center justify-center border border-dashed border-[var(--t-border2)] rounded-sm grayscale opacity-50 text-center">
+                                            <span className="text-3xl mb-2 opacity-30">📂</span>
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-[var(--t-text3)] leading-relaxed">
+                                                {selectedTask ? 'No Proofs Uploaded' : 'Select a structural unit\nto view evidence log'}
+                                            </p>
                                         </div>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className="h-full flex flex-col items-center justify-center text-[var(--t-text3)] opacity-40">
-                                    <span className="text-4xl mb-4">👈</span>
-                                    <span className="text-[10px] font-black uppercase tracking-[.3em]">Hardware/Visual Link Inactive</span>
-                                </div>
-                            )}
+                                    );
+                                })()}
+                            </div>
                         </div>
                     </div>
 
@@ -588,7 +579,15 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks, initialMode = 'read' 
                                 </p>
                                 {isEditing && phase.status !== 'COMPLETED' && (
                                     <button onClick={async () => {
+                                        // 1. Mandatory Photo Check
                                         if (!phase.completion_photo) return alert("Structural confirmation photo required.");
+
+                                        // 2. All Tasks Completion Check
+                                        const incompleteTasks = (tasks || []).filter(t => t.status !== 'COMPLETED');
+                                        if (incompleteTasks.length > 0) {
+                                            return alert(`Cannot complete phase. There are ${incompleteTasks.length} incomplete tasks that must be finalized first.`);
+                                        }
+
                                         setCompleting(true);
                                         await updatePhase(phase.id, { status: 'COMPLETED' });
                                         refreshData();

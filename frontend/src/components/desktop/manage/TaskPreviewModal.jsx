@@ -8,7 +8,7 @@ import { useRef } from 'react';
 const TaskPreviewModal = ({ isOpen, onClose, task, initialMode = 'read' }) => {
     const { 
         dashboardData, updateTask, createTask, deleteTask, 
-        uploadTaskMedia, deleteTaskMedia, formatCurrency 
+        uploadTaskMedia, formatCurrency 
     } = useConstruction();
     const [isEditing, setIsEditing] = useState(initialMode !== 'read');
     const [formData, setFormData] = useState({});
@@ -91,6 +91,7 @@ const TaskPreviewModal = ({ isOpen, onClose, task, initialMode = 'read' }) => {
         }
     };
 
+
     const handleFileUpload = async (e) => {
         const file = e.target.files[0];
         if (!file || !task) return;
@@ -114,15 +115,6 @@ const TaskPreviewModal = ({ isOpen, onClose, task, initialMode = 'read' }) => {
         } finally {
             setUploading(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
-        }
-    };
-
-    const handleDeleteMedia = async (mediaId) => {
-        if (!confirm('Delete this proof item?')) return;
-        try {
-            await deleteTaskMedia(mediaId);
-        } catch (error) {
-            alert('Failed to delete media.');
         }
     };
 
@@ -154,6 +146,15 @@ const TaskPreviewModal = ({ isOpen, onClose, task, initialMode = 'read' }) => {
                                 >
                                     <span>✏️</span> Edit
                                 </button>
+                                <button 
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={uploading}
+                                    className="px-4 py-1.5 bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-all flex items-center gap-2"
+                                    style={mono}
+                                >
+                                    <span>📤</span> {uploading ? 'Uploading...' : 'Upload'}
+                                </button>
+                                <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*,video/*,.pdf,.doc,.docx" />
                                 <button 
                                     onClick={() => setShowDeleteConfirm(true)}
                                     className="px-4 py-1.5 bg-red-500/10 text-red-500 border border-red-500/30 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all flex items-center gap-2"
@@ -416,83 +417,68 @@ const TaskPreviewModal = ({ isOpen, onClose, task, initialMode = 'read' }) => {
                 </div>
 
                 {/* Task Proofs (Media) - View Only for now in this modal */}
-                {task.media && task.media.length > 0 && (
-                    <div>
-                        <div className="text-[10px] font-black text-[var(--t-primary)] uppercase tracking-widest mb-3 flex items-center justify-between">
-                            <div className="flex items-center gap-2" style={mono}>
-                                <span>📸</span> Proof of Work & Files
-                                {task.media && task.media.length > 0 && (
+                {(() => {
+                    const liveTask = (task && task.id) ? dashboardData.tasks?.find(t => t.id === task.id) || task : task;
+                    if (!liveTask?.media || liveTask.media.length === 0) return null;
+                    
+                    return (
+                        <div>
+                            <div className="text-[10px] font-black text-[var(--t-primary)] uppercase tracking-widest mb-3 flex items-center justify-between border-b border-[var(--t-border)] pb-2">
+                                <div className="flex items-center gap-2" style={mono}>
+                                    <span>📸</span> Proof of Work & Files
                                     <span className="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-[9px]">
-                                        {task.media.length} items
+                                        {liveTask.media.length} items
                                     </span>
-                                )}
+                                </div>
+                                <button 
+                                    onClick={() => fileInputRef.current?.click()} 
+                                    disabled={uploading}
+                                    className="px-3 py-1 bg-emerald-500/10 text-emerald-600 text-[9px] font-black uppercase tracking-widest border border-emerald-500/30 hover:bg-emerald-500 hover:text-white transition-all rounded-sm flex items-center gap-1"
+                                >
+                                    <span>📤</span> {uploading ? 'UPLOADING...' : 'UPLOAD PROOF'}
+                                </button>
                             </div>
-                            
-                            {isEditing && (
-                                <>
-                                    <button 
-                                        type="button"
-                                        onClick={() => fileInputRef.current?.click()}
-                                        disabled={uploading}
-                                        className="text-[9px] font-black uppercase text-[var(--t-primary)] hover:underline flex items-center gap-1 active:scale-95 transition-all disabled:opacity-50"
-                                        style={mono}
-                                    >
-                                        {uploading ? '[ UPLOADING.. ]' : '[ + UPLOAD PROOF ]'}
-                                    </button>
-                                    <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*,video/*,.pdf,.doc,.docx" />
-                                </>
-                            )}
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {task.media?.map(m => (
-                                <div key={m.id} className="flex flex-col rounded-xl overflow-hidden border border-[var(--t-border)] bg-[var(--t-surface2)] group relative">
-                                    {isEditing && (
-                                        <button 
-                                            onClick={() => handleDeleteMedia(m.id)}
-                                            className="absolute top-2 right-2 z-10 p-1.5 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-lg"
-                                        >
-                                            <svg className="w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" />
-                                            </svg>
-                                        </button>
-                                    )}
-                                    <div className="aspect-video relative overflow-hidden bg-black flex items-center justify-center">
-                                        {m.media_type === 'IMAGE' ? (
-                                            <img
-                                                src={getMediaUrl(m.file)}
-                                                alt="Task Proof"
-                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                                loading="lazy"
-                                            />
-                                        ) : m.media_type === 'VIDEO' ? (
-                                            <video src={getMediaUrl(m.file)} className="w-full h-full object-contain" controls />
-                                        ) : (
-                                            <div className="flex flex-col items-center gap-2">
-                                                <span className="text-3xl">📄</span>
-                                                <span className="text-[10px] text-white/70 uppercase">Document File</span>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {liveTask.media.map(m => (
+                                    <div key={m.id} className="flex flex-col rounded-xl overflow-hidden border border-[var(--t-border)] bg-[var(--t-surface2)] group relative">
+                                        <div className="aspect-video relative overflow-hidden bg-black flex items-center justify-center">
+                                            {m.media_type === 'IMAGE' ? (
+                                                <img
+                                                    src={getMediaUrl(m.file)}
+                                                    alt="Task Proof"
+                                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                                    loading="lazy"
+                                                />
+                                            ) : m.media_type === 'VIDEO' ? (
+                                                <video src={getMediaUrl(m.file)} className="w-full h-full object-contain" controls />
+                                            ) : (
+                                                <div className="flex flex-col items-center gap-2">
+                                                    <span className="text-3xl">📄</span>
+                                                    <span className="text-[10px] text-white/70 uppercase">Document File</span>
+                                                </div>
+                                            )}
+                                            <a
+                                                href={getMediaUrl(m.file)}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2"
+                                            >
+                                                <span className="text-white text-[10px] font-black uppercase tracking-widest border border-white/30 px-3 py-1.5 rounded-full backdrop-blur-sm">View Full Resolution</span>
+                                            </a>
+                                        </div>
+                                        {m.description && (
+                                            <div className="p-2 border-t border-[var(--t-border)]">
+                                                <p className="text-[10px] text-[var(--t-text2)] leading-tight italic line-clamp-2">
+                                                    {m.description}
+                                                </p>
                                             </div>
                                         )}
-                                        <a
-                                            href={getMediaUrl(m.file)}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2"
-                                        >
-                                            <span className="text-white text-[10px] font-black uppercase tracking-widest border border-white/30 px-3 py-1.5 rounded-full backdrop-blur-sm">View Full Resolution</span>
-                                        </a>
                                     </div>
-                                    {m.description && (
-                                        <div className="p-2 border-t border-[var(--t-border)]">
-                                            <p className="text-[10px] text-[var(--t-text2)] leading-tight italic line-clamp-2">
-                                                {m.description}
-                                            </p>
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
-                    </div>
-                )}
+                    );
+                })()}
 
                 {/* Footer Audit Information */}
                 <div className="mt-8 pt-4 border-t border-dashed border-[var(--t-border)] flex justify-between items-center text-[9px] font-bold text-[var(--t-text3)] uppercase tracking-wider">
