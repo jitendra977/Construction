@@ -10,7 +10,6 @@ import SuppliersTab from './manage/SuppliersTab';
 import MaterialsTab from './manage/MaterialsTab';
 import StockTab from './manage/StockTab';
 import FundingTab from './manage/FundingTab';
-import TasksTab from './manage/TasksTab';
 import PaymentsTab from './manage/PaymentsTab';
 import BudgetOverview from '../finance/BudgetOverview';
 
@@ -29,8 +28,7 @@ const DesktopManage = () => {
             icon: '🏗️',
             color: 'from-blue-500 to-indigo-600',
             tabs: [
-                { id: 'phases', label: 'Phases (चरणहरू)' },
-                { id: 'tasks', label: 'Tasks (कामहरू)' },
+                { id: 'phases', label: 'Schedule (कार्यतालिका)' },
                 { id: 'floors', label: 'Structure (संरचना)' },
             ]
         },

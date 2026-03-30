@@ -48,6 +48,7 @@ class TaskMedia(models.Model):
     MEDIA_TYPES = [
         ('IMAGE', 'Image'),
         ('VIDEO', 'Video'),
+        ('DOCUMENT', 'Document'),
     ]
 
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='media')

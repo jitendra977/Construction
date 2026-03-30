@@ -7,7 +7,6 @@ import MobilePageHeader from './MobilePageHeader';
 import PhasesTab from '../desktop/manage/PhasesTab';
 import FloorsTab from '../desktop/manage/FloorsTab';
 
-import TasksTab from '../desktop/manage/TasksTab';
 import CategoriesTab from '../desktop/manage/CategoriesTab';
 import ExpensesTab from '../desktop/manage/ExpensesTab';
 import ContractorsTab from '../desktop/manage/ContractorsTab';
@@ -32,9 +31,8 @@ const MobileManage = () => {
             icon: '🏗️',
             color: 'from-emerald-500 to-teal-600',
             tabs: [
-                { id: 'phases', label: 'Phases', nepali: 'चरणहरू' },
+                { id: 'phases', label: 'Schedule', nepali: 'कार्यतालिका' },
                 { id: 'floors', label: 'Structure', nepali: 'संरचना' },
-                { id: 'tasks', label: 'Tasks', nepali: 'कामहरू' },
             ]
         },
         {
@@ -137,8 +135,6 @@ const MobileManage = () => {
                             <>
                                 {activeTab === 'phases' && <PhasesTab searchQuery={searchQuery} />}
                                 {activeTab === 'floors' && <FloorsTab searchQuery={searchQuery} />}
-
-                                {activeTab === 'tasks' && <TasksTab searchQuery={searchQuery} />}
                             </>
                         )}
                         {activeSection === 'finance' && (

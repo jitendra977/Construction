@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useConstruction } from '../../context/ConstructionContext';
 import PhaseDetailModal from '../desktop/manage/PhaseDetailModal';
+import TaskPreviewModal from '../desktop/manage/TaskPreviewModal';
 import MobileLayout from './MobileLayout';
 import ThemeToggle from '../common/ThemeToggle';
 import { getMediaUrl } from '../../services/api';
@@ -630,6 +631,7 @@ const HomeTab = () => {
 
     const [expandedPhases, setExpandedPhases] = useState(new Set());
     const [detailPhase, setDetailPhase] = useState(null);
+    const [previewTask, setPreviewTask] = useState(null);
 
     /* auto-expand in-progress phases */
     useEffect(() => {
@@ -855,7 +857,14 @@ const HomeTab = () => {
 
                     <div className="ht-phases">
                         {phases.map((phase, idx) => {
-                            const phaseTasks = allTasks.filter(t => t.phase === phase.id);
+                            const phaseTasks = allTasks.filter(t => t.phase === phase.id).sort((a, b) => {
+                                const dateA = a.due_date ? new Date(a.due_date) : null;
+                                const dateB = b.due_date ? new Date(b.due_date) : null;
+                                if (dateA && dateB) return dateA - dateB;
+                                if (dateA) return -1;
+                                if (dateB) return 1;
+                                return new Date(b.created_at) - new Date(a.created_at);
+                            });
                             const done = phaseTasks.filter(t => t.status === 'COMPLETED').length;
                             const perc = phaseTasks.length > 0
                                 ? Math.round((done / phaseTasks.length) * 100)
@@ -895,20 +904,42 @@ const HomeTab = () => {
                                                         key={task.id}
                                                         className={`ht-task${isDone ? ' done' : ''}`}
                                                         style={{ animationDelay: `${ti * 30}ms` }}
-                                                        onClick={() => handleTaskToggle(task)}
+                                                        onClick={() => setPreviewTask(task)}
                                                     >
-                                                        <div className="ht-task-chk">
+                                                        <div className="ht-task-chk" onClick={(e) => { e.stopPropagation(); handleTaskToggle(task); }}>
                                                             <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                                                                 <polyline
                                                                     points="1,5 4,8 9,2"
-                                                                    stroke="var(--t-bg)"
+                                                                    stroke={isDone ? "white" : "transparent"}
                                                                     strokeWidth="1.5"
                                                                     strokeLinecap="round"
                                                                     strokeLinejoin="round"
                                                                 />
                                                             </svg>
                                                         </div>
-                                                        <div className="ht-task-lbl">{task.title}</div>
+                                                        <div className="ht-task-lbl">
+                                                            <div>{task.title}</div>
+                                                            <div className="flex items-center gap-2 mt-0.5">
+                                                                <span style={{ 
+                                                                    fontSize: '7px', 
+                                                                    color: task.priority === 'CRITICAL' ? 'var(--t-danger)' : 'var(--t-primary)',
+                                                                    background: task.priority === 'CRITICAL' ? 'rgba(255, 78, 78, 0.1)' : 'rgba(var(--t-primary-rgb), 0.1)',
+                                                                    padding: '1px 4px',
+                                                                    borderRadius: '1px',
+                                                                    fontWeight: 'bold'
+                                                                }}>
+                                                                    {task.priority || 'MEDIUM'}
+                                                                </span>
+                                                                {task.due_date && (
+                                                                    <span style={{ fontSize: '7px', color: 'var(--t-text3)' }}>
+                                                                        DUE: {new Date(task.due_date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        {task.media?.length > 0 && (
+                                                            <span style={{ fontSize: '9px', opacity: 0.6 }}>📸 {task.media.length}</span>
+                                                        )}
                                                         <div className="ht-task-badge">
                                                             {isDone ? 'Done' : st === 'wip' ? 'Active' : 'Queued'}
                                                         </div>
@@ -1025,6 +1056,14 @@ const HomeTab = () => {
                         </div>
                     </div>
                 </div>
+
+                {previewTask && (
+                    <TaskPreviewModal
+                        isOpen={!!previewTask}
+                        onClose={() => setPreviewTask(null)}
+                        task={previewTask}
+                    />
+                )}
 
             </div>
         </MobileLayout>

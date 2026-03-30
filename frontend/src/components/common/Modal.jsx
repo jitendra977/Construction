@@ -16,7 +16,7 @@ const Modal = ({ isOpen, onClose, title, children, maxWidth = 'max-w-3xl' }) => 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4 outline-none focus:outline-none">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 lg:p-12 outline-none focus:outline-none overflow-hidden">
             {/* Backdrop */}
             <div
                 className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity animate-fadeIn"
@@ -24,7 +24,7 @@ const Modal = ({ isOpen, onClose, title, children, maxWidth = 'max-w-3xl' }) => 
             ></div>
 
             {/* Modal Container */}
-            <div className={`relative w-full ${maxWidth} mx-auto z-[101] animate-slideUp sm:animate-zoomIn max-h-[92vh] sm:max-h-[90vh] flex flex-col`}>
+            <div className={`relative w-full ${maxWidth} z-[101] animate-slideUp sm:animate-zoomIn max-h-[90vh] flex flex-col`}>
                 <div className="relative flex flex-col w-full bg-[var(--t-surface)] sm:rounded-[2px] rounded-t-[2px] shadow-2xl border border-[var(--t-border)] outline-none focus:outline-none overflow-hidden h-full">
                     {/* Header */}
                     <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--t-border)] sticky top-0 bg-[var(--t-surface)] z-10">

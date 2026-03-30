@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Modal from '../common/Modal';
 import SuccessModal from '../common/SuccessModal';
 import PhaseDetailModal from './manage/PhaseDetailModal';
+import TaskPreviewModal from './manage/TaskPreviewModal';
 import { constructionService, permitService, dashboardService, getMediaUrl } from '../../services/api';
 import { useConstruction } from '../../context/ConstructionContext';
 
@@ -13,6 +14,7 @@ const DesktopHome = () => {
     const [newTaskTitle, setNewTaskTitle] = useState('');
     const [loading, setLoading] = useState(false);
     const [detailPhase, setDetailPhase] = useState(null);
+    const [previewTask, setPreviewTask] = useState(null);
 
     // Permit State
     const [isPermitModalOpen, setIsPermitModalOpen] = useState(false);
@@ -462,7 +464,14 @@ const DesktopHome = () => {
                                 <div className="absolute left-10 top-6 bottom-6 w-[2px] bg-[var(--t-surface3)] rounded-full -translate-x-1/2"></div>
                                 {/* Phases Rendering */}
                                 {dashboardData.phases.map((phase) => {
-                                    const phaseTasks = dashboardData.tasks.filter(t => t.phase === phase.id);
+                                    const phaseTasks = dashboardData.tasks.filter(t => t.phase === phase.id).sort((a, b) => {
+                                        const dateA = a.due_date ? new Date(a.due_date) : null;
+                                        const dateB = b.due_date ? new Date(b.due_date) : null;
+                                        if (dateA && dateB) return dateA - dateB;
+                                        if (dateA) return -1;
+                                        if (dateB) return 1;
+                                        return new Date(b.created_at) - new Date(a.created_at);
+                                    });
                                     const completedTasks = phaseTasks.filter(t => t.status === 'COMPLETED').length;
                                     const totalTasks = phaseTasks.length;
                                     const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
@@ -598,19 +607,44 @@ const DesktopHome = () => {
                                                     <div className="border-t border-[var(--t-border)] bg-[var(--t-surface2)]/30 p-5 animate-slideDown">
                                                         <div className="grid grid-cols-1 gap-2">
                                                             {phaseTasks.map(task => (
-                                                                <div key={task.id} className="bg-[var(--t-surface)] p-3 rounded-xl border border-[var(--t-border)] flex items-center justify-between group hover:border-[var(--t-border)] transition-all shadow-sm">
+                                                                <div key={task.id} 
+                                                                     onClick={() => setPreviewTask(task)}
+                                                                     className="bg-[var(--t-surface)] p-3 rounded-xl border border-[var(--t-border)] flex items-center justify-between group hover:border-[var(--t-primary)]/40 hover:shadow-md transition-all shadow-sm cursor-pointer">
                                                                     <div className="flex items-center gap-3">
                                                                         <input
                                                                             type="checkbox"
                                                                             checked={task.status === 'COMPLETED'}
-                                                                            onChange={() => handleTaskToggle(task)}
+                                                                            onChange={(e) => { e.stopPropagation(); handleTaskToggle(task); }}
                                                                             className="w-4 h-4 rounded border-[var(--t-border2)] text-[var(--t-primary)] focus:ring-[var(--t-primary)] cursor-pointer"
                                                                         />
-                                                                        <span className={`text-sm font-medium transition-colors ${task.status === 'COMPLETED' ? 'text-[var(--t-text3)] line-through' : 'text-[var(--t-text2)]'}`}>
-                                                                            {task.title}
-                                                                        </span>
+                                                                        <div className="flex flex-col">
+                                                                            <span className={`text-sm font-semibold transition-colors ${task.status === 'COMPLETED' ? 'text-[var(--t-text3)] line-through' : 'text-[var(--t-text)]'}`}>
+                                                                                {task.title}
+                                                                            </span>
+                                                                            <div className="flex items-center gap-2 mt-0.5">
+                                                                                <span className={`text-[8px] font-black uppercase tracking-widest px-1 rounded-[2px] ${
+                                                                                    task.priority === 'CRITICAL' ? 'bg-red-500/10 text-red-500' :
+                                                                                    task.priority === 'HIGH' ? 'bg-orange-500/10 text-orange-500' :
+                                                                                    'bg-[var(--t-primary)]/10 text-[var(--t-primary)]'
+                                                                                }`}>
+                                                                                    {task.priority || 'MEDIUM'}
+                                                                                </span>
+                                                                                {task.due_date && (
+                                                                                    <span className="text-[9px] text-[var(--t-text3)] font-bold uppercase">
+                                                                                        Due: {new Date(task.due_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
                                                                     </div>
-                                                                    <button onClick={() => handleDeleteTask(task.id)} className="text-[var(--t-text3)] hover:text-[var(--t-danger)] opacity-0 group-hover:opacity-100 transition-opacity px-2">×</button>
+                                                                    <div className="flex items-center gap-3">
+                                                                        {task.media?.length > 0 && (
+                                                                            <span className="text-[10px] text-[var(--t-text3)] opacity-40 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                                                                                📸 {task.media.length}
+                                                                            </span>
+                                                                        )}
+                                                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} className="text-[var(--t-text3)] hover:text-[var(--t-danger)] opacity-0 group-hover:opacity-100 transition-opacity px-2 text-lg">×</button>
+                                                                    </div>
                                                                 </div>
                                                             ))}
                                                             <button
@@ -837,6 +871,14 @@ const DesktopHome = () => {
                 message={successModalInfo.message}
                 supplierName={successModalInfo.supplierName}
             />
+
+            {previewTask && (
+                <TaskPreviewModal
+                    isOpen={!!previewTask}
+                    onClose={() => setPreviewTask(null)}
+                    task={previewTask}
+                />
+            )}
         </div>
     );
 };

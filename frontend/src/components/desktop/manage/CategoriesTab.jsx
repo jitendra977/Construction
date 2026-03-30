@@ -266,7 +266,14 @@ const CategoriesTab = ({ searchQuery = '', resolveMetadata, onClearMetadata }) =
                                                             const currentValue = localCatAllocations[phase.id] !== undefined ? localCatAllocations[phase.id] : existingAlloc;
 
                                                             // Get tasks for this Phase & Category
-                                                            const tasks = dashboardData.tasks?.filter(t => t.phase === phase.id && t.category === c.id) || [];
+                                                            const tasks = (dashboardData.tasks?.filter(t => t.phase === phase.id && t.category === c.id) || []).sort((a, b) => {
+                                                                const dateA = a.due_date ? new Date(a.due_date) : null;
+                                                                const dateB = b.due_date ? new Date(b.due_date) : null;
+                                                                if (dateA && dateB) return dateA - dateB;
+                                                                if (dateA) return -1;
+                                                                if (dateB) return 1;
+                                                                return new Date(b.created_at) - new Date(a.created_at);
+                                                            });
                                                             const phaseSpent = dashboardData.expenses?.filter(e => e.phase === phase.id && e.category === c.id).reduce((sum, e) => sum + Number(e.amount), 0) || 0;
 
                                                             return (

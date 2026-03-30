@@ -322,6 +322,55 @@ export const ConstructionProvider = ({ children }) => {
         return updateTask(taskId, { status: newStatus });
     }, [updateTask]);
 
+    const createTask = useCallback(async (taskData) => {
+        try {
+            const result = await constructionService.createTask(taskData);
+            await fetchData(true);
+            return result;
+        } catch (error) {
+            console.error("Failed to create task", error);
+            throw error;
+        }
+    }, [fetchData]);
+
+    const uploadTaskMedia = useCallback(async (uploadData) => {
+        try {
+            const result = await constructionService.uploadTaskMedia(uploadData);
+            await fetchData(true);
+            return result;
+        } catch (error) {
+            console.error("Failed to upload task media", error);
+            throw error;
+        }
+    }, [fetchData]);
+
+    const deleteTaskMedia = useCallback(async (mediaId) => {
+        try {
+            await constructionService.deleteTaskMedia(mediaId);
+            await fetchData(true);
+        } catch (error) {
+            console.error("Failed to delete task media", error);
+            throw error;
+        }
+    }, [fetchData]);
+
+    const deleteTask = useCallback(async (taskId) => {
+        const previousData = { ...dashboardData };
+        setDashboardData(prev => ({
+            ...prev,
+            tasks: prev.tasks.filter(t => t.id !== taskId)
+        }));
+
+        try {
+            await constructionService.deleteTask(taskId);
+            await fetchData(true);
+        } catch (error) {
+            setDashboardData(previousData);
+            console.error("Failed to delete task", error);
+            throw error;
+        }
+    }, [dashboardData, fetchData]);
+
     const updatePermitStep = useCallback(async (stepId, updateData) => {
         try {
             await permitService.updateStep(stepId, updateData);
@@ -420,8 +469,12 @@ export const ConstructionProvider = ({ children }) => {
         refreshData: (silent = true) => fetchData(silent),
         updatePhase,
         updateTask,
+        createTask,
+        deleteTask,
         updatePhaseStatus,
         updateTaskStatus,
+        uploadTaskMedia,
+        deleteTaskMedia,
         updatePermitStep,
         updatePermitStatus,
         createPermitStep,

@@ -1,12 +1,53 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Modal from '../../common/Modal';
 import { getMediaUrl } from '../../../services/api';
 import { useConstruction } from '../../../context/ConstructionContext';
 
-const TaskPreviewModal = ({ isOpen, onClose, task }) => {
-    const { dashboardData } = useConstruction();
+import { useRef } from 'react';
 
-    if (!isOpen || !task) return null;
+const TaskPreviewModal = ({ isOpen, onClose, task, initialMode = 'read' }) => {
+    const { 
+        dashboardData, updateTask, createTask, deleteTask, 
+        uploadTaskMedia, deleteTaskMedia, formatCurrency 
+    } = useConstruction();
+    const [isEditing, setIsEditing] = useState(initialMode !== 'read');
+    const [formData, setFormData] = useState({});
+    const [loading, setLoading] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const fileInputRef = useRef(null);
+
+    useEffect(() => {
+        if (isOpen) {
+            if (task && task.id) {
+                setFormData({ ...task });
+                setIsEditing(initialMode === 'edit');
+            } else {
+                // Default data for new task, potentially pre-filled
+                setFormData({
+                    title: task?.title || '',
+                    description: task?.description || '',
+                    status: task?.status || 'PENDING',
+                    priority: task?.priority || 'MEDIUM',
+                    phase: task?.phase || dashboardData.phases?.[0]?.id || '',
+                    assigned_to: task?.assigned_to || null,
+                    room: task?.room || null,
+                    category: task?.category || null,
+                    estimated_cost: task?.estimated_cost || 0,
+                    start_date: task?.start_date || new Date().toISOString().split('T')[0],
+                    due_date: task?.due_date || '',
+                    completed_date: task?.completed_date || ''
+                });
+                setIsEditing(true);
+            }
+        }
+    }, [task, isOpen, initialMode, dashboardData.phases]);
+
+    if (!isOpen) return null;
+
+    const mono = { fontFamily: 'var(--f-mono)' };
+    const disp = { fontFamily: 'var(--f-disp)' };
+    const body = { fontFamily: 'var(--f-body)' };
 
     const getPhaseName = (id) => dashboardData.phases?.find(p => p.id === id)?.name || 'Unknown Phase';
     const getContractorName = (id) => dashboardData.contractors?.find(c => c.id === id)?.name || 'Unassigned';
@@ -29,89 +70,438 @@ const TaskPreviewModal = ({ isOpen, onClose, task }) => {
         }
     };
 
-    return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Task Details">
-            <div className="p-2 max-h-[85vh] overflow-y-auto custom-scrollbar space-y-6">
+    const getCategoryName = (id) => dashboardData.budgetCategories?.find(c => c.id === id)?.name || 'N/A';
+    const getRoomName = (id) => dashboardData.rooms?.find(r => r.id === id)?.name || 'General Area';
+    const formatDate = (dateStr) => dateStr ? new Date(dateStr).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : 'TBD';
 
-                {/* Header Information */}
+    const handleSave = async () => {
+        setLoading(true);
+        try {
+            if (task && task.id) {
+                await updateTask(task.id, formData);
+            } else {
+                await createTask(formData);
+            }
+            setIsEditing(false);
+            if (!task?.id) onClose(); // Close on create success
+        } catch (error) {
+            alert('Failed to save task.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleFileUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file || !task) return;
+
+        setUploading(true);
+        const uploadData = new FormData();
+        uploadData.append('task', task.id);
+        uploadData.append('file', file);
+        
+        // Dynamic Media Type Detection
+        let mediaType = 'DOCUMENT';
+        const type = file.type.toLowerCase();
+        if (type.startsWith('image/')) mediaType = 'IMAGE';
+        else if (type.startsWith('video/')) mediaType = 'VIDEO';
+        uploadData.append('media_type', mediaType);
+
+        try {
+            await uploadTaskMedia(uploadData);
+        } catch (error) {
+            alert('Upload failed.');
+        } finally {
+            setUploading(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
+    const handleDeleteMedia = async (mediaId) => {
+        if (!confirm('Delete this proof item?')) return;
+        try {
+            await deleteTaskMedia(mediaId);
+        } catch (error) {
+            alert('Failed to delete media.');
+        }
+    };
+
+    const handleDelete = async () => {
+        setLoading(true);
+        try {
+            await deleteTask(task.id);
+            onClose();
+        } catch (error) {
+            alert('Failed to delete task.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title={!(task && task.id) ? "Initialize New Task" : isEditing ? "Edit Task" : "Task Details"} maxWidth="max-w-4xl">
+            <div className="space-y-6">
+                
+                {/* Actions Bar */}
+                <div className="flex justify-between items-center bg-[var(--t-surface2)] p-2 rounded-xl border border-[var(--t-border)] sticky top-0 z-10 backdrop-blur-md">
+                    <div className="flex gap-2">
+                        {!isEditing ? (
+                            <>
+                                <button 
+                                    onClick={() => setIsEditing(true)}
+                                    className="px-4 py-1.5 bg-[var(--t-primary)] text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all flex items-center gap-2"
+                                    style={mono}
+                                >
+                                    <span>✏️</span> Edit
+                                </button>
+                                <button 
+                                    onClick={() => setShowDeleteConfirm(true)}
+                                    className="px-4 py-1.5 bg-red-500/10 text-red-500 border border-red-500/30 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all flex items-center gap-2"
+                                >
+                                    <span>🗑️</span> Delete
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <button 
+                                    onClick={handleSave}
+                                    disabled={loading}
+                                    className="px-4 py-1.5 bg-green-500 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all flex items-center gap-2"
+                                >
+                                    {loading ? 'Saving...' : '✅ Save Changes'}
+                                </button>
+                                <button 
+                                    onClick={() => setIsEditing(false)}
+                                    className="px-4 py-1.5 bg-[var(--t-surface3)] text-[var(--t-text2)] rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-[var(--t-border)] transition-all"
+                                >
+                                    Cancel
+                                </button>
+                            </>
+                        )}
+                    </div>
+                    {!isEditing && task && task.id && (
+                        <div className="text-[10px] font-black text-[var(--t-primary)] uppercase tracking-tighter" style={mono}>
+                            Node ID: #{task.id}
+                        </div>
+                    )}
+                </div>
+
+                {showDeleteConfirm && (
+                    <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl animate-shake">
+                        <div className="text-red-600 font-black text-xs uppercase mb-2">Confirm Task Deletion?</div>
+                        <p className="text-[10px] text-red-700/80 mb-4 font-bold">This action cannot be undone. All task data and proofs will be permanently removed.</p>
+                        <div className="flex gap-2">
+                            <button onClick={handleDelete} className="bg-red-600 text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest">Yes, Delete Forever</button>
+                            <button onClick={() => setShowDeleteConfirm(false)} className="bg-[var(--t-surface)] border border-[var(--t-border)] px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest">Cancel</button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Task Title & Status */}
                 <div>
-                    <h2 className="text-xl font-bold text-[var(--t-text)] leading-tight">
-                        {task.title}
-                    </h2>
-                    <div className="flex flex-wrap items-center gap-2 mt-3">
-                        <span className={`px-2.5 py-1 rounded-md border text-xs font-black uppercase ${getStatusStyle(task.status)}`}>
-                            {task.status}
-                        </span>
-                        <span className={`px-2.5 py-1 rounded-md border text-xs font-black uppercase ${getPriorityStyle(task.priority)}`}>
-                            {task.priority} Priority
-                        </span>
+                    {isEditing ? (
+                        <div className="space-y-3">
+                            <input 
+                                type="text"
+                                value={formData.title || ''}
+                                onChange={(e) => setFormData({...formData, title: e.target.value})}
+                                className="w-full text-xl font-bold bg-[var(--t-surface2)] border border-[var(--t-border)] p-3 rounded-xl focus:ring-2 focus:ring-[var(--t-primary)] outline-none"
+                                placeholder="Task Title"
+                            />
+                            <div className="grid grid-cols-2 gap-3">
+                                <select 
+                                    value={formData.status || ''}
+                                    onChange={(e) => setFormData({...formData, status: e.target.value})}
+                                    className="bg-[var(--t-surface2)] border border-[var(--t-border)] p-2 rounded-xl text-xs font-black uppercase"
+                                >
+                                    <option value="PENDING">Pending</option>
+                                    <option value="IN_PROGRESS">In Progress</option>
+                                    <option value="COMPLETED">Completed</option>
+                                    <option value="BLOCKED">Blocked</option>
+                                </select>
+                                <select 
+                                    value={formData.priority || ''}
+                                    onChange={(e) => setFormData({...formData, priority: e.target.value})}
+                                    className="bg-[var(--t-surface2)] border border-[var(--t-border)] p-2 rounded-xl text-xs font-black uppercase"
+                                >
+                                    <option value="LOW">Low</option>
+                                    <option value="MEDIUM">Medium</option>
+                                    <option value="HIGH">High</option>
+                                    <option value="CRITICAL">Critical</option>
+                                </select>
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            <h2 className="text-xl font-bold text-[var(--t-text)] leading-tight" style={disp}>
+                                {task.title}
+                            </h2>
+                            <div className="flex flex-wrap items-center gap-2 mt-3">
+                                <span className={`px-2.5 py-1 rounded-md border text-xs font-black uppercase ${getStatusStyle(task.status)}`}>
+                                    {task.status}
+                                </span>
+                                <span className={`px-2.5 py-1 rounded-md border text-xs font-black uppercase ${getPriorityStyle(task.priority)}`}>
+                                    {task.priority} Priority
+                                </span>
+                            </div>
+                        </>
+                    )}
+                </div>
+
+                {/* Primary Details Grid (Edit Mode) */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="bg-[var(--t-surface2)] rounded-xl p-3 border border-[var(--t-border)]">
+                        <div className="text-[9px] font-black text-[var(--t-text3)] uppercase tracking-widest mb-1">Phase</div>
+                        {isEditing ? (
+                            <select 
+                                value={formData.phase || ''}
+                                onChange={(e) => setFormData({...formData, phase: parseInt(e.target.value)})}
+                                className="w-full text-xs font-bold bg-transparent outline-none"
+                            >
+                                {dashboardData.phases?.map(p => (
+                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                            </select>
+                        ) : (
+                            <div className="text-sm font-bold text-[var(--t-text)]">{getPhaseName(task.phase)}</div>
+                        )}
+                    </div>
+                    <div className="bg-[var(--t-surface2)] rounded-xl p-3 border border-[var(--t-border)]">
+                        <div className="text-[9px] font-black text-[var(--t-text3)] uppercase tracking-widest mb-1">Contractor</div>
+                        {isEditing ? (
+                            <select 
+                                value={formData.assigned_to || ''}
+                                onChange={(e) => setFormData({...formData, assigned_to: parseInt(e.target.value)})}
+                                className="w-full text-xs font-bold bg-transparent outline-none"
+                            >
+                                <option value="">Unassigned</option>
+                                {dashboardData.contractors?.map(c => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                ))}
+                            </select>
+                        ) : (
+                            <div className="text-sm font-bold text-[var(--t-text)] flex items-center gap-2">
+                                <span>👤</span> {getContractorName(task.assigned_to)}
+                            </div>
+                        )}
+                    </div>
+                    <div className="bg-[var(--t-surface2)] rounded-xl p-3 border border-[var(--t-border)]">
+                        <div className="text-[9px] font-black text-[var(--t-text3)] uppercase tracking-widest mb-1">Location</div>
+                        {isEditing ? (
+                            <select 
+                                value={formData.room || ''}
+                                onChange={(e) => setFormData({...formData, room: parseInt(e.target.value)})}
+                                className="w-full text-xs font-bold bg-transparent outline-none"
+                            >
+                                <option value="">General Area</option>
+                                {dashboardData.rooms?.map(r => (
+                                    <option key={r.id} value={r.id}>{r.name}</option>
+                                ))}
+                            </select>
+                        ) : (
+                            <div className="text-sm font-bold text-[var(--t-text)]">📍 {getRoomName(task.room)}</div>
+                        )}
                     </div>
                 </div>
 
-                {/* Details Grid */}
-                <div className="bg-[var(--t-surface2)] rounded-xl p-4 border border-[var(--t-border)] grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <div className="text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest mb-1">
-                            Phase
-                        </div>
-                        <div className="text-sm font-semibold text-[var(--t-text)]">
-                            {getPhaseName(task.phase)}
+                {/* Timeline & Budget Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                        <div className="text-[10px] font-black text-[var(--t-primary)] uppercase tracking-widest border-b border-[var(--t-border)] pb-1">Timeline</div>
+                        <div className="grid grid-cols-2 gap-2">
+                            <div>
+                                <div className="text-[8px] font-bold text-[var(--t-text3)] uppercase">Start Date</div>
+                                {isEditing ? (
+                                    <input 
+                                        type="date"
+                                        value={formData.start_date || ''}
+                                        onChange={(e) => setFormData({...formData, start_date: e.target.value})}
+                                        className="text-[10px] font-semibold bg-[var(--t-surface)] p-1 rounded border border-[var(--t-border)] w-full"
+                                    />
+                                ) : (
+                                    <div className="text-[11px] font-semibold text-[var(--t-text)]">{formatDate(task.start_date)}</div>
+                                )}
+                            </div>
+                            <div>
+                                <div className="text-[8px] font-bold text-[var(--t-text3)] uppercase">Due Date</div>
+                                {isEditing ? (
+                                    <input 
+                                        type="date"
+                                        value={formData.due_date || ''}
+                                        onChange={(e) => setFormData({...formData, due_date: e.target.value})}
+                                        className="text-[10px] font-semibold bg-[var(--t-surface)] p-1 rounded border border-[var(--t-border)] w-full"
+                                    />
+                                ) : (
+                                    <div className="text-[11px] font-semibold text-[var(--t-text)]">{formatDate(task.due_date)}</div>
+                                )}
+                            </div>
+                            <div className="col-span-2">
+                                <div className="text-[8px] font-bold text-[var(--t-text3)] uppercase">Completed On</div>
+                                {isEditing ? (
+                                    <input 
+                                        type="date"
+                                        value={formData.completed_date || ''}
+                                        onChange={(e) => setFormData({...formData, completed_date: e.target.value})}
+                                        className="text-[10px] font-semibold bg-[var(--t-surface)] p-1 rounded border border-[var(--t-border)] w-full"
+                                    />
+                                ) : (
+                                    <div className={`text-[11px] font-semibold ${task.completed_date ? 'text-green-600' : 'text-[var(--t-text3)]'}`}>{formatDate(task.completed_date)}</div>
+                                )}
+                            </div>
                         </div>
                     </div>
-                    <div>
-                        <div className="text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest mb-1">
-                            Assigned To
-                        </div>
-                        <div className="text-sm font-semibold text-[var(--t-text)] flex items-center gap-2">
-                            <span>👤</span> {getContractorName(task.assigned_to)}
+
+                    <div className="space-y-3">
+                        <div className="text-[10px] font-black text-[var(--t-primary)] uppercase tracking-widest border-b border-[var(--t-border)] pb-1">Financials</div>
+                        <div className="grid grid-cols-2 gap-2">
+                            <div>
+                                <div className="text-[8px] font-bold text-[var(--t-text3)] uppercase tracking-tighter">Est. Cost</div>
+                                {isEditing ? (
+                                    <input 
+                                        type="number"
+                                        value={formData.estimated_cost || 0}
+                                        onChange={(e) => setFormData({...formData, estimated_cost: parseFloat(e.target.value)})}
+                                        className="text-sm font-black bg-[var(--t-surface)] p-1 rounded border border-[var(--t-border)] w-full"
+                                    />
+                                ) : (
+                                    <div className="text-sm font-black text-[var(--t-text)]">
+                                        {formatCurrency ? formatCurrency(task.estimated_cost) : `Rs. ${Number(task.estimated_cost).toLocaleString()}`}
+                                    </div>
+                                )}
+                            </div>
+                            <div>
+                                <div className="text-[8px] font-bold text-[var(--t-text3)] uppercase tracking-tighter">Category</div>
+                                {isEditing ? (
+                                    <select 
+                                        value={formData.category || ''}
+                                        onChange={(e) => setFormData({...formData, category: parseInt(e.target.value)})}
+                                        className="text-[10px] font-bold bg-[var(--t-surface)] p-1 rounded border border-[var(--t-border)] w-full"
+                                    >
+                                        <option value="">N/A</option>
+                                        {dashboardData.budgetCategories?.map(c => (
+                                            <option key={c.id} value={c.id}>{c.name}</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <div className="text-xs font-bold text-[var(--t-primary)] uppercase truncate bg-[var(--t-primary)]/5 px-2 py-0.5 rounded">
+                                        {getCategoryName(task.category)}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Description Box */}
-                {task.description && (
-                    <div>
-                        <div className="text-[10px] font-black text-[var(--t-primary)] uppercase tracking-widest mb-2 border-b border-[var(--t-border)] pb-1">
-                            Task Description
-                        </div>
-                        <p className="text-sm text-[var(--t-text2)] leading-relaxed font-medium whitespace-pre-wrap">
-                            {task.description}
-                        </p>
+                <div>
+                    <div className="text-[10px] font-black text-[var(--t-primary)] uppercase tracking-widest mb-2 border-b border-[var(--t-border)] pb-1">
+                        Task Description
                     </div>
-                )}
+                    {isEditing ? (
+                        <textarea 
+                            value={formData.description || ''}
+                            onChange={(e) => setFormData({...formData, description: e.target.value})}
+                            className="w-full text-sm text-[var(--t-text2)] leading-relaxed font-medium bg-[var(--t-surface2)] border border-[var(--t-border)] p-3 rounded-xl focus:ring-2 focus:ring-[var(--t-primary)] outline-none min-h-[100px]"
+                            placeholder="Describe the task..."
+                        />
+                    ) : (
+                        task.description ? (
+                            <p className="text-sm text-[var(--t-text2)] leading-relaxed font-medium whitespace-pre-wrap" style={body}>
+                                {task.description}
+                            </p>
+                        ) : (
+                            <p className="text-xs text-[var(--t-text3)] italic">No description provided.</p>
+                        )
+                    )}
+                </div>
 
-                {/* Task Proofs (Media) */}
+                {/* Task Proofs (Media) - View Only for now in this modal */}
                 {task.media && task.media.length > 0 && (
                     <div>
-                        <div className="text-[10px] font-black text-[var(--t-primary)] uppercase tracking-widest mb-3 flex items-center gap-2">
-                            <span>📸</span> Uploaded Proofs
-                            <span className="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-[9px]">
-                                {task.media.length} items
-                            </span>
+                        <div className="text-[10px] font-black text-[var(--t-primary)] uppercase tracking-widest mb-3 flex items-center justify-between">
+                            <div className="flex items-center gap-2" style={mono}>
+                                <span>📸</span> Proof of Work & Files
+                                {task.media && task.media.length > 0 && (
+                                    <span className="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-[9px]">
+                                        {task.media.length} items
+                                    </span>
+                                )}
+                            </div>
+                            
+                            {isEditing && (
+                                <>
+                                    <button 
+                                        type="button"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        disabled={uploading}
+                                        className="text-[9px] font-black uppercase text-[var(--t-primary)] hover:underline flex items-center gap-1 active:scale-95 transition-all disabled:opacity-50"
+                                        style={mono}
+                                    >
+                                        {uploading ? '[ UPLOADING.. ]' : '[ + UPLOAD PROOF ]'}
+                                    </button>
+                                    <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*,video/*,.pdf,.doc,.docx" />
+                                </>
+                            )}
                         </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                            {task.media.map(m => (
-                                <a
-                                    key={m.id}
-                                    href={getMediaUrl(m.file)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="block group relative rounded-xl overflow-hidden shadow-sm border border-[var(--t-border)] aspect-square"
-                                >
-                                    <img
-                                        src={getMediaUrl(m.file)}
-                                        alt="Task Proof"
-                                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                                        loading="lazy"
-                                    />
-                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                        <span className="text-white text-xs font-bold shrink-0 px-2 py-1 bg-black/50 rounded-lg backdrop-blur-sm">View Full</span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {task.media?.map(m => (
+                                <div key={m.id} className="flex flex-col rounded-xl overflow-hidden border border-[var(--t-border)] bg-[var(--t-surface2)] group relative">
+                                    {isEditing && (
+                                        <button 
+                                            onClick={() => handleDeleteMedia(m.id)}
+                                            className="absolute top-2 right-2 z-10 p-1.5 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-lg"
+                                        >
+                                            <svg className="w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    )}
+                                    <div className="aspect-video relative overflow-hidden bg-black flex items-center justify-center">
+                                        {m.media_type === 'IMAGE' ? (
+                                            <img
+                                                src={getMediaUrl(m.file)}
+                                                alt="Task Proof"
+                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                                loading="lazy"
+                                            />
+                                        ) : m.media_type === 'VIDEO' ? (
+                                            <video src={getMediaUrl(m.file)} className="w-full h-full object-contain" controls />
+                                        ) : (
+                                            <div className="flex flex-col items-center gap-2">
+                                                <span className="text-3xl">📄</span>
+                                                <span className="text-[10px] text-white/70 uppercase">Document File</span>
+                                            </div>
+                                        )}
+                                        <a
+                                            href={getMediaUrl(m.file)}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2"
+                                        >
+                                            <span className="text-white text-[10px] font-black uppercase tracking-widest border border-white/30 px-3 py-1.5 rounded-full backdrop-blur-sm">View Full Resolution</span>
+                                        </a>
                                     </div>
-                                </a>
+                                    {m.description && (
+                                        <div className="p-2 border-t border-[var(--t-border)]">
+                                            <p className="text-[10px] text-[var(--t-text2)] leading-tight italic line-clamp-2">
+                                                {m.description}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
                             ))}
                         </div>
                     </div>
                 )}
+
+                {/* Footer Audit Information */}
+                <div className="mt-8 pt-4 border-t border-dashed border-[var(--t-border)] flex justify-between items-center text-[9px] font-bold text-[var(--t-text3)] uppercase tracking-wider">
+                    <span>ID: #{task.id}</span>
+                    <div className="flex gap-4">
+                        <span>Created: {formatDate(task.created_at)}</span>
+                        <span>Updated: {formatDate(task.updated_at)}</span>
+                    </div>
+                </div>
 
             </div>
         </Modal>
