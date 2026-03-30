@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { constructionService } from '../../../services/api';
 import Modal from '../../common/Modal';
 import PhaseDetailModal from './PhaseDetailModal';
+import TaskPreviewModal from './TaskPreviewModal';
 import {
     DndContext,
     closestCenter,
@@ -128,7 +129,14 @@ const SortableCard = ({ phase, tasks = [], onEdit, onDelete, isExpanded, onToggl
                              <h4 className="text-[10px] font-black text-[var(--t-text)] uppercase tracking-widest">Tasks List</h4>
                              <button onClick={() => onAddTask(phase.id)} className="text-[10px] font-black text-[var(--t-primary)] uppercase underline">[+ ADD TASK]</button>
                         </div>
-                        {tasks.length > 0 ? tasks.map(t => (
+                        {tasks.length > 0 ? [...tasks].sort((a, b) => {
+                            const dateA = a.due_date ? new Date(a.due_date) : null;
+                            const dateB = b.due_date ? new Date(b.due_date) : null;
+                            if (dateA && dateB) return dateA - dateB;
+                            if (dateA) return -1;
+                            if (dateB) return 1;
+                            return new Date(b.created_at) - new Date(a.created_at);
+                        }).map(t => (
                             <div key={t.id} onClick={() => onEditTask(t)} className="bg-[var(--t-surface2)] p-3 rounded-xl border border-[var(--t-border)] flex justify-between items-center group cursor-pointer hover:border-[var(--t-primary)] transition-all">
                                 <div>
                                     <div className="text-xs font-bold text-[var(--t-text)]">{t.title}</div>
@@ -237,7 +245,14 @@ const SortableRow = ({ phase, tasks = [], onEdit, onDelete, isExpanded, onToggle
                         </button>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {tasks.length > 0 ? tasks.map(t => (
+                        {tasks.length > 0 ? [...tasks].sort((a, b) => {
+                            const dateA = a.due_date ? new Date(a.due_date) : null;
+                            const dateB = b.due_date ? new Date(b.due_date) : null;
+                            if (dateA && dateB) return dateA - dateB;
+                            if (dateA) return -1;
+                            if (dateB) return 1;
+                            return new Date(b.created_at) - new Date(a.created_at);
+                        }).map(t => (
                             <div key={t.id} onClick={() => onEditTask(t)} className="bg-[var(--t-surface)] p-3 rounded-sm border border-[var(--t-border)] flex justify-between items-start group cursor-pointer hover:border-[var(--t-primary)] hover:shadow-lg transition-all relative overflow-hidden">
                                 <div className="absolute top-0 left-0 w-1 h-full bg-[var(--t-primary)]/20 group-hover:bg-[var(--t-primary)] transition-colors"></div>
                                 <div className="pl-2">
