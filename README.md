@@ -1,67 +1,46 @@
-# House Construction Management System
+# House Construction Management System (HCMS)
 
-A full-stack web application for managing house construction projects, built with React and Django.
+A full-stack ecosystem for managing the entire residential construction lifecycle, built with Django (REST) and React.
 
-## Scripts and Utilities
-A collection of helpful scripts for deployment, local development, and cloud synchronization is located in the `scripts/` directory. 
-**[View the Scripts Documentation](scripts/README.md)**
+> [!TIP]
+> For a deep dive into the project's vision, modular architecture, and core development principles, see the [Project Overview Document](PROJECT_OVERVIEW.md).
 
 ## 🏗️ Tech Stack
 
 ### Frontend
-- **React** - UI library
-- **Vite** - Build tool and dev server
-- **React Router** - Client-side routing
-- **Axios** - HTTP client
+- **React (Vite)** - Modern, high-performance UI library.
+- **Dual-Experience UI** - Specialized components for Desktop/Tablet and Mobile usage.
+- **Axios & Context API** - Centralized state and data management.
 
 ### Backend
-- **Django** - Web framework
-- **Django REST Framework** - API framework
-- **Simple JWT** - JWT authentication
-- **CORS Headers** - Cross-origin resource sharing
+- **Django REST Framework** - Robust, modular API layer.
+- **Simple JWT** - Secure token-based authentication.
+- **PostgreSQL** (via Docker) - Reliable relational data storage.
 
 ### DevOps
-- **Docker** - Containerization
-- **Docker Compose** - Multi-container orchestration
-- **Nginx** - Production web server
+- **Docker & Compose** - Standardized dev/prod containerization.
+- **Nginx** - High-concurrency production web server.
 
-## 📁 Project Structure
+## 📁 System Architecture
 
-```
-Construction/
-├── backend/                 # Django backend
-│   ├── apps/
-│   │   └── accounts/       # Authentication app
-│   ├── config/             # Django settings
-│   ├── Dockerfile          # Production Docker config
-│   ├── Dockerfile.dev      # Development Docker config
-│   ├── requirements.txt    # Python dependencies
-│   └── manage.py
-├── frontend/               # React frontend
-│   ├── src/
-│   │   ├── components/    # React components
-│   │   ├── pages/         # Page components
-│   │   └── services/      # API services
-│   ├── Dockerfile         # Production Docker config
-│   ├── Dockerfile.dev     # Development Docker config
-│   └── package.json
-├── docker-compose.yml      # Production compose
-└── docker-compose.dev.yml  # Development compose
-```
+| Directory | Description |
+| :--- | :--- |
+| **`backend/`** | Django Apps (Finance, Tasks, Permits, Resources). |
+| **`frontend/`** | React Source (Desktop/Mobile specialized components). |
+| **`mobile-app/`** | Mobile application source. |
+| **`docs/`** | Deployment, Cloud, and Local setup guides. |
+| **`scripts/`** | Automation scripts for CI/CD and synchronization. |
 
-## 📚 Project Documentation
+## 📚 Documentation Index
 
-Access the complete project documentation here:
-
-| Category | Document | Description |
-| :--- | :--- | :--- |
-| **🚀 Getting Started** | [Local Setup Guide](file:///Volumes/Programming/FINAL-PROJECT/FULL-STACK/Construction/docs/local_setup.md) | Quickly start local development |
-| **💻 Dev Server** | [Detailed Server Guide](file:///Volumes/Programming/FINAL-PROJECT/FULL-STACK/Construction/docs/dev_server.md) | In-depth setup (Native & Docker) |
-| **☁️ Cloud** | [Cloud Deployment](file:///Volumes/Programming/FINAL-PROJECT/FULL-STACK/Construction/docs/cloud_setup.md) | Deploy to production |
-| **🐍 Backend** | [Backend README](file:///Volumes/Programming/FINAL-PROJECT/FULL-STACK/Construction/backend/README.md) | Django structure & stack |
-| **⚛️ Frontend** | [Frontend README](file:///Volumes/Programming/FINAL-PROJECT/FULL-STACK/Construction/frontend/README.md) | React structure & stack |
-| **📊 Roadmap** | [Project Task List](file:///Volumes/Programming/FINAL-PROJECT/FULL-STACK/Construction/docs/task.md) | Feature tracking & progress |
-| **✨ Walkthrough** | [Feature Walkthrough](file:///Volumes/Programming/FINAL-PROJECT/FULL-STACK/Construction/docs/walkthrough.md) | Visual proof of work |
+| Topic | Details |
+| :--- | :--- |
+| **🌟 Project Overview** | [Core Principles & Design](PROJECT_OVERVIEW.md) |
+| **🚀 Getting Started** | [Local Setup Guide](docs/local_setup.md) |
+| **💻 Dev Server** | [Detailed Server Guide](docs/dev_server.md) |
+| **☁️ Cloud** | [Cloud Deployment](docs/cloud_setup.md) |
+| **📊 Roadmap** | [Project Task List](docs/task.md) |
+| **✨ Progress** | [Feature Walkthrough](docs/walkthrough.md) |
 
 ---
 
