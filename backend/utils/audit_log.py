@@ -1,4 +1,5 @@
 import requests
+from user_agents import parse
 from django.db import models
 from django.forms.models import model_to_dict
 from apps.accounts.models import ActivityLog
@@ -19,7 +20,7 @@ def resolve_ip_location(ip):
     Returns {city, region, country}
     """
     if not ip or ip in ['127.0.0.1', 'localhost', '::1'] or ip.startswith('192.168.') or ip.startswith('10.'):
-        return {'city': 'Local Network', 'region': 'Internal', 'country': 'Private'}
+        return {'city': 'Internal Workspace', 'region': 'Developer Sandbox', 'country': 'Local Access'}
     
     try:
         # Using ip-api.com (free, no key required for low volume)
@@ -77,6 +78,18 @@ def log_activity_automated(request, user, action, instance, description='', chan
         # Resolve geographic location
         location = resolve_ip_location(ip) if ip else {'city': 'System', 'region': 'Process', 'country': 'Internal'}
         
+        # Parse User Agent for human-readable browser details
+        ua_string = request.META.get('HTTP_USER_AGENT', '') if request else ""
+        if ua_string:
+            ua = parse(ua_string)
+            browser_info = f"{ua.browser.family} {ua.browser.version_string}"
+            os_info = f"{ua.os.family} {ua.os.version_string}"
+            device_type = "Mobile" if ua.is_mobile else "Tablet" if ua.is_tablet else "PC" if ua.is_pc else "Bot" if ua.is_bot else "Other"
+        else:
+            browser_info = "Internal Engine"
+            os_info = "System Core"
+            device_type = "Server"
+
         # Use existing ActivityLog model
         ActivityLog.objects.create(
             user=user if user and user.is_authenticated else None,
@@ -91,7 +104,7 @@ def log_activity_automated(request, user, action, instance, description='', chan
             city=location.get('city'),
             region=location.get('region'),
             country=location.get('country'),
-            user_agent=request.META.get('HTTP_USER_AGENT', '')[:1000] if request else "System Signal",
+            user_agent=f"{browser_info} | {os_info} ({device_type})", # Store human readable by default or raw? Let's do human
             endpoint=request.path if request else f"INTERNAL_SIGNAL_{model_name}",
             method=request.method if request else "SIGNAL",
             success=True
