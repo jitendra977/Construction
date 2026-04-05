@@ -309,6 +309,11 @@ class ActivityLog(models.Model):
         blank=True,
         help_text="Error message if action failed"
     )
+
+    # Geographic Location
+    city = models.CharField(max_length=100, blank=True, null=True)
+    region = models.CharField(max_length=100, blank=True, null=True)
+    country = models.CharField(max_length=100, blank=True, null=True)
     
     class Meta:
         ordering = ['-timestamp']

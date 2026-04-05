@@ -67,10 +67,22 @@ class UserSerializer(serializers.ModelSerializer):
 
 class ActivityLogSerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(source='user.email', read_only=True)
+    user_display_name = serializers.SerializerMethodField()
+    user_avatar = serializers.SerializerMethodField()
     
     class Meta:
         model = ActivityLog
         fields = '__all__'
+
+    def get_user_display_name(self, obj):
+        if obj.user:
+            return f"{obj.user.first_name} {obj.user.last_name}".strip() or obj.user.username
+        return obj.username or "System"
+
+    def get_user_avatar(self, obj):
+        if obj.user:
+            return obj.user.get_profile_image_url()
+        return f"https://ui-avatars.com/api/?name={obj.username or 'S'}&background=random&color=fff"
 
 
 class LoginSerializer(serializers.Serializer):

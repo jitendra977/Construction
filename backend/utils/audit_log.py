@@ -1,3 +1,4 @@
+import requests
 from django.db import models
 from django.forms.models import model_to_dict
 from apps.accounts.models import ActivityLog
@@ -11,6 +12,30 @@ def get_client_ip(request):
     else:
         ip = request.META.get('REMOTE_ADDR')
     return ip
+
+def resolve_ip_location(ip):
+    """
+    Resolves IP to geographic location using ip-api.com.
+    Returns {city, region, country}
+    """
+    if not ip or ip in ['127.0.0.1', 'localhost', '::1'] or ip.startswith('192.168.') or ip.startswith('10.'):
+        return {'city': 'Local Network', 'region': 'Internal', 'country': 'Private'}
+    
+    try:
+        # Using ip-api.com (free, no key required for low volume)
+        response = requests.get(f"http://ip-api.com/json/{ip}?fields=status,message,country,regionName,city", timeout=2)
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('status') == 'success':
+                return {
+                    'city': data.get('city'),
+                    'region': data.get('regionName'),
+                    'country': data.get('country')
+                }
+    except Exception as e:
+        print(f"IP Resolution Failed for {ip}: {e}")
+        
+    return {'city': 'Unknown', 'region': 'Unknown', 'country': 'Unknown'}
 
 def get_model_diff(old_instance, new_instance, exclude_fields=None):
     """
@@ -47,6 +72,10 @@ def log_activity_automated(request, user, action, instance, description='', chan
         model_name = instance.__class__.__name__
         object_id = getattr(instance, 'pk', None)
         object_repr = str(instance)
+        ip = get_client_ip(request) if request else None
+        
+        # Resolve geographic location
+        location = resolve_ip_location(ip) if ip else {'city': 'System', 'region': 'Process', 'country': 'Internal'}
         
         # Use existing ActivityLog model
         ActivityLog.objects.create(
@@ -58,7 +87,10 @@ def log_activity_automated(request, user, action, instance, description='', chan
             object_repr=object_repr[:200],
             description=description or f"{action} {model_name}: {object_repr}",
             changes=changes,
-            ip_address=get_client_ip(request) if request else None,
+            ip_address=ip,
+            city=location.get('city'),
+            region=location.get('region'),
+            country=location.get('country'),
             user_agent=request.META.get('HTTP_USER_AGENT', '')[:1000] if request else "System Signal",
             endpoint=request.path if request else f"INTERNAL_SIGNAL_{model_name}",
             method=request.method if request else "SIGNAL",
