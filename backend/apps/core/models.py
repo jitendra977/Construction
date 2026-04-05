@@ -249,6 +249,7 @@ class UserGuide(models.Model):
     description_ne = models.TextField()
     
     video_url = models.URLField(blank=True, help_text="Optional link to a video tutorial.")
+    order = models.PositiveIntegerField(default=0)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -259,6 +260,7 @@ class UserGuide(models.Model):
     class Meta:
         verbose_name = "User Guide"
         verbose_name_plural = "User Guides"
+        ordering = ['order']
 
 class UserGuideStep(models.Model):
     """

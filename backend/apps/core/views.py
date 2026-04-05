@@ -3,8 +3,9 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from .models import HouseProject, ConstructionPhase, Room, Floor, UserGuide, UserGuideProgress
-from .serializers import HouseProjectSerializer, ConstructionPhaseSerializer, RoomSerializer, FloorSerializer, UserGuideSerializer, UserGuideProgressSerializer
+from .models import HouseProject, ConstructionPhase, Room, Floor, UserGuide, UserGuideStep, UserGuideFAQ, UserGuideProgress
+from .serializers import HouseProjectSerializer, ConstructionPhaseSerializer, RoomSerializer, FloorSerializer, UserGuideSerializer, UserGuideStepSerializer, UserGuideFAQSerializer, UserGuideProgressSerializer
+from apps.accounts.permissions import IsSystemAdmin
 
 from apps.tasks.models import Task
 from apps.tasks.serializers import TaskSerializer
@@ -60,7 +61,11 @@ class DashboardDataView(APIView):
         permits = PermitStep.objects.prefetch_related('documents').all()
         funding = FundingSource.objects.prefetch_related('transactions').all()
         phase_allocations = PhaseBudgetAllocation.objects.select_related('category', 'phase').all()
-        user_guides = UserGuide.objects.filter(is_active=True).prefetch_related('steps', 'faqs').all()
+        # Admins see all guides, regular users only active ones
+        if getattr(request.user, 'is_system_admin', False):
+            user_guides = UserGuide.objects.all().prefetch_related('steps', 'faqs')
+        else:
+            user_guides = UserGuide.objects.filter(is_active=True).prefetch_related('steps', 'faqs')
         user_guide_progress = UserGuideProgress.objects.filter(user=request.user)
 
         return Response({
@@ -90,14 +95,29 @@ class FloorViewSet(viewsets.ModelViewSet):
     queryset = Floor.objects.all()
     serializer_class = FloorSerializer
 
-class UserGuideViewSet(viewsets.ReadOnlyModelViewSet):
+class UserGuideViewSet(viewsets.ModelViewSet):
     """
-    API endpoint that allows user guides to be viewed.
-    CRUD is restricted to Django Admin.
+    API endpoint that allows user guides to be managed.
+    Admins can CRUD, while regular users can only read active ones.
     """
-    queryset = UserGuide.objects.filter(is_active=True).prefetch_related('steps', 'faqs').all()
+    queryset = UserGuide.objects.all().prefetch_related('steps', 'faqs')
     serializer_class = UserGuideSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAuthenticated(), IsSystemAdmin()]
+        return [IsAuthenticated()]
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = UserGuide.objects.all().prefetch_related('steps', 'faqs')
+        
+        # Non-admins only see active guides
+        if not getattr(user, 'is_system_admin', False):
+            queryset = queryset.filter(is_active=True)
+            
+        return queryset
 
     @action(detail=True, methods=['post'])
     def update_progress(self, request, pk=None):
@@ -132,3 +152,13 @@ class UserGuideViewSet(viewsets.ReadOnlyModelViewSet):
             
         serializer = UserGuideProgressSerializer(progress)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+class UserGuideStepViewSet(viewsets.ModelViewSet):
+    queryset = UserGuideStep.objects.all()
+    serializer_class = UserGuideStepSerializer
+    permission_classes = [IsAuthenticated, IsSystemAdmin]
+
+class UserGuideFAQViewSet(viewsets.ModelViewSet):
+    queryset = UserGuideFAQ.objects.all()
+    serializer_class = UserGuideFAQSerializer
+    permission_classes = [IsAuthenticated, IsSystemAdmin]

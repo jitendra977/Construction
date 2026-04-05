@@ -35,12 +35,12 @@ class FloorSerializer(serializers.ModelSerializer):
 class UserGuideStepSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserGuideStep
-        fields = ['order', 'text_en', 'text_ne', 'target_element', 'media', 'placement']
+        fields = ['id', 'guide', 'order', 'text_en', 'text_ne', 'target_element', 'media', 'placement']
 
 class UserGuideFAQSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserGuideFAQ
-        fields = ['question_en', 'question_ne', 'answer_en', 'answer_ne', 'order']
+        fields = ['id', 'guide', 'question_en', 'question_ne', 'answer_en', 'answer_ne', 'order']
 
 class UserGuideSerializer(serializers.ModelSerializer):
     steps = UserGuideStepSerializer(many=True, read_only=True)
@@ -50,7 +50,7 @@ class UserGuideSerializer(serializers.ModelSerializer):
         model = UserGuide
         fields = [
             'id', 'key', 'is_active', 'type', 'icon', 'title_en', 'title_ne', 
-            'description_en', 'description_ne', 'video_url', 'steps', 'faqs'
+            'description_en', 'description_ne', 'video_url', 'order', 'steps', 'faqs'
         ]
 
 class UserGuideProgressSerializer(serializers.ModelSerializer):

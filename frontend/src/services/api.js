@@ -180,7 +180,24 @@ export const dashboardService = {
 
     // User Guides
     getUserGuides: () => api.get('/user-guides/'),
+    createUserGuide: (data) => api.post('/user-guides/', data),
+    updateUserGuide: (id, data) => api.patch(`/user-guides/${id}/`, data),
+    deleteUserGuide: (id) => api.delete(`/user-guides/${id}/`),
     updateGuideProgress: (id, data) => api.post(`/user-guides/${id}/update_progress/`, data),
+
+    // Guide Steps
+    createGuideStep: (data) => api.post('/user-guide-steps/', data, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+    updateGuideStep: (id, data) => api.patch(`/user-guide-steps/${id}/`, data, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+    deleteGuideStep: (id) => api.delete(`/user-guide-steps/${id}/`),
+
+    // Guide FAQs
+    createGuideFaq: (data) => api.post('/user-guide-faqs/', data),
+    updateGuideFaq: (id, data) => api.patch(`/user-guide-faqs/${id}/`, data),
+    deleteGuideFaq: (id) => api.delete(`/user-guide-faqs/${id}/`),
 };
 
 

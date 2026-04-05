@@ -72,12 +72,12 @@ const DesktopSidebar = ({ user, onLogout, navItems }) => {
                     </div>
                 </div>
 
-                {navItems.some(item => ['import', 'users'].includes(item.id)) && (
+                {navItems.some(item => ['import', 'users', 'guides'].includes(item.id)) && (
                     <div>
                         <p className="px-4 text-xs font-semibold uppercase tracking-wider mb-2"
                             style={{ color: 'var(--t-text3)' }}>System Control</p>
                         <div className="space-y-1">
-                            {navItems.filter(item => ['import', 'users'].includes(item.id)).map((item) => (
+                            {navItems.filter(item => ['import', 'users', 'guides'].includes(item.id)).map((item) => (
                                 <NavLink
                                     key={item.id}
                                     to={`/dashboard/desktop/${item.id}`}

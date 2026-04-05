@@ -1,8 +1,10 @@
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
 from apps.accounts.models import Role
-from .models import Contractor, MaterialTransaction, WastageAlert
+from .models import Contractor, MaterialTransaction, WastageAlert, Material
+from utils.audit_log import log_activity_automated, get_model_diff
+from apps.core.signals import get_current_user, get_current_request
 
 User = get_user_model()
 
@@ -84,3 +86,32 @@ def sync_contractor_profile(sender, instance, created, **kwargs):
                 
             if updated:
                 contractor.save()
+
+
+# --- AUTOMATED AUDIT LOG SIGNALS ---
+
+@receiver(post_save, sender=Material)
+@receiver(post_save, sender=MaterialTransaction)
+@receiver(post_save, sender=Contractor)
+def resources_audit_log_save(sender, instance, created, **kwargs):
+    if kwargs.get('raw'): return
+    action = 'CREATE' if created else 'UPDATE'
+    user = get_current_user()
+    request = get_current_request()
+    
+    log_activity_automated(
+        request, user, action, instance, 
+        description=f"{action} {sender.__name__}: {str(instance)}"
+    )
+
+@receiver(post_delete, sender=Material)
+@receiver(post_delete, sender=MaterialTransaction)
+@receiver(post_delete, sender=Contractor)
+def resources_audit_log_delete(sender, instance, **kwargs):
+    user = get_current_user()
+    request = get_current_request()
+    
+    log_activity_automated(
+        request, user, 'DELETE', instance,
+        description=f"DELETED {sender.__name__}: {str(instance)}"
+    )

@@ -3,6 +3,8 @@ from django.dispatch import receiver, Signal
 from decimal import Decimal
 import logging
 from .models import Payment, FundingTransaction, FundingSource, Expense
+from utils.audit_log import log_activity_automated, get_model_diff
+from apps.core.signals import get_current_user, get_current_request
 
 logger = logging.getLogger(__name__)
 
@@ -56,4 +58,35 @@ def handle_budget_exceeded(sender, category, expense, amount_exceeded, **kwargs)
         f"exceeds allocation by Rs. {amount_exceeded}!"
     )
     # Future enhancement: Create persistent Alert model instance here for dashboard notifications.
+
+
+# --- AUTOMATED AUDIT LOG SIGNALS ---
+
+@receiver(post_save, sender=FundingTransaction)
+@receiver(post_save, sender=Payment)
+@receiver(post_save, sender=Expense)
+@receiver(post_save, sender=FundingSource)
+def finance_audit_log_save(sender, instance, created, **kwargs):
+    if kwargs.get('raw'): return
+    action = 'CREATE' if created else 'UPDATE'
+    user = get_current_user()
+    request = get_current_request()
+    
+    log_activity_automated(
+        request, user, action, instance, 
+        description=f"{action} {sender.__name__}: {str(instance)}"
+    )
+
+@receiver(post_delete, sender=FundingTransaction)
+@receiver(post_delete, sender=Payment)
+@receiver(post_delete, sender=Expense)
+@receiver(post_delete, sender=FundingSource)
+def finance_audit_log_delete(sender, instance, **kwargs):
+    user = get_current_user()
+    request = get_current_request()
+    
+    log_activity_automated(
+        request, user, 'DELETE', instance,
+        description=f"DELETED {sender.__name__}: {str(instance)}"
+    )
 

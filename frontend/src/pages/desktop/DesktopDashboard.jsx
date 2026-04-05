@@ -34,8 +34,11 @@ function DesktopDashboard() {
         { id: 'permits', icon: '📜', label: 'Permits (नक्सा पास)' },
         { id: 'manage', icon: '🛠️', label: 'Manage (व्यवस्थापन)' },
         { id: 'photos', icon: '📸', label: 'Gallery (फोटो ग्यालरी)' },
+        { id: 'guides', icon: '📚', label: 'User Guide (मद्दत निर्देशिका)' },
         { id: 'import', icon: '📥', label: 'Import Data (डाटा आयात)' },
-        ...(user?.is_system_admin ? [{ id: 'users', icon: '👥', label: 'Users (प्रयोगकर्ता)' }] : []),
+        ...(user?.is_system_admin ? [
+            { id: 'users', icon: '👥', label: 'Users (प्रयोगकर्ता)' },
+        ] : []),
     ];
 
     return (
