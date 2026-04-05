@@ -3,6 +3,7 @@ import { dashboardService } from '../../../services/api';
 import Modal from '../../common/Modal';
 import { useConstruction } from '../../../context/ConstructionContext';
 import ExpenseDetailModal from '../../common/ExpenseDetailModal';
+import PdfExportButton from '../../common/PdfExportButton';
 
 // Redesigned Sub-components
 import SummaryCards from './expenses/SummaryCards';
@@ -183,6 +184,18 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
                 handleOpenModal={handleOpenModal}
+                exportData={{
+                    columns: ['Date', 'Title', 'Category', 'Paid To', 'Phase', 'Amount (Rs.)', 'Status'],
+                    rows: filteredExpenses.map(e => [
+                        new Date(e.date).toLocaleDateString(),
+                        e.title,
+                        e.category_name || 'N/A',
+                        e.paid_to || 'N/A',
+                        dashboardData.phases?.find(p => p.id === e.phase)?.name || 'N/A',
+                        Number(e.amount).toLocaleString(),
+                        e.payment_status === 'PAID' ? 'FULLY PAID' : 'PENDING'
+                    ])
+                }}
             />
 
             {/* 5. Main Expense List */}

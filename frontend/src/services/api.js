@@ -164,12 +164,25 @@ export const dashboardService = {
             return response.data;
         } catch (error) {
             console.error("Dashboard consolidated fetch failed, falling back to multi-fetch", error);
-            // Fallback to individual fetches if needed (optional, keeping it simple now)
             throw error;
         }
-    }
-    ,
+    },
+
+    // Wastage Alerts
+    getWastageAlerts: (params = {}) => api.get('/wastage-alerts/', { params }),
+    getWastageDashboard: () => api.get('/wastage-alerts/dashboard/'),
+    resolveWastageAlert: (id, resolved_note = '') =>
+        api.patch(`/wastage-alerts/${id}/resolve/`, { resolved_note }),
+    getMaterialWastageSummary: (materialId) =>
+        api.get(`/materials/${materialId}/wastage-summary/`),
+    getWastageThresholds: () => api.get('/wastage-thresholds/'),
+    createWastageThreshold: (data) => api.post('/wastage-thresholds/', data),
+
+    // User Guides
+    getUserGuides: () => api.get('/user-guides/'),
+    updateGuideProgress: (id, data) => api.post(`/user-guides/${id}/update_progress/`, data),
 };
+
 
 export const constructionService = {
     // Phases

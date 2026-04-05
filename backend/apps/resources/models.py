@@ -78,7 +78,8 @@ class Contractor(models.Model):
     bank_details = models.TextField(blank=True, help_text="Bank, Account No, Branch")
     skills = models.TextField(blank=True, help_text="Comma separated skills")
     
-    rate = models.DecimalField(max_digits=10, decimal_places=2, help_text="Daily Wages or Contract Amount", null=True, blank=True)
+    rate = models.DecimalField(max_digits=10, decimal_places=2, help_text="Contract Amount", null=True, blank=True)
+    daily_wage = models.DecimalField(max_digits=10, decimal_places=2, help_text="Daily Wage (Jyaala) for laborers", null=True, blank=True)
     is_active = models.BooleanField(default=True)
     
     joined_date = models.DateField(auto_now_add=True)
@@ -148,9 +149,11 @@ class Material(models.Model):
     quantity_estimated = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     quantity_purchased = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     quantity_used = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_wasted = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     
     current_stock = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    min_stock_level = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Alert level")
+    min_stock_level = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="General alert level")
+    reorder_level = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Critical level to trigger reorder warning")
     
     avg_cost_per_unit = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
 
@@ -171,16 +174,29 @@ class Material(models.Model):
         Only counts 'RECEIVED' transactions.
         """
         from django.db.models import Sum, Avg
-        self.quantity_purchased = self.transactions.filter(transaction_type='IN', status='RECEIVED').aggregate(total=Sum('quantity'))['total'] or 0
-        self.quantity_used = self.transactions.filter(transaction_type__in=['OUT', 'WASTAGE'], status='RECEIVED').aggregate(total=Sum('quantity'))['total'] or 0
-        self.current_stock = self.quantity_purchased - self.quantity_used
+        from decimal import Decimal
         
-        # Recalculate average cost
-        self.avg_cost_per_unit = self.transactions.filter(transaction_type='IN', status='RECEIVED').aggregate(avg=Avg('unit_price'))['avg'] or 0
+        # 1. Total Purchased (IN)
+        self.quantity_purchased = self.transactions.filter(transaction_type='IN', status='RECEIVED').aggregate(total=Sum('quantity'))['total'] or Decimal('0.00')
+        
+        # 2. Total Used (OUT - actual work)
+        self.quantity_used = self.transactions.filter(transaction_type='OUT', status='RECEIVED').aggregate(total=Sum('quantity'))['total'] or Decimal('0.00')
+        
+        # 3. Total Wasted (WASTAGE - loss)
+        self.total_wasted = self.transactions.filter(transaction_type='WASTAGE', status='RECEIVED').aggregate(total=Sum('quantity'))['total'] or Decimal('0.00')
+        
+        # 4. Current Stock (Purchased - Used - Wasted)
+        self.current_stock = self.quantity_purchased - (self.quantity_used + self.total_wasted)
+        
+        # 5. Average Cost (from purchases)
+        self.avg_cost_per_unit = self.transactions.filter(transaction_type='IN', status='RECEIVED').aggregate(avg=Avg('unit_price'))['avg'] or Decimal('0.00')
+        
         self.save()
 
     def save(self, *args, **kwargs):
-        self.current_stock = self.quantity_purchased - self.quantity_used
+        # Ensure current_stock is always updated before save if fields were changed manually
+        if not kwargs.get('update_fields') or 'current_stock' not in kwargs.get('update_fields'):
+             self.current_stock = self.quantity_purchased - (self.quantity_used + self.total_wasted)
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -232,6 +248,9 @@ class Document(models.Model):
     TYPE_CHOICES = [
         ('NAKSHA', 'Naksha (Blueprint/Map)'),
         ('LALPURJA', 'Lalpurja (Land Cert)'),
+        ('NAGRIKTA', 'Nagrikta (Citizenship)'),
+        ('TIRO', 'Tiro Rasid (Tax Receipt)'),
+        ('CHARKILLA', 'Charkilla (Boundary)'),
         ('PERMIT', 'Nagar Palika Permit'),
         ('BILL', 'Bill/Invoice'),
         ('PHOTO', 'Site Photo'),
@@ -247,3 +266,27 @@ class Document(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.get_document_type_display()})"
+
+class WastageThreshold(models.Model):
+    material = models.ForeignKey(Material, on_delete=models.CASCADE, related_name='thresholds')
+    warning_pct = models.FloatField(default=8.0)
+    critical_pct = models.FloatField(default=15.0)
+    notify_owner = models.BooleanField(default=True)
+    notify_engineer = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.material.name} - Warn: {self.warning_pct}% Crit: {self.critical_pct}%"
+
+class WastageAlert(models.Model):
+    SEVERITY = [('WARNING', 'Warning'), ('CRITICAL', 'Critical')]
+    material = models.ForeignKey(Material, on_delete=models.CASCADE, related_name='alerts')
+    threshold = models.ForeignKey(WastageThreshold, on_delete=models.CASCADE)
+    transaction = models.ForeignKey(MaterialTransaction, on_delete=models.CASCADE)
+    severity = models.CharField(max_length=10, choices=SEVERITY)
+    wastage_pct = models.FloatField()
+    is_resolved = models.BooleanField(default=False)
+    resolved_note = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"[{self.severity}] {self.material.name} - {self.wastage_pct}%"

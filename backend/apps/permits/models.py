@@ -29,24 +29,4 @@ class PermitStep(models.Model):
     def __str__(self):
         return f"{self.title} - {self.status}"
 
-class LegalDocument(models.Model):
-    DOC_TYPE_CHOICES = [
-        ('LALPURJA', 'Lalpurja (Land Certificate)'),
-        ('NAGRIKTA', 'Nagrikta (Citizenship)'),
-        ('NAKSHA', 'Naksha (Blueprint)'),
-        ('TIRO', 'Tiro Rasid (Tax Receipt)'),
-        ('CHARKILLA', 'Charkilla (Boundary)'),
-        ('OTHER', 'Other'),
-    ]
 
-    title = models.CharField(max_length=200)
-    document_type = models.CharField(max_length=20, choices=DOC_TYPE_CHOICES, default='OTHER')
-    file = models.FileField(upload_to='legal_docs/')
-    upload_date = models.DateTimeField(auto_now_add=True)
-    notes = models.TextField(blank=True, null=True)
-
-    class Meta:
-        ordering = ['-upload_date']
-
-    def __str__(self):
-        return f"{self.title} ({self.get_document_type_display()})"

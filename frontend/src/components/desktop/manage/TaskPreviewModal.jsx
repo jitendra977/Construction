@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Modal from '../../common/Modal';
 import { getMediaUrl } from '../../../services/api';
 import { useConstruction } from '../../../context/ConstructionContext';
-
-import { useRef } from 'react';
+import imageCompression from 'browser-image-compression';
 
 const TaskPreviewModal = ({ isOpen, onClose, task, initialMode = 'read' }) => {
     const { 
@@ -93,19 +92,33 @@ const TaskPreviewModal = ({ isOpen, onClose, task, initialMode = 'read' }) => {
 
 
     const handleFileUpload = async (e) => {
-        const file = e.target.files[0];
+        let file = e.target.files[0];
         if (!file || !task) return;
 
         setUploading(true);
+        
+        let mediaType = 'DOCUMENT';
+        const type = file.type.toLowerCase();
+        
+        if (type.startsWith('image/')) {
+            mediaType = 'IMAGE';
+            try {
+                const options = {
+                    maxSizeMB: 1,
+                    maxWidthOrHeight: 1280,
+                    useWebWorker: true
+                };
+                file = await imageCompression(file, options);
+            } catch (error) {
+                console.error("Image compression error:", error);
+            }
+        } else if (type.startsWith('video/')) {
+            mediaType = 'VIDEO';
+        }
+
         const uploadData = new FormData();
         uploadData.append('task', task.id);
         uploadData.append('file', file);
-        
-        // Dynamic Media Type Detection
-        let mediaType = 'DOCUMENT';
-        const type = file.type.toLowerCase();
-        if (type.startsWith('image/')) mediaType = 'IMAGE';
-        else if (type.startsWith('video/')) mediaType = 'VIDEO';
         uploadData.append('media_type', mediaType);
 
         try {

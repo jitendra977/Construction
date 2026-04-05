@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useConstruction } from '../../context/ConstructionContext';
 import PhasesTab from './manage/PhasesTab';
 import FloorsTab from './manage/FloorsTab';
@@ -14,11 +14,15 @@ import PaymentsTab from './manage/PaymentsTab';
 import BudgetOverview from '../finance/BudgetOverview';
 
 const DesktopManage = () => {
-    const { dashboardData } = useConstruction();
+    const { dashboardData, setActiveHelpKey } = useConstruction();
     const [activeSection, setActiveSection] = useState('structure');
     const [activeTab, setActiveTab] = useState('phases');
     const [searchQuery, setSearchQuery] = useState('');
     const [resolveMetadata, setResolveMetadata] = useState(null);
+
+    useEffect(() => {
+        setActiveHelpKey(activeTab);
+    }, [activeTab, setActiveHelpKey]);
 
     const sections = [
         {

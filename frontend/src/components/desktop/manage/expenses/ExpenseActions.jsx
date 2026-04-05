@@ -1,6 +1,7 @@
 import React from 'react';
+import PdfExportButton from '../../../common/PdfExportButton';
 
-const ExpenseActions = ({ searchQuery, setSearchQuery, handleOpenModal }) => {
+const ExpenseActions = ({ searchQuery, setSearchQuery, handleOpenModal, exportData }) => {
     return (
         <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center mb-6">
             {/* Search Input */}
@@ -21,6 +22,13 @@ const ExpenseActions = ({ searchQuery, setSearchQuery, handleOpenModal }) => {
 
             {/* Action Buttons */}
             <div className="flex items-center gap-2 w-full md:w-auto">
+                {exportData && (
+                     <PdfExportButton 
+                        data={exportData} 
+                        title="Construction Project Cost Summary" 
+                        filename={`cost_summary_${new Date().toISOString().split('T')[0]}.pdf`} 
+                     />
+                )}
                 <button
                     onClick={() => handleOpenModal()}
                     className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-[var(--t-primary)] text-[var(--t-bg)] rounded-[2px] hover:opacity-90 active:scale-[0.98] font-['DM_Mono',monospace] uppercase tracking-widest text-xs transition-all shadow-sm shadow-[var(--t-primary)]/20"

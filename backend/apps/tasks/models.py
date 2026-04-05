@@ -27,6 +27,8 @@ class Task(models.Model):
     room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True, related_name='tasks')
     assigned_to = models.ForeignKey(Contractor, on_delete=models.SET_NULL, null=True, blank=True, related_name='tasks')
     
+    blocked_by = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='blocking_tasks', help_text="This task cannot be completed until the blocked_by task is completed.")
+    
     estimated_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, help_text="Budgeted cost for this specific task")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='MEDIUM')

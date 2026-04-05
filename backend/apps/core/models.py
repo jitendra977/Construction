@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.validators import MinValueValidator
+from django.conf import settings
 
 class HouseProject(models.Model):
     """
@@ -227,5 +228,97 @@ class Room(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.floor.name})"
+
+class UserGuide(models.Model):
+    """
+    Main guide entry for a specific page or module.
+    """
+    TYPE_CHOICES = [
+        ('modal', 'Modal Dialog'),
+        ('tour', 'Interactive Tour'),
+        ('sidebar', 'Sidebar Content'),
+    ]
+
+    key = models.CharField(max_length=50, unique=True, help_text="Unique key for the guide (e.g., 'home', 'stock')")
+    is_active = models.BooleanField(default=True, help_text="Whether this guide is active and should be shown.")
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='modal', help_text="How the guide should be displayed in the frontend.")
+    icon = models.CharField(max_length=10, default="ℹ️")
+    title_en = models.CharField(max_length=200)
+    title_ne = models.CharField(max_length=200)
+    description_en = models.TextField()
+    description_ne = models.TextField()
+    
+    video_url = models.URLField(blank=True, help_text="Optional link to a video tutorial.")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.key} - {self.title_en}"
+
+    class Meta:
+        verbose_name = "User Guide"
+        verbose_name_plural = "User Guides"
+
+class UserGuideStep(models.Model):
+    """
+    Individual steps for a guide.
+    """
+    PLACEMENT_CHOICES = [
+        ('top', 'Top'),
+        ('bottom', 'Bottom'),
+        ('left', 'Left'),
+        ('right', 'Right'),
+        ('center', 'Center'),
+    ]
+
+    guide = models.ForeignKey(UserGuide, on_delete=models.CASCADE, related_name='steps')
+    order = models.PositiveIntegerField(default=0)
+    text_en = models.TextField()
+    text_ne = models.TextField()
+    
+    # Interactive Tour Specifics
+    target_element = models.CharField(max_length=255, blank=True, help_text="CSS selector for the element to highlight (e.g., '#add-btn').")
+    media = models.FileField(upload_to='guides/steps/', null=True, blank=True, help_text="Image or GIF to show in the step.")
+    placement = models.CharField(max_length=20, choices=PLACEMENT_CHOICES, blank=True, help_text="Tooltip placement for tour libraries.")
+
+    class Meta:
+        ordering = ['order']
+
+    def __str__(self):
+        return f"{self.guide.key} Step {self.order}"
+
+class UserGuideFAQ(models.Model):
+    """
+    Frequently asked questions for a guide.
+    """
+    guide = models.ForeignKey(UserGuide, on_delete=models.CASCADE, related_name='faqs')
+    question_en = models.TextField()
+    question_ne = models.TextField()
+    answer_en = models.TextField()
+    answer_ne = models.TextField()
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order']
+
+    def __str__(self):
+        return f"{self.guide.key} FAQ: {self.question_en[:30]}"
+
+class UserGuideProgress(models.Model):
+    """
+    Tracks which user has completed which guide, so it doesn't repeatedly show.
+    """
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='guide_progress')
+    guide = models.ForeignKey(UserGuide, on_delete=models.CASCADE, related_name='progress')
+    is_completed = models.BooleanField(default=False)
+    last_step_seen = models.PositiveIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('user', 'guide')
+
+    def __str__(self):
+        return f"{self.user.username} - {self.guide.key} ({'Completed' if self.is_completed else 'In Progress'})"
 
 

@@ -3,8 +3,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from .models import HouseProject, ConstructionPhase, Room, Floor
-from .serializers import HouseProjectSerializer, ConstructionPhaseSerializer, RoomSerializer, FloorSerializer
+from .models import HouseProject, ConstructionPhase, Room, Floor, UserGuide, UserGuideProgress
+from .serializers import HouseProjectSerializer, ConstructionPhaseSerializer, RoomSerializer, FloorSerializer, UserGuideSerializer, UserGuideProgressSerializer
 
 from apps.tasks.models import Task
 from apps.tasks.serializers import TaskSerializer
@@ -60,6 +60,8 @@ class DashboardDataView(APIView):
         permits = PermitStep.objects.prefetch_related('documents').all()
         funding = FundingSource.objects.prefetch_related('transactions').all()
         phase_allocations = PhaseBudgetAllocation.objects.select_related('category', 'phase').all()
+        user_guides = UserGuide.objects.filter(is_active=True).prefetch_related('steps', 'faqs').all()
+        user_guide_progress = UserGuideProgress.objects.filter(user=request.user)
 
         return Response({
             'project': HouseProjectSerializer(project).data if project else None,
@@ -76,6 +78,8 @@ class DashboardDataView(APIView):
             'permits': PermitStepSerializer(permits, many=True).data,
             'funding': FundingSourceSerializer(funding, many=True).data,
             'phaseBudgetAllocations': PhaseBudgetAllocationSerializer(phase_allocations, many=True).data,
+            'userGuides': UserGuideSerializer(user_guides, many=True).data,
+            'userGuideProgress': UserGuideProgressSerializer(user_guide_progress, many=True).data,
         })
 
 class RoomViewSet(viewsets.ModelViewSet):
@@ -85,3 +89,46 @@ class RoomViewSet(viewsets.ModelViewSet):
 class FloorViewSet(viewsets.ModelViewSet):
     queryset = Floor.objects.all()
     serializer_class = FloorSerializer
+
+class UserGuideViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    API endpoint that allows user guides to be viewed.
+    CRUD is restricted to Django Admin.
+    """
+    queryset = UserGuide.objects.filter(is_active=True).prefetch_related('steps', 'faqs').all()
+    serializer_class = UserGuideSerializer
+    permission_classes = [IsAuthenticated]
+
+    @action(detail=True, methods=['post'])
+    def update_progress(self, request, pk=None):
+        """
+        Mark a specific user guide as completed or update the last step seen.
+        """
+        guide = self.get_object()
+        user = request.user
+        
+        if isinstance(request.data.get('is_completed'), str):
+            is_completed = request.data.get('is_completed', 'false').lower() == 'true'
+        else:
+            is_completed = bool(request.data.get('is_completed', False))
+            
+        try:
+            last_step_seen = int(request.data.get('last_step_seen', 0))
+        except (ValueError, TypeError):
+            last_step_seen = 0
+        
+        progress, created = UserGuideProgress.objects.get_or_create(
+            user=user, 
+            guide=guide,
+            defaults={'is_completed': is_completed, 'last_step_seen': last_step_seen}
+        )
+        
+        if not created:
+            if 'is_completed' in request.data:
+                progress.is_completed = is_completed
+            if 'last_step_seen' in request.data:
+                progress.last_step_seen = last_step_seen
+            progress.save()
+            
+        serializer = UserGuideProgressSerializer(progress)
+        return Response(serializer.data, status=status.HTTP_200_OK)

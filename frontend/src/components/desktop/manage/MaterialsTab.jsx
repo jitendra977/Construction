@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { dashboardService } from '../../../services/api';
 import Modal from '../../common/Modal';
 import SuccessModal from '../../common/SuccessModal';
+import WastageAlertPanel from '../../common/WastageAlertPanel';
 import { useConstruction } from '../../../context/ConstructionContext';
 
 const MaterialsTab = ({ searchQuery = '' }) => {
@@ -12,7 +13,8 @@ const MaterialsTab = ({ searchQuery = '' }) => {
     const [loading, setLoading] = useState(false);
     const [actionLoading, setActionLoading] = useState(null);
     const [showLowStockOnly, setShowLowStockOnly] = useState(false);
-    const [sortBy, setSortBy] = useState('name'); // 'name', 'stock_asc', 'stock_desc'
+    const [sortBy, setSortBy] = useState('name');
+    const [view, setView] = useState('list'); // 'list' | 'wastage'
     const [emailModalOpen, setEmailModalOpen] = useState(false);
     const [selectedMaterial, setSelectedMaterial] = useState(null);
     const [selectedSupplier, setSelectedSupplier] = useState(null);
@@ -211,7 +213,32 @@ const MaterialsTab = ({ searchQuery = '' }) => {
                     </div>
 
                 </div>
+            {/* View Toggle */}
+            <div className="flex gap-2">
                 <button
+                    onClick={() => setView('list')}
+                    className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border shadow-sm ${
+                        view === 'list'
+                        ? 'bg-[var(--t-primary)] text-[var(--t-bg)] border-[var(--t-primary)]'
+                        : 'bg-[var(--t-surface)] border-[var(--t-border)] text-[var(--t-text2)] hover:bg-[var(--t-surface2)]'
+                    }`}
+                >
+                    📦 Materials List
+                </button>
+                <button
+                    onClick={() => setView('wastage')}
+                    className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border shadow-sm flex items-center gap-2 ${
+                        view === 'wastage'
+                        ? 'bg-[var(--t-danger)] text-white border-[var(--t-danger)]'
+                        : 'bg-[var(--t-surface)] border-[var(--t-border)] text-[var(--t-text2)] hover:bg-[var(--t-surface2)]'
+                    }`}
+                >
+                    <span className={view === 'wastage' ? 'animate-pulse' : ''}>⚠️</span>
+                    Wastage Tracker
+                </button>
+            </div>
+
+            <button
                     onClick={() => handleOpenModal()}
                     className="w-full md:w-auto px-6 py-2 bg-[var(--t-primary)] text-[var(--t-bg)] rounded-xl text-sm font-bold hover:opacity-90 transition-all shadow-lg shadow-[var(--t-primary)]/20"
                 >
@@ -219,8 +246,17 @@ const MaterialsTab = ({ searchQuery = '' }) => {
                 </button>
             </div>
 
+            {/* ── Wastage Tracker View ── */}
+            {view === 'wastage' && (
+                <WastageAlertPanel />
+            )}
+
+            {/* ── Normal Materials List View ── */}
+            {view === 'list' && <>
+
             {/* Pending Orders Section */}
             {pendingTransactions.length > 0 && (
+
                 <div className="mb-8 overflow-hidden rounded-2xl border border-orange-500/20 bg-orange-500/5">
                     <div className="bg-orange-500/10 px-6 py-3 flex justify-between items-center border-b border-orange-500/20">
                         <div className="flex items-center gap-2">
@@ -590,6 +626,9 @@ const MaterialsTab = ({ searchQuery = '' }) => {
                 message={successModalInfo.message}
                 supplierName={successModalInfo.supplierName}
             />
+
+            </> /* end list view */}
+
         </div>
     );
 };

@@ -6,6 +6,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate, get_user_model
 from .serializers import UserSerializer, LoginSerializer, RegisterSerializer, RoleSerializer, ActivityLogSerializer
 from .models import Role, ActivityLog
+from .permissions import IsSystemAdmin
 
 User = get_user_model()
 
@@ -167,7 +168,7 @@ class RegisterView(generics.CreateAPIView):
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsSystemAdmin]
 
     def perform_create(self, serializer):
         user = serializer.save()
@@ -197,7 +198,7 @@ class RoleViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = Role.objects.all()
     serializer_class = RoleSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsSystemAdmin]
 
 
 class ActivityLogViewSet(viewsets.ReadOnlyModelViewSet):
@@ -210,7 +211,7 @@ class ActivityLogViewSet(viewsets.ReadOnlyModelViewSet):
     
     def get_queryset(self):
         user = self.request.user
-        if getattr(user, 'is_system_admin', lambda: False)():
+        if getattr(user, 'is_system_admin', False):
             return ActivityLog.objects.all().select_related('user')
         # Regular users only see their own logs
         return ActivityLog.objects.filter(user=user).select_related('user')

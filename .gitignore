@@ -41,8 +41,9 @@ test_*.py
 # so the cloud server can apply them on deploy.
 
 # Scripts
-scripts/
-backend/raw_data_population/
+# (Uncovered: these contain critical deploy/population scripts and should be tracked)
+# scripts/
+# backend/raw_data_population/
 
 # IDEs
 .vscode/

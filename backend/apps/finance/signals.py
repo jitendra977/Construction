@@ -1,7 +1,13 @@
 from django.db.models.signals import post_save, post_delete, pre_save, pre_delete
-from django.dispatch import receiver
+from django.dispatch import receiver, Signal
 from decimal import Decimal
+import logging
 from .models import Payment, FundingTransaction, FundingSource, Expense
+
+logger = logging.getLogger(__name__)
+
+# Custom Signals
+budget_exceeded = Signal()
 
 @receiver(post_save, sender=FundingTransaction)
 def funding_transaction_post_save(sender, instance, created, **kwargs):
@@ -39,3 +45,15 @@ def funding_transaction_post_delete(sender, instance, **kwargs):
             fs.current_balance = Decimal(str(fs.current_balance)) + instance.amount
         
         fs.save()
+
+@receiver(budget_exceeded)
+def handle_budget_exceeded(sender, category, expense, amount_exceeded, **kwargs):
+    """
+    Log or trigger an alert when a category's budget is exceeded by a new expense.
+    """
+    logger.warning(
+        f"BUDGET ALERT: Expense '{expense.title}' on category '{category.name}' "
+        f"exceeds allocation by Rs. {amount_exceeded}!"
+    )
+    # Future enhancement: Create persistent Alert model instance here for dashboard notifications.
+

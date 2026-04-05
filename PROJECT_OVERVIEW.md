@@ -78,6 +78,74 @@ Fully dockerized for consistency across local development, staging, and producti
 
 ---
 
+## 🌐 API Reference & Specifications
+
+The backend exposes a highly structured REST API mapped to standard HTTP verbs (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`). The base URL for all primary endpoints is `/api/v1/`.
+
+### 🔐 Authentication & Access Control (`/api/v1/auth/`)
+- `POST /auth/login/`: Retrieve JWT access/refresh tokens.
+- `POST /auth/register/`: Create a new user (with role allocation).
+- `POST /auth/refresh/`: Obtain a new access token using a refresh token.
+- `GET /users/`, `/roles/`: User and Role-based access control management.
+
+### 📊 Dashboard & Aggregation (`/api/v1/dashboard/`)
+- `GET /dashboard/combined/`: A centralized aggregator endpoint that fetches high-level metrics (total budget, expenses, active tasks) in a single optimized query to populate desktop/mobile home screens.
+
+### 🏗️ Project & Structure Management (`/api/v1/`)
+Handles the physical architecture and chronological planning of the building.
+- `/projects/`: Global project configurations and metadata.
+- `/phases/`: Major construction milestones (e.g., Foundation, Plastering).
+- `/floors/` & `/rooms/`: Spatial subdivision for localized task management.
+
+### 📝 Task & Progress Tracking (`/api/v1/`)
+- `/tasks/`: Granular work units containing status (`PENDING`, `IN_PROGRESS`, `COMPLETED`).
+- `/updates/`: Audit trails and daily progress modifications.
+- `/task-media/`: Visual proofs (photos/videos) mandatory for finalizing tasks.
+
+### 💸 Financial & Budget Control (`/api/v1/`)
+Double-entry-style ledger tracking incoming capital and outgoing expenses.
+- `/funding-sources/` & `/funding-transactions/`: Where the capital originates (Bank Loans, Personal Savings) and capital injections.
+- `/budget-categories/` & `/phase-budget-allocations/`: Allocation limits to prevent cost overruns.
+- `/expenses/` & `/payments/`: Linking material/labor costs with actual cash outlays and photographic receipt captures.
+
+### 📦 Resource Management (`/api/v1/`)
+- `/materials/` & `/material-transactions/`: Tracks real-time stock levels of cement, rebar, sand, etc., logging inward deliveries and outward consumption.
+- `/suppliers/` & `/contractors/`: Contact, payment, and engagement history for vendors and labor crews.
+
+### ⚖️ Permits & Legal (`/api/v1/permits/`)
+- `/permits/`: Dedicated namespace to track the bureaucratic journey (e.g., Municipality Approvals, Structural Drawing Pass).
+
+### 📐 Estimator (`/api/v1/estimator/`)
+- `/estimator/`: Custom calculation endpoints to estimate material requirements (e.g., calculating required bricks based on wall dimensions).
+
+### ⚙️ Utilities & Imports
+- `/documents/` & `/gallery/`: Cloud-oriented asset management.
+- `/import/sql/` & `/import/populate-raw-data/`: Endpoints used for quick-bootstrapping isolated instances with realistic test data.
+
+---
+
+## 💻 Frontend API Services (React Client)
+
+The React frontend handles data fetching and backend communication through a centralized `Axios` instance layer (`/src/services/api.js` & `auth.js`). This prevents hardcoding endpoint URLs in components and centralizes error handling.
+
+### 🔌 Interceptors & Token Management
+All frontend requests pass through interceptors which:
+- Automatically attach the `Authorization: Bearer <access_token>` to every request.
+- Catch `401 Unauthorized` errors.
+- Automatically attempt to use the `refresh_token` to get a new access token without interrupting the user's flow.
+- Redirects to `/login` if both tokens are fully expired.
+
+### 📦 Service Modules
+Endpoints are abstracted into specialized JavaScript objects mapping exactly to the backend URLs, providing clear, maintainable SDK-like access:
+- **`authService`**: `login`, `logout`, `register`, `getProfile` management.
+- **`dashboardService`**: Mega-service controlling projects, rooms, tasks, budgeting, payments, materials, and fetching the `/dashboard/combined/` data.
+- **`constructionService`**: Specific abstractions for Phases, Tasks, and media uploads.
+- **`calculatorService`**: Connecting to the backend estimators to pre-calculate quantities for concrete, walls, plaster, etc.
+- **`permitService`**: Tracking legal phases and attaching/detaching approval documents.
+- **`accountsService`**: Admin-level calls for user, role, and activity log manipulation.
+
+---
+
 ## 🚀 Core Module Detail
 
 ### 💰 Finance & Cashflow

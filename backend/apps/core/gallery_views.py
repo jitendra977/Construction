@@ -6,7 +6,6 @@ from .gallery_serializers import GalleryItemSerializer
 from apps.resources.models import Document
 from apps.tasks.models import TaskMedia
 from apps.core.models import ConstructionPhase, Floor
-from apps.permits.models import LegalDocument
 import datetime
 
 class GalleryViewSet(viewsets.ViewSet):
@@ -25,17 +24,20 @@ class GalleryViewSet(viewsets.ViewSet):
 
         # --- 1. Fetch & Normalize Data ---
 
-        # A. Documents (Generic)
+        # A. Documents (Generic & Legal)
         for doc in Document.objects.all():
             if not doc.file: continue
+            
+            is_legal = doc.document_type in ['NAKSHA', 'LALPURJA', 'NAGRIKTA', 'TIRO', 'CHARKILLA', 'PERMIT']
+            
             items.append({
                 'id': f"doc_{doc.id}",
                 'url': doc.file.url,
                 'title': doc.title,
                 'subtitle': doc.get_document_type_display(),
-                'category': 'Document',
+                'category': 'Permit' if is_legal else 'Document',
                 'uploaded_at': doc.uploaded_at,
-                'source_type': 'DOCUMENT',
+                'source_type': 'LEGAL_DOC' if is_legal else 'DOCUMENT',
                 'media_type': self._get_file_type(doc.file.name),
                 'meta': {'doc_id': doc.id}
             })
@@ -114,20 +116,6 @@ class GalleryViewSet(viewsets.ViewSet):
                     'meta': {'floor_id': f.id}
                 })
 
-        # E. Legal Documents (Permits)
-        for p in LegalDocument.objects.all():
-            if p.file:
-                items.append({
-                    'id': f"permit_{p.id}",
-                    'url': p.file.url,
-                    'title': p.title,
-                    'subtitle': p.get_document_type_display(),
-                    'category': 'Permit',
-                    'uploaded_at': p.upload_date, # Fixed field name
-                    'source_type': 'LEGAL_DOC',
-                    'media_type': self._get_file_type(p.file.name),
-                    'meta': {'permit_id': p.id}
-                })
 
         # --- 2. Filter & Group Data based on View Mode ---
         

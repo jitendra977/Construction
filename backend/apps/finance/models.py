@@ -2,6 +2,7 @@ from django.db import models
 from decimal import Decimal
 from apps.core.models import ConstructionPhase
 from apps.resources.models import Document
+from simple_history.models import HistoricalRecords
 
 class BudgetCategory(models.Model):
     """
@@ -64,6 +65,7 @@ class Expense(models.Model):
     is_inventory_usage = models.BooleanField(default=False, help_text="Represents internal cost allocation (Usage) to avoid double-counting in cashflow.")
     
     created_at = models.DateTimeField(auto_now_add=True)
+    history = HistoricalRecords()
 
     @property
     def total_paid(self):
@@ -103,9 +105,8 @@ class Expense(models.Model):
                 current_spent -= old_amount
             
             if current_spent + self.amount > self.category.allocation:
-                # We won't block the save (to avoid UX breakdown), but we could log/warn
-                # For now, let's just proceed but ensure the logic is here for future strictness
-                pass
+                from .signals import budget_exceeded
+                budget_exceeded.send(sender=self.__class__, category=self.category, expense=self, amount_exceeded=(current_spent + self.amount - self.category.allocation))
 
         # 2. Status Sync: Initial check
         # Note: is_paid is officially synced by Payment.save()
@@ -132,6 +133,7 @@ class Payment(models.Model):
     reference_id = models.CharField(max_length=100, blank=True, help_text="Check number or Transaction ID")
     notes = models.TextField(blank=True, help_text="Payment remarks/comments")
     proof_photo = models.ImageField(upload_to='payments/proofs/', null=True, blank=True, help_text="Upload proof of payment (screenshot/photo)")
+    history = HistoricalRecords()
     
     def __str__(self):
         return f"Payment of Rs. {self.amount} for {self.expense.title}"

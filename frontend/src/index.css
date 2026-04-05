@@ -215,4 +215,127 @@
     0% { background-position: -200% center; }
     100% { background-position: 200% center; }
   }
+
+  /* ==========================================================
+     PREMIUM DRIVER.JS OVERRIDES (Glassmorphism + Neon)
+  ========================================================== */
+  
+  /* The overlay backdrop itself */
+  div#driver-page-overlay {
+    backdrop-filter: blur(8px) saturate(150%) !important;
+    background-color: rgba(15, 23, 42, 0.75) !important;
+  }
+
+  /* The actual popover container */
+  .premium-driver-popover {
+    background: var(--glass-bg, rgba(255, 255, 255, 0.8)) !important;
+    backdrop-filter: blur(24px) saturate(200%) !important;
+    border: 1px solid rgba(5, 150, 105, 0.3) !important;
+    border-radius: 20px !important;
+    box-shadow: 0 30px 60px -15px rgba(5, 150, 105, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.4) inset !important;
+    font-family: var(--body-font), sans-serif !important;
+    color: var(--t-text, #1e293b) !important;
+    padding: 24px !important;
+    max-width: 380px !important;
+    animation: popover-fade-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+
+  @keyframes popover-fade-in {
+    from { opacity: 0; transform: translateY(10px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  /* Title */
+  .premium-driver-popover .driver-popover-title {
+    font-family: var(--title-font), sans-serif !important;
+    font-size: 1.35rem !important;
+    font-weight: 900 !important;
+    margin-bottom: 12px !important;
+    color: var(--t-text, #0f172a) !important;
+    letter-spacing: -0.02em !important;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .premium-driver-popover .driver-popover-title::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 18px;
+    background: var(--accent, #059669);
+    border-radius: 4px;
+    box-shadow: 0 0 8px var(--accent);
+  }
+
+  /* Description */
+  .premium-driver-popover .driver-popover-description {
+    font-size: 0.95rem !important;
+    line-height: 1.65 !important;
+    font-weight: 500 !important;
+    color: var(--t-text2, #475569) !important;
+    margin-bottom: 24px !important;
+  }
+
+  /* Buttons */
+  .premium-driver-popover button.driver-popover-next-btn, 
+  .premium-driver-popover button.driver-popover-prev-btn {
+    background: linear-gradient(135deg, var(--accent, #059669), var(--accent-bright, #34d399)) !important;
+    color: white !important;
+    border-radius: 10px !important;
+    padding: 10px 20px !important;
+    font-size: 0.85rem !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.08em !important;
+    border: none !important;
+    text-shadow: none !important;
+    box-shadow: 0 4px 16px rgba(5, 150, 105, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.4) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .premium-driver-popover button.driver-popover-prev-btn {
+    background: transparent !important;
+    color: var(--t-text, #1e293b) !important;
+    border: 1px solid var(--t-border, #e2e8f0) !important;
+    box-shadow: none !important;
+  }
+
+  .premium-driver-popover button.driver-popover-next-btn:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 24px rgba(5, 150, 105, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.6) !important;
+  }
+
+  .premium-driver-popover button.driver-popover-prev-btn:hover {
+    background: var(--t-surface2, #f1f5f9) !important;
+    transform: translateY(-2px) !important;
+  }
+
+  /* Close Button */
+  .premium-driver-popover button.driver-popover-close-btn {
+    color: var(--t-text3, #94a3b8) !important;
+    top: 16px !important;
+    right: 16px !important;
+    transition: all 0.2s ease !important;
+  }
+
+  .premium-driver-popover button.driver-popover-close-btn:hover {
+    color: var(--accent, #059669) !important;
+    transform: rotate(90deg) scale(1.1);
+  }
+
+  /* Progress Tracker */
+  .premium-driver-popover .driver-popover-progress-text {
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 0.8rem !important;
+    font-weight: 800 !important;
+    color: var(--accent, #059669) !important;
+    background: rgba(5, 150, 105, 0.1) !important;
+    padding: 6px 12px !important;
+    border-radius: 8px !important;
+    border: 1px solid rgba(5, 150, 105, 0.2) !important;
+  }
 }
+

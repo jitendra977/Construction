@@ -8,12 +8,12 @@ from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 
 from apps.accounts.views import UserViewSet, RoleViewSet, ActivityLogViewSet
-from apps.core.views import HouseProjectViewSet, ConstructionPhaseViewSet, RoomViewSet, FloorViewSet, DashboardDataView
+from apps.core.views import HouseProjectViewSet, ConstructionPhaseViewSet, RoomViewSet, FloorViewSet, UserGuideViewSet, DashboardDataView
 from apps.core.import_views import SqlImportView, RawDataPopulationView
 from apps.core.gallery_views import GalleryViewSet
 from apps.tasks.views import TaskViewSet, TaskUpdateViewSet, TaskMediaViewSet
 from apps.finance.views import BudgetCategoryViewSet, ExpenseViewSet, PaymentViewSet, FundingSourceViewSet, FundingTransactionViewSet, PhaseBudgetAllocationViewSet
-from apps.resources.views import ContractorViewSet, MaterialViewSet, DocumentViewSet, SupplierViewSet, MaterialTransactionViewSet
+from apps.resources.views import ContractorViewSet, MaterialViewSet, DocumentViewSet, SupplierViewSet, MaterialTransactionViewSet, WastageAlertViewSet
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet)
@@ -38,6 +38,8 @@ router.register(r'materials', MaterialViewSet)
 router.register(r'material-transactions', MaterialTransactionViewSet)
 router.register(r'documents', DocumentViewSet)
 router.register(r'gallery', GalleryViewSet, basename='gallery')
+router.register(r'wastage-alerts', WastageAlertViewSet, basename='wastage-alerts')
+router.register(r'user-guides', UserGuideViewSet)
 
 urlpatterns = [
     path('admin/', admin.site.urls),

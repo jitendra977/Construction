@@ -1,9 +1,12 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import Contractor, Material, Document, Supplier, MaterialTransaction
+from .models import Contractor, Material, Document, Supplier, MaterialTransaction, WastageAlert, WastageThreshold
 from .serializers import (
-    ContractorSerializer, MaterialSerializer, DocumentSerializer, 
-    SupplierSerializer, MaterialTransactionSerializer
+    ContractorSerializer, MaterialSerializer, DocumentSerializer,
+    SupplierSerializer, MaterialTransactionSerializer,
+    WastageAlertSerializer, WastageThresholdSerializer
 )
 
 class SupplierViewSet(viewsets.ModelViewSet):
@@ -14,8 +17,7 @@ class ContractorViewSet(viewsets.ModelViewSet):
     queryset = Contractor.objects.all()
     serializer_class = ContractorSerializer
 
-from rest_framework.decorators import action
-from rest_framework.response import Response
+
 
 class MaterialViewSet(viewsets.ModelViewSet):
     queryset = Material.objects.all()
@@ -149,6 +151,43 @@ class MaterialViewSet(viewsets.ModelViewSet):
             ).data
         })
 
+    @action(detail=True, methods=['get'], url_path='wastage-summary')
+    def wastage_summary(self, request, pk=None):
+        """
+        Returns a full wastage breakdown for a single material.
+        GET /api/v1/materials/{id}/wastage-summary/
+        """
+        material = self.get_object()
+        threshold = material.thresholds.first()
+        total_delivered = float(material.quantity_purchased)
+        total_wasted = float(material.total_wasted)
+
+        if total_delivered > 0:
+            wastage_pct = round((total_wasted / total_delivered) * 100, 2)
+        else:
+            wastage_pct = 0.0
+
+        if threshold:
+            if wastage_pct >= threshold.critical_pct:
+                status_label = 'CRITICAL'
+            elif wastage_pct >= threshold.warning_pct:
+                status_label = 'WARNING'
+            else:
+                status_label = 'OK'
+        else:
+            status_label = 'NO_THRESHOLD'
+
+        return Response({
+            'material_id': material.id,
+            'material_name': material.name,
+            'unit': material.unit,
+            'total_delivered': total_delivered,
+            'total_wasted': total_wasted,
+            'wastage_pct': wastage_pct,
+            'status': status_label,
+            'threshold': WastageThresholdSerializer(threshold).data if threshold else None,
+        })
+
 class MaterialTransactionViewSet(viewsets.ModelViewSet):
     queryset = MaterialTransaction.objects.all().order_by('-date', '-created_at')
     serializer_class = MaterialTransactionSerializer
@@ -216,3 +255,114 @@ class DocumentViewSet(viewsets.ModelViewSet):
     serializer_class = DocumentSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['document_type']
+
+
+class WastageAlertViewSet(viewsets.ModelViewSet):
+    """
+    Exposes:
+      GET  /api/v1/wastage-alerts/           — list open alerts (?severity=CRITICAL&is_resolved=false)
+      GET  /api/v1/wastage-alerts/dashboard/ — aggregated wastage stats
+      PATCH /api/v1/wastage-alerts/{id}/resolve/ — mark an alert as resolved
+    """
+    serializer_class = WastageAlertSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['severity', 'is_resolved', 'material']
+    http_method_names = ['get', 'patch', 'head', 'options']
+
+    def get_queryset(self):
+        return WastageAlert.objects.select_related(
+            'material', 'threshold', 'transaction'
+        ).order_by('-created_at')
+
+    @action(detail=True, methods=['patch'])
+    def resolve(self, request, pk=None):
+        """
+        Mark a specific wastage alert as resolved with an optional note.
+        PATCH /api/v1/wastage-alerts/{id}/resolve/
+        Body: { "resolved_note": "Accepted due to site conditions" }
+        """
+        alert = self.get_object()
+        if alert.is_resolved:
+            return Response(
+                {"error": "Alert is already resolved."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        alert.is_resolved = True
+        alert.resolved_note = request.data.get('resolved_note', '')
+        alert.save(update_fields=['is_resolved', 'resolved_note'])
+        return Response({
+            "success": True,
+            "message": f"Alert for '{alert.material.name}' marked as resolved.",
+            "alert": WastageAlertSerializer(alert).data,
+        })
+
+    @action(detail=False, methods=['get'])
+    def dashboard(self, request):
+        """
+        Aggregated wastage stats for dashboard widget.
+        GET /api/v1/wastage-alerts/dashboard/
+        """
+        from django.db.models import Sum, Count, F, FloatField, ExpressionWrapper
+
+        open_alerts = WastageAlert.objects.filter(is_resolved=False)
+        open_count = open_alerts.count()
+        critical_count = open_alerts.filter(severity='CRITICAL').count()
+        warning_count = open_alerts.filter(severity='WARNING').count()
+
+        # Worst material: highest wastage_pct among open alerts
+        worst = open_alerts.order_by('-wastage_pct').select_related('material').first()
+        worst_material = None
+        if worst:
+            worst_material = {
+                'id': worst.material.id,
+                'name': worst.material.name,
+                'wastage_pct': worst.wastage_pct,
+                'severity': worst.severity,
+                'unit': worst.material.unit,
+            }
+
+        # Estimated cost lost across all materials with wastage
+        est_cost_lost = 0.0
+        for mat in Material.objects.filter(total_wasted__gt=0):
+            if mat.avg_cost_per_unit:
+                est_cost_lost += float(mat.total_wasted) * float(mat.avg_cost_per_unit)
+
+        # All materials with their current wastage status
+        materials_summary = []
+        for mat in Material.objects.prefetch_related('thresholds').filter(quantity_purchased__gt=0):
+            total_delivered = float(mat.quantity_purchased)
+            total_wasted = float(mat.total_wasted)
+            pct = round((total_wasted / total_delivered) * 100, 2) if total_delivered > 0 else 0.0
+            threshold = mat.thresholds.first()
+
+            if threshold:
+                if pct >= threshold.critical_pct:
+                    slabel = 'CRITICAL'
+                elif pct >= threshold.warning_pct:
+                    slabel = 'WARNING'
+                else:
+                    slabel = 'OK'
+            else:
+                slabel = 'NO_THRESHOLD'
+
+            materials_summary.append({
+                'material_id': mat.id,
+                'material_name': mat.name,
+                'unit': mat.unit,
+                'total_delivered': total_delivered,
+                'total_wasted': total_wasted,
+                'wastage_pct': pct,
+                'status': slabel,
+                'warning_threshold': threshold.warning_pct if threshold else None,
+                'critical_threshold': threshold.critical_pct if threshold else None,
+                'latest_wastage_reason': mat.transactions.filter(transaction_type='WASTAGE').order_by('-date', '-id').values_list('purpose', flat=True).first() or mat.transactions.filter(transaction_type='WASTAGE').order_by('-date', '-id').values_list('notes', flat=True).first()
+            })
+
+        return Response({
+            'open_count': open_count,
+            'critical_count': critical_count,
+            'warning_count': warning_count,
+            'est_cost_lost': round(est_cost_lost, 2),
+            'worst_material': worst_material,
+            'materials_summary': materials_summary,
+        })

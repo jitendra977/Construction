@@ -3,6 +3,7 @@ import Modal from '../common/Modal';
 import SuccessModal from '../common/SuccessModal';
 import PhaseDetailModal from './manage/PhaseDetailModal';
 import TaskPreviewModal from './manage/TaskPreviewModal';
+import WastageAlertPanel from '../common/WastageAlertPanel';
 import { constructionService, permitService, dashboardService, getMediaUrl } from '../../services/api';
 import { useConstruction } from '../../context/ConstructionContext';
 
@@ -434,6 +435,9 @@ const DesktopHome = () => {
                     </div>
                 )}
 
+                {/* Wastage Alert Compact Banner */}
+                <WastageAlertPanel compact onResolved={() => {}} />
+
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Left Column: Construction Journey */}
                     <div className="lg:col-span-2 space-y-8">
@@ -720,6 +724,66 @@ const DesktopHome = () => {
                                         </div>
                                     </div>
                                 ))}
+                            </div>
+                        </div>
+
+                        {/* Nepali User Guide Dashboard */}
+                        <div className="bg-[var(--t-surface)] rounded-2xl shadow-sm border border-[var(--t-border)] flex flex-col overflow-hidden">
+                            <div className="px-6 py-4 border-b border-[var(--t-border)] bg-[var(--t-primary)]/5 flex items-center justify-between">
+                                <h2 className="text-xs font-black text-[var(--t-primary)] uppercase tracking-[0.2em]">प्रयोगकर्ता निर्देशिका (User Guide)</h2>
+                                <span className="text-[10px] font-black text-[var(--t-primary)] uppercase bg-[var(--t-primary)]/10 px-2 py-0.5 rounded-full">Dashboard Help</span>
+                            </div>
+                            <div className="p-6 space-y-5">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-3 bg-[var(--t-surface2)]/40 p-4 rounded-xl border border-[var(--t-border)]/50">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-lg">🏗️</span>
+                                            <h3 className="text-xs font-black text-[var(--t-text)] uppercase tracking-wider">निर्माण चरण (Phases)</h3>
+                                        </div>
+                                        <p className="text-[11px] text-[var(--t-text2)] leading-relaxed">
+                                            घर निर्माणको प्रत्येक चरण र बजेट यहाँबाट व्यवस्थापन गर्न सकिन्छ। चरण अनुसारको कामको प्रगति हेर्नुहोस्।
+                                        </p>
+                                    </div>
+                                    <div className="space-y-3 bg-[var(--t-surface2)]/40 p-4 rounded-xl border border-[var(--t-border)]/50">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-lg">✅</span>
+                                            <h3 className="text-xs font-black text-[var(--t-text)] uppercase tracking-wider">कार्य र प्रमाण (Tasks)</h3>
+                                        </div>
+                                        <p className="text-[11px] text-[var(--t-text2)] leading-relaxed">
+                                            दैनिक हुने कामहरू अपडेट गर्नुहोस्। काम सकिएपछि फोटो वा बिल 'Proof' को रूपमा अपलोड गरी सुरक्षित राख्नुहोस्।
+                                        </p>
+                                    </div>
+                                    <div className="space-y-3 bg-[var(--t-surface2)]/40 p-4 rounded-xl border border-[var(--t-border)]/50">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-lg">📦</span>
+                                            <h3 className="text-xs font-black text-[var(--t-text)] uppercase tracking-wider">स्टक र खेर (Stock)</h3>
+                                        </div>
+                                        <p className="text-[11px] text-[var(--t-text2)] leading-relaxed">
+                                            सामाग्री खरिद गर्दा 'Stock In' र प्रयोग गर्दा 'Stock Out' गर्नुहोस्। सामाग्री खेर गएमा (Wastage) तुरुन्त दर्ता गर्नुहोस्।
+                                        </p>
+                                    </div>
+                                    <div className="space-y-3 bg-[var(--t-surface2)]/40 p-4 rounded-xl border border-[var(--t-border)]/50">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-lg">💰</span>
+                                            <h3 className="text-xs font-black text-[var(--t-text)] uppercase tracking-wider">वित्तीय विवरण (Finance)</h3>
+                                        </div>
+                                        <p className="text-[11px] text-[var(--t-text2)] leading-relaxed">
+                                            कहाँ कति खर्च भयो र कुन खाताबाट पैसा तिरियो भन्ने कुराको पूर्ण हिसाब यहाँ स्पष्ट देखिन्छ।
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="bg-[var(--t-primary)]/5 p-4 rounded-2xl border border-[var(--t-primary)]/10">
+                                    <div className="flex items-start gap-3">
+                                        <span className="text-xl">💡</span>
+                                        <div>
+                                            <p className="text-[11px] font-bold text-[var(--t-primary2)] mb-1 uppercase tracking-tight">मुख्य सुझाव (Safety Tip)</p>
+                                            <p className="text-xs text-[var(--t-text)] leading-relaxed font-medium">
+                                                निर्माण सामाग्री १०% भन्दा बढी खेर गएमा ड्यासबोर्डमा रातो अलर्ट देखा पर्नेछ। यस्तो अवस्थामा इन्जिनियरसँग सल्लाह लिनुहोस्।
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

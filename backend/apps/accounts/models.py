@@ -168,27 +168,39 @@ class User(AbstractUser):
             
         return self.role and self.role.code == role_code
 
+    @property
     def is_system_admin(self):
         """Check if user is a superuser or has global system management role"""
         if not self.is_active:
             return False
-        return self.is_superuser or (self.role and self.role.can_manage_all_systems)
+        return self.is_superuser or (self.role and (self.role.can_manage_all_systems or self.role.code == Role.SUPER_ADMIN))
 
+    @property
     def can_manage_finances_perm(self):
         if not self.is_active: return False
-        return self.is_superuser or (self.role and self.role.can_manage_finances)
+        return self.is_system_admin or (self.role and self.role.can_manage_finances)
 
+    @property
     def can_view_finances_perm(self):
         if not self.is_active: return False
-        return self.is_superuser or (self.role and (self.role.can_view_finances or self.role.can_manage_finances))
+        return self.is_system_admin or (self.role and (self.role.can_view_finances or self.role.can_manage_finances))
 
+    @property
     def can_manage_phases_perm(self):
         if not self.is_active: return False
-        return self.is_superuser or (self.role and self.role.can_manage_phases)
+        return self.is_system_admin or (self.role and self.role.can_manage_phases)
 
+    @property
     def can_manage_users_perm(self):
         if not self.is_active: return False
-        return self.is_superuser or (self.role and self.role.can_manage_users)
+        return self.is_system_admin or (self.role and self.role.can_manage_users)
+
+    # ----- OVERRIDE SAVE -----
+    def save(self, *args, **kwargs):
+        # Automatically make SUPER_ADMIN users staff members for Django Admin access
+        if self.role and self.role.code == Role.SUPER_ADMIN:
+            self.is_staff = True
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.email

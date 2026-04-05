@@ -149,7 +149,7 @@ const DesktopSidebar = ({ user, onLogout, navItems }) => {
                 </NavLink>
 
                 {/* Theme toggle + Logout row */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 pb-2">
                     <ThemeToggle className="flex-shrink-0" />
                     <button
                         onClick={onLogout}
@@ -160,6 +160,25 @@ const DesktopSidebar = ({ user, onLogout, navItems }) => {
                     >
                         <span>🚪</span> Logout
                     </button>
+                </div>
+
+                {/* Developer Copyright */}
+                <div className="flex flex-col items-center justify-center pt-3 mt-1" style={{ borderTop: '1px solid var(--t-border2)' }}>
+                    <div className="w-10 h-10 rounded-full overflow-hidden border shadow-sm mb-1.5" style={{ borderColor: 'var(--t-primary)' }}>
+                        <img src="/jitendra.png" alt="Jitendra Khadka" className="w-full h-full object-cover" />
+                    </div>
+                    <p className="text-[9px] font-bold tracking-widest uppercase opacity-70 mb-0.5" style={{ color: 'var(--t-text2)' }}>
+                        Designed & Built By
+                    </p>
+                    <div className="flex items-center gap-1.5">
+                        <p className="text-[11px] font-black tracking-wide" style={{ color: 'var(--t-text)' }}>
+                            © 2026 @jitendra khadka
+                        </p>
+                        <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-md" 
+                              style={{ background: 'color-mix(in srgb, var(--t-primary) 15%, transparent)', color: 'var(--t-primary)' }}>
+                            v1.0.0
+                        </span>
+                    </div>
                 </div>
             </div>
         </aside>

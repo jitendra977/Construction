@@ -156,6 +156,16 @@ const StockTab = ({ searchQuery = '' }) => {
                                                 {t.room_name}
                                             </div>
                                         )}
+                                        {t.purpose && (
+                                            <div className="text-[10px] text-[var(--t-text2)] italic leading-tight max-w-[200px] truncate" title={t.purpose}>
+                                                "{t.purpose}"
+                                            </div>
+                                        )}
+                                        {t.notes && !t.purpose && (
+                                            <div className="text-[10px] text-[var(--t-text3)] italic leading-tight max-w-[200px] truncate" title={t.notes}>
+                                                {t.notes}
+                                            </div>
+                                        )}
                                     </div>
                                 </td>
                                 <td className="px-6 py-4">
@@ -222,7 +232,7 @@ const StockTab = ({ searchQuery = '' }) => {
                             </div>
                         </div>
 
-                        {(t.supplier_name || t.room_name || t.funding_source_name) && (
+                        {(t.supplier_name || t.room_name || t.funding_source_name || t.purpose || t.notes) && (
                             <div className="bg-[var(--t-surface2)] rounded-xl p-3 space-y-2">
                                 {t.supplier_name && (
                                     <div className="flex items-center gap-2 text-[10px] font-bold text-[var(--t-text2)]">
@@ -232,8 +242,20 @@ const StockTab = ({ searchQuery = '' }) => {
                                 )}
                                 {t.room_name && (
                                     <div className="flex items-center gap-2 text-[10px] font-bold text-[var(--t-text2)]">
-                                        <span className="text-[var(--t-text3)] uppercase tracking-tight">Purpose:</span>
+                                        <span className="text-[var(--t-text3)] uppercase tracking-tight">Room:</span>
                                         <span>{t.room_name}</span>
+                                    </div>
+                                )}
+                                {t.purpose && (
+                                    <div className="flex items-start gap-2 text-[10px] font-bold text-[var(--t-text2)]">
+                                        <span className="text-[var(--t-text3)] uppercase tracking-tight whitespace-nowrap">Purpose:</span>
+                                        <span className="italic">"{t.purpose}"</span>
+                                    </div>
+                                )}
+                                {t.notes && (
+                                    <div className="flex items-start gap-2 text-[10px] font-bold text-[var(--t-text3)]">
+                                        <span className="uppercase tracking-tight whitespace-nowrap">Notes:</span>
+                                        <span className="italic">{t.notes}</span>
                                     </div>
                                 )}
                                 {t.funding_source_name && (
@@ -274,190 +296,212 @@ const StockTab = ({ searchQuery = '' }) => {
             </div>
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Register Stock Movement">
-                <form onSubmit={handleSubmit} className="p-1 space-y-5">
+                <form onSubmit={handleSubmit} className="p-1 space-y-4">
+                    {/* Primary Selection: Material & Type */}
                     <div className="p-4 bg-[var(--t-primary)]/5 rounded-2xl border border-[var(--t-primary)]/10">
-                        <label className="block text-xs font-black text-[var(--t-primary)] uppercase tracking-widest mb-3">Material & Movement Type</label>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
+                                <label className="block text-[10px] font-black text-[var(--t-primary)] uppercase tracking-widest mb-1.5">Material</label>
                                 <select
                                     value={formData.material || ''}
                                     onChange={e => setFormData({ ...formData, material: e.target.value })}
-                                    className="w-full rounded-xl border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-3 border outline-none bg-[var(--t-surface)] font-bold text-[var(--t-text2)]"
+                                    className="w-full rounded-xl border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-2.5 border outline-none bg-[var(--t-surface)] font-bold text-[var(--t-text2)] text-sm"
                                     required
                                 >
                                     <option value="">Select Material</option>
                                     {dashboardData.materials?.map(m => (
-                                        <option key={m.id} value={m.id}>{m.name} (In Stock: {m.current_stock} {m.unit})</option>
+                                        <option key={m.id} value={m.id}>{m.name} (Stock: {m.current_stock} {m.unit})</option>
                                     ))}
                                 </select>
                             </div>
                             <div>
+                                <label className="block text-[10px] font-black text-[var(--t-primary)] uppercase tracking-widest mb-1.5">Movement Type</label>
                                 <select
                                     value={formData.transaction_type || 'OUT'}
                                     onChange={e => setFormData({ ...formData, transaction_type: e.target.value })}
-                                    className="w-full rounded-xl border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-3 border outline-none bg-[var(--t-surface)] font-bold text-[var(--t-text2)]"
+                                    className="w-full rounded-xl border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-2.5 border outline-none bg-[var(--t-surface)] font-bold text-[var(--t-text2)] text-sm"
                                     required
                                 >
                                     <option value="IN">Purchase (Stock In)</option>
                                     <option value="OUT">Consumption (Stock Usage)</option>
-                                    <option value="RETURN">Supplier Return</option>
                                     <option value="WASTAGE">Wastage / Loss</option>
+                                    <option value="RETURN">Supplier Return</option>
                                 </select>
                             </div>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4">
+                    {/* Quantity & Date */}
+                    <div className="grid grid-cols-2 gap-4 px-1">
                         <div>
-                            <label className="block text-sm font-semibold text-[var(--t-text2)] mb-1">Purpose / Location</label>
-                            <input
-                                type="text"
-                                value={formData.purpose || ''}
-                                onChange={e => setFormData({ ...formData, purpose: e.target.value })}
-                                className="w-full rounded-xl border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-3 border outline-none"
-                                placeholder="e.g. Ground Floor Slab, Boundary Wall..."
-                            />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4">
-                        <div>
-                            <label className="block text-sm font-semibold text-[var(--t-text2)] mb-1">Additional Notes</label>
-                            <textarea
-                                value={formData.notes || ''}
-                                onChange={e => setFormData({ ...formData, notes: e.target.value })}
-                                className="w-full rounded-xl border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-3 border outline-none h-20"
-                                placeholder="Any extra details..."
-                            />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-6 px-1">
-                        <div>
-                            <label className="block text-sm font-semibold text-[var(--t-text2)] mb-1.5">Action Date</label>
-                            <input
-                                type="date"
-                                value={formData.date || ''}
-                                onChange={e => setFormData({ ...formData, date: e.target.value })}
-                                className="w-full rounded-xl border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-3 border outline-none"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-semibold text-[var(--t-text2)] mb-1.5">Quantity</label>
+                            <label className="block text-xs font-bold text-[var(--t-text2)] mb-1.5 uppercase tracking-tight">Quantity</label>
                             <input
                                 type="number"
                                 step="0.01"
                                 value={formData.quantity || ''}
                                 onChange={e => setFormData({ ...formData, quantity: e.target.value })}
-                                className="w-full rounded-xl border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-3 border outline-none font-bold text-[var(--t-text)]"
+                                className="w-full rounded-xl border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-3 border outline-none font-bold text-lg text-[var(--t-text)]"
                                 placeholder="0.00"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-[var(--t-text2)] mb-1.5 uppercase tracking-tight">Action Date</label>
+                            <input
+                                type="date"
+                                value={formData.date || ''}
+                                onChange={e => setFormData({ ...formData, date: e.target.value })}
+                                className="w-full rounded-xl border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-3 border outline-none text-sm font-bold"
                                 required
                             />
                         </div>
                     </div>
 
-                    {formData.transaction_type === 'IN' && (
-                        <div className="grid grid-cols-2 gap-6 px-1">
-                            <div>
-                                <label className="block text-sm font-semibold text-[var(--t-text2)] mb-1.5">Unit Price (Rs.)</label>
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    value={formData.unit_price || ''}
-                                    onChange={e => setFormData({ ...formData, unit_price: e.target.value })}
-                                    className="w-full rounded-xl border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-3 border outline-none font-bold text-[var(--t-primary)]"
-                                    placeholder="0.00"
-                                    required
-                                />
-                                <p className="text-[10px] text-[var(--t-text3)] mt-1 italic">Used for auto-generating expense.</p>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-[var(--t-text2)] mb-1.5">Funding Source</label>
-                                <select
-                                    value={formData.funding_source || ''}
-                                    onChange={e => setFormData({ ...formData, funding_source: e.target.value })}
-                                    className="w-full rounded-xl border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-3 border outline-none bg-[var(--t-surface)] font-bold text-[var(--t-primary)]"
-                                    required
-                                >
-                                    <option value="">Select Account</option>
-                                    {dashboardData.funding?.map(f => (
-                                        <option key={f.id} value={f.id}>{f.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="px-1">
-                        {formData.transaction_type === 'IN' || formData.transaction_type === 'RETURN' ? (
-                            <div>
-                                <label className="block text-sm font-semibold text-[var(--t-text2)] mb-1.5">Supplier / Vendor</label>
-                                <select
-                                    value={formData.supplier || ''}
-                                    onChange={e => setFormData({ ...formData, supplier: e.target.value })}
-                                    className="w-full rounded-xl border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-3 border outline-none bg-[var(--t-surface)]"
-                                    required={formData.transaction_type === 'IN'}
-                                >
-                                    <option value="">Select Supplier</option>
-                                    {dashboardData.suppliers?.map(s => (
-                                        <option key={s.id} value={s.id}>{s.name} ({s.category})</option>
-                                    ))}
-                                </select>
-                            </div>
-                        ) : (
-                            <React.Fragment>
+                    {/* Context Logic (IN/RETURN vs OUT/WASTAGE) */}
+                    <div className="space-y-4 px-1">
+                        {/* Supplier Section for Inbound or Returns */}
+                        {(formData.transaction_type === 'IN' || formData.transaction_type === 'RETURN') && (
+                            <div className="space-y-4">
                                 <div>
-                                    <label className="block text-sm font-semibold text-[var(--t-text2)] mb-1.5">Assign to Room / Area (Optional)</label>
+                                    <label className="block text-xs font-bold text-[var(--t-text2)] mb-1.5 uppercase tracking-tight">Supplier / Vendor</label>
+                                    <select
+                                        value={formData.supplier || ''}
+                                        onChange={e => setFormData({ ...formData, supplier: e.target.value })}
+                                        className="w-full rounded-xl border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-3 border outline-none bg-[var(--t-surface)] text-sm"
+                                        required={formData.transaction_type === 'IN'}
+                                    >
+                                        <option value="">Select Supplier</option>
+                                        {dashboardData.suppliers?.map(s => (
+                                            <option key={s.id} value={s.id}>{s.name} ({s.category})</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                {formData.transaction_type === 'IN' && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-[var(--t-text2)] mb-1.5 uppercase tracking-tight">Unit Price (Rs.)</label>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                value={formData.unit_price || ''}
+                                                onChange={e => setFormData({ ...formData, unit_price: e.target.value })}
+                                                className="w-full rounded-xl border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-3 border outline-none font-bold text-[var(--t-primary)]"
+                                                placeholder="0.00"
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-[var(--t-text2)] mb-1.5 uppercase tracking-tight">Funding Source</label>
+                                            <select
+                                                value={formData.funding_source || ''}
+                                                onChange={e => setFormData({ ...formData, funding_source: e.target.value })}
+                                                className="w-full rounded-xl border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-3 border outline-none bg-[var(--t-surface)] font-bold text-[var(--t-primary)] text-sm"
+                                                required
+                                            >
+                                                <option value="">Select Account</option>
+                                                {dashboardData.funding?.map(f => (
+                                                    <option key={f.id} value={f.id}>{f.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Usage/Wastage Section (Room/Phase) */}
+                        {(formData.transaction_type === 'OUT' || formData.transaction_type === 'WASTAGE') && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-[var(--t-text2)] mb-1.5 uppercase tracking-tight">Room / Area</label>
                                     <select
                                         value={formData.room || ''}
                                         onChange={e => setFormData({ ...formData, room: e.target.value })}
-                                        className="w-full rounded-xl border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-3 border outline-none bg-[var(--t-surface)]"
+                                        className="w-full rounded-xl border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-3 border outline-none bg-[var(--t-surface)] text-sm"
                                     >
                                         <option value="">General Site Usage</option>
                                         {dashboardData.rooms?.map(r => (
                                             <option key={r.id} value={r.id}>{r.name} ({r.floor_name})</option>
                                         ))}
                                     </select>
-                                    <p className="text-[10px] text-[var(--t-text3)] mt-1 italic pl-1">Helps track consumption per room for material auditing.</p>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-semibold text-[var(--t-text2)] mb-1.5">Assign to Phase (Cost Allocation)</label>
+                                    <label className="block text-xs font-bold text-[var(--t-text2)] mb-1.5 uppercase tracking-tight">Phase</label>
                                     <select
                                         value={formData.phase || ''}
                                         onChange={e => setFormData({ ...formData, phase: e.target.value })}
-                                        className="w-full rounded-xl border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-3 border outline-none bg-[var(--t-surface)] font-bold text-[var(--t-text2)]"
+                                        className="w-full rounded-xl border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-3 border outline-none bg-[var(--t-surface)] text-sm"
                                     >
                                         <option value="">No Specific Phase</option>
                                         {dashboardData.phases?.map(p => (
                                             <option key={p.id} value={p.id}>{p.name} (Phase {p.order})</option>
                                         ))}
                                     </select>
-                                    <p className="text-[10px] text-[var(--t-text3)] mt-1 italic pl-1">Links usage cost to a specific construction phase.</p>
                                 </div>
-                            </React.Fragment>
+                            </div>
                         )}
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-semibold text-[var(--t-text2)] mb-1.5">Notes / Remarks</label>
-                        <textarea
-                            value={formData.notes || ''}
-                            onChange={e => setFormData({ ...formData, notes: e.target.value })}
-                            className="w-full rounded-xl border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-3 border outline-none resize-none"
-                            placeholder="Reason for wastage or purchase details..."
-                            rows="2"
-                        />
+                    {/* Common Description Section */}
+                    <div className="px-1 space-y-4">
+                        <div>
+                            <label className="block text-xs font-bold text-[var(--t-text2)] mb-1.5 uppercase tracking-tight">
+                                {formData.transaction_type === 'WASTAGE' ? 'Reason for Wastage' : 
+                                 formData.transaction_type === 'RETURN' ? 'Reason for Return' : 
+                                 'Purpose / Specific Location'}
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.purpose || ''}
+                                onChange={e => setFormData({ ...formData, purpose: e.target.value })}
+                                className="w-full rounded-xl border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-3 border outline-none text-sm font-medium"
+                                placeholder={formData.transaction_type === 'WASTAGE' ? "e.g. Broken while unloading" : "e.g. Ground Floor Slab Casting"}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-[var(--t-text2)] mb-1.5 uppercase tracking-tight">Additional Notes</label>
+                            <textarea
+                                value={formData.notes || ''}
+                                onChange={e => setFormData({ ...formData, notes: e.target.value })}
+                                className="w-full rounded-xl border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-3 border outline-none h-20 text-sm"
+                                placeholder="Any extra details..."
+                            />
+                        </div>
                     </div>
 
-                    <div className="flex justify-end gap-3 pt-4">
-                        <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 text-sm font-bold text-[var(--t-text2)] hover:text-[var(--t-text2)]">Cancel</button>
-                        <button type="submit" disabled={loading} className="px-8 py-2.5 bg-[var(--t-primary)] text-[var(--t-bg)] rounded-xl font-bold shadow-lg shadow-[var(--t-primary)]/20 hover:opacity-90 disabled:opacity-50 transition-all">
-                            {loading ? 'Recording...' : 'Register Movement'}
+                    {/* Settings */}
+                    {formData.transaction_type === 'IN' && (
+                        <div className="flex items-center gap-3 bg-[var(--t-surface2)] p-4 rounded-2xl mx-1">
+                            <input
+                                type="checkbox"
+                                id="create_expense"
+                                checked={formData.create_expense !== false}
+                                onChange={e => setFormData({ ...formData, create_expense: e.target.checked })}
+                                className="w-4 h-4 rounded text-[var(--t-primary)] border-[var(--t-border)] focus:ring-[var(--t-primary)]"
+                            />
+                            <label htmlFor="create_expense" className="text-xs font-bold text-[var(--t-text2)] select-none">
+                                Register this purchase as an Expense (Auto-generate bill)
+                            </label>
+                        </div>
+                    )}
+
+                    <div className="flex justify-end gap-3 pt-4 border-t border-[var(--t-border)] mt-6">
+                        <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 text-sm font-bold text-[var(--t-text2)] hover:text-[var(--t-primary)] transition-colors">Cancel</button>
+                        <button 
+                            type="submit" 
+                            disabled={loading || !formData.material} 
+                            className="px-8 py-2.5 bg-[var(--t-primary)] text-[var(--t-bg)] rounded-xl font-bold shadow-lg shadow-[var(--t-primary)]/20 hover:opacity-90 disabled:opacity-50 transition-all flex items-center gap-2"
+                        >
+                            {loading ? (
+                                <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> Recording...</>
+                            ) : (
+                                'Register Movement'
+                            )}
                         </button>
                     </div>
                 </form>
             </Modal>
+
 
             <ExpenseDetailModal
                 isOpen={isDetailModalOpen}

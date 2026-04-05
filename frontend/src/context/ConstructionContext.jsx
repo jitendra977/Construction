@@ -10,6 +10,12 @@ export const ConstructionProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
+    const [activeHelpKey, setActiveHelpKey] = useState('home');
+    const [language, setLanguage] = useState(localStorage.getItem('mero-ghar-lang') || 'ne');
+
+    useEffect(() => {
+        localStorage.setItem('mero-ghar-lang', language);
+    }, [language]);
     
     // Extreme Style Lab Engine
     const DEFAULT_TYPOGRAPHY = {
@@ -71,7 +77,8 @@ export const ConstructionProvider = ({ children }) => {
         floors: [],
         permitSteps: [],
         funding: [],
-        transactions: []
+        transactions: [],
+        userGuides: []
     });
 
     // Fetch all dashboard data
@@ -104,7 +111,8 @@ export const ConstructionProvider = ({ children }) => {
         setDashboardData({
             project: null, rooms: [], tasks: [], phases: [], expenses: [],
             materials: [], contractors: [], budgetCategories: [], suppliers: [],
-            floors: [], permitSteps: [], funding: [], transactions: []
+            floors: [], permitSteps: [], funding: [], transactions: [],
+            userGuides: []
         });
     }, []);
 
@@ -451,6 +459,16 @@ export const ConstructionProvider = ({ children }) => {
         }
     }, [fetchData]);
 
+    const updateGuideProgress = useCallback(async (guideId, data) => {
+        try {
+            await dashboardService.updateGuideProgress(guideId, data);
+            await fetchData(true); // refresh to get updated progress
+        } catch (error) {
+            console.error("Failed to update guide progress", error);
+            throw error;
+        }
+    }, [fetchData]);
+
     const value = {
         // State
         user,
@@ -483,9 +501,16 @@ export const ConstructionProvider = ({ children }) => {
         deleteExpense,
         createMaterialTransaction,
         updateProfile,
+        updateGuideProgress,
         isCalculatorOpen,
         setIsCalculatorOpen: (val) => setIsCalculatorOpen(val),
         toggleCalculator: () => setIsCalculatorOpen(prev => !prev),
+
+        // Dynamic Help Context
+        activeHelpKey,
+        setActiveHelpKey,
+        language,
+        setLanguage,
         
         // Extreme Typography Settings
         typography,

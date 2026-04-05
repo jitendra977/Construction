@@ -4,6 +4,7 @@ import { constructionService, getMediaUrl } from '../../../services/api';
 import { useConstruction } from '../../../context/ConstructionContext';
 import ConfirmModal from '../../common/ConfirmModal';
 import TaskPreviewModal from './TaskPreviewModal';
+import imageCompression from 'browser-image-compression';
 
 const PhaseDetailModal = ({ isOpen, onClose, phase, tasks, initialMode = 'read' }) => {
     const {
@@ -149,19 +150,29 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks, initialMode = 'read' 
 
 
     const handleFileUpload = async (e) => {
-        const file = e.target.files[0];
+        let file = e.target.files[0];
         if (!file || !selectedTask) return;
 
         setUploading(true);
+        
+        let mediaType = 'DOCUMENT';
+        const type = file.type.toLowerCase();
+        
+        if (type.startsWith('image/')) {
+            mediaType = 'IMAGE';
+            try {
+                const options = { maxSizeMB: 1, maxWidthOrHeight: 1280, useWebWorker: true };
+                file = await imageCompression(file, options);
+            } catch (error) {
+                console.error("Image compression error:", error);
+            }
+        } else if (type.startsWith('video/')) {
+            mediaType = 'VIDEO';
+        }
+
         const uploadData = new FormData();
         uploadData.append('task', selectedTask.id);
         uploadData.append('file', file);
-        
-        // Dynamic Media Type Detection
-        let mediaType = 'DOCUMENT';
-        const type = file.type.toLowerCase();
-        if (type.startsWith('image/')) mediaType = 'IMAGE';
-        else if (type.startsWith('video/')) mediaType = 'VIDEO';
         uploadData.append('media_type', mediaType);
 
         try {

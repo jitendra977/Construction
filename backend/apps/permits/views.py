@@ -1,8 +1,8 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from .models import PermitStep, LegalDocument
-from .serializers import PermitStepSerializer, LegalDocumentSerializer
+from .models import PermitStep
+from .serializers import PermitStepSerializer
 from apps.resources.models import Document
 
 class PermitStepViewSet(viewsets.ModelViewSet):
@@ -35,6 +35,3 @@ class PermitStepViewSet(viewsets.ModelViewSet):
         except Document.DoesNotExist:
             return Response({'error': 'Document not found'}, status=status.HTTP_404_NOT_FOUND)
 
-class LegalDocumentViewSet(viewsets.ModelViewSet):
-    queryset = LegalDocument.objects.all()
-    serializer_class = LegalDocumentSerializer
