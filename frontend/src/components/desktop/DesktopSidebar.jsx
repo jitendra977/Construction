@@ -163,8 +163,12 @@ const DesktopSidebar = ({ user, onLogout, navItems }) => {
                 </div>
 
                 {/* Developer Copyright */}
-                <div className="flex flex-col items-center justify-center pt-3 mt-1" style={{ borderTop: '1px solid var(--t-border2)' }}>
-                    <div className="w-10 h-10 rounded-full overflow-hidden border shadow-sm mb-1.5" style={{ borderColor: 'var(--t-primary)' }}>
+                <NavLink 
+                    to="/about-developer"
+                    className="flex flex-col items-center justify-center pt-3 mt-1 hover:brightness-110 active:scale-95 transition-all group" 
+                    style={{ borderTop: '1px solid var(--t-border2)' }}>
+                    <div className="w-10 h-10 rounded-full overflow-hidden border shadow-sm mb-1.5 group-hover:scale-110 transition-transform" 
+                         style={{ borderColor: 'var(--t-primary)' }}>
                         <img src="/jitendra.png" alt="Jitendra Khadka" className="w-full h-full object-cover" />
                     </div>
                     <p className="text-[9px] font-bold tracking-widest uppercase opacity-70 mb-0.5" style={{ color: 'var(--t-text2)' }}>
@@ -179,7 +183,7 @@ const DesktopSidebar = ({ user, onLogout, navItems }) => {
                             v1.0.0
                         </span>
                     </div>
-                </div>
+                </NavLink>
             </div>
         </aside>
     );

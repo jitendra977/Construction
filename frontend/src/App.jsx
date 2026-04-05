@@ -12,6 +12,7 @@ const DesktopDashboard = lazy(() => import('./pages/desktop/DesktopDashboard'));
 const MobileDashboard = lazy(() => import('./pages/mobile/MobileDashboard'));
 const DesktopRoutes = lazy(() => import('./routes/desktop/DesktopRoutes'));
 const MobileRoutes = lazy(() => import('./routes/mobile/MobileRoutes'));
+const AboutDeveloper = lazy(() => import('./pages/desktop/AboutDeveloper'));
 
 const LoadingFallback = () => (
   <div className="flex justify-center items-center h-screen bg-[var(--t-bg)]">
@@ -108,6 +109,16 @@ function App() {
               >
                 <Route path="*" element={<Suspense fallback={<LoadingFallback />}><MobileRoutes /></Suspense>} />
               </Route>
+              <Route
+                path="/about-developer"
+                element={
+                  <ProtectedRoute>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <AboutDeveloper />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
