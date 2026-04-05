@@ -7,36 +7,68 @@ from django.contrib.contenttypes.models import ContentType
 
 def get_client_ip(request):
     if not request: return None
+    
+    # Prioritize headers set by Nginx/Proxy
+    x_real_ip = request.META.get('HTTP_X_REAL_IP')
+    if x_real_ip:
+        return x_real_ip
+        
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded_for:
-        ip = x_forwarded_for.split(',')[0]
-    else:
-        ip = request.META.get('REMOTE_ADDR')
-    return ip
+        # Format is usually 'client, proxy1, proxy2'
+        return x_forwarded_for.split(',')[0].strip()
+    
+    return request.META.get('REMOTE_ADDR')
+
+def is_internal_ip(ip):
+    """Checks if IP is in private/internal ranges."""
+    if not ip: return True
+    if ip in ['127.0.0.1', 'localhost', '::1']: return True
+    
+    # 10.0.0.0/8
+    if ip.startswith('10.'): return True
+    # 192.168.0.0/16
+    if ip.startswith('192.168.'): return True
+    # 172.16.0.0/12 (Docker/Internal Proxy range)
+    if ip.startswith('172.'):
+        try:
+            parts = ip.split('.')
+            if len(parts) >= 2:
+                second_octet = int(parts[1])
+                if 16 <= second_octet <= 31:
+                    return True
+        except (ValueError, IndexError):
+            pass
+            
+    return False
 
 def resolve_ip_location(ip):
     """
     Resolves IP to geographic location using ip-api.com.
     Returns {city, region, country}
     """
-    if not ip or ip in ['127.0.0.1', 'localhost', '::1'] or ip.startswith('192.168.') or ip.startswith('10.'):
-        return {'city': 'Internal Workspace', 'region': 'Developer Sandbox', 'country': 'Local Access'}
+    if is_internal_ip(ip):
+        return {
+            'city': 'Internal Workspace', 
+            'region': 'Secure Network', 
+            'country': 'Local Access'
+        }
     
     try:
         # Using ip-api.com (free, no key required for low volume)
-        response = requests.get(f"http://ip-api.com/json/{ip}?fields=status,message,country,regionName,city", timeout=2)
+        response = requests.get(f"http://ip-api.com/json/{ip}?fields=status,message,country,regionName,city", timeout=3)
         if response.status_code == 200:
             data = response.json()
             if data.get('status') == 'success':
                 return {
-                    'city': data.get('city'),
-                    'region': data.get('regionName'),
-                    'country': data.get('country')
+                    'city': data.get('city') or 'Unknown City',
+                    'region': data.get('regionName') or 'Unknown Region',
+                    'country': data.get('country') or 'Unknown Country'
                 }
     except Exception as e:
         print(f"IP Resolution Failed for {ip}: {e}")
         
-    return {'city': 'Unknown', 'region': 'Unknown', 'country': 'Unknown'}
+    return {'city': 'Remote Origin', 'region': 'Distributed', 'country': 'Global'}
 
 def get_model_diff(old_instance, new_instance, exclude_fields=None):
     """

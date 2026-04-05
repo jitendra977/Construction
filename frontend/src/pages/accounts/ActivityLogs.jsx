@@ -425,7 +425,12 @@ const ActivityLogs = () => {
                                             <div className="flex items-center gap-2 mt-1">
                                                 <span className="text-[9px] font-black text-[var(--t-text3)] uppercase tracking-widest">{selectedLog.country || 'Global Network'}</span>
                                                 {selectedLog.city === 'Internal Workspace' && (
-                                                    <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-600 text-[8px] font-black rounded-md border border-emerald-500/20">SECURE_DEV_NET</span>
+                                                    <div className="flex gap-1">
+                                                        <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-600 text-[8px] font-black rounded-md border border-emerald-500/20">SECURE_DEV_NET</span>
+                                                        {selectedLog.ip_address && !['127.0.0.1', '::1', 'localhost'].includes(selectedLog.ip_address) && (
+                                                            <span className="px-2 py-0.5 bg-blue-500/10 text-blue-600 text-[8px] font-black rounded-md border border-blue-500/20">PROXY_ENTRY</span>
+                                                        )}
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>
