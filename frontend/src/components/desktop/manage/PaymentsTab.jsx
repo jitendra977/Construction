@@ -1,10 +1,12 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { useConstruction } from '../../../context/ConstructionContext';
+import { dashboardService } from '../../../services/api';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
 
 const PaymentsTab = ({ searchQuery = '' }) => {
     const { dashboardData, loading } = useConstruction();
+    const [emailState, setEmailState] = useState({}); // { [paymentId]: 'idle' | 'sending' | 'sent' | 'error' }
 
     const flattenedPayments = useMemo(() => {
         if (!dashboardData?.expenses) return [];
@@ -19,16 +21,13 @@ const PaymentsTab = ({ searchQuery = '' }) => {
                         paid_to: exp.paid_to || exp.contractor_name || exp.supplier_name || 'Self/Other',
                         category_name: exp.category_name,
                         funding_source_name: fundingSource ? fundingSource.name : 'Unknown',
-                        expense_type: exp.expense_type
+                        expense_type: exp.expense_type,
+                        has_email_recipient: !!(exp.supplier_name || exp.contractor_name)
                     });
                 });
             }
         });
-
-        // Sort by dates descending
         payments.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-        // Filter by searchQuery
         if (searchQuery) {
             const query = searchQuery.toLowerCase();
             return payments.filter(p =>
@@ -38,9 +37,21 @@ const PaymentsTab = ({ searchQuery = '' }) => {
                 p.reference_id?.toLowerCase().includes(query)
             );
         }
-
         return payments;
     }, [dashboardData, searchQuery]);
+
+    const handleSendReceipt = useCallback(async (paymentId) => {
+        setEmailState(prev => ({ ...prev, [paymentId]: 'sending' }));
+        try {
+            await dashboardService.emailPaymentReceipt(paymentId);
+            setEmailState(prev => ({ ...prev, [paymentId]: 'sent' }));
+            setTimeout(() => setEmailState(prev => ({ ...prev, [paymentId]: 'idle' })), 4000);
+        } catch (err) {
+            const msg = err?.response?.data?.error || 'Send failed';
+            setEmailState(prev => ({ ...prev, [paymentId]: 'error:' + msg }));
+            setTimeout(() => setEmailState(prev => ({ ...prev, [paymentId]: 'idle' })), 5000);
+        }
+    }, []);
 
     const getMethodColor = (method) => {
         const colors = {
@@ -52,6 +63,48 @@ const PaymentsTab = ({ searchQuery = '' }) => {
         return colors[method] || 'bg-[var(--t-surface3)] text-[var(--t-text2)] border-[var(--t-border)]';
     };
 
+    const EmailButton = ({ paymentId, hasRecipient }) => {
+        const state = emailState[paymentId] || 'idle';
+        const isSending = state === 'sending';
+        const isSent = state === 'sent';
+        const isError = state.startsWith('error:');
+        const errorMsg = isError ? state.replace('error:', '') : '';
+
+        if (!hasRecipient) return null;
+
+        return (
+            <div className="relative">
+                <button
+                    onClick={() => handleSendReceipt(paymentId)}
+                    disabled={isSending || isSent}
+                    title="Send payment receipt email to supplier/contractor"
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide border transition-all
+                        ${isSent
+                            ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 cursor-default'
+                            : isError
+                                ? 'bg-red-500/10 text-red-500 border-red-500/20'
+                                : 'bg-blue-500/10 text-blue-500 border-blue-500/20 hover:bg-blue-500/20 cursor-pointer'
+                        } disabled:opacity-60`}
+                >
+                    {isSending ? (
+                        <><span className="w-3 h-3 border-2 border-blue-400/40 border-t-blue-400 rounded-full animate-spin" /> Sending...</>
+                    ) : isSent ? (
+                        <>✅ Sent!</>
+                    ) : isError ? (
+                        <>❌ Failed</>
+                    ) : (
+                        <>✉️ Send Receipt</>
+                    )}
+                </button>
+                {isError && (
+                    <div className="absolute left-0 top-7 z-10 bg-[var(--t-surface)] border border-red-400/30 text-red-400 text-[10px] rounded-lg px-2 py-1.5 shadow-xl w-48 leading-snug">
+                        {errorMsg}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
     if (loading) {
         return <div className="p-4 bg-[var(--t-surface)] rounded-xl shadow-sm"><Skeleton count={10} height={40} className="mb-2" /></div>;
     }
@@ -59,7 +112,7 @@ const PaymentsTab = ({ searchQuery = '' }) => {
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center mb-2">
-                <p className="text-sm text-[var(--t-text2)]">View all historical payments and transactions generated across the project.</p>
+                <p className="text-sm text-[var(--t-text2)]">View all historical payments. Click <strong>Send Receipt</strong> to email a PDF receipt to the supplier or contractor.</p>
                 <div className="bg-[var(--t-nav-active-bg)] text-[var(--t-nav-active-text)] px-3 py-1 rounded-lg text-sm font-bold border border-[var(--t-border)] shadow-sm">
                     {flattenedPayments.length} Payments Found
                 </div>
@@ -72,9 +125,10 @@ const PaymentsTab = ({ searchQuery = '' }) => {
                         <tr className="bg-[var(--t-surface2)] border-b border-[var(--t-border)]">
                             <th className="px-6 py-4 text-xs font-bold text-[var(--t-text3)] uppercase tracking-wider">Date</th>
                             <th className="px-6 py-4 text-xs font-bold text-[var(--t-text3)] uppercase tracking-wider">Paid To / Expense</th>
-                            <th className="px-6 py-4 text-xs font-bold text-[var(--t-text3)] uppercase tracking-wider">Method & Record</th>
+                            <th className="px-6 py-4 text-xs font-bold text-[var(--t-text3)] uppercase tracking-wider">Method &amp; Record</th>
                             <th className="px-6 py-4 text-xs font-bold text-[var(--t-text3)] uppercase tracking-wider">Funding Source</th>
                             <th className="px-6 py-4 text-xs font-bold text-[var(--t-text3)] uppercase tracking-wider text-right">Amount Out</th>
+                            <th className="px-6 py-4 text-xs font-bold text-[var(--t-text3)] uppercase tracking-wider text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--t-border)]">
@@ -128,11 +182,14 @@ const PaymentsTab = ({ searchQuery = '' }) => {
                                         - {Number(p.amount).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                                     </span>
                                 </td>
+                                <td className="px-6 py-4 text-center">
+                                    <EmailButton paymentId={p.id} hasRecipient={p.has_email_recipient} />
+                                </td>
                             </tr>
                         ))}
                         {flattenedPayments.length === 0 && (
                             <tr>
-                                <td colSpan="5" className="px-6 py-10 text-center text-[var(--t-text3)] italic text-sm">No recorded payments found.</td>
+                                <td colSpan="6" className="px-6 py-10 text-center text-[var(--t-text3)] italic text-sm">No recorded payments found.</td>
                             </tr>
                         )}
                     </tbody>
@@ -170,16 +227,19 @@ const PaymentsTab = ({ searchQuery = '' }) => {
                                     <span className="text-[7px] font-['DM_Mono',monospace] text-[var(--t-text3)] mt-0.5 block">Ref: {p.reference_id}</span>
                                 )}
                             </div>
-                            {/* Amount */}
-                            <div className="text-right shrink-0">
+                            {/* Amount + actions */}
+                            <div className="text-right shrink-0 flex flex-col items-end gap-1">
                                 <p className="text-[16px] text-[var(--t-danger)] font-['Bebas_Neue',sans-serif] tracking-wide leading-none">
                                     -{Number(p.amount).toLocaleString('en-IN', { minimumFractionDigits: 0 })}
                                 </p>
                                 {p.proof_photo && (
                                     <a href={p.proof_photo} target="_blank" rel="noopener noreferrer"
-                                        className="text-[7px] font-['DM_Mono',monospace] text-[var(--t-primary)] uppercase tracking-widest border border-[var(--t-primary)]/30 px-1.5 py-0.5 rounded-[1px] mt-1 inline-block hover:bg-[var(--t-primary)]/10 transition-colors">
+                                        className="text-[7px] font-['DM_Mono',monospace] text-[var(--t-primary)] uppercase tracking-widest border border-[var(--t-primary)]/30 px-1.5 py-0.5 rounded-[1px] hover:bg-[var(--t-primary)]/10 transition-colors">
                                         📸 PROOF
                                     </a>
+                                )}
+                                {p.has_email_recipient && (
+                                    <EmailButton paymentId={p.id} hasRecipient={p.has_email_recipient} />
                                 )}
                             </div>
                         </div>

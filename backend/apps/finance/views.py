@@ -184,6 +184,43 @@ class PaymentViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         FinanceService.delete_payment(instance)
 
+    @action(detail=True, methods=['post'], url_path='email-receipt')
+    def email_receipt(self, request, pk=None):
+        """
+        Send a payment receipt email with PDF to the associated supplier or contractor.
+        """
+        payment = self.get_object()
+        
+        recipient = payment.expense.supplier or payment.expense.contractor
+        if not recipient:
+            return Response(
+                {"error": "This payment's expense does not have a supplier or contractor assigned."},
+                status=400
+            )
+            
+        if not recipient.email:
+            return Response(
+                {"error": f"The recipient ({recipient.name}) does not have an email address configured."},
+                status=400
+            )
+            
+        custom_subject = request.data.get('subject')
+        custom_message = request.data.get('message')
+        user_email = request.user.email if hasattr(request.user, 'email') else None
+
+        from apps.core.email_utils import send_payment_receipt_email
+        succ = send_payment_receipt_email(
+            payment=payment,
+            user_email=user_email,
+            custom_subject=custom_subject,
+            custom_message=custom_message
+        )
+
+        if succ:
+            return Response({"status": "Email sent successfully."})
+        else:
+            return Response({"error": "Failed to send email. Check logs for details."}, status=500)
+
 class FundingTransactionViewSet(viewsets.ModelViewSet):
     queryset = FundingTransaction.objects.all()
     serializer_class = FundingTransactionSerializer

@@ -92,3 +92,58 @@ def send_contractor_notification(contractor, subject, message):
     except Exception as e:
         print(f"Error sending email: {str(e)}")
         return False
+
+def send_payment_receipt_email(payment, user_email=None, custom_subject=None, custom_message=None):
+    """
+    Send an HTML email with PDF Payment Receipt to supplier or contractor.
+    """
+    recipient = payment.expense.supplier or payment.expense.contractor
+    if not recipient:
+        raise ValueError("Payment has no associated supplier or contractor")
+    
+    if not recipient.email:
+        raise ValueError(f"Recipient '{recipient.name}' has no email address")
+    
+    from .pdf_utils import generate_payment_receipt_pdf
+    
+    subject = custom_subject or f"Payment Receipt: REC-{payment.id} - Dream Home Construction"
+    
+    context = {
+        'recipient_name': recipient.contact_person or recipient.name,
+        'amount': str(payment.amount),
+        'date': payment.date.strftime('%Y-%m-%d') if payment.date else datetime.now().strftime('%Y-%m-%d'),
+        'method': payment.get_method_display(),
+        'reference_id': payment.reference_id or 'N/A',
+        'description': payment.expense.description,
+        'custom_message': custom_message,
+        'project_name': "Dream Home Construction"
+    }
+    
+    html_content = render_to_string('emails/payment_receipt_email.html', context)
+    text_content = strip_tags(html_content)
+    
+    try:
+        pdf_content = generate_payment_receipt_pdf(payment)
+    except Exception as pdf_err:
+        print(f"Failed to generate PDF: {pdf_err}")
+        pdf_content = None
+
+    try:
+        email = EmailMultiAlternatives(
+            subject=subject,
+            body=text_content,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[recipient.email],
+            reply_to=[user_email] if user_email else None
+        )
+        email.attach_alternative(html_content, "text/html")
+        
+        if pdf_content:
+            receipt_filename = f"PaymentReceipt_REC-{payment.id}_{datetime.now().strftime('%Y%m%d')}.pdf"
+            email.attach(receipt_filename, pdf_content, 'application/pdf')
+            
+        email.send()
+        return True
+    except Exception as e:
+        print(f"Error sending email: {str(e)}")
+        return False
