@@ -1,3 +1,7 @@
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { useConstruction } from '../../../context/ConstructionContext';
+import { dashboardService } from '../../../services/api';
+
 const EmailLogHistoryModal = ({ isOpen, onClose, logs, paymentTitle }) => {
     if (!isOpen) return null;
     return (
