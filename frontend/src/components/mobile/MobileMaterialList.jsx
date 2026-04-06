@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { dashboardService } from '../../../services/api';
-import Modal from '../../common/Modal';
-import SuccessModal from '../../common/SuccessModal';
-import WastageAlertPanel from '../../common/WastageAlertPanel';
-import { useConstruction } from '../../../context/ConstructionContext';
-import ConfirmModal from '../../common/ConfirmModal';
+import { dashboardService } from '../../services/api';
+import Modal from '../common/Modal';
+import { useConstruction } from '../../context/ConstructionContext';
+import SuccessModal from '../common/SuccessModal';
+import WastageAlertPanel from '../common/WastageAlertPanel';
+import ConfirmModal from '../common/ConfirmModal';
 
-const MaterialsTab = ({ searchQuery = '' }) => {
+const MobileMaterialList = ({ searchQuery = '' }) => {
     const { dashboardData, refreshData, formatCurrency } = useConstruction();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
@@ -23,6 +23,7 @@ const MaterialsTab = ({ searchQuery = '' }) => {
     const [emailSubject, setEmailSubject] = useState('');
     const [emailBody, setEmailBody] = useState('');
     const [successModalInfo, setSuccessModalInfo] = useState({ isOpen: false, title: '', message: '', supplierName: '' });
+    const [expandedId, setExpandedId] = useState(null);
 
     // Confirmation Modal System
     const [confirmConfig, setConfirmConfig] = useState({ isOpen: false });
@@ -337,190 +338,54 @@ const MaterialsTab = ({ searchQuery = '' }) => {
                 </div>
             )}
 
-            <div className="bg-[var(--t-surface)] rounded-3xl border border-[var(--t-border)] shadow-xl overflow-hidden">
-                {/* Desktop View: Table */}
-                <div className="hidden lg:block overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead className="bg-[var(--t-surface2)] text-[10px] font-black uppercase text-[var(--t-text3)] tracking-wider">
-                            <tr>
-                                <th className="px-6 py-4">Material (सामाग्री)</th>
-                                <th className="px-6 py-4">Status / Alert</th>
-                                <th className="px-6 py-4 text-center">Current Stock</th>
-                                <th className="px-6 py-4 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[var(--t-border)]">
-                            {sortedMaterials.map(m => {
-                                const isLow = Number(m.current_stock) <= Number(m.min_stock_level);
-                                const pendingQty = pendingStockMap[m.id] || 0;
+            <div className="space-y-2 pb-[120px]">
+                {sortedMaterials.length === 0 && (
+                    <div className="text-center py-14 text-[var(--t-text3)]">
+                        <div className="text-3xl mb-2">🧱</div>
+                        <p className="text-sm font-semibold">No materials found</p>
+                    </div>
+                )}
+                {sortedMaterials.map(m => {
+                    const isLow = Number(m.current_stock) <= Number(m.min_stock_level);
+                    const pendingQty = pendingStockMap[m.id] || 0;
 
-                                return (
-                                    <tr key={m.id} className="hover:bg-[var(--t-surface2)]/80 transition-all duration-200 group">
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-10 h-10 rounded-xl bg-[var(--t-nav-active-bg)] flex items-center justify-center text-xl font-bold text-[var(--t-primary)] overflow-hidden shrink-0 border border-[var(--t-primary)]/10">
-                                                    {m.image ? (
-                                                        <img src={m.image} alt={m.name} className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        m.name.charAt(0)
-                                                    )}
-                                                </div>
-                                                <div>
-                                                    <div className="font-bold text-[var(--t-text)] text-sm flex items-center gap-2">
-                                                        {m.name}
-                                                        {pendingQty > 0 && (
-                                                            <span className="bg-orange-500/10 text-orange-500 text-[8px] px-1.5 py-0.5 rounded-full border border-orange-500/20 animate-pulse">
-                                                                🚛 INCOMING: {pendingQty}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <div className="text-[10px] uppercase font-black text-[var(--t-text3)] flex items-center gap-2">
-                                                        <span>{m.category_name || 'General'}</span>
-                                                        <span className="w-1 h-1 bg-[var(--t-border)] rounded-full" />
-                                                        <span>{m.unit}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex flex-wrap gap-2">
-                                                {isLow && (
-                                                    <span className="bg-[var(--t-danger)]/10 text-[var(--t-danger)] text-[9px] font-black px-2 py-0.5 rounded-full border border-[var(--t-danger)]/20 flex items-center gap-1 uppercase">
-                                                        <span className="w-1 h-1 bg-[var(--t-danger)] rounded-full animate-ping" />
-                                                        Low Stock Alert
-                                                    </span>
-                                                )}
-                                                <span className="bg-[var(--t-surface2)] text-[var(--t-text2)] text-[9px] font-bold px-2 py-0.5 rounded-full border border-[var(--t-border)] uppercase">
-                                                    Min: {m.min_stock_level}
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="text-center">
-                                                <div className={`text-sm font-black ${isLow ? 'text-[var(--t-danger)]' : 'text-[var(--t-text)]'}`}>
-                                                    {m.current_stock}
-                                                    <span className="text-[10px] font-bold text-[var(--t-text3)] ml-1 uppercase">{m.unit}</span>
-                                                </div>
-                                                {pendingQty > 0 && (
-                                                    <div className="text-[9px] font-bold text-orange-500 mt-0.5 whitespace-nowrap">
-                                                        + {pendingQty} Expected
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-right space-x-3">
-                                            <button
-                                                onClick={() => handleOpenEmailModal(m)}
-                                                disabled={actionLoading === `email_${m.id}`}
-                                                className={`font-extrabold text-[9px] uppercase transition-all px-2 py-1 rounded border ${actionLoading === `email_${m.id}`
-                                                    ? 'bg-[var(--t-surface3)] text-[var(--t-text3)] border-[var(--t-border)]'
-                                                    : 'text-[var(--t-primary)] hover:opacity-80 border-[var(--t-primary)]/20 hover:border-[var(--t-primary)]/30 bg-[var(--t-primary)]/5'
-                                                    }`}
-                                                title="Order from Supplier"
-                                            >
-                                                {actionLoading === `email_${m.id}` ? '📧 Sending...' : '📧 Order'}
-                                            </button>
-                                            <button
-                                                onClick={() => handleRecalculate(m.id)}
-                                                disabled={actionLoading === m.id}
-                                                className={`font-extrabold text-[9px] uppercase transition-all px-1.5 py-0.5 rounded border ${actionLoading === m.id
-                                                    ? 'bg-[var(--t-surface3)] text-[var(--t-text3)] border-[var(--t-border)]'
-                                                    : 'text-[var(--t-text3)] hover:text-[var(--t-primary)] hover:bg-[var(--t-nav-active-bg)] border-transparent hover:border-[var(--t-border)]'
-                                                    }`}
-                                                title="Audit Stock"
-                                            >
-                                                {actionLoading === m.id ? 'Auditing...' : 'Audit Stock'}
-                                            </button>
-                                            <button onClick={() => handleOpenModal(m)} className="text-[var(--t-primary)] hover:text-[var(--t-primary)] font-bold text-[10px] uppercase tracking-wider">Edit</button>
-                                            <button onClick={() => handleDelete(m.id)} className="text-[var(--t-danger)] hover:opacity-70 font-bold text-[10px] uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity">Delete</button>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-
-                {/* Mobile View: Cards */}
-                <div className="lg:hidden p-4 space-y-4">
-                    {sortedMaterials.map(m => {
-                        const isLow = Number(m.current_stock) <= Number(m.min_stock_level);
-                        const pendingQty = pendingStockMap[m.id] || 0;
-
-                        return (
-                            <div key={m.id} className="bg-[var(--t-surface2)]/50 rounded-2xl p-4 border border-[var(--t-border)]">
-                                <div className="flex justify-between items-start mb-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-12 h-12 rounded-xl bg-[var(--t-surface)] border border-[var(--t-border)] flex items-center justify-center text-xl font-bold text-[var(--t-primary)] overflow-hidden shadow-sm">
-                                            {m.image ? (
-                                                <img src={m.image} alt={m.name} className="w-full h-full object-cover" />
-                                            ) : (
-                                                m.name.charAt(0)
-                                            )}
-                                        </div>
-                                        <div>
-                                            <h3 className="font-bold text-[var(--t-text)] text-base leading-tight">
-                                                {m.name}
-                                            </h3>
-                                            <div className="text-[10px] font-black text-[var(--t-primary)] uppercase tracking-widest mt-0.5">
-                                                {m.category_name}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <div className="text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest mb-1">Available</div>
-                                        <div className={`text-lg font-black leading-none ${isLow ? 'text-[var(--t-danger)]' : 'text-[var(--t-text)]'}`}>
-                                            {m.current_stock}
-                                            <span className="text-xs font-bold text-[var(--t-text3)] ml-1">{m.unit}</span>
-                                        </div>
-                                    </div>
+                    return (
+                        <div key={m.id} 
+                            onClick={() => handleOpenModal(m)}
+                            className="bg-[var(--t-surface)] border-b border-[var(--t-border)] p-3 flex items-center justify-between hover:bg-[var(--t-surface2)] active:bg-[var(--t-surface2)] cursor-pointer transition-colors"
+                        >
+                            {/* Left: Material Info */}
+                            <div className="flex flex-col min-w-0 pr-3">
+                                <div className="flex items-center gap-2">
+                                    <span className="font-bold text-[14px] text-[var(--t-text)] truncate">{m.name}</span>
+                                    {isLow && <span className="text-[12px] animate-pulse">⚠️</span>}
+                                    {pendingQty > 0 && <span className="text-[12px]" title="Incoming">🚚</span>}
                                 </div>
-
-                                {(isLow || pendingQty > 0) && (
-                                    <div className="flex flex-wrap gap-2 mb-4">
-                                        {isLow && (
-                                            <span className="bg-[var(--t-danger)]/10 text-[var(--t-danger)] text-[9px] font-black px-2 py-1 rounded-lg border border-[var(--t-danger)]/20 uppercase tracking-tight">
-                                                Low Stock Alert
-                                            </span>
-                                        )}
-                                        {pendingQty > 0 && (
-                                            <span className="bg-orange-500/10 text-orange-500 text-[9px] font-black px-2 py-1 rounded-lg border border-orange-500/20 uppercase tracking-tight">
-                                                🚛 {pendingQty} INCOMING
-                                            </span>
-                                        )}
-                                    </div>
-                                )}
-
-                                <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-[var(--t-border)]">
-                                    <button
-                                        onClick={() => handleOpenEmailModal(m)}
-                                        className="py-2.5 bg-[var(--t-primary)] text-[var(--t-bg)] rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1.5"
-                                    >
-                                        📧 Order
-                                    </button>
-                                    <button
-                                        onClick={() => handleRecalculate(m.id)}
-                                        className="py-2.5 bg-[var(--t-nav-active-bg)] text-[var(--t-nav-active-text)] rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-1.5"
-                                    >
-                                        Audit Stock
-                                    </button>
-                                    <button
-                                        onClick={() => handleOpenModal(m)}
-                                        className="py-2.5 bg-[var(--t-surface2)] text-[var(--t-text2)] rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-1.5"
-                                    >
-                                        Edit
-                                    </button>
-                                    <button
-                                        onClick={() => handleDelete(m.id)}
-                                        className="py-2.5 bg-[var(--t-danger)]/10 text-[var(--t-danger)] rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-1.5"
-                                    >
-                                        Delete
-                                    </button>
-                                </div>
+                                <span className="text-[11px] text-[var(--t-text3)] truncate">{m.category_name || 'General'}</span>
                             </div>
-                        );
-                    })}
-                </div>
+                            
+                            {/* Right: Quantity and Action inline */}
+                            <div className="flex items-center gap-3 shrink-0">
+                                <div className="text-right flex flex-col justify-center">
+                                    <span className={`font-black text-[16px] leading-none ${isLow ? 'text-[var(--t-danger)]' : 'text-[var(--t-text)]'}`}>
+                                        {m.current_stock}
+                                    </span>
+                                    <span className="text-[9px] uppercase font-bold text-[var(--t-text3)] mt-[2px]">{m.unit}</span>
+                                </div>
+                                
+                                {isLow && (
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); handleOpenEmailModal(m); }}
+                                        disabled={actionLoading === `email_${m.id}`}
+                                        className="h-7 px-3 text-[10px] font-bold uppercase bg-orange-500/10 text-orange-600 rounded-md border border-orange-500/20 active:scale-95 transition-all"
+                                    >
+                                        {actionLoading === `email_${m.id}` ? '...' : 'Order'}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`${editingItem ? 'Edit' : 'Add'} Material`}>
@@ -672,4 +537,4 @@ const MaterialsTab = ({ searchQuery = '' }) => {
     );
 };
 
-export default MaterialsTab;
+export default MobileMaterialList;

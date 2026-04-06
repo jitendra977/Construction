@@ -2,11 +2,17 @@ import React, { useState, useEffect } from 'react';
 import Modal from './Modal';
 import { useConstruction } from '../../context/ConstructionContext';
 import { dashboardService } from '../../services/api';
+import ConfirmModal from './ConfirmModal';
 
 const ExpenseDetailModal = ({ isOpen, onClose, expenseId }) => {
     const { dashboardData, refreshData, formatCurrency } = useConstruction();
     const [isPaymentFormOpen, setIsPaymentFormOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+
+    // Confirmation Modal System
+    const [confirmConfig, setConfirmConfig] = useState({ isOpen: false });
+    const showConfirm = (config) => setConfirmConfig({ ...config, isOpen: true });
+    const closeConfirm = () => setConfirmConfig({ ...confirmConfig, isOpen: false });
 
     const expense = dashboardData.expenses?.find(e => e.id === expenseId);
 
@@ -85,6 +91,7 @@ const ExpenseDetailModal = ({ isOpen, onClose, expenseId }) => {
     };
 
     return (
+        <>
         <Modal isOpen={isOpen} onClose={onClose} title="Expense Details" maxWidth="max-w-4xl">
             <div className="flex flex-col h-full max-h-[85vh] overflow-hidden">
                 {/* Header Summary */}
@@ -376,15 +383,23 @@ const ExpenseDetailModal = ({ isOpen, onClose, expenseId }) => {
                                                         <div className="text-[10px] text-green-600 font-black uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity mt-1">Confirmed</div>
                                                     </div>
                                                     <button
-                                                        onClick={async () => {
-                                                            if (window.confirm('Delete this payment installment?')) {
-                                                                try {
-                                                                    await dashboardService.deletePayment(payment.id);
-                                                                    refreshData();
-                                                                } catch (error) {
-                                                                    alert('Failed to delete payment');
+                                                        onClick={() => {
+                                                            showConfirm({
+                                                                title: "Delete Payment Installment?",
+                                                                message: "Are you sure you want to remove this payment record? The balance due will be recalculated and the funding source will be credited back. This action is irreversible.",
+                                                                confirmText: "Yes, Delete Payment",
+                                                                type: "danger",
+                                                                onConfirm: async () => {
+                                                                    try {
+                                                                        await dashboardService.deletePayment(payment.id);
+                                                                        refreshData();
+                                                                        closeConfirm();
+                                                                    } catch (error) {
+                                                                        alert('Failed to delete payment');
+                                                                        closeConfirm();
+                                                                    }
                                                                 }
-                                                            }
+                                                            });
                                                         }}
                                                         className="p-2 text-red-100 group-hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                                                         title="Delete Payment"
@@ -408,7 +423,25 @@ const ExpenseDetailModal = ({ isOpen, onClose, expenseId }) => {
                 {/* Footer Actions */}
                 <div className="p-6 border-t border-gray-100 flex justify-between items-center bg-gray-50/50">
                     <button
-                        onClick={() => { if (window.confirm('Delete this expense?')) dashboardService.deleteExpense(expense.id).then(() => { refreshData(); onClose(); }) }}
+                        onClick={() => {
+                            showConfirm({
+                                title: "Delete Expense Record?",
+                                message: "Are you sure you want to permanently delete this expense? All associated payment records will also be removed. This action is irreversible.",
+                                confirmText: "Yes, Delete Expense",
+                                type: "danger",
+                                onConfirm: async () => {
+                                    try {
+                                        await dashboardService.deleteExpense(expense.id);
+                                        refreshData();
+                                        closeConfirm();
+                                        onClose();
+                                    } catch (error) {
+                                        alert('Failed to delete expense');
+                                        closeConfirm();
+                                    }
+                                }
+                            });
+                        }}
                         className="px-6 py-2.5 text-xs font-black text-red-400 uppercase tracking-widest hover:text-red-600 transition-colors"
                     >
                         Delete Record
@@ -451,6 +484,17 @@ const ExpenseDetailModal = ({ isOpen, onClose, expenseId }) => {
                 </div>
             </div>
         </Modal>
+
+        <ConfirmModal 
+            isOpen={confirmConfig.isOpen}
+            title={confirmConfig.title}
+            message={confirmConfig.message}
+            confirmText={confirmConfig.confirmText}
+            onConfirm={confirmConfig.onConfirm}
+            onCancel={closeConfirm}
+            type={confirmConfig.type || 'warning'}
+        />
+        </>
     );
 };
 

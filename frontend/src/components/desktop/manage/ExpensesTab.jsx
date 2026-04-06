@@ -4,6 +4,7 @@ import Modal from '../../common/Modal';
 import { useConstruction } from '../../../context/ConstructionContext';
 import ExpenseDetailModal from '../../common/ExpenseDetailModal';
 import PdfExportButton from '../../common/PdfExportButton';
+import ConfirmModal from '../../common/ConfirmModal';
 
 // Redesigned Sub-components
 import SummaryCards from './expenses/SummaryCards';
@@ -30,6 +31,11 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
     });
     const [photoPreview, setPhotoPreview] = useState(null);
 
+    // Confirmation Modal System
+    const [confirmConfig, setConfirmConfig] = useState({ isOpen: false });
+    const showConfirm = (config) => setConfirmConfig({ ...config, isOpen: true });
+    const closeConfirm = () => setConfirmConfig({ ...confirmConfig, isOpen: false });
+
     const filteredExpenses = dashboardData.expenses?.filter(e =>
         e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         e.paid_to?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -54,14 +60,23 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
         setIsModalOpen(true);
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this Expense?')) return;
-        try {
-            await dashboardService.deleteExpense(id);
-            refreshData();
-        } catch (error) {
-            alert('Delete failed.');
-        }
+    const handleDelete = (id) => {
+        showConfirm({
+            title: "Delete Expense Record?",
+            message: "Are you sure you want to permanently remove this expense line? This will affect your current budget balance and financial history. This action is irreversible.",
+            confirmText: "Yes, Delete Record",
+            type: "danger",
+            onConfirm: async () => {
+                try {
+                    await dashboardService.deleteExpense(id);
+                    refreshData();
+                    closeConfirm();
+                } catch (error) {
+                    alert('Delete failed.');
+                    closeConfirm();
+                }
+            }
+        });
     };
 
     const handleSubmit = async (e) => {
@@ -724,6 +739,16 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
                 isOpen={isDetailModalOpen}
                 onClose={() => setIsDetailModalOpen(false)}
                 expenseId={selectedExpenseId}
+            />
+
+            <ConfirmModal 
+                isOpen={confirmConfig.isOpen}
+                title={confirmConfig.title}
+                message={confirmConfig.message}
+                confirmText={confirmConfig.confirmText}
+                onConfirm={confirmConfig.onConfirm}
+                onCancel={closeConfirm}
+                type={confirmConfig.type || 'warning'}
             />
         </div>
     );

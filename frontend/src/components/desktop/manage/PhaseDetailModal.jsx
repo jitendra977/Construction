@@ -57,7 +57,7 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks, initialMode = 'read' 
             setIsDirty(false);
             setIsEditing(initialMode === 'edit');
         }
-    }, [phase.id]);
+    }, [phase?.id]);
 
     const handleLocalChange = (field, value) => {
         setLocalPhase(prev => ({ ...prev, [field]: value }));
@@ -667,15 +667,8 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks, initialMode = 'read' 
                     </div>
 
                     {isEditing && (
-                        <button onClick={async () => {
-                            if (window.confirm("FATAL ERROR: Decommission this structural node?")) {
-                                try {
-                                    await constructionService.deletePhase(phase.id);
-                                    refreshData();
-                                    onClose();
-                                } catch (e) { alert("Decommissioning failed."); }
-                            }
-                        }} className="w-full py-2 border border-[var(--t-danger)]/30 text-[var(--t-danger)] text-[9px] font-black uppercase tracking-[.3em] rounded-sm hover:bg-[var(--t-danger)] hover:text-white transition-all">
+                        <button onClick={() => setDeleteConfirmTarget({ id: phase.id, type: 'PHASE', title: phase.name })}
+                            className="w-full py-2 border border-[var(--t-danger)]/30 text-[var(--t-danger)] text-[9px] font-black uppercase tracking-[.3em] rounded-sm hover:bg-[var(--t-danger)] hover:text-white transition-all">
                             Decommission Phase
                         </button>
                     )}
@@ -698,14 +691,26 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks, initialMode = 'read' 
 
             <ConfirmModal 
                 isOpen={!!deleteConfirmTarget}
-                title={`Purge ${deleteConfirmTarget?.type === 'TASK' ? 'Structural Unit' : 'Resource'}`}
-                message={`Are you sure you want to mark "${deleteConfirmTarget?.title}" for extraction? This will be finalized on next global sync.`}
-                confirmText="Mark for Extraction"
-                cancelText="Retain Unit"
+                title={`Purge ${deleteConfirmTarget?.type === 'TASK' ? 'Structural Unit' : deleteConfirmTarget?.type === 'PHASE' ? 'Entire Phase' : 'Resource'}`}
+                message={deleteConfirmTarget?.type === 'PHASE' 
+                    ? `FATAL: Are you sure you want to permanently decommission "${deleteConfirmTarget?.title}"? All associated tasks, materials, and expense records will be removed. This action is irreversible.`
+                    : `Are you sure you want to mark "${deleteConfirmTarget?.title}" for extraction? This will be finalized on next global sync.`}
+                confirmText={deleteConfirmTarget?.type === 'PHASE' ? 'Decommission Phase' : 'Mark for Extraction'}
+                cancelText={deleteConfirmTarget?.type === 'PHASE' ? 'Abort' : 'Retain Unit'}
                 type="danger"
-                onConfirm={() => {
+                onConfirm={async () => {
                     if (deleteConfirmTarget.type === 'TASK') {
                         handleMarkTaskForDeletion(deleteConfirmTarget.id);
+                    } else if (deleteConfirmTarget.type === 'PHASE') {
+                        try {
+                            await constructionService.deletePhase(deleteConfirmTarget.id);
+                            refreshData();
+                            setDeleteConfirmTarget(null);
+                            onClose();
+                        } catch (e) { 
+                            alert("Decommissioning failed."); 
+                            setDeleteConfirmTarget(null);
+                        }
                     } else {
                         setPendingExpenseDeletions(prev => new Set([...prev, deleteConfirmTarget.id]));
                         setIsDirty(true);

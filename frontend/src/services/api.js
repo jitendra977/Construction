@@ -74,6 +74,7 @@ api.interceptors.response.use(
 export const dashboardService = {
     // Project
     getProjects: () => api.get('/projects/'),
+    updateProject: (id, data) => api.patch(`/projects/${id}/`, data),
 
     // Phases & Floors
     getPhases: () => api.get('/phases/'),

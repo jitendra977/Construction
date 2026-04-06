@@ -11,26 +11,26 @@
   --bg-main: #f8fafc;
   --glass-bg: rgba(255, 255, 255, 0.7);
   
-  /* Extreme Style Lab Tokens */
-  --body-font: 'Space Grotesk';
-  --body-scale: 0.95;
+  /* Font Tokens — all unified to Outfit to match sidebar */
+  --body-font: 'Outfit';
+  --body-scale: 1;
   --body-weight: 400;
-  --body-spacing: 0.01em;
+  --body-spacing: 0em;
   --font-weight-global: 500;
   
-  --title-font: 'Space Grotesk';
+  --title-font: 'Outfit';
   --title-scale: 1.4;
   --title-weight: 900;
   --title-spacing: -0.01em;
   --title-transform: none;
 
-  --subtitle-font: 'Space Grotesk';
+  --subtitle-font: 'Outfit';
   --subtitle-scale: 0.75;
   --subtitle-weight: 800;
   --subtitle-spacing: 0.08em;
   --subtitle-transform: uppercase;
 
-  --header-font: 'Space Grotesk';
+  --header-font: 'Outfit';
   --header-scale: 2.0;
   --header-weight: 900;
   --header-spacing: -0.02em;
@@ -38,6 +38,11 @@
 }
 
 @layer base {
+  html {
+    /* Scale the entire app up — all rem-based sizes inherit this */
+    font-size: 17px;
+  }
+
   *, ::before, ::after {
     border-color: #e2e8f0;
     font-family: inherit;
@@ -94,7 +99,20 @@
     text-transform: var(--header-transform) !important;
   }
 
-  .mono { font-family: 'JetBrains Mono', monospace; }
+  .mono { font-family: 'Outfit', sans-serif; }
+
+  /* ── Global container width override ──────────────────────────────
+     All desktop pages use max-w-7xl. Override here to give more
+     screen real-estate without touching 30+ individual components.
+  ─────────────────────────────────────────────────────────────────── */
+  .max-w-7xl {
+    max-width: 1600px !important;
+  }
+  /* ExpensesTab inner container */
+  .max-w-\[1400px\] {
+    max-width: 1600px !important;
+  }
+
 
   .scrollbar-hide::-webkit-scrollbar {
     display: none;

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useConstruction } from '../../context/ConstructionContext';
 import PhasesTab from './manage/PhasesTab';
 import FloorsTab from './manage/FloorsTab';
-
 import CategoriesTab from './manage/CategoriesTab';
 import ExpensesTab from './manage/ExpensesTab';
 import ContractorsTab from './manage/ContractorsTab';
@@ -27,40 +26,46 @@ const DesktopManage = () => {
     const sections = [
         {
             id: 'structure',
-            label: 'Structure (संरचना)',
-            description: 'Phases, Floors & Rooms',
+            label: 'Structure',
+            labelNe: 'संरचना',
+            description: 'Phases, Floors & Logic',
             icon: '🏗️',
-            color: 'from-blue-500 to-indigo-600',
+            accent: 'var(--t-primary)',
+            bgGlow: 'rgba(59, 130, 246, 0.1)',
             tabs: [
-                { id: 'phases', label: 'Schedule (कार्यतालिका)' },
-                { id: 'floors', label: 'Structure (संरचना)' },
+                { id: 'phases', label: 'Schedule', labelNe: 'कार्यतालिका' },
+                { id: 'floors', label: 'Structure', labelNe: 'संरचना' },
             ]
         },
         {
             id: 'finance',
-            label: 'Finance (आर्थिक)',
-            description: 'Funding & Expenses',
+            label: 'Finance',
+            labelNe: 'आर्थिक',
+            description: 'Banking & Budgeting',
             icon: '💰',
-            color: 'from-emerald-500 to-teal-600',
+            accent: '#10b981', // Emerald
+            bgGlow: 'rgba(16, 185, 129, 0.1)',
             tabs: [
-                { id: 'overview', label: 'Overview (सारांश)' },
-                { id: 'funding', label: 'Funding (लगानी)' },
-                { id: 'categories', label: 'Categories (शिर्षक)' },
-                { id: 'expenses', label: 'Expenses (खर्च)' },
-                { id: 'payments', label: 'Payments (भुक्तानी)' },
+                { id: 'overview', label: 'Overview', labelNe: 'सारांश' },
+                { id: 'funding', label: 'Funding', labelNe: 'लगानी' },
+                { id: 'categories', label: 'Categories', labelNe: 'शिर्षक' },
+                { id: 'expenses', label: 'Expenses', labelNe: 'खर्च' },
+                { id: 'payments', label: 'Payments', labelNe: 'भुक्तानी' },
             ]
         },
         {
             id: 'resources',
-            label: 'Resources (श्रोत/साधन)',
-            description: 'Materials & Labour',
+            label: 'Inventory',
+            labelNe: 'श्रोत/साधन',
+            description: 'Suppliers & Stock',
             icon: '📦',
-            color: 'from-orange-500 to-red-600',
+            accent: '#f59e0b', // Amber
+            bgGlow: 'rgba(245, 158, 11, 0.1)',
             tabs: [
-                { id: 'suppliers', label: 'Suppliers (सप्लायर्स)' },
-                { id: 'contractors', label: 'Contractors (ठेकेदार)' },
-                { id: 'materials', label: 'Materials (सामग्री)' },
-                { id: 'stock', label: 'Stock (मौज्दात)' },
+                { id: 'suppliers', label: 'Suppliers', labelNe: 'सप्लायर्स' },
+                { id: 'contractors', label: 'Contractors', labelNe: 'ठेकेदार' },
+                { id: 'materials', label: 'Materials', labelNe: 'सामग्री' },
+                { id: 'stock', label: 'Stock', labelNe: 'मौज्दात' },
             ]
         }
     ];
@@ -77,148 +82,167 @@ const DesktopManage = () => {
 
     const handleResolve = (type, data) => {
         if (type === 'UNASSIGNED_BUDGET') {
-            setActiveSection('finance');
-            setActiveTab('categories');
+            setActiveSection('finance'); setActiveTab('categories');
             setResolveMetadata({ highlightId: data.category_id, expand: true });
-        } else if (type === 'SYNC_MISMATCH' || type === 'OVER_ALLOCATED_CAT') {
-            setActiveSection('finance');
-            setActiveTab('categories');
-        } else if (type === 'PHASE_OVERLOAD' || type === 'OVER_ALLOCATED_PHASE') {
-            setActiveSection('structure');
-            setActiveTab('phases');
+        } else if (['SYNC_MISMATCH', 'OVER_ALLOCATED_CAT'].includes(type)) {
+            setActiveSection('finance'); setActiveTab('categories');
+        } else if (['PHASE_OVERLOAD', 'OVER_ALLOCATED_PHASE'].includes(type)) {
+            setActiveSection('structure'); setActiveTab('phases');
         }
     };
 
     return (
-        <div className="min-h-screen bg-[var(--t-bg)] font-sans transition-colors duration-300">
-            {/* Header Section */}
-            <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 shadow-xl pb-16 pt-8 px-6 relative overflow-hidden">
-                <div className="max-w-7xl mx-auto relative z-10">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                        <div>
-                            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                                <span>🛠️</span>
-                                Project Management
-                            </h1>
-                            <p className="text-emerald-100 mt-2 text-lg">
-                                Configure and manage building details, budget, and resources.
-                            </p>
-                        </div>
-                        {/* Integrated Search Bar */}
-                        <div className="relative w-full md:w-96">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-200">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
+        <div className="min-h-screen bg-[var(--t-bg)] flex flex-col font-sans transition-all duration-500">
+            {/* Header — matched to Dashboard proportions */}
+            <div className="relative pt-8 pb-16 px-6 overflow-hidden border-b border-[var(--t-border)] bg-[var(--t-surface)]">
+                <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-[var(--t-primary)]/5 blur-[100px] -mr-48 -mt-48 rounded-full pointer-events-none" />
+                <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-emerald-500/5 blur-[80px] -ml-32 -mb-32 rounded-full pointer-events-none" />
+
+                <div className="max-w-7xl mx-auto relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+                    <div className="space-y-1.5">
+                        <div className="flex items-center gap-3 mb-1">
+                            <span className="px-2.5 py-0.5 bg-[var(--t-primary)]/10 text-[var(--t-primary)] rounded-full text-[10px] font-black uppercase tracking-widest border border-[var(--t-primary)]/20">Intelligence Center</span>
+                            <span className="relative flex h-2.5 w-2.5">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--t-primary2)] opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[var(--t-primary2)]"></span>
                             </span>
+                        </div>
+                        <h1 className="text-3xl font-black tracking-tight" style={{ color: 'var(--t-text)' }}>
+                            Project <span className="opacity-40">Intelligence</span>
+                        </h1>
+                        <p className="text-[var(--t-text2)] font-medium text-sm max-w-lg leading-relaxed opacity-80">
+                            Configure construction architecture, streamline funding, and manage resources.
+                        </p>
+                    </div>
+
+                    {/* Search */}
+                    <div className="relative w-full md:w-[320px] group transition-all">
+                        <div className="relative bg-[var(--t-bg)]/40 backdrop-blur-sm border border-[var(--t-border)] rounded-xl flex items-center group-focus-within:border-[var(--t-primary)] transition-all px-3 py-2 gap-2">
+                            <span className="text-[var(--t-text3)] opacity-60 text-sm">🔍</span>
                             <input
                                 type="text"
-                                placeholder={`Search in ${tabs.find(t => t.id === activeTab)?.label}...`}
+                                placeholder={`Search ${tabs.find(t => t.id === activeTab)?.label}...`}
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-12 pr-4 py-3 bg-[var(--t-surface)]/10 backdrop-blur-md border border-emerald-400/30 rounded-xl text-white placeholder-emerald-200/70 focus:ring-2 focus:ring-white/50 focus:border-white/50 transition-all outline-none font-medium shadow-lg"
+                                className="flex-1 bg-transparent text-sm font-bold outline-none placeholder-[var(--t-text3)]/50"
+                                style={{ color: 'var(--t-text)' }}
                             />
+                            {searchQuery && (
+                                <button onClick={() => setSearchQuery('')} className="text-xs opacity-40 hover:opacity-100 text-[var(--t-text3)]">✕</button>
+                            )}
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Main Content Container - Overlap Effect */}
-            <div className="max-w-7xl mx-auto px-6 -mt-8 relative z-20 pb-12">
-                {/* Section Selector Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            {/* Section Cards — compact, matched to Dashboard card sizes */}
+            <div className="max-w-7xl mx-auto px-6 -mt-6 relative z-20 w-full">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {sections.map(section => (
                         <button
                             key={section.id}
                             onClick={() => handleSectionChange(section.id)}
-                            className={`relative overflow-hidden p-5 rounded-2xl border transition-all duration-300 text-left group ${activeSection === section.id
-                                ? 'bg-[var(--t-surface)] border-[var(--t-primary)] shadow-xl ring-2 ring-[var(--t-primary)]/30 ring-offset-2 ring-offset-[var(--t-bg)] transform -translate-y-1'
-                                : 'bg-[var(--t-surface)]/80 border-white/50 hover:bg-[var(--t-surface)] hover:border-white shadow-sm hover:shadow-md backdrop-blur-sm'
-                                }`}
+                            className={`relative group bg-[var(--t-surface)] border border-[var(--t-border)] p-4 rounded-2xl transition-all hover:shadow-lg overflow-hidden text-left ${activeSection === section.id
+                                ? 'shadow-md border-[var(--t-primary)] ring-1 ring-[var(--t-primary)]/20'
+                                : 'opacity-80 hover:opacity-100 hover:-translate-y-0.5'}`}
                         >
-                            <div className={`p-3 rounded-xl inline-flex mb-3 transition-colors ${activeSection === section.id ? 'bg-gradient-to-br ' + section.color + ' text-white shadow-lg' : 'bg-[var(--t-surface3)] text-[var(--t-text2)] group-hover:bg-gray-200'}`}>
-                                <span className="text-2xl">{section.icon}</span>
-                            </div>
-                            <h3 className={`text-lg font-bold ${activeSection === section.id ? 'text-[var(--t-text)]' : 'text-[var(--t-text2)]'}`}>{section.label}</h3>
-                            <p className="text-sm text-[var(--t-text3)] mt-1 font-medium">{section.description}</p>
-
-                            {/* Active Indicator */}
                             {activeSection === section.id && (
-                                <div className="absolute top-0 right-0 p-3">
-                                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                                </div>
+                                <div className="absolute inset-0 transition-opacity pointer-events-none" style={{ background: `radial-gradient(circle at top right, ${section.bgGlow}, transparent)` }} />
                             )}
+
+                            <div className="relative z-10 flex items-center gap-4">
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl shadow-sm shrink-0 transition-transform group-hover:scale-105 ${activeSection === section.id ? 'bg-[var(--t-primary)] text-white shadow-md shadow-[var(--t-primary)]/20' : 'bg-[var(--t-bg)]'}`}>
+                                    {section.icon}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="text-sm font-black tracking-tight truncate" style={{ color: activeSection === section.id ? 'var(--t-text)' : 'var(--t-text2)' }}>{section.label}</h3>
+                                        <span className="text-[9px] font-black opacity-30 uppercase tracking-tight">{section.labelNe}</span>
+                                    </div>
+                                    <p className="text-[10px] font-bold uppercase tracking-wide opacity-40 mt-0.5">{section.description}</p>
+                                </div>
+                                {activeSection === section.id && (
+                                    <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: section.accent, boxShadow: `0 0 6px ${section.accent}` }} />
+                                )}
+                            </div>
                         </button>
                     ))}
                 </div>
+            </div>
 
-                {/* Main Content Card */}
-                <div className="bg-[var(--t-surface)] rounded-2xl shadow-sm border border-[var(--t-border)] overflow-hidden min-h-[600px]">
-                    <div className="border-b border-[var(--t-border)] bg-[var(--t-surface)]/80 sticky top-0 z-30 backdrop-blur-md">
-                        <div className="flex overflow-x-auto no-scrollbar px-2">
+            {/* Workspace Area */}
+            <div className="max-w-7xl mx-auto px-6 mt-6 w-full pb-12">
+                <div className="bg-[var(--t-surface)] rounded-2xl border border-[var(--t-border)] shadow-sm overflow-hidden flex flex-col min-h-[600px]">
+                    {/* Tab Bar — tighter, like Dashboard's nav */}
+                    <div className="border-b border-[var(--t-border)] bg-[var(--t-surface2)]/30 backdrop-blur sticky top-0 z-30">
+                        <div className="flex overflow-x-auto no-scrollbar px-4">
                             {tabs.map((tab) => (
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
-                                    className={`relative min-w-[120px] px-6 py-4 text-sm font-bold uppercase tracking-wide transition-all duration-300 ${activeTab === tab.id
-                                        ? 'text-[var(--t-primary)] bg-[var(--t-surface)] shadow-[0_-2px_10px_rgba(0,0,0,0.02)] z-10'
-                                        : 'text-[var(--t-text2)] hover:text-[var(--t-text2)] hover:bg-[var(--t-surface3)]/50'
-                                        }`}
+                                    className={`group relative px-6 py-4 text-sm font-bold uppercase tracking-wide transition-all duration-200 whitespace-nowrap flex flex-col items-center gap-1 ${activeTab === tab.id
+                                        ? 'text-[var(--t-primary)]'
+                                        : 'text-[var(--t-text3)] hover:text-[var(--t-text)] opacity-70 hover:opacity-100'
+                                    }`}
                                 >
-                                    {/* Active Tab Top Line Indicator */}
+                                    <span>{tab.label}</span>
+                                    <span className="text-[11px] opacity-50 lowercase font-semibold tracking-normal">{tab.labelNe}</span>
+
                                     {activeTab === tab.id && (
-                                        <span className="absolute top-0 left-0 right-0 h-0.5 bg-emerald-500"></span>
+                                        <div className="absolute inset-x-3 bottom-0 h-0.5 bg-[var(--t-primary)] rounded-t-full" />
                                     )}
-
-                                    <span className="relative z-10">{tab.label}</span>
-
-                                    {/* Active Tab Bottom Fade */}
-                                    <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-[var(--t-surface)] to-transparent opacity-50"></div>
+                                    <div className={`absolute inset-0 transition-colors rounded-t-lg ${activeTab === tab.id ? 'bg-[var(--t-primary)]/5' : 'group-hover:bg-black/3'}`} />
                                 </button>
                             ))}
                         </div>
                     </div>
 
                     {/* Tab Content */}
-                    <div className="p-6 bg-[var(--t-surface)]">
-                        {/* Structure Section Tabs */}
-                        {activeSection === 'structure' && (
-                            <>
-                                {activeTab === 'phases' && <PhasesTab searchQuery={searchQuery} />}
-                                {activeTab === 'tasks' && <TasksTab searchQuery={searchQuery} />}
-                                {activeTab === 'floors' && <FloorsTab searchQuery={searchQuery} />}
-                            </>
-                        )}
+                    <div className="p-6 flex-1 relative overflow-hidden">
+                        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 h-full">
+                            {/* Structure Section Tabs */}
+                            {activeSection === 'structure' && (
+                                <>
+                                    {activeTab === 'phases' && <PhasesTab searchQuery={searchQuery} />}
+                                    {activeTab === 'floors' && <FloorsTab searchQuery={searchQuery} />}
+                                </>
+                            )}
 
-                        {/* Finance Section Tabs */}
-                        {activeSection === 'finance' && (
-                            <>
-                                {activeTab === 'overview' && <BudgetOverview onResolve={handleResolve} />}
-                                {activeTab === 'categories' && (
-                                    <CategoriesTab
-                                        searchQuery={searchQuery}
-                                        resolveMetadata={resolveMetadata}
-                                        onClearMetadata={() => setResolveMetadata(null)}
-                                    />
-                                )}
-                                {activeTab === 'expenses' && <ExpensesTab searchQuery={searchQuery} />}
-                                {activeTab === 'funding' && <FundingTab searchQuery={searchQuery} />}
-                                {activeTab === 'payments' && <PaymentsTab searchQuery={searchQuery} />}
-                            </>
-                        )}
+                            {/* Finance Section Tabs */}
+                            {activeSection === 'finance' && (
+                                <>
+                                    {activeTab === 'overview' && <BudgetOverview onResolve={handleResolve} />}
+                                    {activeTab === 'categories' && (
+                                        <CategoriesTab
+                                            searchQuery={searchQuery}
+                                            resolveMetadata={resolveMetadata}
+                                            onClearMetadata={() => setResolveMetadata(null)}
+                                        />
+                                    )}
+                                    {activeTab === 'expenses' && <ExpensesTab searchQuery={searchQuery} />}
+                                    {activeTab === 'funding' && <FundingTab searchQuery={searchQuery} />}
+                                    {activeTab === 'payments' && <PaymentsTab searchQuery={searchQuery} />}
+                                </>
+                            )}
 
-                        {/* Resources Section Tabs */}
-                        {activeSection === 'resources' && (
-                            <>
-                                {activeTab === 'contractors' && <ContractorsTab searchQuery={searchQuery} />}
-                                {activeTab === 'suppliers' && <SuppliersTab searchQuery={searchQuery} />}
-                                {activeTab === 'materials' && <MaterialsTab searchQuery={searchQuery} />}
-                                {activeTab === 'stock' && <StockTab searchQuery={searchQuery} />}
-                            </>
-                        )}
+                            {/* Resources Section Tabs */}
+                            {activeSection === 'resources' && (
+                                <>
+                                    {activeTab === 'suppliers' && <SuppliersTab searchQuery={searchQuery} />}
+                                    {activeTab === 'contractors' && <ContractorsTab searchQuery={searchQuery} />}
+                                    {activeTab === 'materials' && <MaterialsTab searchQuery={searchQuery} />}
+                                    {activeTab === 'stock' && <StockTab searchQuery={searchQuery} />}
+                                </>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
+
+            <style>{`
+                .no-scrollbar::-webkit-scrollbar { display: none; }
+                .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+            `}</style>
         </div>
     );
 };

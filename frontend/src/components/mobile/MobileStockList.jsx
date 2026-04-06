@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { dashboardService } from '../../../services/api';
-import Modal from '../../common/Modal';
-import { useConstruction } from '../../../context/ConstructionContext';
-import ExpenseDetailModal from '../../common/ExpenseDetailModal';
-import ConfirmModal from '../../common/ConfirmModal';
+import { dashboardService } from '../../services/api';
+import Modal from '../common/Modal';
+import { useConstruction } from '../../context/ConstructionContext';
+import ExpenseDetailModal from '../common/ExpenseDetailModal';
+import ConfirmModal from '../common/ConfirmModal';
 
-const StockTab = ({ searchQuery = '' }) => {
+const MobileStockList = ({ searchQuery = '' }) => {
     const { dashboardData, refreshData } = useConstruction();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
@@ -121,192 +121,60 @@ const StockTab = ({ searchQuery = '' }) => {
                 </div>
             </div>
 
-            {/* Desktop View: Table */}
-            <div className="hidden lg:block bg-[var(--t-surface)] rounded-xl shadow-sm border border-[var(--t-border)] overflow-hidden">
-                <table className="w-full text-left border-collapse">
-                    <thead>
-                        <tr className="bg-[var(--t-surface2)] border-b border-[var(--t-border)]">
-                            <th className="px-6 py-4 text-xs font-bold text-[var(--t-text2)] uppercase tracking-wider">Date & Material</th>
-                            <th className="px-6 py-4 text-xs font-bold text-[var(--t-text2)] uppercase tracking-wider">Transaction Context</th>
-                            <th className="px-6 py-4 text-xs font-bold text-[var(--t-text2)] uppercase tracking-wider">Quantity</th>
-                            <th className="px-6 py-4 text-xs font-bold text-[var(--t-text2)] uppercase tracking-wider text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[var(--t-border)]">
-                        {sortedTransactions.map(t => (
-                            <tr key={t.id} className="hover:bg-[var(--t-surface2)] transition-colors group text-sm">
-                                <td className="px-6 py-4">
-                                    <div className="flex flex-col">
-                                        <div className="font-bold text-[var(--t-text)]">{t.material_name}</div>
-                                        <div className="text-[10px] text-[var(--t-text3)] font-medium">
-                                            {new Date(t.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="flex flex-col gap-1.5">
-                                        <span className={`px-2 py-0.5 rounded border text-[10px] font-bold uppercase w-fit ${getTypeColor(t.transaction_type)}`}>
-                                            {t.transaction_type === 'IN' ? 'Stock Inbound' : t.transaction_type === 'OUT' ? 'Stock Consumed' : t.transaction_type}
-                                        </span>
-                                        {t.transaction_type === 'IN' && (
-                                            <div className="flex flex-col gap-1">
-                                                {t.supplier_name && (
-                                                    <div className="flex items-center gap-1.5 text-[10px] text-[var(--t-text2)] font-medium">
-                                                        <svg className="w-3 h-3 text-[var(--t-text3)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-                                                        {t.supplier_name}
-                                                    </div>
-                                                )}
-                                                {t.funding_source_name && (
-                                                    <div className="flex items-center gap-1.5 text-[10px] text-[var(--t-primary)] font-bold">
-                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                                        {t.funding_source_name}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                        {t.transaction_type === 'OUT' && t.room_name && (
-                                            <div className="flex items-center gap-1.5 text-[10px] text-[var(--t-text2)] font-medium">
-                                                <svg className="w-3 h-3 text-[var(--t-text3)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
-                                                {t.room_name}
-                                            </div>
-                                        )}
-                                        {t.purpose && (
-                                            <div className="text-[10px] text-[var(--t-text2)] italic leading-tight max-w-[200px] truncate" title={t.purpose}>
-                                                "{t.purpose}"
-                                            </div>
-                                        )}
-                                        {t.notes && !t.purpose && (
-                                            <div className="text-[10px] text-[var(--t-text3)] italic leading-tight max-w-[200px] truncate" title={t.notes}>
-                                                {t.notes}
-                                            </div>
-                                        )}
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="flex items-baseline gap-1">
-                                        <span className={`text-lg font-black ${t.transaction_type === 'IN' ? 'text-[var(--t-primary)]' : 'text-[var(--t-text)]'}`}>
-                                            {t.transaction_type === 'IN' ? '+' : '-'}{t.quantity}
-                                        </span>
-                                        <div className="flex flex-col">
-                                            <span className="text-[10px] font-bold text-[var(--t-text3)] uppercase tracking-tight">{t.unit_name || ''}</span>
-                                            {t.transaction_type === 'IN' && t.unit_price > 0 && (
-                                                <div className="flex items-center gap-1 group/price">
-                                                    <span className="text-[9px] text-[var(--t-text3)]">@Rs.{t.unit_price}</span>
-                                                    {t.expense && (
-                                                        <button
-                                                            onClick={() => {
-                                                                setSelectedExpenseId(t.expense);
-                                                                setIsDetailModalOpen(true);
-                                                            }}
-                                                            className="text-[8px] font-black text-[var(--t-primary)] uppercase bg-[var(--t-nav-active-bg)] px-1 rounded opacity-0 group-hover/price:opacity-100 transition-opacity whitespace-nowrap"
-                                                        >
-                                                            View Bill
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4 text-right">
-                                    <button
-                                        onClick={() => handleDelete(t.id)}
-                                        className="text-[var(--t-danger)] hover:text-[var(--t-danger)] font-bold text-[10px] uppercase opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 ml-auto"
-                                    >
-                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                        Void
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-
-            {/* Mobile View: Cards */}
-            <div className="lg:hidden space-y-4">
-                {sortedTransactions.map(t => (
-                    <div key={t.id} className="bg-[var(--t-surface)] rounded-2xl p-4 border border-[var(--t-border)] shadow-sm flex flex-col gap-4">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded leading-none mb-2 inline-block border ${getTypeColor(t.transaction_type)}`}>
-                                    {t.transaction_type === 'IN' ? 'Stock Inbound' : t.transaction_type === 'OUT' ? 'Stock Consumed' : t.transaction_type}
-                                </span>
-                                <h3 className="font-bold text-[var(--t-text)] text-base leading-tight">{t.material_name}</h3>
-                                <div className="text-[10px] text-[var(--t-text2)] font-medium mt-1">
-                                    {new Date(t.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
-                                </div>
-                            </div>
-                            <div className="text-right">
-                                <div className="text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest leading-none mb-1">Quantity</div>
-                                <div className={`text-xl font-black leading-none ${t.transaction_type === 'IN' ? 'text-[var(--t-primary)]' : 'text-[var(--t-text)]'}`}>
-                                    {t.transaction_type === 'IN' ? '+' : '-'}{t.quantity}
-                                    <span className="text-xs font-bold text-[var(--t-text3)] ml-1 uppercase">{t.unit_name}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {(t.supplier_name || t.room_name || t.funding_source_name || t.purpose || t.notes) && (
-                            <div className="bg-[var(--t-surface2)] rounded-xl p-3 space-y-2">
-                                {t.supplier_name && (
-                                    <div className="flex items-center gap-2 text-[10px] font-bold text-[var(--t-text2)]">
-                                        <span className="text-[var(--t-text3)] uppercase tracking-tight">Supplier:</span>
-                                        <span>{t.supplier_name}</span>
-                                    </div>
-                                )}
-                                {t.room_name && (
-                                    <div className="flex items-center gap-2 text-[10px] font-bold text-[var(--t-text2)]">
-                                        <span className="text-[var(--t-text3)] uppercase tracking-tight">Room:</span>
-                                        <span>{t.room_name}</span>
-                                    </div>
-                                )}
-                                {t.purpose && (
-                                    <div className="flex items-start gap-2 text-[10px] font-bold text-[var(--t-text2)]">
-                                        <span className="text-[var(--t-text3)] uppercase tracking-tight whitespace-nowrap">Purpose:</span>
-                                        <span className="italic">"{t.purpose}"</span>
-                                    </div>
-                                )}
-                                {t.notes && (
-                                    <div className="flex items-start gap-2 text-[10px] font-bold text-[var(--t-text3)]">
-                                        <span className="uppercase tracking-tight whitespace-nowrap">Notes:</span>
-                                        <span className="italic">{t.notes}</span>
-                                    </div>
-                                )}
-                                {t.funding_source_name && (
-                                    <div className="flex items-center gap-2 text-[10px] font-bold text-[var(--t-primary)]">
-                                        <span className="text-[var(--t-primary)] uppercase tracking-tight">Paid via:</span>
-                                        <span>{t.funding_source_name}</span>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        <div className="flex gap-2">
-                            {t.expense && (
-                                <button
-                                    onClick={() => {
-                                        setSelectedExpenseId(t.expense);
-                                        setIsDetailModalOpen(true);
-                                    }}
-                                    className="flex-1 py-2.5 bg-[var(--t-nav-active-bg)] text-[var(--t-nav-active-text)] rounded-xl text-xs font-bold active:scale-95 transition-all"
-                                >
-                                    View Bill
-                                </button>
-                            )}
-                            <button
-                                onClick={() => handleDelete(t.id)}
-                                className="flex-1 py-2.5 bg-[var(--t-danger)]/10 text-[var(--t-danger)] rounded-xl text-xs font-bold active:scale-95 transition-all"
-                            >
-                                Void Entry
-                            </button>
-                        </div>
-                    </div>
-                ))}
-                {filteredTransactions.length === 0 && (
-                    <div className="py-10 text-center text-[var(--t-text3)] italic bg-[var(--t-surface)] rounded-2xl border-2 border-dashed border-[var(--t-border)]">
-                        No transactions found matching your search.
+            <div className="space-y-2 pb-[120px]">
+                {sortedTransactions.length === 0 && (
+                    <div className="text-center py-14 text-[var(--t-text3)]">
+                        <div className="text-3xl mb-2">📋</div>
+                        <p className="text-sm font-semibold">No transactions found</p>
                     </div>
                 )}
+                {sortedTransactions.map(t => {
+                    const isIncoming = t.transaction_type === 'IN' || t.transaction_type === 'RETURN';
+                    const sign = isIncoming ? '+' : '-';
+
+                    return (
+                        <div key={t.id} 
+                            onClick={() => { if(t.expense) { setSelectedExpenseId(t.expense); setIsDetailModalOpen(true); } }}
+                            className="bg-[var(--t-surface)] border-b border-[var(--t-border)] p-3 flex items-center justify-between hover:bg-[var(--t-surface2)] active:bg-[var(--t-surface2)] cursor-pointer transition-colors"
+                        >
+                            {/* Left: Info */}
+                            <div className="flex flex-col min-w-0 pr-3">
+                                <div className="flex items-center gap-2">
+                                    <span className="font-bold text-[14px] text-[var(--t-text)] truncate">{t.material_name}</span>
+                                    <span className={`text-[9px] uppercase font-bold tracking-widest px-1.5 py-0.5 rounded leading-none border ${getTypeColor(t.transaction_type)}`}>
+                                        {t.transaction_type}
+                                    </span>
+                                </div>
+                                <span className="text-[11px] text-[var(--t-text3)] truncate mt-0.5">
+                                    {new Date(t.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+                                </span>
+                            </div>
+                            
+                            {/* Right: Quantity */}
+                            <div className="flex items-center gap-3 shrink-0">
+                                <div className="text-right flex flex-col justify-center">
+                                    <span className={`font-black text-[16px] leading-none ${isIncoming ? 'text-emerald-500' : 'text-[var(--t-danger)]'}`}>
+                                        {sign}{t.quantity}
+                                    </span>
+                                    <span className="text-[9px] uppercase font-bold text-[var(--t-text3)] mt-[2px]">
+                                        {t.unit_name}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+            
+            {/* Add New FAB */}
+            <div className="fixed bottom-24 right-4 z-10">
+                <button
+                    onClick={() => handleOpenModal()}
+                    className="w-14 h-14 bg-[var(--t-primary)] text-[var(--t-bg)] rounded-full flex items-center justify-center shadow-[0_8px_16px_rgba(0,0,0,0.3)] hover:scale-105 active:scale-95 transition-all outline-none"
+                    style={{ boxShadow: '0 8px 16px color-mix(in srgb, var(--t-primary) 40%, transparent)' }}
+                >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
+                </button>
             </div>
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Register Stock Movement">
@@ -535,4 +403,4 @@ const StockTab = ({ searchQuery = '' }) => {
         </div >
     );
 };
-export default StockTab;
+export default MobileStockList;

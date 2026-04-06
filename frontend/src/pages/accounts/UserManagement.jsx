@@ -6,6 +6,7 @@ import {
 import { accountsService } from '../../services/api';
 import UserCreateModal from '../../components/common/UserCreateModal';
 import UserEditModal from '../../components/common/UserEditModal';
+import ConfirmModal from '../../components/common/ConfirmModal';
 
 const UserManagement = () => {
     const [users, setUsers] = useState([]);
@@ -16,6 +17,11 @@ const UserManagement = () => {
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
     const [isDeleting, setIsDeleting] = useState(null);
+
+    // Confirmation Modal System
+    const [confirmConfig, setConfirmConfig] = useState({ isOpen: false });
+    const showConfirm = (config) => setConfirmConfig({ ...config, isOpen: true });
+    const closeConfirm = () => setConfirmConfig({ ...confirmConfig, isOpen: false });
 
     const stats = {
         total: users.length,
@@ -53,19 +59,27 @@ const UserManagement = () => {
         fetchData();
     };
 
-    const handleDeleteUser = async (userId) => {
-        if (!window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
-
-        setIsDeleting(userId);
-        try {
-            await accountsService.deleteUser(userId);
-            fetchData();
-        } catch (err) {
-            console.error('Failed to delete user', err);
-            alert('Failed to delete user.');
-        } finally {
-            setIsDeleting(null);
-        }
+    const handleDeleteUser = (userId) => {
+        showConfirm({
+            title: "Delete User Account?",
+            message: "This action will permanently remove this user from the system and terminate their access to the construction dashboard. This cannot be undone.",
+            confirmText: "Yes, Delete User",
+            type: "danger",
+            onConfirm: async () => {
+                setIsDeleting(userId);
+                try {
+                    await accountsService.deleteUser(userId);
+                    fetchData();
+                    closeConfirm();
+                } catch (err) {
+                    console.error('Failed to delete user', err);
+                    alert('Failed to delete user.');
+                    closeConfirm();
+                } finally {
+                    setIsDeleting(null);
+                }
+            }
+        });
     };
 
     const getRoleBadgeStyle = (roleCode) => {
@@ -228,6 +242,16 @@ const UserManagement = () => {
                     </div>
                 )}
             </div>
+
+            <ConfirmModal 
+                isOpen={confirmConfig.isOpen}
+                title={confirmConfig.title}
+                message={confirmConfig.message}
+                confirmText={confirmConfig.confirmText}
+                onConfirm={confirmConfig.onConfirm}
+                onCancel={closeConfirm}
+                type={confirmConfig.type || 'warning'}
+            />
         </div>
     );
 };

@@ -1,10 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { permitService, getMediaUrl } from '../../../services/api';
+import ConfirmModal from '../../common/ConfirmModal';
 
 const DocumentVault = ({ onUpdate }) => {
     const [documents, setDocuments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
+
+    // Confirmation Modal System
+    const [confirmConfig, setConfirmConfig] = useState({ isOpen: false });
+    const showConfirm = (config) => setConfirmConfig({ ...config, isOpen: true });
+    const closeConfirm = () => setConfirmConfig({ ...confirmConfig, isOpen: false });
 
     const fetchDocuments = async () => {
         try {
@@ -43,15 +49,24 @@ const DocumentVault = ({ onUpdate }) => {
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm("Delete this document?")) return;
-        try {
-            await permitService.deleteDocument(id);
-            setDocuments(documents.filter(d => d.id !== id));
-            onUpdate?.();
-        } catch (error) {
-            console.error("Delete failed", error);
-        }
+    const handleDelete = (id) => {
+        showConfirm({
+            title: "Delete Document?",
+            message: "Are you sure you want to permanently remove this document from the vault? This action is irreversible and the file will be removed from your project records.",
+            confirmText: "Yes, Delete Document",
+            type: "danger",
+            onConfirm: async () => {
+                try {
+                    await permitService.deleteDocument(id);
+                    setDocuments(documents.filter(d => d.id !== id));
+                    onUpdate?.();
+                    closeConfirm();
+                } catch (error) {
+                    console.error("Delete failed", error);
+                    closeConfirm();
+                }
+            }
+        });
     };
 
     if (loading) return <div>Loading vault...</div>;
@@ -108,6 +123,16 @@ const DocumentVault = ({ onUpdate }) => {
                     </div>
                 )}
             </div>
+
+            <ConfirmModal 
+                isOpen={confirmConfig.isOpen}
+                title={confirmConfig.title}
+                message={confirmConfig.message}
+                confirmText={confirmConfig.confirmText}
+                onConfirm={confirmConfig.onConfirm}
+                onCancel={closeConfirm}
+                type={confirmConfig.type || 'warning'}
+            />
         </div>
     );
 };

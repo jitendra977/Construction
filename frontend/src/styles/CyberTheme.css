@@ -44,9 +44,9 @@
   --t-danger-btn-bg: #ef4444;
   --t-input-bg: #ffffff;
 
-  --f-disp:    'Bebas Neue', sans-serif;
+  --f-disp:    'Outfit', sans-serif;
   --f-body:    'Outfit', sans-serif;
-  --f-mono:    'DM Mono', monospace;
+  --f-mono:    'Outfit', sans-serif;
 }
 
 /* ─── DARK THEME ─────────────────────────────────────────── */
@@ -92,9 +92,9 @@
   --t-danger-btn-bg: var(--c-red);
   --t-input-bg: var(--c-s2);
 
-  --f-disp:    'Bebas Neue', sans-serif;
+  --f-disp:    'Outfit', sans-serif;
   --f-body:    'Outfit', sans-serif;
-  --f-mono:    'DM Mono', monospace;
+  --f-mono:    'Outfit', sans-serif;
 }
 
 /* ─── Global body theming ─────────────────────────────────── */

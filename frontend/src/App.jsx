@@ -5,7 +5,6 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { authService } from './services/auth';
 import { ConstructionProvider } from './context/ConstructionContext';
 import { ThemeProvider } from './context/ThemeContext';
-import TourManager from './components/common/TourManager';
 
 // Lazy load dashboard components
 const DesktopDashboard = lazy(() => import('./pages/desktop/DesktopDashboard'));
@@ -70,7 +69,6 @@ function App() {
     <ThemeProvider>
       <ConstructionProvider>
         <Router>
-          <TourManager />
           <ResponsiveRedirector>
             <Routes>
               <Route

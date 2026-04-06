@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { dashboardService, getMediaUrl } from '../../../services/api';
-import Modal from '../../common/Modal';
-import { useConstruction } from '../../../context/ConstructionContext';
-import ConfirmModal from '../../common/ConfirmModal';
+import { dashboardService, getMediaUrl } from '../../services/api';
+import Modal from '../common/Modal';
+import { useConstruction } from '../../context/ConstructionContext';
+import ConfirmModal from '../common/ConfirmModal';
 
-const SuppliersTab = ({ searchQuery = '' }) => {
+const MobileSupplierList = ({ searchQuery = '' }) => {
     const { dashboardData, refreshData } = useConstruction();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
@@ -170,172 +170,64 @@ const SuppliersTab = ({ searchQuery = '' }) => {
         }
     };
 
+    const [expandedId, setExpandedId] = useState(null);
+
     return (
-        <div className="space-y-4">
-            <div className="flex justify-between items-center mb-2">
-                <p className="text-sm text-[var(--t-text2)]">Manage material suppliers, contact persons, and payment credentials.</p>
-                <button
-                    onClick={() => handleOpenModal()}
-                    className="px-4 py-2 bg-[var(--t-primary)] text-white rounded-lg hover:bg-[var(--t-primary2)] font-medium transition-colors shadow-sm"
-                >
-                    + Add New Supplier
-                </button>
-            </div>
-
-            {/* Desktop View: Table */}
-            <div className="hidden lg:block bg-[var(--t-surface)] rounded-xl shadow-sm border border-[var(--t-border)] overflow-hidden">
-                <table className="w-full text-left border-collapse">
-                    <thead>
-                        <tr className="bg-[var(--t-surface2)] border-b border-[var(--t-border)]">
-                            <th className="px-6 py-4 text-xs font-bold text-[var(--t-text3)] uppercase tracking-wider">Supplier Profile</th>
-                            <th className="px-6 py-4 text-xs font-bold text-[var(--t-text3)] uppercase tracking-wider">Contact Details</th>
-                            <th className="px-6 py-4 text-xs font-bold text-[var(--t-text3)] uppercase tracking-wider">Billing & Payments</th>
-                            <th className="px-6 py-4 text-xs font-bold text-[var(--t-text3)] uppercase tracking-wider text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[var(--t-border)]">
-                        {filteredSuppliers.map(s => {
-                            const percent = s.total_billed > 0 ? (s.total_paid / s.total_billed) * 100 : 0;
-                            return (
-                                <tr key={s.id} className="hover:bg-[var(--t-surface2)] transition-colors group">
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-3">
-                                            {s.photo ? (
-                                                <img
-                                                    src={getMediaUrl(s.photo)}
-                                                    alt={s.name}
-                                                    className="w-10 h-10 rounded-full object-cover border border-[var(--t-border)] shadow-sm"
-                                                />
-                                            ) : (
-                                                <div className="w-10 h-10 rounded-full bg-[var(--t-nav-active-bg)] flex items-center justify-center text-[var(--t-primary)] font-bold border border-[var(--t-border)] shadow-sm">
-                                                    {s.name.charAt(0)}
-                                                </div>
-                                            )}
-                                            <div className="flex flex-col gap-1">
-                                                <div className="font-bold text-[var(--t-text)] leading-tight">{s.name}</div>
-                                                <span className="px-1.5 py-0.5 bg-[var(--t-nav-active-bg)] text-[var(--t-primary)] rounded text-[10px] font-bold uppercase w-fit border border-[var(--t-border)]">
-                                                    {s.category || 'General'}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex flex-col">
-                                            <div className="text-[var(--t-text)] font-semibold text-sm">{s.contact_person}</div>
-                                            <div className="text-[var(--t-text2)] text-xs flex items-center gap-1 mt-0.5">
-                                                <span>{s.phone}</span>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex flex-col">
-                                            <div className="flex justify-between items-baseline mb-1">
-                                                <span className="text-sm font-black text-[var(--t-text)]">{s.total_paid?.toLocaleString()}</span>
-                                                <span className="text-[10px] text-[var(--t-text3)] font-bold uppercase tracking-tight">of {s.total_billed?.toLocaleString()}</span>
-                                            </div>
-                                            <div className="w-full bg-[var(--t-surface3)] h-1 rounded-full overflow-hidden">
-                                                <div className="bg-[var(--t-primary)] h-full transition-all duration-700" style={{ width: `${percent}%` }} />
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button onClick={() => handleOpenPaymentModal(s)} className="text-green-600 hover:text-green-900 font-bold text-[10px] uppercase tracking-wider bg-green-500/10 hover:bg-green-500/20 px-2 py-1 rounded">Pay</button>
-                                            <button onClick={() => handleOpenHistoryModal(s)} className="text-blue-600 hover:text-blue-900 font-bold text-[10px] uppercase tracking-wider bg-blue-500/10 hover:bg-blue-500/20 px-2 py-1 rounded">History</button>
-                                            <button onClick={() => handleOpenModal(s)} className="text-[var(--t-primary)] hover:text-[var(--t-primary)] font-bold text-[10px] uppercase tracking-wider">Edit</button>
-                                            <button onClick={() => handleDelete(s.id)} className="text-[var(--t-danger)] hover:text-[var(--t-danger)] font-bold text-[10px] uppercase tracking-wider">Delete</button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                        {filteredSuppliers.length === 0 && (
-                            <tr>
-                                <td colSpan="4" className="px-6 py-10 text-center text-[var(--t-text3)] italic text-sm">No suppliers found matching your query.</td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
-
-            {/* Mobile View: Cards */}
-            <div className="lg:hidden space-y-4">
+        <div className="space-y-2 pb-[120px]">
+            {filteredSuppliers.length === 0 && (
+                <div className="text-center py-14 text-[var(--t-text3)]">
+                    <div className="text-3xl mb-2">🏢</div>
+                    <p className="text-sm font-semibold">No suppliers found</p>
+                </div>
+            )}
                 {filteredSuppliers.map(s => {
-                    const percent = s.total_billed > 0 ? (s.total_paid / s.total_billed) * 100 : 0;
+                    const balanceDue = Number(s.balance_due) || 0;
+                    const hasDue = balanceDue > 0;
+
                     return (
-                        <div key={s.id} className="bg-[var(--t-surface)] rounded-2xl p-4 border border-[var(--t-border)] shadow-sm flex flex-col gap-4">
-                            <div className="flex justify-between items-start">
-                                <div className="flex items-center gap-3">
-                                    {s.photo ? (
-                                        <img
-                                            src={getMediaUrl(s.photo)}
-                                            alt={s.name}
-                                            className="w-10 h-10 rounded-full object-cover border border-[var(--t-border)] shadow-sm"
-                                        />
-                                    ) : (
-                                        <div className="w-10 h-10 rounded-full bg-[var(--t-nav-active-bg)] flex items-center justify-center text-[var(--t-primary)] font-bold border border-[var(--t-border)] shadow-sm">
-                                            {s.name.charAt(0)}
-                                        </div>
-                                    )}
-                                    <div>
-                                        <span className="text-[9px] font-black text-[var(--t-primary)] uppercase tracking-widest px-1.5 py-0.5 bg-[var(--t-nav-active-bg)] rounded leading-none mb-2 inline-block">#{s.category || 'General'}</span>
-                                        <h3 className="font-bold text-[var(--t-text)] text-base leading-tight">{s.name}</h3>
-                                        <div className="text-[10px] text-[var(--t-text2)] font-medium mt-1">{s.phone}</div>
-                                    </div>
-                                </div>
-                                <div className="text-right">
-                                    <div className="text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest leading-none mb-1">Total Bill</div>
-                                    <div className="text-sm font-black text-[var(--t-text)] leading-none">{s.total_billed?.toLocaleString()}</div>
-                                </div>
+                        <div key={s.id} 
+                            onClick={() => handleOpenHistoryModal(s)}
+                            className="bg-[var(--t-surface)] border-b border-[var(--t-border)] p-3 flex items-center justify-between hover:bg-[var(--t-surface2)] active:bg-[var(--t-surface2)] cursor-pointer transition-colors"
+                        >
+                            {/* Left: Supplier Info */}
+                            <div className="flex flex-col min-w-0 pr-3">
+                                <span className="font-bold text-[14px] text-[var(--t-text)] truncate">{s.name}</span>
+                                <span className="text-[11px] text-[var(--t-text3)] truncate">{s.category || 'General'}</span>
                             </div>
-
-                            <div className="bg-[var(--t-surface2)] rounded-2xl p-4">
-                                <div className="flex justify-between items-end mb-2">
-                                    <div className="flex flex-col">
-                                        <span className="text-[10px] font-black text-[var(--t-text3)] uppercase tracking-tighter leading-none mb-1">Total Paid</span>
-                                        <span className="text-lg font-black text-[var(--t-primary)] leading-none">{s.total_paid?.toLocaleString()}</span>
-                                    </div>
-                                    <div className="text-right">
-                                        <span className="text-[10px] font-black text-[var(--t-primary)] uppercase tracking-tight">{Math.round(percent)}% CLEARED</span>
-                                    </div>
+                            
+                            {/* Right: Amounts and Action inline */}
+                            <div className="flex items-center gap-3 shrink-0">
+                                <div className="text-right flex flex-col justify-center">
+                                    <span className={`font-black text-[15px] leading-none ${hasDue ? 'text-[var(--t-danger)]' : 'text-emerald-500'}`}>
+                                        {hasDue ? balanceDue.toLocaleString() : 'Clear'}
+                                    </span>
+                                    <span className="text-[9px] uppercase font-bold text-[var(--t-text3)] mt-[2px]">
+                                        {hasDue ? 'Due' : 'Status'}
+                                    </span>
                                 </div>
-                                <div className="w-full bg-[var(--t-surface)] h-2 rounded-full overflow-hidden border border-[var(--t-border)] p-0.5 mb-2">
-                                    <div className="bg-[var(--t-primary)] h-full rounded-full transition-all duration-1000" style={{ width: `${percent}%` }} />
-                                </div>
-                                {Number(s.balance_due) > 0 && (
-                                    <div className="flex justify-between items-center text-[10px] font-black border-t border-[var(--t-border)] pt-2 mt-2">
-                                        <span className="text-[var(--t-danger)] uppercase tracking-tighter">Outstanding Balance</span>
-                                        <span className="text-[var(--t-danger)] font-black">{s.balance_due?.toLocaleString()}</span>
-                                    </div>
+                                
+                                {hasDue && (
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); handleOpenPaymentModal(s); }}
+                                        className="h-7 px-3 text-[10px] font-bold uppercase bg-[var(--t-primary)]/10 text-[var(--t-primary)] rounded-md border border-[var(--t-primary)]/20 active:scale-95 transition-all"
+                                    >
+                                        Pay
+                                    </button>
                                 )}
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3 pb-3 border-b border-[var(--t-border)] mb-3">
-                                <button onClick={() => handleOpenPaymentModal(s)} className="col-span-1 py-2.5 bg-green-500/10 text-green-700 rounded-xl text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-all border border-green-500/20">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                    Pay
-                                </button>
-                                <button onClick={() => handleOpenHistoryModal(s)} className="col-span-1 py-2.5 bg-blue-500/10 text-blue-700 rounded-xl text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-all border border-blue-500/20">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                                    History
-                                </button>
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                <button onClick={() => handleOpenModal(s)} className="py-2.5 bg-[var(--t-nav-active-bg)] text-[var(--t-nav-active-text)] rounded-xl text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-all">
-                                    Edit Supplier
-                                </button>
-                                <button onClick={() => handleDelete(s.id)} className="py-2.5 bg-[var(--t-danger)]/10 text-[var(--t-danger)] rounded-xl text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-all">
-                                    Delete
-                                </button>
                             </div>
                         </div>
                     );
                 })}
-                {filteredSuppliers.length === 0 && (
-                    <div className="py-10 text-center text-[var(--t-text3)] italic bg-[var(--t-surface)] rounded-2xl border-2 border-dashed border-[var(--t-border)]">
-                        No suppliers found matching your query.
-                    </div>
-                )}
+            
+            {/* Add New FAB */}
+            <div className="fixed bottom-24 right-4 z-10">
+                <button
+                    onClick={() => handleOpenModal()}
+                    className="w-14 h-14 bg-[var(--t-primary)] text-white rounded-full flex items-center justify-center shadow-[0_8px_16px_rgba(0,0,0,0.3)] hover:scale-105 active:scale-95 transition-all outline-none"
+                    style={{ boxShadow: '0 8px 16px color-mix(in srgb, var(--t-primary) 40%, transparent)' }}
+                >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
+                </button>
             </div>
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`${editingItem ? 'Edit' : 'Add'} Supplier`}>
@@ -635,4 +527,4 @@ const SuppliersTab = ({ searchQuery = '' }) => {
         </div >
     );
 };
-export default SuppliersTab;
+export default MobileSupplierList;

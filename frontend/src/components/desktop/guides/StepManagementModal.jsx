@@ -2,12 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { dashboardService, getMediaUrl } from '../../../services/api';
 import { useConstruction } from '../../../context/ConstructionContext';
 import Modal from '../../common/Modal';
+import ConfirmModal from '../../common/ConfirmModal';
 
 const StepManagementModal = ({ guide, onClose, onSuccess }) => {
     const { refreshData } = useConstruction();
     const [steps, setSteps] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(null); // ID of step being edited
+
+    // Confirmation Modal System
+    const [confirmConfig, setConfirmConfig] = useState({ isOpen: false });
+    const showConfirm = (config) => setConfirmConfig({ ...config, isOpen: true });
+    const closeConfirm = () => setConfirmConfig({ ...confirmConfig, isOpen: false });
     const [formData, setFormData] = useState({
         text_en: '',
         text_ne: '',
@@ -55,14 +61,23 @@ const StepManagementModal = ({ guide, onClose, onSuccess }) => {
         }
     };
 
-    const handleDeleteStep = async (id) => {
-        if (!window.confirm("Delete this step?")) return;
-        try {
-            await dashboardService.deleteGuideStep(id);
-            setSteps(steps.filter(s => s.id !== id));
-        } catch (error) {
-            console.error("Delete failed:", error);
-        }
+    const handleDeleteStep = (id) => {
+        showConfirm({
+            title: "Delete Guide Step?",
+            message: "Are you sure you want to permanently remove this step? This action is irreversible.",
+            confirmText: "Yes, Delete Step",
+            type: "danger",
+            onConfirm: async () => {
+                try {
+                    await dashboardService.deleteGuideStep(id);
+                    setSteps(steps.filter(s => s.id !== id));
+                    closeConfirm();
+                } catch (error) {
+                    console.error("Delete failed:", error);
+                    closeConfirm();
+                }
+            }
+        });
     };
 
     const startEdit = (step) => {
@@ -90,7 +105,9 @@ const StepManagementModal = ({ guide, onClose, onSuccess }) => {
     };
 
     return (
+        <>
         <Modal 
+            isOpen={true}
             onClose={onClose} 
             title={`Manage Steps for ${guide.title_en}`}
             width="800px"
@@ -215,6 +232,17 @@ const StepManagementModal = ({ guide, onClose, onSuccess }) => {
                 </form>
             </div>
         </Modal>
+
+        <ConfirmModal 
+            isOpen={confirmConfig.isOpen}
+            title={confirmConfig.title}
+            message={confirmConfig.message}
+            confirmText={confirmConfig.confirmText}
+            onConfirm={confirmConfig.onConfirm}
+            onCancel={closeConfirm}
+            type={confirmConfig.type || 'warning'}
+        />
+        </>
     );
 };
 

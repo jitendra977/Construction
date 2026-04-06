@@ -7,6 +7,7 @@ import { useConstruction } from '../../context/ConstructionContext';
 import MobileHeader from '../../components/mobile/MobileHeader';
 import MobileNav from '../../components/mobile/MobileNav';
 import GuideModal from '../../components/mobile/GuideModal';
+import HouseConfigModal from '../../components/common/HouseConfigModal';
 
 function MobileDashboard() {
     const {
@@ -15,6 +16,7 @@ function MobileDashboard() {
         stats
     } = useConstruction();
     const [isGuideOpen, setIsGuideOpen] = useState(false);
+    const [showConfigModal, setShowConfigModal] = useState(false);
     const navigate = useNavigate();
 
     const handleLogout = async () => {
@@ -42,6 +44,7 @@ function MobileDashboard() {
                 stats={stats}
                 onLogout={handleLogout}
                 onShowGuide={() => setIsGuideOpen(true)}
+                onShowConfig={() => setShowConfigModal(true)}
             />
 
             {/* Main Content Area - Padding handled by MobileLayout in children */}
@@ -51,6 +54,10 @@ function MobileDashboard() {
 
             <MobileNav />
             <GuideModal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
+            
+            {showConfigModal && (
+                <HouseConfigModal onClose={() => setShowConfigModal(false)} />
+            )}
         </div>
     );
 }

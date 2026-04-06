@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { dashboardService } from '../../../services/api';
 import Modal from '../../common/Modal';
 import { useConstruction } from '../../../context/ConstructionContext';
+import ConfirmModal from '../../common/ConfirmModal';
 
 const FloorCard = ({ f, handleOpenModal, handleDelete, handleOpenRoomModal, handleDeleteRoom }) => {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -100,6 +101,11 @@ const FloorsTab = ({ searchQuery = '' }) => {
     const [roomFormData, setRoomFormData] = useState({});
     const [loading, setLoading] = useState(false);
 
+    // Confirmation Modal System
+    const [confirmConfig, setConfirmConfig] = useState({ isOpen: false });
+    const showConfirm = (config) => setConfirmConfig({ ...config, isOpen: true });
+    const closeConfirm = () => setConfirmConfig({ ...confirmConfig, isOpen: false });
+
     const filteredFloors = dashboardData.floors?.filter(f =>
         f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         f.rooms?.some(r => r.name.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -118,24 +124,42 @@ const FloorsTab = ({ searchQuery = '' }) => {
         setIsRoomModalOpen(true);
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this Floor?')) return;
-        try {
-            await dashboardService.deleteFloor(id);
-            refreshData();
-        } catch (error) {
-            alert('Delete failed. Floor might be linked to other records.');
-        }
+    const handleDelete = (id) => {
+        showConfirm({
+            title: "Delete Floor?",
+            message: "Are you sure you want to permanently remove this floor? All rooms assigned to this floor may also be affected. This action is irreversible.",
+            confirmText: "Yes, Delete Floor",
+            type: "danger",
+            onConfirm: async () => {
+                try {
+                    await dashboardService.deleteFloor(id);
+                    refreshData();
+                    closeConfirm();
+                } catch (error) {
+                    alert('Delete failed. Floor might be linked to other records.');
+                    closeConfirm();
+                }
+            }
+        });
     };
 
-    const handleDeleteRoom = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this Room?')) return;
-        try {
-            await dashboardService.deleteRoom(id);
-            refreshData();
-        } catch (error) {
-            alert('Delete failed.');
-        }
+    const handleDeleteRoom = (id) => {
+        showConfirm({
+            title: "Delete Room?",
+            message: "Are you sure you want to permanently remove this room? Any material usage or expense records linked to this room will lose their association. This action is irreversible.",
+            confirmText: "Yes, Delete Room",
+            type: "danger",
+            onConfirm: async () => {
+                try {
+                    await dashboardService.deleteRoom(id);
+                    refreshData();
+                    closeConfirm();
+                } catch (error) {
+                    alert('Delete failed.');
+                    closeConfirm();
+                }
+            }
+        });
     };
 
     const handleSubmit = async (e) => {
@@ -345,6 +369,16 @@ const FloorsTab = ({ searchQuery = '' }) => {
                     </div>
                 </form>
             </Modal>
+
+            <ConfirmModal 
+                isOpen={confirmConfig.isOpen}
+                title={confirmConfig.title}
+                message={confirmConfig.message}
+                confirmText={confirmConfig.confirmText}
+                onConfirm={confirmConfig.onConfirm}
+                onCancel={closeConfirm}
+                type={confirmConfig.type || 'warning'}
+            />
         </div>
     );
 };

@@ -4,7 +4,7 @@ import { getMediaUrl } from '../../services/api';
 import { useConstruction } from '../../context/ConstructionContext';
 import ThemeToggle from '../common/ThemeToggle';
 
-const MobileHeader = ({ project, stats, onLogout, onShowGuide }) => {
+const MobileHeader = ({ project, stats, onLogout, onShowGuide, onShowConfig }) => {
     const { user } = useConstruction();
 
     const isHome = window.location.pathname.endsWith('/home');
@@ -15,15 +15,18 @@ const MobileHeader = ({ project, stats, onLogout, onShowGuide }) => {
             <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--t-primary)]/5 rounded-full blur-3xl pointer-events-none transform translate-x-1/2 -translate-y-1/2"></div>
 
             <div className="flex justify-between items-start mb-6 relative z-10">
-                <div>
+                <button 
+                    onClick={onShowConfig} 
+                    className="text-left group transition-all"
+                >
                     <div className="flex items-center gap-2 mb-1">
                         <div className="w-1.5 h-1.5 bg-[var(--t-primary)] rounded-full animate-pulse shadow-[0_0_8px_var(--t-primary)]"></div>
-                        <p className="text-[9px] uppercase tracking-[0.2em] text-[var(--t-text2)] font-['DM_Mono',monospace]">System Active</p>
+                        <p className="text-[9px] uppercase tracking-[0.2em] text-[var(--t-text2)] group-hover:text-[var(--t-primary)] transition-colors font-['DM_Mono',monospace]">System Active</p>
                     </div>
                     <h1 className="text-2xl text-[var(--t-text)] uppercase tracking-wide leading-none font-['Bebas_Neue',sans-serif]">
                         {project?.name || 'Site Link'}
                     </h1>
-                </div>
+                </button>
                 <div className="flex items-center gap-2">
                     <ThemeToggle />
                     <button

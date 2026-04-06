@@ -2,12 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { dashboardService } from '../../../services/api';
 import { useConstruction } from '../../../context/ConstructionContext';
 import Modal from '../../common/Modal';
+import ConfirmModal from '../../common/ConfirmModal';
 
 const FaqManagementModal = ({ guide, onClose, onSuccess }) => {
     const { refreshData } = useConstruction();
     const [faqs, setFaqs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(null);
+
+    // Confirmation Modal System
+    const [confirmConfig, setConfirmConfig] = useState({ isOpen: false });
+    const showConfirm = (config) => setConfirmConfig({ ...config, isOpen: true });
+    const closeConfirm = () => setConfirmConfig({ ...confirmConfig, isOpen: false });
     const [formData, setFormData] = useState({
         question_en: '',
         question_ne: '',
@@ -45,14 +51,23 @@ const FaqManagementModal = ({ guide, onClose, onSuccess }) => {
         }
     };
 
-    const handleDeleteFaq = async (id) => {
-        if (!window.confirm("Delete this FAQ?")) return;
-        try {
-            await dashboardService.deleteGuideFaq(id);
-            setFaqs(faqs.filter(f => f.id !== id));
-        } catch (error) {
-            console.error("Delete failed:", error);
-        }
+    const handleDeleteFaq = (id) => {
+        showConfirm({
+            title: "Delete FAQ?",
+            message: "Are you sure you want to permanently remove this FAQ entry? This action is irreversible.",
+            confirmText: "Yes, Delete FAQ",
+            type: "danger",
+            onConfirm: async () => {
+                try {
+                    await dashboardService.deleteGuideFaq(id);
+                    setFaqs(faqs.filter(f => f.id !== id));
+                    closeConfirm();
+                } catch (error) {
+                    console.error("Delete failed:", error);
+                    closeConfirm();
+                }
+            }
+        });
     };
 
     const startEdit = (faq) => {
@@ -78,7 +93,9 @@ const FaqManagementModal = ({ guide, onClose, onSuccess }) => {
     };
 
     return (
+        <>
         <Modal 
+            isOpen={true}
             onClose={onClose} 
             title={`Manage FAQs for ${guide.title_en}`}
             width="900px"
@@ -185,6 +202,17 @@ const FaqManagementModal = ({ guide, onClose, onSuccess }) => {
                 </form>
             </div>
         </Modal>
+
+        <ConfirmModal 
+            isOpen={confirmConfig.isOpen}
+            title={confirmConfig.title}
+            message={confirmConfig.message}
+            confirmText={confirmConfig.confirmText}
+            onConfirm={confirmConfig.onConfirm}
+            onCancel={closeConfirm}
+            type={confirmConfig.type || 'warning'}
+        />
+        </>
     );
 };
 

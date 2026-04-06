@@ -20,6 +20,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useConstruction } from '../../../context/ConstructionContext';
+import ConfirmModal from '../../common/ConfirmModal';
 
 const SortableCard = ({ phase, tasks = [], onEdit, onDelete, isExpanded, onToggleExpand, onAddTask, onEditTask }) => {
     const {
@@ -297,6 +298,11 @@ const PhasesTab = ({ searchQuery = '' }) => {
     const [previewTask, setPreviewTask] = useState(null);
     const [taskModalMode, setTaskModalMode] = useState('read');
 
+    // Confirmation Modal System
+    const [confirmConfig, setConfirmConfig] = useState({ isOpen: false });
+    const showConfirm = (config) => setConfirmConfig({ ...config, isOpen: true });
+    const closeConfirm = () => setConfirmConfig({ ...confirmConfig, isOpen: false });
+
     const filteredPhases = dashboardData.phases?.filter(p =>
         p.name.toLowerCase().includes(searchQuery.toLowerCase())
     ) || [];
@@ -331,14 +337,23 @@ const PhasesTab = ({ searchQuery = '' }) => {
         setTaskModalMode('read');
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this Phase?')) return;
-        try {
-            await constructionService.deletePhase(id);
-            refreshData();
-        } catch (error) {
-            alert('Delete failed. Phase might be linked to other records.');
-        }
+    const handleDelete = (id) => {
+        showConfirm({
+            title: "Delete Phase?",
+            message: "Are you sure you want to delete this phase? This will remove all structural data and estimated budgets associated with it. This action cannot be undone.",
+            confirmText: "Yes, Delete Phase",
+            type: "danger",
+            onConfirm: async () => {
+                try {
+                    await constructionService.deletePhase(id);
+                    refreshData();
+                    closeConfirm();
+                } catch (error) {
+                    alert('Delete failed. Phase might be linked to other records.');
+                    closeConfirm();
+                }
+            }
+        });
     };
 
     const handleSubmit = async (e) => {
@@ -557,6 +572,16 @@ const PhasesTab = ({ searchQuery = '' }) => {
                 onClose={() => setPreviewTask(null)}
                 task={previewTask}
                 initialMode={taskModalMode}
+            />
+
+            <ConfirmModal 
+                isOpen={confirmConfig.isOpen}
+                title={confirmConfig.title}
+                message={confirmConfig.message}
+                confirmText={confirmConfig.confirmText}
+                onConfirm={confirmConfig.onConfirm}
+                onCancel={closeConfirm}
+                type={confirmConfig.type || 'warning'}
             />
         </div>
     );

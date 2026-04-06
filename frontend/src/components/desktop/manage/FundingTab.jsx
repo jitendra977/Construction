@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { dashboardService } from '../../../services/api';
 import Modal from '../../common/Modal';
 import { useConstruction } from '../../../context/ConstructionContext';
+import ConfirmModal from '../../common/ConfirmModal';
 
 const FundingTab = ({ searchQuery = '' }) => {
     const { dashboardData, refreshData, formatCurrency } = useConstruction();
@@ -17,6 +18,11 @@ const FundingTab = ({ searchQuery = '' }) => {
         date: new Date().toISOString().split('T')[0],
         description: 'Manual Top-up'
     });
+
+    // Confirmation Modal System
+    const [confirmConfig, setConfirmConfig] = useState({ isOpen: false });
+    const showConfirm = (config) => setConfirmConfig({ ...config, isOpen: true });
+    const closeConfirm = () => setConfirmConfig({ ...confirmConfig, isOpen: false });
 
     const filteredFunding = dashboardData.funding?.filter(f =>
         f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -38,14 +44,23 @@ const FundingTab = ({ searchQuery = '' }) => {
         setIsModalOpen(true);
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm(`Are you sure you want to remove this Funding Source?`)) return;
-        try {
-            await dashboardService.deleteFundingSource(id);
-            refreshData();
-        } catch (error) {
-            alert("Delete failed.");
-        }
+    const handleDelete = (id) => {
+        showConfirm({
+            title: "Delete Funding Source?",
+            message: "Are you sure you want to permanently remove this funding source? This will affect your total project capital and financial tracking. This action is irreversible.",
+            confirmText: "Yes, Delete Source",
+            type: "danger",
+            onConfirm: async () => {
+                try {
+                    await dashboardService.deleteFundingSource(id);
+                    refreshData();
+                    closeConfirm();
+                } catch (error) {
+                    alert("Delete failed.");
+                    closeConfirm();
+                }
+            }
+        });
     };
 
     const handleSubmit = async (e) => {
@@ -442,6 +457,16 @@ const FundingTab = ({ searchQuery = '' }) => {
                     </div>
                 </div>
             </Modal>
+
+            <ConfirmModal 
+                isOpen={confirmConfig.isOpen}
+                title={confirmConfig.title}
+                message={confirmConfig.message}
+                confirmText={confirmConfig.confirmText}
+                onConfirm={confirmConfig.onConfirm}
+                onCancel={closeConfirm}
+                type={confirmConfig.type || 'warning'}
+            />
         </div>
     );
 };

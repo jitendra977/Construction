@@ -49,7 +49,7 @@ function DesktopDashboard() {
                 navItems={navItems}
             />
 
-            {/* Main Content Area */}
+            {/* Main Content Area - wider to use more screen real estate */}
             <main className="flex-1 ml-64 overflow-y-auto min-h-screen">
                 <Outlet />
             </main>

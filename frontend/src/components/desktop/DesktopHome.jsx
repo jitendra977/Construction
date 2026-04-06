@@ -6,6 +6,7 @@ import TaskPreviewModal from './manage/TaskPreviewModal';
 import WastageAlertPanel from '../common/WastageAlertPanel';
 import { constructionService, permitService, dashboardService, getMediaUrl } from '../../services/api';
 import { useConstruction } from '../../context/ConstructionContext';
+import ConfirmModal from '../common/ConfirmModal';
 
 const DesktopHome = () => {
     const { dashboardData, stats, budgetStats, recentActivities, formatCurrency, refreshData, updatePhase } = useConstruction();
@@ -16,6 +17,11 @@ const DesktopHome = () => {
     const [loading, setLoading] = useState(false);
     const [detailPhase, setDetailPhase] = useState(null);
     const [previewTask, setPreviewTask] = useState(null);
+
+    // Confirmation Modal System
+    const [confirmConfig, setConfirmConfig] = useState({ isOpen: false });
+    const showConfirm = (config) => setConfirmConfig({ ...config, isOpen: true });
+    const closeConfirm = () => setConfirmConfig({ ...confirmConfig, isOpen: false });
 
     // Permit State
     const [isPermitModalOpen, setIsPermitModalOpen] = useState(false);
@@ -71,25 +77,33 @@ const DesktopHome = () => {
         }
     };
 
-    const handleReceiveOrder = async (transaction) => {
-        if (!window.confirm('Confirm receipt of these materials? This will add them to stock and create an expense.')) return;
-
-        setOrderLoading(true);
-        try {
-            const response = await dashboardService.receiveMaterialOrder(transaction.id);
-            setSuccessModalInfo({
-                isOpen: true,
-                title: 'Stock Updated! 📦',
-                message: response.message,
-                supplierName: response.supplier
-            });
-            refreshData();
-        } catch (error) {
-            const errorMsg = error.response?.data?.error || 'Failed to confirm receipt';
-            alert(`❌ ${errorMsg}`);
-        } finally {
-            setOrderLoading(false);
-        }
+    const handleReceiveOrder = (transaction) => {
+        showConfirm({
+            title: "Confirm Material Receipt?",
+            message: "Are you sure you want to confirm receipt of these materials? This will add them to stock and automatically create an associated expense record. This action cannot be undone.",
+            confirmText: "Yes, Confirm Receipt",
+            type: "warning",
+            onConfirm: async () => {
+                setOrderLoading(true);
+                try {
+                    const response = await dashboardService.receiveMaterialOrder(transaction.id);
+                    setSuccessModalInfo({
+                        isOpen: true,
+                        title: 'Stock Updated! 📦',
+                        message: response.message,
+                        supplierName: response.supplier
+                    });
+                    refreshData();
+                    closeConfirm();
+                } catch (error) {
+                    const errorMsg = error.response?.data?.error || 'Failed to confirm receipt';
+                    alert(`❌ ${errorMsg}`);
+                    closeConfirm();
+                } finally {
+                    setOrderLoading(false);
+                }
+            }
+        });
     };
 
     // Collapsible Phases State
@@ -185,14 +199,23 @@ const DesktopHome = () => {
         }
     };
 
-    const handleDeleteTask = async (taskId) => {
-        if (!window.confirm("Are you sure you want to delete this task?")) return;
-        try {
-            await constructionService.deleteTask(taskId);
-            refreshData();
-        } catch (error) {
-            console.error("Failed to delete task", error);
-        }
+    const handleDeleteTask = (taskId) => {
+        showConfirm({
+            title: "Delete Task?",
+            message: "Are you sure you want to permanently remove this task? Any associated media and proof records will also be deleted. This action is irreversible.",
+            confirmText: "Yes, Delete Task",
+            type: "danger",
+            onConfirm: async () => {
+                try {
+                    await constructionService.deleteTask(taskId);
+                    refreshData();
+                    closeConfirm();
+                } catch (error) {
+                    console.error("Failed to delete task", error);
+                    closeConfirm();
+                }
+            }
+        });
     };
 
     const handleAddPermitStep = async (e) => {
@@ -219,14 +242,23 @@ const DesktopHome = () => {
         }
     };
 
-    const handleDeletePermitStep = async (stepId) => {
-        if (!window.confirm("Are you sure you want to delete this permit step?")) return;
-        try {
-            await permitService.deleteStep(stepId);
-            refreshData();
-        } catch (error) {
-            console.error("Failed to delete permit step", error);
-        }
+    const handleDeletePermitStep = (stepId) => {
+        showConfirm({
+            title: "Delete Permit Step?",
+            message: "Are you sure you want to delete this permit step? This will remove it from the legal compliance workflow. This action is irreversible.",
+            confirmText: "Yes, Delete Step",
+            type: "danger",
+            onConfirm: async () => {
+                try {
+                    await permitService.deleteStep(stepId);
+                    refreshData();
+                    closeConfirm();
+                } catch (error) {
+                    console.error("Failed to delete permit step", error);
+                    closeConfirm();
+                }
+            }
+        });
     };
 
     return (
@@ -943,6 +975,16 @@ const DesktopHome = () => {
                     task={previewTask}
                 />
             )}
+
+            <ConfirmModal 
+                isOpen={confirmConfig.isOpen}
+                title={confirmConfig.title}
+                message={confirmConfig.message}
+                confirmText={confirmConfig.confirmText}
+                onConfirm={confirmConfig.onConfirm}
+                onCancel={closeConfirm}
+                type={confirmConfig.type || 'warning'}
+            />
         </div>
     );
 };
