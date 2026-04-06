@@ -30,9 +30,9 @@ const BudgetOverview = ({ onResolve }) => {
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Financial Planning & Tracking</h2>
-                    <p className="text-sm text-gray-500 mt-1">Real-time variance analysis between planned budget and actual costs</p>
+                <div className="space-y-1">
+                    <h2 className="text-2xl font-black tracking-tight" style={{ color: 'var(--t-text)' }}>Financial <span className="opacity-40">Intelligence</span></h2>
+                    <p className="text-sm font-medium opacity-70" style={{ color: 'var(--t-text2)' }}>Real-time variance analysis between planned budget and actual costs</p>
                 </div>
                 <div className={`px-4 py-2 rounded-xl text-sm font-black uppercase tracking-widest border ${health.status === 'HEALTHY'
                     ? 'bg-green-50 text-green-700 border-green-100'
@@ -148,9 +148,9 @@ const BudgetOverview = ({ onResolve }) => {
             {/* Detailed Breakdowns */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
                 {/* Categories Progress */}
-                <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-                    <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-6 flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <div className="bg-[var(--t-surface)] rounded-2xl p-6 border border-[var(--t-border)] shadow-sm">
+                    <h3 className="text-[10px] font-black text-[var(--t-text)] uppercase tracking-[0.2em] mb-6 flex items-center gap-2" style={{ fontFamily: 'var(--f-mono)' }}>
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"></span>
                         Category Flow (Planned vs Purchase)
                     </h3>
                     <div className="space-y-5">
@@ -169,9 +169,9 @@ const BudgetOverview = ({ onResolve }) => {
                 </div>
 
                 {/* Phases Progress */}
-                <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-                    <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-6 flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                <div className="bg-[var(--t-surface)] rounded-2xl p-6 border border-[var(--t-border)] shadow-sm">
+                    <h3 className="text-[10px] font-black text-[var(--t-text)] uppercase tracking-[0.2em] mb-6 flex items-center gap-2" style={{ fontFamily: 'var(--f-mono)' }}>
+                        <span className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)]"></span>
                         Phase Utilization (Direct + Material Usage)
                     </h3>
                     <div className="space-y-5">
@@ -202,13 +202,13 @@ const StatCard = ({ title, amount, subtitle, icon, percent, color, trend }) => {
     };
 
     return (
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+        <div className="bg-[var(--t-surface)] p-6 rounded-2xl border border-[var(--t-border)] shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 group">
             <div className="flex items-start justify-between mb-4">
-                <div className={`p-3 rounded-xl text-white ${bgColors[color] || bgColors.indigo} shadow-lg`}>
+                <div className={`p-3 rounded-xl text-white ${bgColors[color] || bgColors.indigo} shadow-lg group-hover:scale-110 transition-transform`}>
                     <span className="text-xl">{icon}</span>
                 </div>
                 <div className="text-right">
-                    <span className="text-xl font-black text-gray-900">{amount}</span>
+                    <span className="text-xl font-black" style={{ color: 'var(--t-text)' }}>{amount}</span>
                     <div className="flex items-center justify-end gap-1 mt-1">
                         {trend === 'up' && <span className="text-[10px] text-red-500 font-black">▲</span>}
                         <div className={`w-1.5 h-1.5 rounded-full ${percent > 100 ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}></div>
@@ -219,8 +219,8 @@ const StatCard = ({ title, amount, subtitle, icon, percent, color, trend }) => {
                 </div>
             </div>
             <div>
-                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{title}</h4>
-                <p className="text-[10px] text-gray-500 font-medium">{subtitle}</p>
+                <h4 className="text-[10px] font-black uppercase tracking-[0.15em] mb-1 opacity-40" style={{ color: 'var(--t-text)', fontFamily: 'var(--f-mono)' }}>{title}</h4>
+                <p className="text-[10px] font-medium opacity-60" style={{ color: 'var(--t-text2)' }}>{subtitle}</p>
             </div>
         </div>
     );

@@ -48,7 +48,7 @@ function MobileDashboard() {
             />
 
             {/* Main Content Area - Padding handled by MobileLayout in children */}
-            <main className={`relative z-10 ${isHome ? 'mt-0' : '-mt-10'}`}>
+            <main className={`${isHome ? 'mt-0' : '-mt-10'}`}>
                 <Outlet />
             </main>
 

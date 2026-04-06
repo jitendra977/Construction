@@ -144,17 +144,19 @@ const TaskPreviewModal = ({ isOpen, onClose, task, initialMode = 'read' }) => {
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={!(task && task.id) ? "Initialize New Task" : isEditing ? "Edit Task" : "Task Details"} maxWidth="max-w-4xl">
-            <div className="space-y-6">
-                
-                {/* Actions Bar */}
-                <div className="flex justify-between items-center bg-[var(--t-surface2)] p-2 rounded-xl border border-[var(--t-border)] sticky top-0 z-10 backdrop-blur-md">
+        <Modal 
+            isOpen={isOpen} 
+            onClose={onClose} 
+            title={!(task && task.id) ? "Initialize New Task" : isEditing ? "Edit Task" : "Task Details"} 
+            maxWidth="max-w-4xl"
+            footer={
+                <div className="flex justify-between items-center w-full">
                     <div className="flex gap-2">
                         {!isEditing ? (
                             <>
                                 <button 
                                     onClick={() => setIsEditing(true)}
-                                    className="px-4 py-1.5 bg-[var(--t-primary)] text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all flex items-center gap-2"
+                                    className="px-4 py-2 bg-[var(--t-primary)] text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all flex items-center gap-2"
                                     style={mono}
                                 >
                                     <span>✏️</span> Edit
@@ -162,7 +164,7 @@ const TaskPreviewModal = ({ isOpen, onClose, task, initialMode = 'read' }) => {
                                 <button 
                                     onClick={() => fileInputRef.current?.click()}
                                     disabled={uploading}
-                                    className="px-4 py-1.5 bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-all flex items-center gap-2"
+                                    className="px-4 py-2 bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-all flex items-center gap-2"
                                     style={mono}
                                 >
                                     <span>📤</span> {uploading ? 'Uploading...' : 'Upload'}
@@ -170,7 +172,7 @@ const TaskPreviewModal = ({ isOpen, onClose, task, initialMode = 'read' }) => {
                                 <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*,video/*,.pdf,.doc,.docx" />
                                 <button 
                                     onClick={() => setShowDeleteConfirm(true)}
-                                    className="px-4 py-1.5 bg-red-500/10 text-red-500 border border-red-500/30 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all flex items-center gap-2"
+                                    className="px-4 py-2 bg-red-500/10 text-red-500 border border-red-500/30 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all flex items-center gap-2"
                                 >
                                     <span>🗑️</span> Delete
                                 </button>
@@ -180,13 +182,13 @@ const TaskPreviewModal = ({ isOpen, onClose, task, initialMode = 'read' }) => {
                                 <button 
                                     onClick={handleSave}
                                     disabled={loading}
-                                    className="px-4 py-1.5 bg-green-500 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all flex items-center gap-2"
+                                    className="px-4 py-2 bg-green-500 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all flex items-center gap-2"
                                 >
                                     {loading ? 'Saving...' : '✅ Save Changes'}
                                 </button>
                                 <button 
                                     onClick={() => setIsEditing(false)}
-                                    className="px-4 py-1.5 bg-[var(--t-surface3)] text-[var(--t-text2)] rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-[var(--t-border)] transition-all"
+                                    className="px-4 py-2 bg-[var(--t-surface3)] text-[var(--t-text2)] rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-[var(--t-border)] transition-all"
                                 >
                                     Cancel
                                 </button>
@@ -194,11 +196,14 @@ const TaskPreviewModal = ({ isOpen, onClose, task, initialMode = 'read' }) => {
                         )}
                     </div>
                     {!isEditing && task && task.id && (
-                        <div className="text-[10px] font-black text-[var(--t-primary)] uppercase tracking-tighter" style={mono}>
+                        <div className="hidden sm:block text-[10px] font-black text-[var(--t-primary)] uppercase tracking-tighter" style={mono}>
                             Node ID: #{task.id}
                         </div>
                     )}
                 </div>
+            }
+        >
+            <div className="space-y-6">
 
                 {showDeleteConfirm && (
                     <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl animate-shake">

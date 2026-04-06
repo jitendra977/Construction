@@ -180,18 +180,19 @@ const DesktopManage = () => {
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
-                                    className={`group relative px-6 py-4 text-sm font-bold uppercase tracking-wide transition-all duration-200 whitespace-nowrap flex flex-col items-center gap-1 ${activeTab === tab.id
+                                    className={`group relative px-6 py-4 text-xs font-black uppercase tracking-[0.15em] transition-all duration-300 whitespace-nowrap flex flex-col items-center gap-1.5 ${activeTab === tab.id
                                         ? 'text-[var(--t-primary)]'
-                                        : 'text-[var(--t-text3)] hover:text-[var(--t-text)] opacity-70 hover:opacity-100'
+                                        : 'text-[var(--t-text3)] hover:text-[var(--t-text)] opacity-60 hover:opacity-100'
                                     }`}
+                                    style={{ fontFamily: 'var(--f-mono)' }}
                                 >
                                     <span>{tab.label}</span>
-                                    <span className="text-[11px] opacity-50 lowercase font-semibold tracking-normal">{tab.labelNe}</span>
+                                    <span className="text-[10px] opacity-40 lowercase font-bold tracking-normal">{tab.labelNe}</span>
 
                                     {activeTab === tab.id && (
-                                        <div className="absolute inset-x-3 bottom-0 h-0.5 bg-[var(--t-primary)] rounded-t-full" />
+                                        <div className="absolute inset-x-4 bottom-0 h-0.5 bg-[var(--t-primary)] rounded-t-full shadow-[0_0_8px_var(--t-primary)]" />
                                     )}
-                                    <div className={`absolute inset-0 transition-colors rounded-t-lg ${activeTab === tab.id ? 'bg-[var(--t-primary)]/5' : 'group-hover:bg-black/3'}`} />
+                                    <div className={`absolute inset-0 transition-colors rounded-t-lg ${activeTab === tab.id ? 'bg-[var(--t-primary)]/5' : 'group-hover:bg-black/2'}`} />
                                 </button>
                             ))}
                         </div>

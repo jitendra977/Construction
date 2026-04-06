@@ -4,12 +4,12 @@ import MobileLayout from './MobileLayout';
 
 // Import Desktop Components (Reused for non-phases tabs)
 import FloorsTab from '../desktop/manage/FloorsTab';
-import CategoriesTab from '../desktop/manage/CategoriesTab';
 import ExpensesTab from '../desktop/manage/ExpensesTab';
 import MobileContractorList from './MobileContractorList';
 import MobileSupplierList from './MobileSupplierList';
 import MobileMaterialList from './MobileMaterialList';
 import MobileStockList from './MobileStockList';
+import MobileCategoryList from './MobileCategoryList';
 import FundingTab from '../desktop/manage/FundingTab';
 import PaymentsTab from '../desktop/manage/PaymentsTab';
 import TaskPreviewModal from '../desktop/manage/TaskPreviewModal';
@@ -385,7 +385,7 @@ const MobileManage = () => {
                     {activeSection === 'finance' && (
                         <>
                             {activeTab === 'funding' && <FundingTab searchQuery={searchQuery} />}
-                            {activeTab === 'categories' && <CategoriesTab searchQuery={searchQuery} />}
+                            {activeTab === 'categories' && <MobileCategoryList searchQuery={searchQuery} />}
                             {activeTab === 'expenses' && <ExpensesTab searchQuery={searchQuery} />}
                             {activeTab === 'payments' && <PaymentsTab searchQuery={searchQuery} />}
                         </>

@@ -238,8 +238,53 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks, initialMode = 'read' 
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={handleCloseAttempt} title="Phase Structural Console" maxWidth="max-w-7xl">
-            <div className="flex flex-col lg:flex-row gap-6 bg-[var(--t-bg)] p-4 lg:p-6 min-h-fit lg:min-h-[600px]">
+        <Modal 
+            isOpen={isOpen} 
+            onClose={handleCloseAttempt} 
+            title="Phase Structural Console" 
+            maxWidth="max-w-7xl"
+            footer={
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-4 w-full">
+                    <div className="flex gap-3 w-full sm:w-auto">
+                        {isEditing ? (
+                            <button 
+                                onClick={async () => {
+                                    await handleGlobalSave();
+                                    setIsEditing(false);
+                                }}
+                                disabled={saving}
+                                className="flex-1 sm:px-6 py-2.5 bg-[var(--t-primary)] text-[var(--t-bg)] rounded-lg text-[10px] font-black uppercase tracking-widest hover:opacity-90 disabled:opacity-50 transition-all font-['DM_Mono',monospace]"
+                            >
+                                {saving ? 'SYNCING DATA...' : 'SYNC ALL CHANGES'}
+                            </button>
+                        ) : (
+                            <button 
+                                onClick={() => setIsEditing(true)}
+                                className="flex-1 sm:px-6 py-2.5 bg-[var(--t-surface3)] text-[var(--t-text)] border border-[var(--t-border)] rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-[var(--t-surface2)] transition-all font-['DM_Mono',monospace]"
+                            >
+                                Enter Edit Mode
+                            </button>
+                        )}
+                        <button 
+                            onClick={handleCloseAttempt}
+                            className="flex-1 sm:px-6 py-2.5 bg-[var(--t-surface2)] text-[var(--t-text3)] border border-[var(--t-border)] rounded-lg text-[10px] font-black uppercase tracking-widest hover:text-[var(--t-text)] transition-all font-['DM_Mono',monospace]"
+                        >
+                            Close Console
+                        </button>
+                    </div>
+                    
+                    {isEditing && (
+                        <button 
+                            onClick={() => setDeleteConfirmTarget({ id: phase.id, type: 'PHASE', title: phase.name })}
+                            className="w-full sm:w-auto text-[9px] font-black text-[var(--t-danger)] uppercase tracking-[.2em] hover:underline"
+                        >
+                            [ DELETE PHASE ]
+                        </button>
+                    )}
+                </div>
+            }
+        >
+            <div className="flex flex-col lg:flex-row gap-6 bg-[var(--t-bg)] p-2 sm:p-4 lg:p-6 min-h-fit lg:min-h-[600px]">
                 {/* Left Column: Core Identity & Structural Nodes */}
                 <div className="w-full lg:w-5/12 flex flex-col gap-6">
                     
@@ -273,7 +318,7 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks, initialMode = 'read' 
                                     {phase.status.replace('_', ' ')}
                                 </span>
                                 
-                                {!isEditing ? (
+                                {!isEditing && (
                                     <button 
                                         onClick={() => setIsEditing(true)}
                                         className="text-[9px] font-black text-[var(--t-primary)] uppercase tracking-widest hover:underline flex items-center gap-1"
@@ -281,27 +326,6 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks, initialMode = 'read' 
                                     >
                                         <span>[ ✏️ EDIT NODE ]</span>
                                     </button>
-                                ) : (
-                                    <div className="flex gap-2">
-                                        <button 
-                                            onClick={() => setIsEditing(false)}
-                                            className="text-[9px] font-black text-[var(--t-text3)] uppercase tracking-widest hover:text-[var(--t-danger)]"
-                                            style={{ fontFamily: 'var(--f-mono)' }}
-                                        >
-                                            [ CANCEL ]
-                                        </button>
-                                        <button 
-                                            onClick={async () => {
-                                                await handleGlobalSave();
-                                                setIsEditing(false);
-                                            }}
-                                            disabled={saving}
-                                            className="text-[9px] font-black text-[var(--t-primary)] uppercase tracking-widest hover:text-[var(--t-primary2)]"
-                                            style={{ fontFamily: 'var(--f-mono)' }}
-                                        >
-                                            [ {saving ? 'SAVING...' : 'SYNC ALL'} ]
-                                        </button>
-                                    </div>
                                 )}
                             </div>
                         </div>
@@ -666,12 +690,6 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks, initialMode = 'read' 
                         }} />
                     </div>
 
-                    {isEditing && (
-                        <button onClick={() => setDeleteConfirmTarget({ id: phase.id, type: 'PHASE', title: phase.name })}
-                            className="w-full py-2 border border-[var(--t-danger)]/30 text-[var(--t-danger)] text-[9px] font-black uppercase tracking-[.3em] rounded-sm hover:bg-[var(--t-danger)] hover:text-white transition-all">
-                            Decommission Phase
-                        </button>
-                    )}
                 </div>
             </div>
 

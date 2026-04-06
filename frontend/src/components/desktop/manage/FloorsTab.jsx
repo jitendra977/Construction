@@ -209,8 +209,8 @@ const FloorsTab = ({ searchQuery = '' }) => {
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="bg-[var(--t-surface2)] border-b border-[var(--t-border)]">
-                            <th className="px-6 py-4 text-xs font-bold text-[var(--t-text2)] uppercase tracking-wider">Structure Hierarchy</th>
-                            <th className="px-6 py-4 text-xs font-bold text-[var(--t-text2)] uppercase tracking-wider text-right">Actions</th>
+                            <th className="px-6 py-4 text-[10px] font-black text-[var(--t-text3)] uppercase tracking-[0.25em]" style={{ fontFamily: 'var(--f-mono)' }}>Structure Hierarchy</th>
+                            <th className="px-6 py-4 text-[10px] font-black text-[var(--t-text3)] uppercase tracking-[0.25em] text-right" style={{ fontFamily: 'var(--f-mono)' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--t-border)]">
@@ -219,8 +219,8 @@ const FloorsTab = ({ searchQuery = '' }) => {
                                 <tr className="bg-[var(--t-surface3)]/30">
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
-                                            <span className="bg-[var(--t-primary)] text-[var(--t-bg)] px-2 py-0.5 rounded text-[10px] font-black uppercase">Level {f.level}</span>
-                                            <span className="text-[var(--t-text)] font-black uppercase tracking-tight">{f.name}</span>
+                                            <span className="bg-[var(--t-primary)] text-[var(--t-bg)] px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest">Lvl {f.level}</span>
+                                            <span className="text-[var(--t-text)] font-semibold text-sm tracking-tight">{f.name}</span>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-right space-x-3">
@@ -234,7 +234,7 @@ const FloorsTab = ({ searchQuery = '' }) => {
                                         <td className="px-12 py-3 border-b border-[var(--t-border)]">
                                             <div className="flex items-center gap-4">
                                                 <div className="w-1.5 h-1.5 bg-[var(--t-border)] rounded-full" />
-                                                <div className="text-[var(--t-text)] font-semibold text-sm">{r.name}</div>
+                                                <div className="text-[var(--t-text)] font-medium text-sm">{r.name}</div>
                                                 <span className="text-[10px] text-[var(--t-text3)] font-mono uppercase tracking-tighter">({r.area_sqft || 0} SQFT)</span>
                                             </div>
                                         </td>

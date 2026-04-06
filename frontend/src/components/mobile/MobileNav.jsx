@@ -13,7 +13,7 @@ const MobileNav = () => {
 
 
     return (
-        <nav className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-8 pt-4">
+        <nav className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-12 pt-4">
             <div className="bg-[var(--t-surface)]/95 backdrop-blur-xl border border-[var(--t-border)] rounded-[2.5rem] flex justify-around items-center h-20 shadow-2xl px-2"
                 style={{ boxShadow: '0 -4px 40px rgba(0,0,0,0.15)' }}>
                 {navItems.map((item) => (

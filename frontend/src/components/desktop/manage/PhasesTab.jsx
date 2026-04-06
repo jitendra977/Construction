@@ -60,8 +60,8 @@ const SortableCard = ({ phase, tasks = [], onEdit, onDelete, isExpanded, onToggl
                         </svg>
                     </div>
                     <div>
-                        <div className="text-[10px] font-black text-[var(--t-text2)] uppercase tracking-widest" style={{ fontFamily: 'var(--f-mono)' }}>Phase {phase.order}</div>
-                        <h3 className="font-bold text-[var(--t-text)]" style={{ fontFamily: 'var(--f-body)' }}>{phase.name}</h3>
+                        <div className="text-[10px] font-black text-[var(--t-text3)] uppercase tracking-[0.2em]" style={{ fontFamily: 'var(--f-mono)' }}>Phase {phase.order}</div>
+                        <h3 className="font-black text-[var(--t-text)] text-sm tracking-tight" style={{ fontFamily: 'var(--f-body)' }}>{phase.name}</h3>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -190,7 +190,7 @@ const SortableRow = ({ phase, tasks = [], onEdit, onDelete, isExpanded, onToggle
                 </div>
             </td>
             <td className="px-6 py-4 border-b border-[var(--t-border)]" onClick={() => onEdit(phase)}>
-                <div className="text-[var(--t-text)] font-bold text-sm" style={{ fontFamily: 'var(--f-body)' }}>{phase.name}</div>
+                <div className="text-[var(--t-text)] font-semibold text-sm tracking-tight" style={{ fontFamily: 'var(--f-body)' }}>{phase.name}</div>
                 <div className="flex items-center gap-4 mt-2">
                     <div className="flex-1 max-w-[150px]">
                         <div className="flex justify-between items-center mb-1">
@@ -407,11 +407,11 @@ const PhasesTab = ({ searchQuery = '' }) => {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-[var(--t-surface2)] border-b border-[var(--t-border)]">
-                                <th className="px-6 py-4 text-[10px] font-black text-[var(--t-text3)] uppercase tracking-[.2em]" style={{ fontFamily: 'var(--f-mono)' }}>Order</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-[var(--t-text3)] uppercase tracking-[.2em]" style={{ fontFamily: 'var(--f-mono)' }}>Phase Overview</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-[var(--t-text3)] uppercase tracking-[.2em]" style={{ fontFamily: 'var(--f-mono)' }}>Status</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-[var(--t-text3)] uppercase tracking-[.2em]" style={{ fontFamily: 'var(--f-mono)' }}>Est. Budget</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-[var(--t-text3)] uppercase tracking-[.2em] text-right" style={{ fontFamily: 'var(--f-mono)' }}>Actions</th>
+                                <th className="px-6 py-4 text-[10px] font-black text-[var(--t-text3)] uppercase tracking-[0.25em]" style={{ fontFamily: 'var(--f-mono)' }}>Order</th>
+                                <th className="px-6 py-4 text-[10px] font-black text-[var(--t-text3)] uppercase tracking-[0.25em]" style={{ fontFamily: 'var(--f-mono)' }}>Phase Overview</th>
+                                <th className="px-6 py-4 text-[10px] font-black text-[var(--t-text3)] uppercase tracking-[0.25em]" style={{ fontFamily: 'var(--f-mono)' }}>Status</th>
+                                <th className="px-6 py-4 text-[10px] font-black text-[var(--t-text3)] uppercase tracking-[0.25em]" style={{ fontFamily: 'var(--f-mono)' }}>Est. Budget</th>
+                                <th className="px-6 py-4 text-[10px] font-black text-[var(--t-text3)] uppercase tracking-[0.25em] text-right" style={{ fontFamily: 'var(--f-mono)' }}>Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[var(--t-border)]">
