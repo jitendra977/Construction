@@ -25,6 +25,8 @@ const ExpenseActions = ({ searchQuery, setSearchQuery, handleOpenModal, exportDa
                 {exportData && (
                      <PdfExportButton 
                         data={exportData} 
+                        summaryData={exportData.summaryData}
+                        projectInfo={exportData.projectInfo}
                         title="Construction Project Cost Summary" 
                         filename={`cost_summary_${new Date().toISOString().split('T')[0]}.pdf`} 
                      />

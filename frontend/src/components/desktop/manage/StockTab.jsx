@@ -13,6 +13,7 @@ const StockTab = ({ searchQuery = '' }) => {
     const [loading, setLoading] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+    const [selectedExpenseId, setSelectedExpenseId] = useState(null);
     const [sortBy, setSortBy] = useState('date_desc'); // date_desc, date_asc
 
     // Confirmation Modal System

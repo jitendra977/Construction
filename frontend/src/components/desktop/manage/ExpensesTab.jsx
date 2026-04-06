@@ -207,9 +207,21 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
                         e.category_name || 'N/A',
                         e.paid_to || 'N/A',
                         dashboardData.phases?.find(p => p.id === e.phase)?.name || 'N/A',
-                        Number(e.amount).toLocaleString(),
-                        e.payment_status === 'PAID' ? 'FULLY PAID' : 'PENDING'
-                    ])
+                        Number(e.amount).toLocaleString('en-IN'),
+                        e.payment_status === 'PAID' ? 'FULLY PAID' : `DUE: ${Number(e.balance_due).toLocaleString('en-IN')}`
+                    ]),
+                    summaryData: {
+                        totalAmount: formatCurrency(filteredExpenses.reduce((sum, e) => sum + Number(e.amount), 0)),
+                        totalPaid: formatCurrency(filteredExpenses.reduce((sum, e) => {
+                            const paid = e.payments?.reduce((pSum, p) => pSum + Number(p.amount), 0) || 0;
+                            return sum + paid;
+                        }, 0)),
+                        totalDue: formatCurrency(filteredExpenses.reduce((sum, e) => sum + Number(e.balance_due), 0))
+                    },
+                    projectInfo: {
+                        name: dashboardData.project?.name,
+                        owner: dashboardData.project?.owner_name || user?.name
+                    }
                 }}
             />
 
