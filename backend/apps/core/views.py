@@ -3,8 +3,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from .models import HouseProject, ConstructionPhase, Room, Floor, UserGuide, UserGuideStep, UserGuideFAQ, UserGuideProgress
-from .serializers import HouseProjectSerializer, ConstructionPhaseSerializer, RoomSerializer, FloorSerializer, UserGuideSerializer, UserGuideStepSerializer, UserGuideFAQSerializer, UserGuideProgressSerializer
+from .models import HouseProject, ConstructionPhase, Room, Floor, UserGuide, UserGuideStep, UserGuideFAQ, UserGuideProgress, EmailLog
+from .serializers import HouseProjectSerializer, ConstructionPhaseSerializer, RoomSerializer, FloorSerializer, UserGuideSerializer, UserGuideStepSerializer, UserGuideFAQSerializer, UserGuideProgressSerializer, EmailLogSerializer
 from apps.accounts.permissions import IsSystemAdmin
 
 from apps.tasks.models import Task
@@ -162,3 +162,23 @@ class UserGuideFAQViewSet(viewsets.ModelViewSet):
     queryset = UserGuideFAQ.objects.all()
     serializer_class = UserGuideFAQSerializer
     permission_classes = [IsAuthenticated, IsSystemAdmin]
+
+class EmailLogViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet for viewing email logs. Read-only for auditing purposes.
+    """
+    queryset = EmailLog.objects.all()
+    serializer_class = EmailLogSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """
+        Users can only see logs for emails they sent or are related to their project.
+        """
+        user = self.request.user
+        queryset = EmailLog.objects.select_related('sent_by', 'payment', 'expense', 'material')
+        
+        # Admin sees all, regular users see only their own
+        if not getattr(user, 'is_system_admin', False):
+            queryset = queryset.filter(sent_by=user)
+        return queryset

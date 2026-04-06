@@ -9,22 +9,24 @@ from datetime import datetime
 
 from .pdf_utils import generate_purchase_order_pdf
 
-def send_material_order_email(material, quantity, user_email=None, custom_subject=None, custom_body=None):
+def send_material_order_email(material, quantity, user=None, custom_subject=None, custom_body=None):
     """
     Send an enhanced HTML email with PDF PO to a supplier to order material.
     """
-    if not material.supplier:
+    from .models import EmailLog
+    recipient = material.supplier
+    
+    if not recipient:
         raise ValueError("Material has no supplier assigned")
     
-    if not material.supplier.email:
-        raise ValueError(f"Supplier '{material.supplier.name}' has no email address")
+    if not recipient.email:
+        raise ValueError(f"Supplier '{recipient.name}' has no email address")
     
-    # Subject handling
     subject = custom_subject or f"Purchase Order: {material.name} - Dream Home Construction"
+    user_email = user.email if user and hasattr(user, 'email') else None
     
-    # Template context
     context = {
-        'supplier_name': material.supplier.contact_person or material.supplier.name,
+        'supplier_name': recipient.contact_person or recipient.name,
         'material_name': material.name,
         'category': material.category or 'General Construction',
         'quantity': quantity,
@@ -33,23 +35,30 @@ def send_material_order_email(material, quantity, user_email=None, custom_subjec
         'project_name': "Dream Home Construction"
     }
     
-    # Render HTML content
     html_content = render_to_string('emails/order_email.html', context)
-    text_content = strip_tags(html_content) # Fallback for non-HTML clients
+    text_content = strip_tags(html_content)
     
-    # Generate PDF PO
     try:
-        pdf_content = generate_purchase_order_pdf(material, quantity, material.supplier)
+        pdf_content = generate_purchase_order_pdf(material, quantity, recipient)
     except Exception as pdf_err:
         print(f"Failed to generate PDF: {pdf_err}")
         pdf_content = None
+
+    log_entry = EmailLog.objects.create(
+        email_type='PURCHASE_ORDER',
+        recipient_name=recipient.name,
+        recipient_email=recipient.email,
+        subject=subject,
+        material=material,
+        sent_by=user if user and user.is_authenticated else None
+    )
 
     try:
         email = EmailMultiAlternatives(
             subject=subject,
             body=text_content,
             from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[material.supplier.email],
+            to=[recipient.email],
             reply_to=[user_email] if user_email else None
         )
         email.attach_alternative(html_content, "text/html")
@@ -59,27 +68,34 @@ def send_material_order_email(material, quantity, user_email=None, custom_subjec
             email.attach(po_filename, pdf_content, 'application/pdf')
             
         email.send()
+        log_entry.status = 'SENT'
+        log_entry.save()
         return True
     except Exception as e:
-        print(f"Error sending email: {str(e)}")
+        error_msg = str(e)
+        print(f"Error sending email: {error_msg}")
+        log_entry.status = 'FAILED'
+        log_entry.error_message = error_msg
+        log_entry.save()
         return False
 
 
-def send_contractor_notification(contractor, subject, message):
+def send_contractor_notification(contractor, subject, message, user=None):
     """
     Send a notification email to a contractor.
-    
-    Args:
-        contractor: Contractor instance
-        subject: Email subject
-        message: Email message body
-    
-    Returns:
-        bool: True if email was sent successfully, False otherwise
     """
+    from .models import EmailLog
     if not contractor.email:
         raise ValueError(f"Contractor '{contractor.name}' has no email address")
     
+    log_entry = EmailLog.objects.create(
+        email_type='CONTRACTOR_NOTIFICATION',
+        recipient_name=contractor.name,
+        recipient_email=contractor.email,
+        subject=subject,
+        sent_by=user if user and user.is_authenticated else None
+    )
+
     try:
         send_mail(
             subject=subject,
@@ -88,28 +104,51 @@ def send_contractor_notification(contractor, subject, message):
             recipient_list=[contractor.email],
             fail_silently=False,
         )
+        log_entry.status = 'SENT'
+        log_entry.save()
         return True
     except Exception as e:
-        print(f"Error sending email: {str(e)}")
+        error_msg = str(e)
+        print(f"Error sending email: {error_msg}")
+        log_entry.status = 'FAILED'
+        log_entry.error_message = error_msg
+        log_entry.save()
         return False
 
-def send_payment_receipt_email(payment, user_email=None, custom_subject=None, custom_message=None):
+def send_payment_receipt_email(payment, user=None, custom_subject=None, custom_message=None):
     """
     Send an HTML email with PDF Payment Receipt to supplier or contractor.
     """
+    from .models import EmailLog
+    from .models import EmailLog
     recipient = payment.expense.supplier or payment.expense.contractor
     if not recipient:
-        raise ValueError("Payment has no associated supplier or contractor")
-    
+        print(f"Skipping email for payment {payment.id}: no associated supplier or contractor")
+        return False
+        
     if not recipient.email:
-        raise ValueError(f"Recipient '{recipient.name}' has no email address")
+        error_msg = f"Recipient '{recipient.name}' has no email address"
+        print(f"Skipping email for payment {payment.id}: {error_msg}")
+        EmailLog.objects.create(
+            email_type='PAYMENT_RECEIPT',
+            recipient_name=recipient.name,
+            recipient_email='',
+            subject="Payment Receipt",
+            payment=payment,
+            expense=payment.expense,
+            sent_by=user if user and hasattr(user, 'is_authenticated') and user.is_authenticated else None,
+            status='FAILED',
+            error_message=error_msg
+        )
+        return False
     
     from .pdf_utils import generate_payment_receipt_pdf
     
     subject = custom_subject or f"Payment Receipt: REC-{payment.id} - Dream Home Construction"
+    user_email = user.email if user and hasattr(user, 'email') else None
     
     context = {
-        'recipient_name': recipient.contact_person or recipient.name,
+        'recipient_name': getattr(recipient, 'contact_person', None) or recipient.name,
         'amount': str(payment.amount),
         'date': payment.date.strftime('%Y-%m-%d') if payment.date else datetime.now().strftime('%Y-%m-%d'),
         'method': payment.get_method_display(),
@@ -128,6 +167,17 @@ def send_payment_receipt_email(payment, user_email=None, custom_subject=None, cu
         print(f"Failed to generate PDF: {pdf_err}")
         pdf_content = None
 
+    print(f"DEBUG: Attempting to create EmailLog for payment {payment.id}")
+    log_entry = EmailLog.objects.create(
+        email_type='PAYMENT_RECEIPT',
+        recipient_name=recipient.name,
+        recipient_email=recipient.email,
+        subject=subject,
+        payment=payment,
+        expense=payment.expense,
+        sent_by=user if user and user.is_authenticated else None
+    )
+
     try:
         email = EmailMultiAlternatives(
             subject=subject,
@@ -143,7 +193,13 @@ def send_payment_receipt_email(payment, user_email=None, custom_subject=None, cu
             email.attach(receipt_filename, pdf_content, 'application/pdf')
             
         email.send()
+        log_entry.status = 'SENT'
+        log_entry.save()
         return True
     except Exception as e:
-        print(f"Error sending email: {str(e)}")
+        error_msg = str(e)
+        print(f"Error sending email: {error_msg}")
+        log_entry.status = 'FAILED'
+        log_entry.error_message = error_msg
+        log_entry.save()
         return False

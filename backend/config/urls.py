@@ -8,7 +8,7 @@ from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 
 from apps.accounts.views import UserViewSet, RoleViewSet, ActivityLogViewSet
-from apps.core.views import HouseProjectViewSet, ConstructionPhaseViewSet, RoomViewSet, FloorViewSet, UserGuideViewSet, UserGuideStepViewSet, UserGuideFAQViewSet, DashboardDataView
+from apps.core.views import HouseProjectViewSet, ConstructionPhaseViewSet, RoomViewSet, FloorViewSet, UserGuideViewSet, UserGuideStepViewSet, UserGuideFAQViewSet, EmailLogViewSet, DashboardDataView
 from apps.core.import_views import SqlImportView, RawDataPopulationView
 from apps.core.gallery_views import GalleryViewSet
 from apps.tasks.views import TaskViewSet, TaskUpdateViewSet, TaskMediaViewSet
@@ -42,6 +42,7 @@ router.register(r'wastage-alerts', WastageAlertViewSet, basename='wastage-alerts
 router.register(r'user-guides', UserGuideViewSet)
 router.register(r'user-guide-steps', UserGuideStepViewSet)
 router.register(r'user-guide-faqs', UserGuideFAQViewSet)
+router.register(r'email-logs', EmailLogViewSet)
 
 urlpatterns = [
     path('admin/', admin.site.urls),

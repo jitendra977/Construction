@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import HouseProject, ConstructionPhase, Room, Floor, UserGuide, UserGuideStep, UserGuideFAQ, UserGuideProgress
+from .models import HouseProject, ConstructionPhase, Room, Floor, UserGuide, UserGuideStep, UserGuideFAQ, UserGuideProgress, EmailLog
 
 class HouseProjectSerializer(serializers.ModelSerializer):
     category_allocation_total = serializers.ReadOnlyField()
@@ -57,3 +57,16 @@ class UserGuideProgressSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserGuideProgress
         fields = ['guide', 'is_completed', 'last_step_seen', 'updated_at']
+
+class EmailLogSerializer(serializers.ModelSerializer):
+    sent_by_username = serializers.ReadOnlyField(source='sent_by.username')
+    payment_amount = serializers.ReadOnlyField(source='payment.amount')
+    expense_title = serializers.ReadOnlyField(source='expense.title')
+
+    class Meta:
+        model = EmailLog
+        fields = [
+            'id', 'email_type', 'status', 'recipient_name', 'recipient_email', 
+            'subject', 'sent_by', 'sent_by_username', 'payment', 'payment_amount',
+            'expense', 'expense_title', 'material', 'error_message', 'created_at'
+        ]

@@ -27,9 +27,11 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
         date: new Date().toISOString().split('T')[0],
         method: 'CASH',
         reference_id: '',
-        proof_photo: null
+        proof_photo: null,
+        send_receipt: true
     });
     const [photoPreview, setPhotoPreview] = useState(null);
+    const [paymentStatus, setPaymentStatus] = useState('IDLE'); // IDLE, PROCESSING, SUCCESS, ERROR
 
     // Confirmation Modal System
     const [confirmConfig, setConfirmConfig] = useState({ isOpen: false });
@@ -145,7 +147,8 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
             amount: expense.balance_due,
             date: new Date().toISOString().split('T')[0],
             method: defaultMethod,
-            reference_id: ''
+            reference_id: '',
+            send_receipt: true
         });
         setIsPaymentModalOpen(true);
     };
@@ -161,17 +164,26 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
             formData.append('date', paymentFormData.date);
             formData.append('method', paymentFormData.method);
             formData.append('reference_id', paymentFormData.reference_id);
+            formData.append('send_receipt', paymentFormData.send_receipt);
             if (paymentFormData.proof_photo) {
                 formData.append('proof_photo', paymentFormData.proof_photo);
             }
 
+            setPaymentStatus('PROCESSING');
             await dashboardService.createPayment(formData);
-            setIsPaymentModalOpen(false);
+            setPaymentStatus('SUCCESS');
             setPhotoPreview(null);
             refreshData();
+            
+            // Auto-close after 2 seconds
+            setTimeout(() => {
+                setIsPaymentModalOpen(false);
+                setPaymentStatus('IDLE');
+            }, 2000);
         } catch (error) {
             console.error("Payment error:", error);
-            alert('Payment recording failed. Please check the console.');
+            setPaymentStatus('ERROR');
+            setTimeout(() => setPaymentStatus('IDLE'), 3000);
         } finally {
             setLoading(false);
         }
@@ -701,6 +713,27 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
                             </div>
                         </div>
 
+                        <div className="bg-[var(--t-surface2)] p-6 rounded-[2rem] border border-[var(--t-border)] flex items-center justify-between group hover:border-[var(--t-primary)] transition-all">
+                            <div className="flex items-center gap-4">
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl shadow-sm transition-all ${paymentFormData.send_receipt ? 'bg-green-500/10 text-green-500' : 'bg-[var(--t-surface3)] text-[var(--t-text3)]'}`}>
+                                    {paymentFormData.send_receipt ? '📧' : '🚫'}
+                                </div>
+                                <div>
+                                    <h4 className="text-[11px] font-black uppercase tracking-widest text-[var(--t-text)] leading-none italic">Send Email Receipt</h4>
+                                    <p className="text-[9px] text-[var(--t-text3)] font-bold uppercase tracking-tighter mt-1 opacity-60">Automatically deliver PDF to recipient</p>
+                                </div>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input 
+                                    type="checkbox" 
+                                    className="sr-only peer"
+                                    checked={paymentFormData.send_receipt}
+                                    onChange={e => setPaymentFormData({ ...paymentFormData, send_receipt: e.target.checked })}
+                                />
+                                <div className="w-11 h-6 bg-[var(--t-surface3)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--t-primary)]"></div>
+                            </label>
+                        </div>
+
                         <div className="space-y-4">
                             <label className="block text-xs font-black text-[var(--t-text3)] uppercase tracking-widest ml-1">Payment Proof (Screenshot)</label>
                             <div className="flex gap-4 items-center">
@@ -723,6 +756,49 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
                                 )}
                             </div>
                         </div>
+
+                        {/* Payment Progress Overlay */}
+                        {(paymentStatus === 'PROCESSING' || paymentStatus === 'SUCCESS' || paymentStatus === 'ERROR') && (
+                            <div className="absolute inset-0 bg-[var(--t-surface2)]/95 backdrop-blur-md z-[100] flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-300">
+                                {paymentStatus === 'PROCESSING' && (
+                                    <div className="space-y-6">
+                                        <div className="relative">
+                                            <div className="w-20 h-20 border-4 border-[var(--t-primary)]/20 border-t-[var(--t-primary)] rounded-full animate-spin mx-auto"></div>
+                                            <div className="absolute inset-0 flex items-center justify-center text-2xl animate-pulse">💸</div>
+                                        </div>
+                                        <div>
+                                            <h3 className="text-lg font-black text-[var(--t-text)] uppercase tracking-tighter italic">Processing Payment...</h3>
+                                            <p className="text-xs text-[var(--t-text3)] font-bold uppercase tracking-widest mt-2">{paymentFormData.send_receipt ? 'Generating & delivering PDF receipt' : 'Recording transaction records'}</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {paymentStatus === 'SUCCESS' && (
+                                    <div className="space-y-6 animate-in zoom-in duration-500">
+                                        <div className="w-24 h-24 bg-green-500 text-white rounded-full flex items-center justify-center text-5xl shadow-2xl shadow-green-500/40 mx-auto transform scale-110">
+                                            ✓
+                                        </div>
+                                        <div>
+                                            <h3 className="text-2xl font-black text-green-600 uppercase tracking-tighter italic">Success!</h3>
+                                            <p className="text-sm text-[var(--t-text2)] font-bold uppercase tracking-widest mt-2">Payment recorded successfully</p>
+                                            {paymentFormData.send_receipt && <p className="text-[10px] text-green-500 font-black mt-2 bg-green-500/10 px-3 py-1 rounded-full inline-block">Receipt sent to recipient email</p>}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {paymentStatus === 'ERROR' && (
+                                    <div className="space-y-6 animate-in shake duration-500">
+                                        <div className="w-20 h-20 bg-red-500 text-white rounded-full flex items-center justify-center text-4xl shadow-2xl shadow-red-500/40 mx-auto">
+                                            ✕
+                                        </div>
+                                        <div>
+                                            <h3 className="text-lg font-black text-red-600 uppercase tracking-tighter italic">Payment Failed</h3>
+                                            <p className="text-xs text-[var(--t-text2)] font-bold uppercase tracking-widest mt-2">Please check your connection and try again</p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         <div className="flex justify-end gap-4 mt-10">
                             <button

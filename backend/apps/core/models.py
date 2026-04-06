@@ -324,3 +324,40 @@ class UserGuideProgress(models.Model):
         return f"{self.user.username} - {self.guide.key} ({'Completed' if self.is_completed else 'In Progress'})"
 
 
+class EmailLog(models.Model):
+    """
+    Audit log for every outgoing email sent by the system.
+    """
+    EMAIL_TYPE_CHOICES = [
+        ('PAYMENT_RECEIPT', 'Payment Receipt'),
+        ('PURCHASE_ORDER', 'Purchase Order'),
+        ('CONTRACTOR_NOTIFICATION', 'Contractor Notification'),
+        ('OTHER', 'Other'),
+    ]
+    STATUS_CHOICES = [
+        ('SENT', 'Sent'),
+        ('FAILED', 'Failed'),
+    ]
+
+    email_type = models.CharField(max_length=30, choices=EMAIL_TYPE_CHOICES)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='SENT')
+    recipient_name = models.CharField(max_length=200)
+    recipient_email = models.EmailField()
+    subject = models.CharField(max_length=500)
+    
+    # Optional links to related objects
+    payment = models.ForeignKey('finance.Payment', on_delete=models.SET_NULL, null=True, blank=True, related_name='email_logs')
+    expense = models.ForeignKey('finance.Expense', on_delete=models.SET_NULL, null=True, blank=True, related_name='email_logs')
+    material = models.ForeignKey('resources.Material', on_delete=models.SET_NULL, null=True, blank=True, related_name='email_logs')
+    
+    sent_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='sent_emails')
+    error_message = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Email Log"
+        verbose_name_plural = "Email Logs"
+
+    def __str__(self):
+        return f"[{self.email_type}] {self.subject} → {self.recipient_email} ({self.status})"

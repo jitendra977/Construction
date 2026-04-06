@@ -156,7 +156,9 @@ class PaymentViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         data = serializer.validated_data
-        FinanceService.process_payment(
+        send_receipt = data.pop('send_receipt', True)
+
+        payment = FinanceService.process_payment(
             expense=data['expense'],
             amount=data['amount'],
             date=data['date'],
@@ -166,6 +168,21 @@ class PaymentViewSet(viewsets.ModelViewSet):
             notes=data.get('notes', ''),
             proof_photo=data.get('proof_photo')
         )
+
+        if send_receipt:
+            try:
+                from apps.core.email_utils import send_payment_receipt_email
+                # We call this with the request user for auditing
+                send_payment_receipt_email(
+                    payment=payment,
+                    user=self.request.user
+                )
+            except Exception as e:
+                print(f"Error triggering payment receipt email: {e}")
+
+        # Update the serializer instance to point to the created payment
+        # This allows DRF to return the full payment object
+        serializer.instance = payment
 
     def perform_update(self, serializer):
         payment = self.get_object()
@@ -190,29 +207,49 @@ class PaymentViewSet(viewsets.ModelViewSet):
         Send a payment receipt email with PDF to the associated supplier or contractor.
         """
         payment = self.get_object()
+        from apps.core.models import EmailLog
         
         recipient = payment.expense.supplier or payment.expense.contractor
+        
+        # Check for recipient early but log the failure
         if not recipient:
             paid_to = payment.expense.paid_to or 'Unknown'
-            return Response(
-                {"error": f"Cannot send receipt: '{paid_to}' is not linked as a Supplier or Contractor with an email. Please assign a Supplier/Contractor to this expense first."},
-                status=400
+            error_msg = f"Cannot send receipt: '{paid_to}' is not linked as a Supplier or Contractor model. Please edit the expense and select a Supplier/Contractor from the dropdown."
+            EmailLog.objects.create(
+                email_type='PAYMENT_RECEIPT',
+                status='FAILED',
+                recipient_name=paid_to,
+                recipient_email='N/A',
+                subject='[FAILED] Payment Receipt Request',
+                payment=payment,
+                expense=payment.expense,
+                sent_by=request.user,
+                error_message=error_msg
             )
+            return Response({"error": error_msg}, status=400)
             
         if not recipient.email:
-            return Response(
-                {"error": f"The recipient ({recipient.name}) does not have an email address configured."},
-                status=400
+            error_msg = f"The recipient ({recipient.name}) does not have an email address configured. Please add an email to the Supplier/Contractor profile."
+            EmailLog.objects.create(
+                email_type='PAYMENT_RECEIPT',
+                status='FAILED',
+                recipient_name=recipient.name,
+                recipient_email='N/A',
+                subject='[FAILED] Payment Receipt Request',
+                payment=payment,
+                expense=payment.expense,
+                sent_by=request.user,
+                error_message=error_msg
             )
+            return Response({"error": error_msg}, status=400)
             
         custom_subject = request.data.get('subject')
         custom_message = request.data.get('message')
-        user_email = request.user.email if hasattr(request.user, 'email') else None
 
         from apps.core.email_utils import send_payment_receipt_email
         succ = send_payment_receipt_email(
             payment=payment,
-            user_email=user_email,
+            user=request.user,
             custom_subject=custom_subject,
             custom_message=custom_message
         )
@@ -220,7 +257,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
         if succ:
             return Response({"status": "Email sent successfully."})
         else:
-            return Response({"error": "Failed to send email. Check logs for details."}, status=500)
+            return Response({"error": "Failed to send email. Check your SMTP settings or your internet connection."}, status=500)
 
 class FundingTransactionViewSet(viewsets.ModelViewSet):
     queryset = FundingTransaction.objects.all()

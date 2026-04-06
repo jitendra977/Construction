@@ -13,9 +13,11 @@ class FundingSourceSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class PaymentSerializer(serializers.ModelSerializer):
+    send_receipt = serializers.BooleanField(write_only=True, required=False, default=True)
+
     class Meta:
         model = Payment
-        fields = ['id', 'expense', 'funding_source', 'amount', 'date', 'method', 'reference_id', 'notes', 'proof_photo']
+        fields = ['id', 'expense', 'funding_source', 'amount', 'date', 'method', 'reference_id', 'notes', 'proof_photo', 'send_receipt']
 
 class ExpenseSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
