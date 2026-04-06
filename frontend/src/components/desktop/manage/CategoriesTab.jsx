@@ -3,7 +3,7 @@ import { useConstruction } from '../../../context/ConstructionContext';
 import CategoryManageModal from '../../mobile/CategoryManageModal';
 
 const CategoriesTab = ({ searchQuery = '', resolveMetadata, onClearMetadata }) => {
-    const { dashboardData, budgetStats } = useConstruction();
+    const { dashboardData, budgetStats, formatCurrency } = useConstruction();
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [isManageModalOpen, setIsManageModalOpen] = useState(false);
 
