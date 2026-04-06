@@ -236,6 +236,7 @@ class MaterialTransaction(models.Model):
     purpose = models.CharField(max_length=200, blank=True, help_text="e.g., Ground Floor Slab, Kitchen Walls")
     notes = models.TextField(blank=True)
     create_expense = models.BooleanField(default=True, help_text="Uncheck for Opening Stock or Gifts (No Expense created)")
+    receipt_image = models.ImageField(upload_to='stock-receipts/', null=True, blank=True, help_text="Photo of challan/bill for this stock entry")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

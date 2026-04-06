@@ -138,8 +138,30 @@ export const dashboardService = {
     deleteContractor: (id) => api.delete(`/contractors/${id}/`),
 
     getMaterialTransactions: () => api.get('/material-transactions/'),
-    createMaterialTransaction: (data) => api.post('/material-transactions/', data),
-    updateMaterialTransaction: (id, data) => api.patch(`/material-transactions/${id}/`, data),
+    createMaterialTransaction: (data) => {
+        if (data.receipt_image instanceof File) {
+            const fd = new FormData();
+            Object.entries(data).forEach(([k, v]) => {
+                if (v !== null && v !== undefined) fd.append(k, v);
+            });
+            return api.post('/material-transactions/', fd, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+        }
+        return api.post('/material-transactions/', data);
+    },
+    updateMaterialTransaction: (id, data) => {
+        if (data.receipt_image instanceof File) {
+            const fd = new FormData();
+            Object.entries(data).forEach(([k, v]) => {
+                if (v !== null && v !== undefined) fd.append(k, v);
+            });
+            return api.patch(`/material-transactions/${id}/`, fd, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+        }
+        return api.patch(`/material-transactions/${id}/`, data);
+    },
     deleteMaterialTransaction: (id) => api.delete(`/material-transactions/${id}/`),
     getDocuments: (type) => api.get(`/documents/${type ? `?document_type=${type}` : ''}`),
     createDocument: (formData) => api.post('/documents/', formData, {

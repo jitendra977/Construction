@@ -13,10 +13,13 @@ const MobileStockList = ({ searchQuery = '' }) => {
     const [loading, setLoading] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-    const [sortBy, setSortBy] = useState('date_desc'); // date_desc, date_asc
+    const [selectedExpenseId, setSelectedExpenseId] = useState(null);
+    const [receiptFile, setReceiptFile] = useState(null);
+    const [receiptPreview, setReceiptPreview] = useState(null);
 
     // Confirmation Modal System
     const [confirmConfig, setConfirmConfig] = useState({ isOpen: false });
+    const [sortBy, setSortBy] = useState('date_desc');
     const showConfirm = (config) => setConfirmConfig({ ...config, isOpen: true });
     const closeConfirm = () => setConfirmConfig({ ...confirmConfig, isOpen: false });
 
@@ -34,6 +37,8 @@ const MobileStockList = ({ searchQuery = '' }) => {
 
     const handleOpenModal = (item = null) => {
         setEditingItem(item);
+        setReceiptFile(null);
+        setReceiptPreview(null);
         if (item) {
             setFormData(item);
         } else {
@@ -45,6 +50,14 @@ const MobileStockList = ({ searchQuery = '' }) => {
             });
         }
         setIsModalOpen(true);
+    };
+
+    const handleReceiptChange = (file) => {
+        if (!file) return;
+        setReceiptFile(file);
+        const reader = new FileReader();
+        reader.onloadend = () => setReceiptPreview(reader.result);
+        reader.readAsDataURL(file);
     };
 
     const handleDelete = (id) => {
@@ -73,10 +86,13 @@ const MobileStockList = ({ searchQuery = '' }) => {
             const dataToSubmit = { ...formData };
             if (dataToSubmit.supplier === '') dataToSubmit.supplier = null;
             if (dataToSubmit.room === '') dataToSubmit.room = null;
+            if (receiptFile) dataToSubmit.receipt_image = receiptFile;
 
             if (editingItem) await dashboardService.updateMaterialTransaction(editingItem.id, dataToSubmit);
             else await dashboardService.createMaterialTransaction(dataToSubmit);
 
+            setReceiptFile(null);
+            setReceiptPreview(null);
             setIsModalOpen(false);
             refreshData();
         } catch (error) {
@@ -133,8 +149,8 @@ const MobileStockList = ({ searchQuery = '' }) => {
                     const sign = isIncoming ? '+' : '-';
 
                     return (
-                        <div key={t.id} 
-                            onClick={() => { if(t.expense) { setSelectedExpenseId(t.expense); setIsDetailModalOpen(true); } }}
+                        <div key={t.id}
+                            onClick={() => { if (t.expense) { setSelectedExpenseId(t.expense); setIsDetailModalOpen(true); } }}
                             className="bg-[var(--t-surface)] border-b border-[var(--t-border)] p-3 flex items-center justify-between hover:bg-[var(--t-surface2)] active:bg-[var(--t-surface2)] cursor-pointer transition-colors"
                         >
                             {/* Left: Info */}
@@ -144,12 +160,23 @@ const MobileStockList = ({ searchQuery = '' }) => {
                                     <span className={`text-[9px] uppercase font-bold tracking-widest px-1.5 py-0.5 rounded leading-none border ${getTypeColor(t.transaction_type)}`}>
                                         {t.transaction_type}
                                     </span>
+                                    {t.receipt_image_url && (
+                                        <a
+                                            href={t.receipt_image_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            onClick={e => e.stopPropagation()}
+                                            className="text-[9px] font-black text-orange-400 uppercase bg-orange-400/10 px-1.5 py-0.5 rounded leading-none border border-orange-400/20"
+                                        >
+                                            📎
+                                        </a>
+                                    )}
                                 </div>
                                 <span className="text-[11px] text-[var(--t-text3)] truncate mt-0.5">
                                     {new Date(t.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
                                 </span>
                             </div>
-                            
+
                             {/* Right: Quantity */}
                             <div className="flex items-center gap-3 shrink-0">
                                 <div className="text-right flex flex-col justify-center">
@@ -349,6 +376,53 @@ const MobileStockList = ({ searchQuery = '' }) => {
                                 placeholder="Any extra details..."
                             />
                         </div>
+                    </div>
+
+                    {/* Receipt / Challan Upload */}
+                    <div className="px-1">
+                        <label className="block text-xs font-bold text-[var(--t-text2)] mb-2 uppercase tracking-tight">
+                            Receipt / Challan Photo
+                            <span className="ml-1.5 text-[10px] font-medium text-[var(--t-text3)] normal-case tracking-normal">(optional)</span>
+                        </label>
+                        <label
+                            htmlFor="mob_receipt_upload"
+                            onDragOver={e => e.preventDefault()}
+                            onDrop={e => { e.preventDefault(); handleReceiptChange(e.dataTransfer.files[0]); }}
+                            className="flex flex-col items-center justify-center gap-2 w-full rounded-2xl border-2 border-dashed border-[var(--t-border)] bg-[var(--t-surface2)] p-5 cursor-pointer hover:border-[var(--t-primary)] hover:bg-[var(--t-primary)]/5 transition-all group"
+                        >
+                            {receiptPreview ? (
+                                <div className="relative w-full">
+                                    <img src={receiptPreview} alt="Receipt preview" className="w-full max-h-36 object-contain rounded-xl" />
+                                    <button
+                                        type="button"
+                                        onClick={e => { e.preventDefault(); setReceiptFile(null); setReceiptPreview(null); }}
+                                        className="absolute top-1 right-1 bg-[var(--t-danger)] text-white text-[10px] font-black px-2 py-0.5 rounded-lg"
+                                    >
+                                        Remove
+                                    </button>
+                                    <p className="text-center text-[10px] text-[var(--t-text3)] mt-2 font-medium truncate">{receiptFile?.name}</p>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="w-10 h-10 rounded-full bg-[var(--t-primary)]/10 flex items-center justify-center group-hover:bg-[var(--t-primary)]/20 transition-colors">
+                                        <svg className="w-5 h-5 text-[var(--t-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-xs font-bold text-[var(--t-text2)] group-hover:text-[var(--t-primary)] transition-colors">Tap to attach receipt</p>
+                                        <p className="text-[10px] text-[var(--t-text3)] mt-0.5">JPG, PNG, PDF up to 10MB</p>
+                                    </div>
+                                </>
+                            )}
+                            <input
+                                id="mob_receipt_upload"
+                                type="file"
+                                accept="image/*,application/pdf"
+                                className="hidden"
+                                onChange={e => handleReceiptChange(e.target.files[0])}
+                            />
+                        </label>
                     </div>
 
                     {/* Settings */}

@@ -211,6 +211,13 @@ class MaterialTransactionViewSet(viewsets.ModelViewSet):
             notes=data.get('notes', ''),
             create_expense=data.get('create_expense', True)
         )
+
+        # Attach receipt image if provided
+        receipt_image = data.get('receipt_image')
+        if receipt_image:
+            txn.receipt_image = receipt_image
+            txn.save(update_fields=['receipt_image'])
+
         # MUST set instance so DRF can serialize the response
         serializer.instance = txn
 

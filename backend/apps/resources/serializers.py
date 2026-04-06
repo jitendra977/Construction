@@ -46,12 +46,24 @@ class MaterialSerializer(serializers.ModelSerializer):
 class MaterialTransactionSerializer(serializers.ModelSerializer):
     material_name = serializers.CharField(source='material.name', read_only=True)
     supplier_name = serializers.CharField(source='supplier.name', read_only=True)
+    room_name = serializers.CharField(source='room.name', read_only=True)
+    funding_source_name = serializers.CharField(source='funding_source.name', read_only=True)
+    unit_name = serializers.CharField(source='material.unit', read_only=True)
     transaction_type_display = serializers.CharField(source='get_transaction_type_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    receipt_image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = MaterialTransaction
         fields = '__all__'
+
+    def get_receipt_image_url(self, obj):
+        if obj.receipt_image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.receipt_image.url)
+            return obj.receipt_image.url
+        return None
 
 class DocumentSerializer(serializers.ModelSerializer):
     class Meta:
