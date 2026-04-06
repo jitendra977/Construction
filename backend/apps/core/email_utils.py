@@ -114,7 +114,7 @@ def send_payment_receipt_email(payment, user_email=None, custom_subject=None, cu
         'date': payment.date.strftime('%Y-%m-%d') if payment.date else datetime.now().strftime('%Y-%m-%d'),
         'method': payment.get_method_display(),
         'reference_id': payment.reference_id or 'N/A',
-        'description': payment.expense.description,
+        'description': payment.expense.title,
         'custom_message': custom_message,
         'project_name': "Dream Home Construction"
     }

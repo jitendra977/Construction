@@ -22,7 +22,7 @@ const PaymentsTab = ({ searchQuery = '' }) => {
                         category_name: exp.category_name,
                         funding_source_name: fundingSource ? fundingSource.name : 'Unknown',
                         expense_type: exp.expense_type,
-                        has_email_recipient: !!(exp.supplier_name || exp.contractor_name)
+                        has_email_recipient: !!(exp.supplier_name || exp.contractor_name || exp.paid_to)
                     });
                 });
             }

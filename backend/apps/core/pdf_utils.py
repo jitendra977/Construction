@@ -140,7 +140,7 @@ def generate_payment_receipt_pdf(payment):
     # Details Table
     data = [
         ['Description', 'Payment Method', 'Reference ID', 'Amount'],
-        [payment.expense.description, payment.get_method_display(), payment.reference_id or 'N/A', f"Rs. {payment.amount}"]
+        [payment.expense.title, payment.get_method_display(), payment.reference_id or 'N/A', f"Rs. {payment.amount}"]
     ]
     
     item_table = Table(data, colWidths=[180, 100, 90, 80])

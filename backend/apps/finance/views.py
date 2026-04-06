@@ -193,8 +193,9 @@ class PaymentViewSet(viewsets.ModelViewSet):
         
         recipient = payment.expense.supplier or payment.expense.contractor
         if not recipient:
+            paid_to = payment.expense.paid_to or 'Unknown'
             return Response(
-                {"error": "This payment's expense does not have a supplier or contractor assigned."},
+                {"error": f"Cannot send receipt: '{paid_to}' is not linked as a Supplier or Contractor with an email. Please assign a Supplier/Contractor to this expense first."},
                 status=400
             )
             
