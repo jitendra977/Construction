@@ -103,8 +103,9 @@ src/
 │   ├── ProtectedRoute.jsx
 │   ├── common/
 │   ├── desktop/
-│   ├── finance/
-│   └── mobile/
+│   ├── finance/         # UniversalPaymentModal and shared financial components
+│   │   └── expenses/    # Sub-modules: UnifiedPaymentList, PaymentModals, SummaryCards
+│   └── mobile/          # Mobile-optimized views (Tabs & Lists)
 ├── constants/
 ├── context/
 │   ├── ConstructionContext.jsx
