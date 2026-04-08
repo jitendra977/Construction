@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { dashboardService } from '../../../services/api';
 import Modal from '../../common/Modal';
 import { useConstruction } from '../../../context/ConstructionContext';
@@ -10,8 +10,10 @@ import ConfirmModal from '../../common/ConfirmModal';
 import SummaryCards from './expenses/SummaryCards';
 import ExpenseActions from './expenses/ExpenseActions';
 import ExpenseList from './expenses/ExpenseList';
+import UnifiedPaymentList from './expenses/UnifiedPaymentList';
+import { EmailLogHistoryModal, EmailConfirmationModal } from './expenses/PaymentModals';
 
-const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
+const ExpensesTab = ({ searchQuery: initialSearchQuery = '', initialViewMode = 'expenses' }) => {
     const { dashboardData, refreshData, formatCurrency, budgetStats } = useConstruction();
     const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -31,18 +33,123 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
         send_receipt: true
     });
     const [photoPreview, setPhotoPreview] = useState(null);
+    const [viewMode, setViewMode] = useState(initialViewMode); // 'expenses' or 'payments'
+    const [emailState, setEmailState] = useState({}); // { [paymentId]: 'idle' | 'sending' | 'sent' | 'error' }
+    const [emailLogs, setEmailLogs] = useState([]);
+    const [fetchingLogs, setFetchingLogs] = useState(false);
+    
+    // Modal states for Payments
+    const [confirmation, setConfirmation] = useState({ isOpen: false, status: 'success', message: '' });
+    const [historyModal, setHistoryModal] = useState({ isOpen: false, logs: [], title: '' });
+
     const [paymentStatus, setPaymentStatus] = useState('IDLE'); // IDLE, PROCESSING, SUCCESS, ERROR
+    const [paymentMethodFilter, setPaymentMethodFilter] = useState('ALL');
+    const [fundingSourceFilter, setFundingSourceFilter] = useState('ALL');
 
     // Confirmation Modal System
     const [confirmConfig, setConfirmConfig] = useState({ isOpen: false });
     const showConfirm = (config) => setConfirmConfig({ ...config, isOpen: true });
     const closeConfirm = () => setConfirmConfig({ ...confirmConfig, isOpen: false });
 
-    const filteredExpenses = dashboardData.expenses?.filter(e =>
-        e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        e.paid_to?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        e.category_name?.toLowerCase().includes(searchQuery.toLowerCase())
-    ) || [];
+    const filteredExpenses = useMemo(() => {
+        return dashboardData.expenses?.filter(e =>
+            e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            e.paid_to?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            e.category_name?.toLowerCase().includes(searchQuery.toLowerCase())
+        ) || [];
+    }, [dashboardData.expenses, searchQuery]);
+
+    const fetchLogs = useCallback(async () => {
+        setFetchingLogs(true);
+        try {
+            const res = await dashboardService.getEmailLogs();
+            setEmailLogs(res.data || []);
+        } catch (err) {
+            console.error("Failed to fetch email logs", err);
+        } finally {
+            setFetchingLogs(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchLogs();
+    }, [fetchLogs]);
+
+    const flattenedPayments = useMemo(() => {
+        if (!dashboardData?.expenses) return [];
+        let payments = [];
+        dashboardData.expenses.forEach(exp => {
+            if (exp.payments && exp.payments.length > 0) {
+                exp.payments.forEach(payment => {
+                    const fundingSource = dashboardData.funding?.find(f => f.id === payment.funding_source);
+                    const logs = emailLogs.filter(log => log.payment === payment.id);
+                    payments.push({
+                        ...payment,
+                        expense_title: exp.title,
+                        paid_to_resolved: exp.paid_to || exp.contractor_name || exp.supplier_name || 'Self/Other',
+                        is_linked: !!(exp.contractor || exp.supplier),
+                        category_name: exp.category_name,
+                        funding_source_name: fundingSource ? fundingSource.name : 'Unknown',
+                        expense_type: exp.expense_type,
+                        has_email_recipient: !!(exp.supplier_name || exp.contractor_name || exp.paid_to),
+                        email_history: logs,
+                        is_email_sent: logs.some(l => l.status === 'SENT')
+                    });
+                });
+            }
+        });
+        payments.sort((a, b) => new Date(b.date) - new Date(a.date));
+        let result = payments;
+        if (paymentMethodFilter !== 'ALL') {
+            result = result.filter(p => p.method === paymentMethodFilter);
+        }
+        if (fundingSourceFilter !== 'ALL') {
+            result = result.filter(p => p.funding_source === parseInt(fundingSourceFilter));
+        }
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            result = result.filter(p =>
+                p.expense_title?.toLowerCase().includes(query) ||
+                p.paid_to_resolved?.toLowerCase().includes(query) ||
+                p.method?.toLowerCase().includes(query) ||
+                p.reference_id?.toLowerCase().includes(query)
+            );
+        }
+        return result;
+    }, [dashboardData, searchQuery, emailLogs, paymentMethodFilter, fundingSourceFilter]);
+
+    const handleSendReceipt = useCallback(async (paymentId, pInfo) => {
+        setEmailState(prev => ({ ...prev, [paymentId]: 'sending' }));
+        try {
+            await dashboardService.emailPaymentReceipt(paymentId);
+            setEmailState(prev => ({ ...prev, [paymentId]: 'sent' }));
+            fetchLogs();
+            setConfirmation({
+                isOpen: true,
+                status: 'success',
+                message: `The payment receipt has been successfully delivered to the recipient for: ${pInfo.expense_title}.`
+            });
+        } catch (err) {
+            const msg = err?.response?.data?.error || 'Failed to connect to the email server. Please check your credentials or network.';
+            setEmailState(prev => ({ ...prev, [paymentId]: 'error' }));
+            fetchLogs();
+            setConfirmation({
+                isOpen: true,
+                status: 'error',
+                message: msg
+            });
+        }
+    }, [fetchLogs]);
+
+    const getMethodColor = (method) => {
+        const colors = {
+            'CASH': 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+            'BANK_TRANSFER': 'bg-blue-500/10 text-blue-500 border-blue-500/20',
+            'CHECK': 'bg-purple-500/10 text-purple-500 border-purple-500/20',
+            'QR': 'bg-pink-500/10 text-pink-500 border-pink-500/20'
+        };
+        return colors[method] || 'bg-[var(--t-surface3)] text-[var(--t-text2)] border-[var(--t-border)]';
+    };
 
     // Cascading Filter Logic (Phase-First Workflow)
     const availableTasks = dashboardData.tasks?.filter(t => {
@@ -193,7 +300,7 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
         <div className="max-w-[1400px] mx-auto px-1 py-4 space-y-10 animate-in fade-in duration-700">
             {/* 1. Header & Quick Summary */}
             <div className="flex flex-col gap-2">
-                <h2 className="text-2xl font-black text-[var(--t-text)] uppercase tracking-tight">Financial Overview</h2>
+                <h2 className="text-2xl font-black text-[var(--t-text)] uppercase tracking-tight">Expenses & Dues</h2>
                 <p className="text-sm text-[var(--t-text2)] max-w-2xl font-medium">
                     Monitor project spending, manage vendor disbursements, and track budget utilization across all construction phases.
                 </p>
@@ -211,6 +318,13 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
                 handleOpenModal={handleOpenModal}
+                viewMode={viewMode}
+                setViewMode={setViewMode}
+                paymentMethodFilter={paymentMethodFilter}
+                setPaymentMethodFilter={setPaymentMethodFilter}
+                fundingSourceFilter={fundingSourceFilter}
+                setFundingSourceFilter={setFundingSourceFilter}
+                fundingSources={dashboardData.funding || []}
                 exportData={{
                     columns: ['Date', 'Title', 'Category', 'Paid To', 'Phase', 'Amount (Rs.)', 'Status'],
                     rows: filteredExpenses.map(e => [
@@ -232,21 +346,31 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
                     },
                     projectInfo: {
                         name: dashboardData.project?.name,
-                        owner: dashboardData.project?.owner_name || user?.name
+                        owner: dashboardData.project?.owner_name
                     }
                 }}
             />
 
-            {/* 5. Main Expense List */}
-            <ExpenseList
-                expenses={filteredExpenses}
-                handleViewDetail={handleViewDetail}
-                handleOpenPaymentModal={handleOpenPaymentModal}
-                handleOpenModal={handleOpenModal}
-                handleDelete={handleDelete}
-                formatCurrency={formatCurrency}
-                dashboardData={dashboardData}
-            />
+            {/* 5. Main Content Area */}
+            {viewMode === 'expenses' ? (
+                <ExpenseList
+                    expenses={filteredExpenses}
+                    handleViewDetail={handleViewDetail}
+                    handleOpenPaymentModal={handleOpenPaymentModal}
+                    handleOpenModal={handleOpenModal}
+                    handleDelete={handleDelete}
+                    formatCurrency={formatCurrency}
+                    dashboardData={dashboardData}
+                />
+            ) : (
+                <UnifiedPaymentList
+                    payments={flattenedPayments}
+                    handleSendReceipt={handleSendReceipt}
+                    openHistoryModal={(logs, title) => setHistoryModal({ isOpen: true, logs, title })}
+                    getMethodColor={getMethodColor}
+                    emailState={emailState}
+                />
+            )}
 
             {/* MODALS SECTION */}
 
@@ -837,6 +961,20 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '' }) => {
                 onConfirm={confirmConfig.onConfirm}
                 onCancel={closeConfirm}
                 type={confirmConfig.type || 'warning'}
+            />
+
+            {/* Payment Audit Modals */}
+            <EmailConfirmationModal 
+                isOpen={confirmation.isOpen} 
+                onClose={() => setConfirmation({ ...confirmation, isOpen: false })} 
+                result={{ status: confirmation.status, message: confirmation.message }}
+            />
+            
+            <EmailLogHistoryModal 
+                isOpen={historyModal.isOpen} 
+                onClose={() => setHistoryModal({ ...historyModal, isOpen: false })} 
+                logs={historyModal.logs} 
+                paymentTitle={historyModal.title}
             />
         </div>
     );

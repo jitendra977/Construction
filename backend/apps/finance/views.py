@@ -122,6 +122,21 @@ class ExpenseViewSet(viewsets.ModelViewSet):
                 'is_over': spent > alloc.amount
             })
         
+        # 7. Expense Type Breakdown (Material vs Labor vs Fees etc)
+        type_breakdown = Expense.objects.filter(is_inventory_usage=False).values('expense_type').annotate(
+            spent=Sum('amount')
+        )
+        type_list = {item['expense_type']: float(item['spent']) for item in type_breakdown}
+
+        # 8. Days since first expense (for burn rate)
+        first_expense = Expense.objects.filter(is_inventory_usage=False).order_by('date').first()
+        days_active = 0
+        if first_expense:
+            from django.utils import timezone
+            import datetime
+            today = datetime.date.today()
+            days_active = (today - first_expense.date).days + 1
+
         return Response({
             'project_budget': float(total_project_budget),
             'total_funding': float(total_funding),
@@ -131,6 +146,8 @@ class ExpenseViewSet(viewsets.ModelViewSet):
             'category_breakdown': cat_list,
             'phase_breakdown': phase_list,
             'allocation_analytics': allocation_analytics,
+            'type_breakdown': type_list,
+            'days_active': days_active,
             
             # Simplified lists for Planning vs Tracking components
             'estimated_by_category': [

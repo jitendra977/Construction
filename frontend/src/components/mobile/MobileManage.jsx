@@ -11,7 +11,6 @@ import MobileMaterialList from './MobileMaterialList';
 import MobileStockList from './MobileStockList';
 import MobileCategoryList from './MobileCategoryList';
 import FundingTab from '../desktop/manage/FundingTab';
-import PaymentsTab from '../desktop/manage/PaymentsTab';
 import TaskPreviewModal from '../desktop/manage/TaskPreviewModal';
 import PhaseDetailModal from '../desktop/manage/PhaseDetailModal';
 
@@ -386,8 +385,8 @@ const MobileManage = () => {
                         <>
                             {activeTab === 'funding' && <FundingTab searchQuery={searchQuery} />}
                             {activeTab === 'categories' && <MobileCategoryList searchQuery={searchQuery} />}
-                            {activeTab === 'expenses' && <ExpensesTab searchQuery={searchQuery} />}
-                            {activeTab === 'payments' && <PaymentsTab searchQuery={searchQuery} />}
+                            {activeTab === 'expenses' && <ExpensesTab searchQuery={searchQuery} initialViewMode="expenses" />}
+                            {activeTab === 'payments' && <ExpensesTab searchQuery={searchQuery} initialViewMode="payments" />}
                         </>
                     )}
                     {activeSection === 'resources' && (

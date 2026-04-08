@@ -9,7 +9,6 @@ import SuppliersTab from './manage/SuppliersTab';
 import MaterialsTab from './manage/MaterialsTab';
 import StockTab from './manage/StockTab';
 import FundingTab from './manage/FundingTab';
-import PaymentsTab from './manage/PaymentsTab';
 import BudgetOverview from '../finance/BudgetOverview';
 
 const DesktopManage = () => {
@@ -50,15 +49,14 @@ const DesktopManage = () => {
                 { id: 'funding', label: 'Funding', labelNe: 'लगानी' },
                 { id: 'categories', label: 'Categories', labelNe: 'शिर्षक' },
                 { id: 'expenses', label: 'Expenses', labelNe: 'खर्च' },
-                { id: 'payments', label: 'Payments', labelNe: 'भुक्तानी' },
             ]
         },
         {
             id: 'resources',
-            label: 'Inventory',
+            label: 'Resources',
             labelNe: 'श्रोत/साधन',
-            description: 'Suppliers & Stock',
-            icon: '📦',
+            description: 'Vendors, Materials & Stock',
+            icon: '🏢',
             accent: '#f59e0b', // Amber
             bgGlow: 'rgba(245, 158, 11, 0.1)',
             tabs: [
@@ -222,7 +220,6 @@ const DesktopManage = () => {
                                     )}
                                     {activeTab === 'expenses' && <ExpensesTab searchQuery={searchQuery} />}
                                     {activeTab === 'funding' && <FundingTab searchQuery={searchQuery} />}
-                                    {activeTab === 'payments' && <PaymentsTab searchQuery={searchQuery} />}
                                 </>
                             )}
 

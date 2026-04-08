@@ -112,12 +112,32 @@ const MobileSupplierList = ({ searchQuery = '' }) => {
         if (!supplierId || !dashboardData?.expenses) return [];
         let history = [];
         const supplierExpenses = dashboardData.expenses.filter(exp => exp.supplier === supplierId && exp.balance_due !== undefined);
+        
         supplierExpenses.forEach(exp => {
-            history.push({ id: `exp-${exp.id}`, date: exp.date, type: 'BILL', title: exp.title, amount: exp.amount, status: exp.status, notes: exp.notes });
-            if (exp.payments && exp.payments.length > 0) {
-                exp.payments.forEach(payment => {
-                    history.push({ id: `pay-${payment.id}`, date: payment.date, type: 'PAYMENT', title: `Payment: ${exp.title}`, amount: payment.amount, method: payment.method, notes: payment.notes });
+            // Check if this is a "Direct Payment" bill
+            const matchingPayments = exp.payments || [];
+            if (matchingPayments.length === 1 && 
+                Number(matchingPayments[0].amount) === Number(exp.amount) && 
+                matchingPayments[0].date === exp.date &&
+                (exp.title.includes('Payment/Advance') || exp.notes === matchingPayments[0].notes)) {
+                
+                const p = matchingPayments[0];
+                history.push({ 
+                    id: `direct-${exp.id}-${p.id}`, 
+                    date: p.date, 
+                    type: 'DIRECT', 
+                    title: exp.title.replace('Material Payment/Advance: ', ''), 
+                    amount: p.amount, 
+                    method: p.method, 
+                    notes: p.notes || exp.notes 
                 });
+            } else {
+                history.push({ id: `exp-${exp.id}`, date: exp.date, type: 'BILL', title: exp.title, amount: exp.amount, status: exp.status, notes: exp.notes });
+                if (exp.payments && exp.payments.length > 0) {
+                    exp.payments.forEach(payment => {
+                        history.push({ id: `pay-${payment.id}`, date: payment.date, type: 'PAYMENT', title: `Payment: ${exp.title}`, amount: payment.amount, method: payment.method, notes: payment.notes });
+                    });
+                }
             }
         });
         return history.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -479,22 +499,31 @@ const MobileSupplierList = ({ searchQuery = '' }) => {
                         getSupplierHistory(activeSupplier.id).map(txn => (
                             <div key={txn.id} className="flex justify-between items-center p-3 border-b border-[var(--t-border)] last:border-0 hover:bg-[var(--t-surface2)] rounded-lg transition-colors">
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-lg ${txn.type === 'BILL' ? 'bg-[var(--t-danger)]/10 text-[var(--t-danger)] border border-[var(--t-danger)]/20' : 'bg-green-500/10 text-green-500 border border-green-500/20'}`}>
-                                        {txn.type === 'BILL' ? '🧾' : '💸'}
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-lg 
+                                        ${txn.type === 'BILL' ? 'bg-[var(--t-danger)]/10 text-[var(--t-danger)] border border-[var(--t-danger)]/20' : 
+                                          txn.type === 'DIRECT' ? 'bg-[var(--t-primary)]/10 text-[var(--t-primary)] border border-[var(--t-primary)]/20 shadow-sm' :
+                                          'bg-green-500/10 text-green-500 border border-green-500/20'}`}>
+                                        {txn.type === 'BILL' ? '🧾' : txn.type === 'DIRECT' ? '⚡' : '💸'}
                                     </div>
                                     <div>
-                                        <div className="font-bold text-sm text-[var(--t-text)]">{txn.title}</div>
+                                        <div className="font-bold text-sm text-[var(--t-text)]">
+                                            {txn.type === 'DIRECT' ? 'Direct Settlement' : txn.title}
+                                        </div>
                                         <div className="text-[10px] text-[var(--t-text2)] font-bold uppercase tracking-wider">
                                             {new Date(txn.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                            {txn.type === 'PAYMENT' && ` • ${txn.method?.replace('_', ' ')}`}
+                                            {(txn.type === 'PAYMENT' || txn.type === 'DIRECT') && ` • ${txn.method?.replace('_', ' ')}`}
                                             {txn.type === 'BILL' && ` • ${txn.status}`}
                                         </div>
-                                        {txn.notes && <div className="text-xs text-[var(--t-text2)] italic mt-0.5 max-w-[200px] truncate" title={txn.notes}>Txn Note: {txn.notes}</div>}
+                                        {txn.notes && <div className="text-xs text-[var(--t-text2)] italic mt-0.5 max-w-[200px] truncate" title={txn.notes}>{txn.type === 'DIRECT' ? txn.title : `Note: ${txn.notes}`}</div>}
                                     </div>
                                 </div>
                                 <div className={`font-black tracking-tight text-right ${txn.type === 'BILL' ? 'text-[var(--t-danger)]' : 'text-green-600'}`}>
-                                    <div className="text-sm">{txn.type === 'BILL' ? '+' : '-'}{Number(txn.amount).toLocaleString('en-IN')}</div>
-                                    <div className="text-[8px] uppercase tracking-wider opacity-70">{txn.type}</div>
+                                    <div className="text-sm">
+                                        {txn.type === 'BILL' ? '+' : txn.type === 'DIRECT' ? '✓' : '-'}{Number(txn.amount).toLocaleString('en-IN')}
+                                    </div>
+                                    <div className={`text-[8px] uppercase tracking-wider opacity-70 ${txn.type === 'DIRECT' ? 'text-[var(--t-primary)]' : ''}`}>
+                                        {txn.type === 'DIRECT' ? 'Settle' : txn.type}
+                                    </div>
                                 </div>
                             </div>
                         ))

@@ -10,7 +10,7 @@ const MobileLayout = ({
     spacing = "space-y-0"
 }) => {
     return (
-        <div className="min-h-screen overflow-x-hidden pb-24 pt-0 relative transition-colors duration-300"
+        <div className="min-h-screen overflow-x-hidden pb-32 pt-0 relative transition-colors duration-300"
             style={{ background: 'var(--t-bg)', color: 'var(--t-text)' }}>
             {/* LUMINOUS BACKGROUND ELEMENTS */}
             {showBackground && (
