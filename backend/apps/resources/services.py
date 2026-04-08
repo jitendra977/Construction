@@ -103,10 +103,28 @@ class ResourceService:
             funding_source=txn.funding_source,
             date=txn.date,
             paid_to=paid_to,
-            is_paid=True,
+            is_paid=False,  # Initially unpaid, will be updated by process_payment if funded
             is_inventory_usage=is_usage,
             notes=f"Auto-generated from Material {txn.get_transaction_type_display()}"
         )
+        
+        # 1. NEW: Process actual payment if funding_source is provided for a purchase
+        if txn.transaction_type == 'IN' and txn.funding_source:
+            from apps.finance.services import FinanceService
+            # We assume it's fully paid since it was selected at time of stock registration
+            FinanceService.process_payment(
+                expense=new_expense,
+                amount=amount,
+                date=txn.date,
+                method='CASH', # Defaulting to CASH for stock entries
+                funding_source=txn.funding_source,
+                notes=f"Automatic payment for stock purchase: {txn.material.name}"
+            )
+        elif is_usage:
+            # Usage is a virtual expense (inventory allocation), so mark it paid without account movement
+            new_expense.is_paid = True
+            new_expense.save(update_fields=['is_paid'])
+
         txn.expense = new_expense
         txn.save(update_fields=['expense'])
 
@@ -127,6 +145,11 @@ class ResourceService:
             mat.save()
             
             if txn.expense:
+                # 2. NEW: Explicitly delete payments via FinanceService 
+                # to ensure FundingSource balances are accurately refunded
+                from apps.finance.services import FinanceService
+                for payment in txn.expense.payments.all():
+                    FinanceService.delete_payment(payment)
                 txn.expense.delete()
         
         txn.delete()

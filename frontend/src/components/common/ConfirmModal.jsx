@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText = "Yes, Proceed", cancelText = "No, Cancel", type = "warning" }) => {
     // Prevent scrolling behind modal
@@ -24,8 +25,8 @@ const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText
 
     const color = typeColors[type] || typeColors.warning;
 
-    return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 pb-28 sm:pb-4">
+    const modalContent = (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 pb-28 sm:pb-4">
             {/* Backdrop */}
             <div
                 className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity animate-fadeIn"
@@ -69,6 +70,8 @@ const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText
             </div>
         </div>
     );
+
+    return createPortal(modalContent, document.body);
 };
 
 export default ConfirmModal;

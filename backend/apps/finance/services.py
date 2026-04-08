@@ -111,6 +111,9 @@ class FinanceService:
         if funding_source:
             funding_source.current_balance += amount
             funding_source.save(update_fields=['current_balance'])
+            
+        # Ensure related funding transactions are destroyed so they aren't orphaned
+        payment.funding_transactions.all().delete()
         
         payment.delete()
 

@@ -210,7 +210,7 @@ class FundingTransaction(models.Model):
     description = models.CharField(max_length=255)
     
     # Optional link to a specific payment
-    payment = models.ForeignKey('Payment', on_delete=models.SET_NULL, null=True, blank=True, related_name='funding_transactions')
+    payment = models.ForeignKey('Payment', on_delete=models.CASCADE, null=True, blank=True, related_name='funding_transactions')
     
     created_at = models.DateTimeField(auto_now_add=True)
 

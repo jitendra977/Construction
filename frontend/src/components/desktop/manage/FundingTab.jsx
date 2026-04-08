@@ -108,6 +108,30 @@ const FundingTab = ({ searchQuery = '' }) => {
         }
     };
 
+    const handleDeleteTransaction = (transaction, e) => {
+        e.stopPropagation();
+        showConfirm({
+            title: "Delete Transaction?",
+            message: "Are you sure you want to delete this transaction? The funding source's balance will be automatically adjusted.",
+            confirmText: "Yes, Delete",
+            type: "danger",
+            onConfirm: async () => {
+                try {
+                    setLoading(true);
+                    await dashboardService.deleteFundingTransaction(transaction.id);
+                    refreshData();
+                    setViewingHistory(null); // safely close it to reflect new state
+                    closeConfirm();
+                } catch (error) {
+                    alert("Delete failed.");
+                    closeConfirm();
+                } finally {
+                    setLoading(false);
+                }
+            }
+        });
+    };
+
     const getSourceTypeBadge = (type) => {
         const styles = {
             'OWN_MONEY': 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
@@ -188,6 +212,7 @@ const FundingTab = ({ searchQuery = '' }) => {
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button onClick={() => handleOpenTopUp(f)} className="text-[var(--t-info)] hover:opacity-80 font-bold text-[10px] uppercase tracking-wider">+ Add Money</button>
                                             <button onClick={() => setViewingHistory(f)} className="text-[var(--t-primary)] hover:opacity-80 font-bold text-[10px] uppercase tracking-wider">Manage</button>
                                             <button onClick={() => handleOpenModal(f)} className="text-[var(--t-primary)] hover:text-[var(--t-primary)] font-bold text-[10px] uppercase tracking-wider">Edit</button>
                                             <button onClick={() => handleDelete(f.id)} className="text-[var(--t-danger)] hover:text-[var(--t-danger)] font-bold text-[10px] uppercase tracking-wider">Delete</button>
@@ -243,6 +268,10 @@ const FundingTab = ({ searchQuery = '' }) => {
                                     {Math.round(percent)}% left
                                 </span>
                                 <div className="flex gap-1 justify-end mt-1">
+                                    <button onClick={() => handleOpenTopUp(f)}
+                                        className="px-2 py-0.5 text-[8px] uppercase tracking-widest font-['DM_Mono',monospace] border border-[var(--t-info)]/40 text-[var(--t-info)] rounded-[1px] hover:bg-[var(--t-info)]/10 transition-colors">
+                                        TopUp
+                                    </button>
                                     <button onClick={() => setViewingHistory(f)}
                                         className="px-2 py-0.5 text-[8px] uppercase tracking-widest font-['DM_Mono',monospace] border border-[var(--t-primary)]/40 text-[var(--t-primary)] rounded-[1px] hover:bg-[var(--t-primary)]/10 transition-colors">
                                         Manage
@@ -444,8 +473,15 @@ const FundingTab = ({ searchQuery = '' }) => {
                                             <div className="text-[10px] text-[var(--t-text3)] font-medium">{new Date(t.date).toLocaleDateString()}</div>
                                         </div>
                                     </div>
-                                    <div className={`text-sm font-black ${t.transaction_type === 'CREDIT' ? 'text-[var(--t-primary)]' : 'text-[var(--t-danger)]'}`}>
-                                        {t.transaction_type === 'CREDIT' ? '+' : '-'}{formatCurrency(t.amount)}
+                                    <div className="flex flex-col items-end">
+                                        <div className={`text-sm font-black ${t.transaction_type === 'CREDIT' ? 'text-[var(--t-primary)]' : 'text-[var(--t-danger)]'}`}>
+                                            {t.transaction_type === 'CREDIT' ? '+' : '-'}{formatCurrency(t.amount)}
+                                        </div>
+                                        {!t.payment && (
+                                            <button onClick={(e) => handleDeleteTransaction(t, e)} className="text-[10px] text-[var(--t-danger)] opacity-60 hover:opacity-100 uppercase font-bold tracking-widest transition-opacity mt-1">
+                                                Delete
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             ))

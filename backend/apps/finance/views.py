@@ -32,6 +32,13 @@ class ExpenseViewSet(viewsets.ModelViewSet):
             print(f"DEBUG: Validation failed (update): {serializer.errors}")
         super().perform_update(serializer)
 
+    def perform_destroy(self, instance):
+        # We must explicitly use FinanceService to delete payments 
+        # to ensure funding sources are correctly refunded.
+        for payment in instance.payments.all():
+            FinanceService.delete_payment(payment)
+        super().perform_destroy(instance)
+
     @action(detail=False, methods=['get'])
     def overview(self, request):
         """

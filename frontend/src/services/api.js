@@ -177,6 +177,7 @@ export const dashboardService = {
     updateFundingSource: (id, data) => api.patch(`/funding-sources/${id}/`, data),
     deleteFundingSource: (id) => api.delete(`/funding-sources/${id}/`),
     createFundingTransaction: (data) => api.post('/funding-transactions/', data),
+    deleteFundingTransaction: (id) => api.delete(`/funding-transactions/${id}/`),
     getPhaseBudgetAllocations: () => api.get('/phase-budget-allocations/'),
     createPhaseBudgetAllocation: (data) => api.post('/phase-budget-allocations/', data),
     updatePhaseBudgetAllocation: (id, data) => api.patch(`/phase-budget-allocations/${id}/`, data),
