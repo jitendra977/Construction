@@ -67,14 +67,27 @@ The Manage section is further subdivided into three logical pillars:
 *   `Manage > Overview (सारांश)`: High-level financial analytics and debt-to-equity ratios.
 *   `Manage > Funding (लगानी)`: Where the money comes from (Bank Loans, Personal Savings).
 *   `Manage > Categories (शिर्षक)`: Setting limits for specific costs (e.g., "Rs. 10 Lakh for Cement").
-*   `Manage > Expenses (खर्च)`: Logging every rupee spent on the site.
-*   `Manage > Payments (भुक्तानी)`: Recording actual cash handouts to workers or hardware stores.
+*   `Manage > Expenses & Payments (खर्च र भुक्तानी)`: A unified financial hub for logging expenses and tracking payment history with shared logic and automated receipts.
 
 #### 📦 Resource & Inventory
 *   `Manage > Suppliers (सप्लायर्स)`: Catalog of hardware stores and material vendors.
 *   `Manage > Contractors (ठेकेदार)`: Database of labor crews (Mistris, Helpers, Engineers).
 *   `Manage > Materials (सामग्री)`: Master list of units (Bora, Tipper, KG).
 *   `Manage > Stock (मौज्दात)`: Live inventory levels showing what's currently on-site and what needs re-ordering.
+
+---
+
+## Premium Component Logic
+
+### 1. Smart History Merger (Direct Settlement)
+To reduce financial clutter, the frontend implements a **Smart History Merger**.
+- **Logic**: If an `Expense` (Bill) and a `Payment` share the same timestamp, amount, and recipient, the UI collapses them into a single **"DIRECT SETTLEMENT"** entry.
+- **Benefit**: Users see one clear transaction instead of two redundant records, mirroring real-world "Pay as you go" behavior.
+
+### 2. Universal Payment Modal
+A context-aware orchestration component used in both Desktop and Mobile experiences:
+- **Entity Detection**: Automatically switches logic between Contractors (Labor) and Suppliers (Materials).
+- **Embedded Intelligence**: Displays bank details for suppliers and triggers automated PDF receipts via the backend.
 
 ---
 

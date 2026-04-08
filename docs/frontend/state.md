@@ -39,6 +39,7 @@ The application uses a **Responsive Routing** strategy to ensure a seamless expe
 ### 4. Component Communication Pattern
 - **Page Components** (`src/pages/`): Act as data owners. They typically pull data from the context and pass it down as props to child components.
 - **Specialized Tab Components** (`src/components/desktop/manage/`): These are focused modules that handle specific construction domains (Materials, Labor, Finances). They use the actions provided by `useConstruction` (like `updateTaskStatus` or `createExpense`) to trigger updates that flow back up to the context and sync with the backend.
+- **Universal Payment Modal** (`src/components/finance/`): A critical shared component that encapsulates the entire payment submission state. It handles receipt confirmation logic and ensures that financial transactions are atomic (creating both the expense and payment in a single flow if required).
 
 ### 5. Optimistic UI Updates
 To ensure the interface feels snappy (especially on mobile on-site), the context handles many updates **optimistically**. When a user changes a task status, the UI updates immediately before the API call finishes. If the call fails, the state is automatically rolled back to ensure data integrity.

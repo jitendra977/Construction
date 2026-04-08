@@ -67,6 +67,9 @@ erDiagram
 | **Payment** | `amount`, `method`, `proof_photo` | Tracks actual cash given out. Can be partial payments toward an `Expense`. |
 | **FundingSource** | `source_type`, `amount`, `current_balance` | Tracks external cash injections (Bank Loans, Personal Savings). |
 
+> [!TIP]
+> **Virtual "Direct Settlement" Relationship**: While `Expense` and `Payment` are separate records in the database, the frontend identifies "Twin Entries" (where a bill and full payment happen at the same time) and represents them as a single **Direct Settlement** in the UI to simplify history and audit trails.
+
 ---
 
 ### 📦 Resources Engine (`apps.resources`)
