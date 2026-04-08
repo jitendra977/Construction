@@ -105,6 +105,10 @@ export const dashboardService = {
     createExpense: (data) => api.post('/expenses/', data),
     updateExpense: (id, data) => api.patch(`/expenses/${id}/`, data),
     deleteExpense: (id) => api.delete(`/expenses/${id}/`),
+    exportExpensesPdf: (params = {}) => api.get('/expenses/export-pdf/', { 
+        params, 
+        responseType: 'blob' 
+    }),
 
     // Payments
     getPayments: () => api.get('/payments/'),

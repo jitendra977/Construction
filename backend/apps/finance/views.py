@@ -1,10 +1,15 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Sum, Q
+from django.http import HttpResponse
+from django_filters.rest_framework import DjangoFilterBackend
+from datetime import datetime
 from apps.core.models import HouseProject, ConstructionPhase
 from .models import BudgetCategory, Expense, Payment, FundingSource, FundingTransaction, PhaseBudgetAllocation
 from .serializers import BudgetCategorySerializer, ExpenseSerializer, PaymentSerializer, FundingSourceSerializer, FundingTransactionSerializer, PhaseBudgetAllocationSerializer
+from .filters import ExpenseFilter
+from apps.core.pdf_utils import generate_payment_receipt_pdf, generate_expense_report_pdf
 from .services import FinanceService
 
 class FundingSourceViewSet(viewsets.ModelViewSet):
@@ -16,8 +21,11 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
     serializer_class = BudgetCategorySerializer
 
 class ExpenseViewSet(viewsets.ModelViewSet):
-    queryset = Expense.objects.all()
+    queryset = Expense.objects.all().order_by('-date')
     serializer_class = ExpenseSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_class = ExpenseFilter
+    search_fields = ['title', 'paid_to', 'category__name', 'phase__name']
 
     def create(self, request, *args, **kwargs):
         print(f"DEBUG: Creating expense with data: {request.data}")
@@ -38,6 +46,28 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         for payment in instance.payments.all():
             FinanceService.delete_payment(payment)
         super().perform_destroy(instance)
+
+    @action(detail=False, methods=['get'], url_path='export-pdf')
+    def export_pdf(self, request):
+        """
+        Generate a filtered PDF report of expenses.
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        # Build filter metadata string for the PDF header
+        params = self.request.query_params
+        meta = []
+        if params.get('start_date'): meta.append(f"From: {params.get('start_date')}")
+        if params.get('end_date'): meta.append(f"To: {params.get('end_date')}")
+        
+        meta_str = " | ".join(meta) if meta else "Full Project History"
+        
+        pdf_content = generate_expense_report_pdf(queryset, filter_metadata=meta_str)
+        
+        filename = f"expense_report_{datetime.now().strftime('%Y%m%d')}.pdf"
+        response = HttpResponse(pdf_content, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
 
     @action(detail=False, methods=['get'])
     def overview(self, request):

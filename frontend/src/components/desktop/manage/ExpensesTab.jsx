@@ -5,6 +5,7 @@ import { useConstruction } from '../../../context/ConstructionContext';
 import ExpenseDetailModal from '../../common/ExpenseDetailModal';
 import PdfExportButton from '../../common/PdfExportButton';
 import ConfirmModal from '../../common/ConfirmModal';
+import ProofViewer from '../../common/ProofViewer';
 
 // Redesigned Sub-components
 import SummaryCards from './expenses/SummaryCards';
@@ -19,6 +20,7 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '', initialViewMode = '
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [selectedExpenseId, setSelectedExpenseId] = useState(null);
+    const [viewingPhoto, setViewingPhoto] = useState(null);
     const [editingItem, setEditingItem] = useState(null);
     const [formData, setFormData] = useState({});
     const [loading, setLoading] = useState(false);
@@ -46,18 +48,88 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '', initialViewMode = '
     const [paymentMethodFilter, setPaymentMethodFilter] = useState('ALL');
     const [fundingSourceFilter, setFundingSourceFilter] = useState('ALL');
 
+    // Advanced Expense Filters
+    const [expenseStatusFilter, setExpenseStatusFilter] = useState('ALL'); // ALL, PAID, PARTIAL, DUE
+    const [expenseCategoryFilter, setExpenseCategoryFilter] = useState('ALL');
+    
+    // Default to current month range (Local Time Safe)
+    const [expenseDateFilter, setExpenseDateFilter] = useState(() => {
+        const now = new Date();
+        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        
+        const formatDate = (date) => {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        };
+        
+        return {
+            start: formatDate(firstDay),
+            end: formatDate(lastDay)
+        };
+    });
+
     // Confirmation Modal System
     const [confirmConfig, setConfirmConfig] = useState({ isOpen: false });
     const showConfirm = (config) => setConfirmConfig({ ...config, isOpen: true });
     const closeConfirm = () => setConfirmConfig({ ...confirmConfig, isOpen: false });
 
     const filteredExpenses = useMemo(() => {
-        return dashboardData.expenses?.filter(e =>
-            e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            e.paid_to?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            e.category_name?.toLowerCase().includes(searchQuery.toLowerCase())
-        ) || [];
-    }, [dashboardData.expenses, searchQuery]);
+        let result = dashboardData.expenses || [];
+
+        // 1. Search Query Filter
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            result = result.filter(e =>
+                e.title.toLowerCase().includes(query) ||
+                e.paid_to?.toLowerCase().includes(query) ||
+                e.category_name?.toLowerCase().includes(query)
+            );
+        }
+
+        // 2. Status Filter
+        if (expenseStatusFilter !== 'ALL') {
+            result = result.filter(e => {
+                if (expenseStatusFilter === 'PAID') return e.status === 'PAID';
+                if (expenseStatusFilter === 'PARTIAL') return e.status === 'PARTIAL';
+                if (expenseStatusFilter === 'DUE') return e.status === 'UNPAID' || e.status === 'PARTIAL';
+                return true;
+            });
+        }
+
+        // 3. Category Filter
+        if (expenseCategoryFilter !== 'ALL') {
+            result = result.filter(e => e.category === parseInt(expenseCategoryFilter));
+        }
+
+        // 4. Date Range Filter
+        if (expenseDateFilter.start) {
+            result = result.filter(e => e.date >= expenseDateFilter.start);
+        }
+        if (expenseDateFilter.end) {
+            result = result.filter(e => e.date <= expenseDateFilter.end);
+        }
+
+        return result;
+    }, [dashboardData.expenses, searchQuery, expenseStatusFilter, expenseCategoryFilter, expenseDateFilter]);
+
+    // Metadata for PDF export based on active filters
+    const filterMetadata = useMemo(() => {
+        let parts = [];
+        if (expenseStatusFilter !== 'ALL') parts.push(`Status: ${expenseStatusFilter}`);
+        if (expenseCategoryFilter !== 'ALL') {
+            const cat = dashboardData.budgetCategories?.find(c => c.id === parseInt(expenseCategoryFilter));
+            parts.push(`Category: ${cat?.name || 'Unknown'}`);
+        }
+        if (expenseDateFilter.start || expenseDateFilter.end) {
+            parts.push(`Period: ${expenseDateFilter.start || '...'} to ${expenseDateFilter.end || 'Now'}`);
+        }
+        if (searchQuery) parts.push(`Query: "${searchQuery}"`);
+        
+        return parts.length > 0 ? `Filtered by: ${parts.join(' | ')}` : "Complete Project Statement";
+    }, [expenseStatusFilter, expenseCategoryFilter, expenseDateFilter, searchQuery, dashboardData.budgetCategories]);
 
     const fetchLogs = useCallback(async () => {
         setFetchingLogs(true);
@@ -320,11 +392,23 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '', initialViewMode = '
                 handleOpenModal={handleOpenModal}
                 viewMode={viewMode}
                 setViewMode={setViewMode}
+                
+                // Expense Filters
+                expenseStatusFilter={expenseStatusFilter}
+                setExpenseStatusFilter={setExpenseStatusFilter}
+                expenseCategoryFilter={expenseCategoryFilter}
+                setExpenseCategoryFilter={setExpenseCategoryFilter}
+                expenseDateFilter={expenseDateFilter}
+                setExpenseDateFilter={setExpenseDateFilter}
+                budgetCategories={dashboardData.budgetCategories || []}
+
+                // Payment Filters
                 paymentMethodFilter={paymentMethodFilter}
                 setPaymentMethodFilter={setPaymentMethodFilter}
                 fundingSourceFilter={fundingSourceFilter}
                 setFundingSourceFilter={setFundingSourceFilter}
                 fundingSources={dashboardData.funding || []}
+                
                 exportData={{
                     columns: ['Date', 'Title', 'Category', 'Paid To', 'Phase', 'Amount (Rs.)', 'Status'],
                     rows: filteredExpenses.map(e => [
@@ -334,34 +418,43 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '', initialViewMode = '
                         e.paid_to || 'N/A',
                         dashboardData.phases?.find(p => p.id === e.phase)?.name || 'N/A',
                         Number(e.amount).toLocaleString('en-IN'),
-                        e.payment_status === 'PAID' ? 'FULLY PAID' : `DUE: ${Number(e.balance_due).toLocaleString('en-IN')}`
+                        e.status === 'PAID' ? 'FULLY PAID' : `DUE: ${Number(e.balance_due).toLocaleString('en-IN')}`
                     ]),
                     summaryData: {
                         totalAmount: formatCurrency(filteredExpenses.reduce((sum, e) => sum + Number(e.amount), 0)),
-                        totalPaid: formatCurrency(filteredExpenses.reduce((sum, e) => {
-                            const paid = e.payments?.reduce((pSum, p) => pSum + Number(p.amount), 0) || 0;
-                            return sum + paid;
-                        }, 0)),
+                        totalPaid: formatCurrency(filteredExpenses.reduce((sum, e) => sum + Number(e.total_paid || 0), 0)),
                         totalDue: formatCurrency(filteredExpenses.reduce((sum, e) => sum + Number(e.balance_due), 0))
                     },
                     projectInfo: {
                         name: dashboardData.project?.name,
-                        owner: dashboardData.project?.owner_name
+                        owner: dashboardData.project?.owner_name,
+                        filterMetadata: filterMetadata
                     }
                 }}
             />
 
             {/* 5. Main Content Area */}
             {viewMode === 'expenses' ? (
-                <ExpenseList
-                    expenses={filteredExpenses}
-                    handleViewDetail={handleViewDetail}
-                    handleOpenPaymentModal={handleOpenPaymentModal}
-                    handleOpenModal={handleOpenModal}
-                    handleDelete={handleDelete}
-                    formatCurrency={formatCurrency}
-                    dashboardData={dashboardData}
-                />
+                <>
+                    <div className="flex items-center gap-2 mb-4 px-1">
+                        <span className="text-[10px] font-bold text-[var(--t-primary)] uppercase tracking-widest bg-[var(--t-primary)]/5 px-2 py-1 rounded">
+                            Active Scope: {filterMetadata}
+                        </span>
+                        <span className="text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase">
+                            ({filteredExpenses.length} Records Found)
+                        </span>
+                    </div>
+
+                    <ExpenseList
+                        expenses={filteredExpenses}
+                        handleViewDetail={handleViewDetail}
+                        handleOpenPaymentModal={handleOpenPaymentModal}
+                        handleOpenModal={handleOpenModal}
+                        handleDelete={handleDelete}
+                        formatCurrency={formatCurrency}
+                        dashboardData={dashboardData}
+                    />
+                </>
             ) : (
                 <UnifiedPaymentList
                     payments={flattenedPayments}
@@ -726,6 +819,16 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '', initialViewMode = '
                                             </span>
                                         </div>
                                         {p.reference_id && <div className="px-3 py-1 bg-[var(--t-nav-active-bg)] text-[var(--t-primary)] text-[9px] font-black rounded-lg border border-[var(--t-border)] uppercase tracking-tighter">#{p.reference_id}</div>}
+                                        
+                                        {p.proof_photo && (
+                                            <button 
+                                                onClick={() => setViewingPhoto(p.proof_photo)}
+                                                className="w-8 h-8 rounded-lg bg-[var(--t-surface2)] border border-[var(--t-border)] flex items-center justify-center text-[var(--t-primary)] hover:bg-[var(--t-primary)]/10 transition-all active:scale-90"
+                                                title="View Verification Evidence"
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                            </button>
+                                        )}
                                     </div>
                                 ))}
                             </div>
@@ -975,6 +1078,10 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '', initialViewMode = '
                 onClose={() => setHistoryModal({ ...historyModal, isOpen: false })} 
                 logs={historyModal.logs} 
                 paymentTitle={historyModal.title}
+            />
+            <ProofViewer 
+                photo={viewingPhoto} 
+                onClose={() => setViewingPhoto(null)} 
             />
         </div>
     );

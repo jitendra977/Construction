@@ -8,6 +8,17 @@ const ExpenseActions = ({
     exportData, 
     viewMode = 'expenses', 
     setViewMode,
+    
+    // Expense Filters
+    expenseStatusFilter,
+    setExpenseStatusFilter,
+    expenseCategoryFilter,
+    setExpenseCategoryFilter,
+    expenseDateFilter,
+    setExpenseDateFilter,
+    budgetCategories,
+
+    // Payment Filters
     paymentMethodFilter,
     setPaymentMethodFilter,
     fundingSourceFilter,
@@ -51,7 +62,114 @@ const ExpenseActions = ({
                             className="w-full pl-9 pr-3 py-2 bg-[var(--t-surface)] border border-[var(--t-border)] rounded-xl text-[var(--t-text)] placeholder-[var(--t-text3)] focus:border-[var(--t-primary)] transition-all outline-none font-bold text-sm"
                         />
                     </div>
+
+                    {/* Quick PDF Export — High Visibility */}
+                    {viewMode === 'expenses' && exportData && (
+                        <div className="shrink-0">
+                            <PdfExportButton 
+                                data={exportData} 
+                                summaryData={exportData.summaryData}
+                                projectInfo={exportData.projectInfo}
+                                title="Project Statement" 
+                                filename={`expense_report_${new Date().toISOString().split('T')[0]}.pdf`} 
+                            />
+                        </div>
+                    )}
                 </div>
+
+                {/* Category Filter & Status Chips (applied in Expenses view) */}
+                {viewMode === 'expenses' && (
+                    <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto animate-in fade-in slide-in-from-right-4 duration-500">
+                        {/* Status Chips */}
+                        <div className="flex items-center bg-[var(--t-surface2)] p-1 rounded-xl border border-[var(--t-border)]">
+                            {[
+                                { id: 'ALL', label: 'All', icon: '📋' },
+                                { id: 'DUE', label: 'Due', icon: '🔴' },
+                                { id: 'PAID', label: 'Paid', icon: '🟢' }
+                            ].map(status => (
+                                <button
+                                    key={status.id}
+                                    onClick={() => setExpenseStatusFilter(status.id)}
+                                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${expenseStatusFilter === status.id ? 'bg-[var(--t-primary)] text-white shadow-md' : 'text-[var(--t-text3)] hover:bg-[var(--t-surface3)]'}`}
+                                >
+                                    <span>{status.icon}</span>
+                                    {status.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Category Dropdown */}
+                        <div className="relative min-w-[160px]">
+                            <select
+                                value={expenseCategoryFilter}
+                                onChange={(e) => setExpenseCategoryFilter(e.target.value)}
+                                className="w-full pl-8 pr-4 py-2 bg-[var(--t-surface)] border border-[var(--t-border)] rounded-xl text-[10px] font-bold uppercase tracking-widest text-[var(--t-text2)] outline-none focus:border-[var(--t-primary)] appearance-none cursor-pointer hover:bg-[var(--t-surface2)] transition-colors"
+                            >
+                                <option value="ALL">All Categories</option>
+                                {budgetCategories?.map(cat => (
+                                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                ))}
+                            </select>
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] grayscale">📂</span>
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] pointer-events-none opacity-40">▼</span>
+                        </div>
+
+                        {/* Date Range Group */}
+                        <div className="flex items-center gap-2 bg-[var(--t-surface2)] p-1 rounded-xl border border-[var(--t-border)]">
+                            <div className="flex items-center">
+                                <span className="text-[8px] font-black text-[var(--t-text3)] uppercase px-2">From</span>
+                                <input
+                                    type="date"
+                                    value={expenseDateFilter.start}
+                                    onChange={(e) => setExpenseDateFilter({ ...expenseDateFilter, start: e.target.value })}
+                                    className="bg-transparent border-none text-[9px] font-black p-1 outline-none text-[var(--t-text)] w-24"
+                                />
+                            </div>
+                            <span className="text-[var(--t-text3)] opacity-40">→</span>
+                            <div className="flex items-center">
+                                <span className="text-[8px] font-black text-[var(--t-text3)] uppercase px-2">To</span>
+                                <input
+                                    type="date"
+                                    value={expenseDateFilter.end}
+                                    onChange={(e) => setExpenseDateFilter({ ...expenseDateFilter, end: e.target.value })}
+                                    className="bg-transparent border-none text-[9px] font-black p-1 outline-none text-[var(--t-text)] w-24"
+                                />
+                            </div>
+                            <div className="flex gap-1 ml-1 pl-2 border-l border-[var(--t-border)]">
+                                <button 
+                                    onClick={() => {
+                                        const now = new Date();
+                                        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+                                        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                                        
+                                        const formatDate = (date) => {
+                                            const y = date.getFullYear();
+                                            const m = String(date.getMonth() + 1).padStart(2, '0');
+                                            const d = String(date.getDate()).padStart(2, '0');
+                                            return `${y}-${m}-${d}`;
+                                        };
+
+                                        setExpenseDateFilter({
+                                            start: formatDate(firstDay),
+                                            end: formatDate(lastDay)
+                                        });
+                                    }}
+                                    className="px-2 py-0.5 rounded-lg text-[8px] font-black uppercase text-[var(--t-primary)] bg-[var(--t-primary)]/5 hover:bg-[var(--t-primary)]/10"
+                                    title="Current Month"
+                                >
+                                    Current
+                                </button>
+                                <button 
+                                    onClick={() => setExpenseDateFilter({ start: '', end: '' })}
+                                    className="px-2 py-0.5 rounded-lg text-[8px] font-black uppercase text-[var(--t-text3)] bg-[var(--t-surface3)] hover:text-red-500"
+                                    title="Clear Dates"
+                                >
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Filters Row (applied in Payments view) */}
                 {viewMode === 'payments' && (
@@ -100,16 +218,8 @@ const ExpenseActions = ({
 
             {/* Action Buttons Row */}
             <div className="flex items-center justify-between gap-3 w-full lg:w-auto border-t lg:border-t-0 pt-4 lg:pt-0 border-[var(--t-border)]">
-                <div className="flex items-center gap-2">
-                    {viewMode === 'expenses' && exportData && (
-                        <PdfExportButton 
-                            data={exportData} 
-                            summaryData={exportData.summaryData}
-                            projectInfo={exportData.projectInfo}
-                            title="Construction Project Cost Summary" 
-                            filename={`cost_summary_${new Date().toISOString().split('T')[0]}.pdf`} 
-                        />
-                    )}
+                <div className="flex items-center gap-2 uppercase font-black text-[9px] text-[var(--t-text3)]">
+                    {/* Empty placeholder to maintain layout if needed */}
                 </div>
                 {viewMode === 'expenses' && (
                     <button

@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import Modal from './Modal';
 import { useConstruction } from '../../context/ConstructionContext';
-import { dashboardService } from '../../services/api';
+import { dashboardService, getMediaUrl } from '../../services/api';
 import ConfirmModal from './ConfirmModal';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import ProofViewer from './ProofViewer';
 
 const ExpenseDetailModal = ({ isOpen, onClose, expenseId }) => {
     const { dashboardData, refreshData, formatCurrency } = useConstruction();
     const [isPaymentFormOpen, setIsPaymentFormOpen] = useState(false);
+    const [viewingPhoto, setViewingPhoto] = useState(null);
     const [loading, setLoading] = useState(false);
 
     // Confirmation Modal System
@@ -25,6 +29,81 @@ const ExpenseDetailModal = ({ isOpen, onClose, expenseId }) => {
         proof_photo: null
     });
     const [photoPreview, setPhotoPreview] = useState(null);
+    const [isExporting, setIsExporting] = useState(false);
+
+    const handleExportVoucher = () => {
+        try {
+            setIsExporting(true);
+            const doc = new jsPDF();
+            const pageWidth = doc.internal.pageSize.width;
+            
+            // Header
+            doc.setFillColor(30, 30, 30);
+            doc.rect(0, 0, pageWidth, 40, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(20);
+            doc.text("EXPENSE VOUCHER", 14, 18);
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Voucher ID: #EXP-${expense.id}`, 14, 25);
+            doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 31);
+            
+            // Financials Grid
+            doc.setTextColor(60, 60, 60);
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text("FINANCIAL SUMMARY", 14, 55);
+            
+            autoTable(doc, {
+                startY: 60,
+                head: [['Field', 'Value']],
+                body: [
+                    ['Expense Title', expense.title],
+                    ['Category', expense.category_name],
+                    ['Source Account', expense.funding_source_name || 'General Funds'],
+                    ['Paid To', expense.paid_to || 'N/A'],
+                    ['Total Amount', formatCurrency(expense.amount)],
+                    ['Amount Paid', formatCurrency(expense.total_paid)],
+                    ['Balance Due', formatCurrency(expense.balance_due)],
+                    ['Status', expense.status]
+                ],
+                theme: 'grid',
+                headStyles: { fillColor: [79, 70, 229] }
+            });
+
+            // Payment History
+            if (expense.payments?.length > 0) {
+                doc.setFontSize(12);
+                doc.setFont('helvetica', 'bold');
+                doc.text("PAYMENT HISTORY", 14, doc.lastAutoTable.finalY + 15);
+                
+                autoTable(doc, {
+                    startY: doc.lastAutoTable.finalY + 20,
+                    head: [['Date', 'Method', 'Reference', 'Amount']],
+                    body: expense.payments.map(p => [
+                        new Date(p.date).toLocaleDateString(),
+                        p.method,
+                        p.reference_id || '-',
+                        formatCurrency(p.amount)
+                    ]),
+                    headStyles: { fillColor: [34, 197, 94] }
+                });
+            }
+
+            // Footer
+            const finalY = doc.lastAutoTable.finalY + 40;
+            doc.line(14, finalY, 80, finalY);
+            doc.text("Authorized Signature", 14, finalY + 5);
+            
+            doc.save(`voucher_${expense.id}_${expense.title.replace(/\s+/g, '_').toLowerCase()}.pdf`);
+        } catch (error) {
+            console.error("Voucher Export Failed:", error);
+            alert("Could not generate voucher.");
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
     // Synchronize default payment method when form opens
     useEffect(() => {
@@ -60,6 +139,12 @@ const ExpenseDetailModal = ({ isOpen, onClose, expenseId }) => {
 
     const handlePaymentSubmit = async (e) => {
         e.preventDefault();
+        
+        if (!paymentData.proof_photo) {
+            alert('Security Requirement: Payment proof photo is mandatory to record this transaction.');
+            return;
+        }
+
         setLoading(true);
         try {
             const formData = new FormData();
@@ -84,404 +169,336 @@ const ExpenseDetailModal = ({ isOpen, onClose, expenseId }) => {
         }
     };
 
-    const statusColors = {
-        'PAID': 'bg-green-100 text-green-700 border-green-200',
-        'PARTIAL': 'bg-amber-100 text-amber-700 border-amber-200',
-        'UNPAID': 'bg-red-100 text-red-700 border-red-200'
+    const getTypeStyle = (type) => {
+        switch (type) {
+            case 'MATERIAL': return 'bg-[var(--t-info)]/10 border-[var(--t-info)]/30 text-[var(--t-info)]';
+            case 'LABOR':    return 'bg-[var(--t-warn)]/10 border-[var(--t-warn)]/30 text-[var(--t-warn)]';
+            case 'FEES':     return 'bg-[var(--t-primary)]/10 border-[var(--t-primary)]/30 text-[var(--t-primary)]';
+            default:         return 'bg-[var(--t-surface2)] border-[var(--t-border)] text-[var(--t-text3)]';
+        }
     };
+
+    const getStatusStyle = (status) => {
+        switch (status) {
+            case 'PAID':    return { dot: 'bg-[var(--t-primary)]', badge: 'border-[var(--t-primary)]/40 text-[var(--t-primary)]' };
+            case 'PARTIAL': return { dot: 'bg-[var(--t-warn)]',    badge: 'border-[var(--t-warn)]/40 text-[var(--t-warn)]' };
+            default:        return { dot: 'bg-[var(--t-danger)]',  badge: 'border-[var(--t-danger)]/40 text-[var(--t-danger)]' };
+        }
+    };
+
+    if (!expense) return null;
+    const ss = getStatusStyle(expense.status);
 
     return (
         <>
-        <Modal isOpen={isOpen} onClose={onClose} title="Expense Details" maxWidth="max-w-4xl">
-            <div className="flex flex-col h-full max-h-[85vh] overflow-hidden">
-                {/* Header Summary */}
-                <div className="p-6 border-b border-gray-100 bg-gray-50/50">
-                    <div className="flex justify-between items-start mb-4">
-                        <div>
-                            <div className="flex items-center gap-3 mb-1">
-                                <h2 className="text-2xl font-black text-gray-900 tracking-tight">{expense.title}</h2>
-                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${statusColors[expense.status]}`}>
-                                    {expense.status}
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">{expense.expense_type}</span>
-                                <span className="text-gray-300">•</span>
-                                <span className="text-xs font-black text-indigo-600 uppercase tracking-wider">#{expense.category_name}</span>
-                            </div>
-                        </div>
-                        <div className="text-right">
-                            <div className="text-3xl font-black text-gray-900 leading-none">{formatCurrency(expense.amount)}</div>
-                            <div className="text-[11px] font-bold text-gray-400 mt-1 uppercase tracking-tighter">Total Transaction Amount</div>
-                        </div>
-                    </div>
-
-                    {/* Financial Progress */}
-                    <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                        <div className="grid grid-cols-3 gap-8 mb-4">
-                            <div>
-                                <div className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Total Paid</div>
-                                <div className="text-lg font-black text-green-600">{formatCurrency(expense.total_paid)}</div>
-                            </div>
-                            <div>
-                                <div className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Balance Due</div>
-                                <div className="text-lg font-black text-red-500">{formatCurrency(expense.balance_due)}</div>
-                            </div>
-                            <div className="text-right">
-                                <div className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1 text-right">Payment Progress</div>
-                                <div className="text-lg font-black text-gray-900">{((expense.total_paid / expense.amount) * 100).toFixed(0)}%</div>
-                            </div>
-                        </div>
-                        <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
-                            <div
-                                className="bg-green-500 h-full transition-all duration-500"
-                                style={{ width: `${(expense.total_paid / expense.amount) * 100}%` }}
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-6 scrollbar-hide">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {/* Details Section */}
-                        <div className="space-y-8">
-                            <div>
-                                <h3 className="text-xs font-black text-gray-900 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                                    <span className="w-1.5 h-1.5 bg-indigo-600 rounded-full"></span>
-                                    Contextual Info
-                                </h3>
-                                {/* Inventory Details */}
-                                {expense.expense_type === 'MATERIAL' && expense.material && (
-                                    <div className="bg-indigo-50/50 rounded-2xl p-5 border border-indigo-100/50 mb-4">
-                                        <h3 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
-                                            Linked Inventory Item
-                                        </h3>
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <div className="text-sm font-black text-indigo-900 uppercase tracking-tight">{expense.material_name}</div>
-                                                <div className="text-[10px] text-indigo-500 font-bold">Qty: {expense.quantity} {expense.unit}</div>
-                                            </div>
-                                            <div className="text-right">
-                                                <div className="text-sm font-black text-gray-900">{formatCurrency(expense.unit_price)}</div>
-                                                <div className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">Per {expense.unit}</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className="space-y-4">
-                                    <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-3">
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Budget Category</span>
-                                            <span className="text-sm font-black text-indigo-600">{expense.category_name}</span>
-                                        </div>
-                                        <div className="h-px bg-gray-50"></div>
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Debit Source</span>
-                                            {(() => {
-                                                const fs = dashboardData.funding?.find(f => f.id === expense.funding_source);
-                                                if (!fs) return <span className="text-sm font-black text-gray-800">Personal Funds</span>;
-                                                return (
-                                                    <div className="flex items-center gap-2">
-                                                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter ${fs.source_type === 'LOAN' ? 'bg-orange-100 text-orange-600' :
-                                                            fs.source_type === 'OWN_MONEY' ? 'bg-emerald-100 text-emerald-600' :
-                                                                'bg-purple-100 text-purple-600'
-                                                            }`}>
-                                                            {fs.source_type === 'LOAN' ? 'Karja' : fs.source_type === 'OWN_MONEY' ? 'Bachat' : 'Saapathi'}
-                                                        </span>
-                                                        <span className="text-sm font-black text-gray-900">{fs.name}</span>
-                                                    </div>
-                                                );
-                                            })()}
-                                        </div>
-                                        <div className="h-px bg-gray-50"></div>
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Paid To</span>
-                                            <span className="text-sm font-black text-gray-800">{expense.paid_to || '-'}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Transaction Date</span>
-                                            <span className="text-sm font-black text-gray-800">{new Date(expense.date).toLocaleDateString(undefined, { dateStyle: 'long' })}</span>
-                                        </div>
-                                    </div>
-                                    {expense.phase_name && (
-                                        <div className="flex justify-between items-center py-1">
-                                            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Related Phase</span>
-                                            <span className="text-sm font-black text-indigo-600 uppercase">{expense.phase_name}</span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Payment History */}
-                        <div className="space-y-6">
-                            <div>
-                                <div className="flex justify-between items-center mb-4">
-                                    <h3 className="text-xs font-black text-gray-900 uppercase tracking-[0.2em] flex items-center gap-2">
-                                        <span className="w-1.5 h-1.5 bg-green-600 rounded-full"></span>
-                                        Payment History
-                                    </h3>
-                                    {expense.balance_due > 0 && !isPaymentFormOpen && (
-                                        <button
-                                            onClick={() => setIsPaymentFormOpen(true)}
-                                            className="text-[10px] font-black text-green-600 uppercase tracking-widest bg-green-50 px-3 py-1.5 rounded-lg hover:bg-green-100 transition-colors"
-                                        >
-                                            + Record Payment
-                                        </button>
-                                    )}
-                                </div>
-
-                                {isPaymentFormOpen ? (
-                                    <div className="bg-white rounded-2xl border-2 border-green-100 p-5 mb-4 shadow-xl shadow-green-50/50">
-                                        <div className="flex justify-between items-center mb-4">
-                                            <span className="text-[10px] font-black text-green-700 uppercase tracking-widest">New Installment</span>
-                                            <button onClick={() => setIsPaymentFormOpen(false)} className="text-gray-400 hover:text-gray-600">
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                                            </button>
-                                        </div>
-
-                                        <div className="mb-4">
-                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-2 block">Debit From (Account)</label>
-                                            <select
-                                                value={paymentData.funding_source}
-                                                onChange={e => {
-                                                    const sourceId = parseInt(e.target.value);
-                                                    const fs = dashboardData.funding?.find(f => f.id === sourceId);
-                                                    setPaymentData({
-                                                        ...paymentData,
-                                                        funding_source: e.target.value,
-                                                        method: fs?.default_payment_method || paymentData.method
-                                                    });
-                                                }}
-                                                className="w-full bg-gray-50 border-none rounded-xl p-3 text-xs font-black text-gray-900 focus:ring-2 focus:ring-green-500 focus:bg-white transition-all appearance-none"
-                                            >
-                                                <option value="">Select Account</option>
-                                                {dashboardData.funding?.map(f => (
-                                                    <option key={f.id} value={f.id}>
-                                                        {f.source_type === 'LOAN' ? '🏦 Karja: ' : f.source_type === 'OWN_MONEY' ? '💰 Bachat: ' : '🤝 Saapathi: '}
-                                                        {f.name} (Avl: {formatCurrency(f.current_balance)})
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-
-                                        <form onSubmit={handlePaymentSubmit} className="space-y-4">
-                                            <div>
-                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Amount (Max {formatCurrency(expense.balance_due)})</label>
-                                                <input
-                                                    type="number"
-                                                    step="0.01"
-                                                    max={expense.balance_due}
-                                                    value={paymentData.amount}
-                                                    onChange={e => setPaymentData({ ...paymentData, amount: e.target.value })}
-                                                    className="w-full mt-1 bg-gray-50 border-none rounded-xl p-3 text-lg font-black text-green-600 placeholder-gray-300 focus:ring-2 focus:ring-green-500 focus:bg-white transition-all"
-                                                    placeholder="0.00"
-                                                    required
-                                                />
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <div>
-                                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Method</label>
-                                                    <select
-                                                        value={paymentData.method}
-                                                        onChange={e => setPaymentData({ ...paymentData, method: e.target.value })}
-                                                        className="w-full mt-1 bg-gray-50 border-none rounded-xl p-2 text-xs font-bold text-gray-700 focus:ring-2 focus:ring-green-500 focus:bg-white transition-all appearance-none"
-                                                    >
-                                                        <option value="CASH">💰 Nagad (Cash)</option>
-                                                        <option value="BANK_TRANSFER">🏦 Bank Transfer (ConnectIPS)</option>
-                                                        <option value="QR">📱 eSewa / Khalti (QR)</option>
-                                                        <option value="CHECK">📜 Cheque</option>
-                                                    </select>
-                                                </div>
-                                                <div>
-                                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Date</label>
-                                                    <input
-                                                        type="date"
-                                                        value={paymentData.date}
-                                                        onChange={e => setPaymentData({ ...paymentData, date: e.target.value })}
-                                                        className="w-full mt-1 bg-gray-50 border-none rounded-xl p-2 text-xs font-bold text-gray-700 focus:ring-2 focus:ring-green-500 focus:bg-white transition-all"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <input
-                                                type="text"
-                                                value={paymentData.reference_id}
-                                                onChange={e => setPaymentData({ ...paymentData, reference_id: e.target.value })}
-                                                className="w-full bg-gray-50 border-none rounded-xl p-3 text-xs font-bold text-gray-700 placeholder-gray-300 focus:ring-2 focus:ring-green-500 focus:bg-white transition-all"
-                                                placeholder="Reference ID / Transaction ID"
-                                            />
-
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block">Proof of Payment</label>
-                                                <div className="flex gap-3 items-center">
-                                                    <label className="flex-1 flex items-center justify-center gap-2 p-2.5 bg-green-50 border-2 border-dashed border-green-200 rounded-xl cursor-pointer hover:bg-green-100 transition-colors">
-                                                        <span className="text-lg">📸</span>
-                                                        <span className="text-[10px] font-black text-green-700 uppercase">Attach Photo</span>
-                                                        <input type="file" className="hidden" accept="image/*" onChange={handlePhotoChange} />
-                                                    </label>
-                                                    {photoPreview && (
-                                                        <div className="w-10 h-10 rounded-xl border border-gray-100 overflow-hidden relative group">
-                                                            <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => { setPhotoPreview(null); setPaymentData({ ...paymentData, proof_photo: null }); }}
-                                                                className="absolute inset-0 bg-red-500/80 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[8px] font-bold"
-                                                            >
-                                                                REMOVE
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            <button
-                                                type="submit"
-                                                disabled={loading}
-                                                className="w-full py-3 bg-green-600 text-white rounded-xl font-black uppercase text-xs tracking-[0.2em] shadow-lg shadow-green-200 hover:bg-green-700 disabled:opacity-50 transition-all"
-                                            >
-                                                {loading ? 'Processing...' : 'Confirm Installment'}
-                                            </button>
-                                        </form>
-                                    </div>
-                                ) : null}
-
-                                <div className="space-y-3">
-                                    {expense.payments?.length > 0 ? (
-                                        expense.payments.map((payment, idx) => (
-                                            <div key={idx} className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100 flex justify-between items-center group hover:bg-white hover:shadow-md transition-all">
-                                                <div>
-                                                    <div className="text-sm font-black text-gray-900 mb-0.5">{formatCurrency(payment.amount)}</div>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest px-1.5 py-0.5 bg-indigo-50 rounded">
-                                                            {payment.method === 'BANK_TRANSFER' ? 'IPS' :
-                                                                payment.method === 'QR' ? 'eSewa' :
-                                                                    payment.method === 'CHECK' ? 'Cheque' :
-                                                                        payment.method === 'CASH' ? 'Nagad' : payment.method}
-                                                        </span>
-                                                        <span className="text-[10px] text-gray-400 font-bold">{new Date(payment.date).toLocaleDateString()}</span>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-3">
-                                                    <div className="text-right">
-                                                        {payment.reference_id && (
-                                                            <div className="text-[9px] font-black text-gray-300 uppercase tracking-widest group-hover:text-indigo-400 transition-colors">#{payment.reference_id}</div>
-                                                        )}
-                                                        {payment.proof_photo && (
-                                                            <div className="mt-1 flex justify-end">
-                                                                <a
-                                                                    href={payment.proof_photo}
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    className="px-2 py-0.5 bg-green-50 text-green-700 text-[8px] font-black uppercase rounded border border-green-100/50 hover:bg-green-100 transition-colors flex items-center gap-1"
-                                                                >
-                                                                    🖼️ View Proof
-                                                                </a>
-                                                            </div>
-                                                        )}
-                                                        <div className="text-[10px] text-green-600 font-black uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity mt-1">Confirmed</div>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => {
-                                                            showConfirm({
-                                                                title: "Delete Payment Installment?",
-                                                                message: "Are you sure you want to remove this payment record? The balance due will be recalculated and the funding source will be credited back. This action is irreversible.",
-                                                                confirmText: "Yes, Delete Payment",
-                                                                type: "danger",
-                                                                onConfirm: async () => {
-                                                                    try {
-                                                                        await dashboardService.deletePayment(payment.id);
-                                                                        refreshData();
-                                                                        closeConfirm();
-                                                                    } catch (error) {
-                                                                        alert('Failed to delete payment');
-                                                                        closeConfirm();
-                                                                    }
-                                                                }
-                                                            });
-                                                        }}
-                                                        className="p-2 text-red-100 group-hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                                                        title="Delete Payment"
-                                                    >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="py-12 border-2 border-dashed border-gray-100 rounded-2xl text-center">
-                                            <div className="text-[10px] font-black text-gray-300 uppercase tracking-widest">No Payments Recorded Yet</div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Footer Actions */}
-                <div className="p-6 border-t border-gray-100 flex justify-between items-center bg-gray-50/50">
+        <Modal 
+            isOpen={isOpen} 
+            onClose={onClose} 
+            title={expense.title} 
+            maxWidth="max-w-3xl"
+            footer={
+                <div className="flex justify-between items-center w-full px-2">
                     <button
                         onClick={() => {
                             showConfirm({
-                                title: "Delete Expense Record?",
-                                message: "Are you sure you want to permanently delete this expense? All associated payment records will also be removed. This action is irreversible.",
-                                confirmText: "Yes, Delete Expense",
+                                title: "Void Expense Record?",
+                                message: "Closing this record will remove it from all ledger books. This action is permanent.",
+                                confirmText: "Permanently Void",
                                 type: "danger",
                                 onConfirm: async () => {
                                     try {
-                                        await dashboardService.deleteExpense(expense.id);
-                                        refreshData();
-                                        closeConfirm();
-                                        onClose();
-                                    } catch (error) {
-                                        alert('Failed to delete expense');
-                                        closeConfirm();
-                                    }
+                                        await dashboardService.deleteExpense(expense.id);refreshData();closeConfirm();onClose();
+                                    } catch (error) { alert('Action failed'); closeConfirm(); }
                                 }
                             });
                         }}
-                        className="px-6 py-2.5 text-xs font-black text-red-400 uppercase tracking-widest hover:text-red-600 transition-colors"
+                        className="text-[10px] font-['DM_Mono',monospace] font-bold text-[var(--t-danger)] uppercase tracking-[0.2em] hover:brightness-110 transition-all"
                     >
-                        Delete Record
+                        Void Record
                     </button>
-                    <div className="flex gap-3">
-                        <button onClick={onClose} className="px-6 py-2.5 text-xs font-black text-gray-400 uppercase tracking-widest hover:text-gray-600 transition-colors">Close</button>
-                        {expense.balance_due > 0 && !isPaymentFormOpen && (
-                            <button
-                                onClick={() => setIsPaymentFormOpen(true)}
-                                className={`px-8 py-2.5 text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-lg transition-all flex items-center gap-2 ${(() => {
-                                    const fs = dashboardData.funding?.find(f => f.id === expense.funding_source);
-                                    return fs?.source_type === 'LOAN' ? 'bg-orange-600 hover:bg-orange-700 shadow-orange-100' :
-                                        fs?.source_type === 'BORROWED' ? 'bg-purple-600 hover:bg-purple-700 shadow-purple-100' :
-                                            'bg-green-600 hover:bg-green-700 shadow-green-100';
-                                })()}`}
-                            >
-                                <span>Pay {formatCurrency(expense.balance_due)}</span>
-                                {expense.funding_source && (
-                                    <span className="opacity-75 font-medium border-l border-white/20 pl-2 flex items-center gap-1">
-                                        <span className="max-w-[80px] truncate">{expense.funding_source_name?.split(' ')[0]}</span>
-                                        <span className="opacity-50">•</span>
-                                        {(() => {
-                                            const fs = dashboardData.funding?.find(f => f.id === expense.funding_source);
-                                            const method = fs?.default_payment_method;
-                                            return method === 'BANK_TRANSFER' ? 'IPS' :
-                                                method === 'CASH' ? 'Nagad' :
-                                                    method === 'QR' ? 'eSewa' :
-                                                        method === 'CHECK' ? 'Cheque' : 'Ref';
-                                        })()}
-                                    </span>
-                                )}
-                            </button>
-                        )}
-                        <button
-                            className="px-8 py-2.5 bg-gray-900 text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-lg shadow-gray-200 hover:bg-black transition-all"
-                        >
-                            Edit Expense
+                    <div className="flex gap-4">
+                        <button onClick={onClose} className="px-6 py-2.5 text-[10px] font-['DM_Mono',monospace] font-bold text-[var(--t-text3)] uppercase tracking-[0.2em] hover:text-[var(--t-text)] transition-all">Close</button>
+                        <button className="px-8 py-2.5 bg-[var(--t-text)] text-[var(--t-bg)] rounded-[2px] font-['DM_Mono',monospace] font-bold uppercase text-[10px] tracking-[0.2em] hover:brightness-110 active:scale-95 transition-all shadow-xl shadow-black/10">
+                            Edit Entry
                         </button>
                     </div>
                 </div>
+            }
+        >
+            <div className="space-y-10 pb-6 px-2">
+                {/* 1. Header Metadata */}
+                <div className="flex justify-between items-end border-b border-[var(--t-border)] pb-6">
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-3">
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-[1px] text-[9px] font-['DM_Mono',monospace] uppercase tracking-[0.2em] border ${ss.badge}`}>
+                                <div className={`w-1.5 h-1.5 rounded-full mr-2 ${ss.dot}`} />
+                                {expense.status}
+                            </span>
+                            <span className={`px-2.5 py-1 rounded-[1px] text-[9px] font-['DM_Mono',monospace] tracking-[0.2em] uppercase border ${getTypeStyle(expense.expense_type)}`}>
+                                {expense.expense_type}
+                            </span>
+                        </div>
+                        <div className="text-[11px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.3em]">
+                            Ref: EX-{expense.id.toString().padStart(5, '0')} | {expense.category_name}
+                        </div>
+                    </div>
+                    
+                    <button
+                        onClick={handleExportVoucher}
+                        disabled={isExporting}
+                        className="flex items-center gap-3 px-4 py-2 border border-[var(--t-border)] text-[var(--t-text)] hover:bg-[var(--t-surface2)] rounded-[1px] text-[10px] font-['DM_Mono',monospace] font-bold uppercase tracking-[0.2em] transition-all"
+                    >
+                        <svg className={`w-4 h-4 ${isExporting ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        {isExporting ? 'Generating...' : 'PDF Voucher'}
+                    </button>
+                </div>
+
+                {/* 2. Financial Breakdown */}
+                <div className="bg-[var(--t-surface2)] p-6 rounded-[2px] border border-[var(--t-border)]">
+                    <div className="grid grid-cols-3 gap-8">
+                        <div>
+                            <div className="text-[9px] font-['DM_Mono',monospace] font-bold text-[var(--t-text3)] uppercase tracking-[0.3em] mb-2 text-center">Total Amount</div>
+                            <div className="text-3xl font-['Bebas_Neue',sans-serif] text-[var(--t-text)] tracking-wider text-center">{formatCurrency(expense.amount)}</div>
+                        </div>
+                        <div className="border-l border-[var(--t-border)]">
+                            <div className="text-[9px] font-['DM_Mono',monospace] font-bold text-[var(--t-text3)] uppercase tracking-[0.3em] mb-2 text-center text-[var(--t-primary)]">Amount Paid</div>
+                            <div className="text-3xl font-['Bebas_Neue',sans-serif] text-[var(--t-primary)] tracking-wider text-center">{formatCurrency(expense.total_paid)}</div>
+                        </div>
+                        <div className="border-l border-[var(--t-border)]">
+                            <div className="text-[9px] font-['DM_Mono',monospace] font-bold text-[var(--t-text3)] uppercase tracking-[0.3em] mb-2 text-center text-[var(--t-danger)]">Due Balance</div>
+                            <div className="text-3xl font-['Bebas_Neue',sans-serif] text-[var(--t-danger)] tracking-wider text-center">{formatCurrency(expense.balance_due)}</div>
+                        </div>
+                    </div>
+                    {/* Progress Bar */}
+                    <div className="mt-8 overflow-hidden h-1.5 bg-[var(--t-surface3)] rounded-full">
+                        <div 
+                            className="bg-[var(--t-primary)] h-full transition-all duration-1000"
+                            style={{ width: `${Math.min(100, (expense.total_paid / expense.amount) * 100)}%` }}
+                        />
+                    </div>
+                </div>
+
+                {/* 3. Detailed Information */}
+                <section className="space-y-6">
+                    <h3 className="text-[10px] font-['DM_Mono',monospace] font-bold text-[var(--t-text2)] uppercase tracking-[0.4em] flex items-center gap-4">
+                        Entry Logistics
+                        <div className="h-px flex-1 bg-[var(--t-border)]" />
+                    </h3>
+                    <div className="grid grid-cols-2 gap-x-12 gap-y-6">
+                        <div className="flex justify-between items-center group">
+                            <span className="text-[9px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.2em]">Recipient / Paid To</span>
+                            <span className="text-xs font-bold text-[var(--t-text)] tracking-tight uppercase">{expense.paid_to || 'N/A'}</span>
+                        </div>
+                        <div className="flex justify-between items-center group">
+                            <span className="text-[9px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.2em]">Funding Source</span>
+                            <span className="text-xs font-bold text-[var(--t-info)] tracking-tight uppercase">{expense.funding_source_name || 'System Balance'}</span>
+                        </div>
+                        <div className="flex justify-between items-center group">
+                            <span className="text-[9px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.2em]">Ledger Date</span>
+                            <span className="text-xs font-bold text-[var(--t-text)] tracking-tight uppercase">{new Date(expense.date).toLocaleDateString()}</span>
+                        </div>
+                        <div className="flex justify-between items-center group">
+                            <span className="text-[9px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.2em]">Project Phase</span>
+                            <span className="text-xs font-bold text-[var(--t-text)] tracking-tight uppercase">{expense.phase_name || 'General Operations'}</span>
+                        </div>
+                        {expense.expense_type === 'MATERIAL' && (
+                            <div className="col-span-2 p-4 bg-[var(--t-info)]/5 border border-[var(--t-info)]/10 flex justify-between items-center group">
+                                <span className="text-[9px] font-['DM_Mono',monospace] text-[var(--t-info)] font-bold uppercase tracking-[0.2em]">Associated Material Record</span>
+                                <span className="text-xs font-bold text-[var(--t-info)] tracking-tight uppercase">{expense.material_name} ({expense.quantity} {expense.unit})</span>
+                            </div>
+                        )}
+                    </div>
+                </section>
+
+                {/* 4. Payment History Table */}
+                <section className="space-y-6">
+                    <div className="flex justify-between items-center">
+                        <h3 className="text-[10px] font-['DM_Mono',monospace] font-bold text-[var(--t-text2)] uppercase tracking-[0.4em] flex items-center gap-4 flex-1">
+                            Payment Journal
+                            <div className="h-px flex-1 bg-[var(--t-border)]" />
+                        </h3>
+                        {expense.balance_due > 0 && !isPaymentFormOpen && (
+                            <button 
+                                onClick={() => setIsPaymentFormOpen(true)}
+                                className="ml-6 py-2 px-4 border border-[var(--t-primary)] text-[var(--t-primary)] hover:bg-[var(--t-primary)]/10 text-[9px] font-['DM_Mono',monospace] font-bold uppercase tracking-[0.3em] transition-all"
+                            >
+                                + New Installment
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Inline Payment Entry */}
+                    {isPaymentFormOpen && (
+                        <div className="bg-[var(--t-surface2)] p-6 rounded-[2px] border border-[var(--t-warn)]/30 animate-in fade-in slide-in-from-top-4 duration-300">
+                            <div className="flex justify-between items-center mb-6">
+                                <span className="text-[10px] font-['DM_Mono',monospace] font-bold text-[var(--t-warn)] uppercase tracking-[0.3em]">Security Check: Post New Payment</span>
+                                <button onClick={() => setIsPaymentFormOpen(false)} className="text-[var(--t-text3)] hover:text-[var(--t-danger)] transition-colors">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+                            <form onSubmit={handlePaymentSubmit} className="grid grid-cols-2 gap-6">
+                                <div className="col-span-2">
+                                    <label className="text-[9px] font-['DM_Mono',monospace] font-bold text-[var(--t-text3)] uppercase mb-2 block tracking-widest">Disbursement Amount</label>
+                                    <input
+                                        type="number"
+                                        max={expense.balance_due}
+                                        value={paymentData.amount}
+                                        onChange={e => setPaymentData({ ...paymentData, amount: e.target.value })}
+                                        className="w-full bg-[var(--t-surface)] border border-[var(--t-border)] text-xl font-['Bebas_Neue',sans-serif] tracking-widest text-[var(--t-text)] p-3 outline-none focus:border-[var(--t-primary)]"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[9px] font-['DM_Mono',monospace] font-bold text-[var(--t-text3)] uppercase mb-2 block tracking-widest">Source Account</label>
+                                    <select
+                                        value={paymentData.funding_source}
+                                        onChange={e => setPaymentData({ ...paymentData, funding_source: e.target.value })}
+                                        className="w-full bg-[var(--t-surface)] border border-[var(--t-border)] text-[10px] font-['DM_Mono',monospace] font-bold text-[var(--t-text2)] uppercase tracking-widest p-3 outline-none"
+                                        required
+                                    >
+                                        <option value="">Choose Account</option>
+                                        {dashboardData.funding?.map(f => (
+                                            <option key={f.id} value={f.id}>{f.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-[9px] font-['DM_Mono',monospace] font-bold text-[var(--t-text3)] uppercase mb-2 block tracking-widest">Payment Method</label>
+                                    <select
+                                        value={paymentData.method}
+                                        onChange={e => setPaymentData({ ...paymentData, method: e.target.value })}
+                                        className="w-full bg-[var(--t-surface)] border border-[var(--t-border)] text-[10px] font-['DM_Mono',monospace] font-bold text-[var(--t-text2)] uppercase tracking-widest p-3 outline-none"
+                                    >
+                                        <option value="CASH">Liquid Cash</option>
+                                        <option value="BANK_TRANSFER">Direct Bank</option>
+                                        <option value="QR">Instant QR</option>
+                                        <option value="CHECK">Physical Check</option>
+                                    </select>
+                                </div>
+
+                                <div className="col-span-2 space-y-3">
+                                    <label className="text-[9px] font-['DM_Mono',monospace] font-bold text-[var(--t-warn)] uppercase block tracking-widest flex justify-between">
+                                        Proof of Payment (Mandatory)
+                                        <span className="text-[var(--t-danger)]">* Required</span>
+                                    </label>
+                                    <div className="flex items-center gap-6 p-4 bg-[var(--t-surface)] border-2 border-dashed border-[var(--t-border)] rounded-[2px] transition-all hover:border-[var(--t-primary)]/50 group">
+                                        <div className="flex-1">
+                                            <input 
+                                                type="file" 
+                                                accept="image/*" 
+                                                onChange={handlePhotoChange}
+                                                className="hidden" 
+                                                id="payment-proof-upload"
+                                            />
+                                            <label 
+                                                htmlFor="payment-proof-upload" 
+                                                className="cursor-pointer flex flex-col items-center gap-2"
+                                            >
+                                                <svg className="w-8 h-8 text-[var(--t-text3)] group-hover:text-[var(--t-primary)] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                                <span className="text-[10px] font-['DM_Mono',monospace] font-bold text-[var(--t-text3)] uppercase tracking-widest">
+                                                    {paymentData.proof_photo ? paymentData.proof_photo.name : 'Select or Capture Receipt'}
+                                                </span>
+                                            </label>
+                                        </div>
+                                        {photoPreview && (
+                                            <div className="w-20 h-20 rounded-[2px] overflow-hidden border border-[var(--t-border)] shadow-sm bg-white">
+                                                <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <button type="submit" disabled={loading} className="col-span-2 py-4 bg-[var(--t-primary)] text-white font-['DM_Mono',monospace] font-black uppercase text-[11px] tracking-[0.4em] hover:brightness-110 transition-all shadow-lg shadow-[var(--t-primary)]/20">
+                                    {loading ? 'Processing...' : 'Authorize Transaction'}
+                                </button>
+                            </form>
+                        </div>
+                    )}
+
+                    <div className="bg-[var(--t-surface)] border border-[var(--t-border)] rounded-[1px] overflow-hidden">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-[var(--t-surface2)] border-b border-[var(--t-border)]">
+                                    <th className="px-6 py-4 text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.2em]">Transaction Date</th>
+                                    <th className="px-6 py-4 text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.2em]">Modality</th>
+                                    <th className="px-6 py-4 text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.2em]">Legal Proof</th>
+                                    <th className="px-6 py-4 text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.2em] text-right">Settlement</th>
+                                    <th className="px-6 py-4 text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.2em] text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[var(--t-border)]">
+                                {expense.payments?.length > 0 ? (
+                                    expense.payments.map((p, idx) => (
+                                        <tr key={idx} className="hover:bg-[var(--t-surface2)] transition-colors group">
+                                            <td className="px-6 py-4 text-[11px] font-['DM_Mono',monospace] text-[var(--t-text2)]">
+                                                {new Date(p.date).toLocaleDateString()}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className="px-2 py-0.5 bg-[var(--t-surface3)] text-[9px] font-['DM_Mono',monospace] font-bold text-[var(--t-text3)] uppercase tracking-widest border border-[var(--t-border)]">
+                                                    {p.method}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                {p.proof_photo ? (
+                                                    <button 
+                                                        onClick={() => setViewingPhoto(p.proof_photo)}
+                                                        className="flex items-center gap-1.5 text-[9px] font-['DM_Mono',monospace] font-bold text-[var(--t-primary)] hover:text-[var(--t-primary)]/70 uppercase tracking-widest group/btn"
+                                                    >
+                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                                        View Proof
+                                                    </button>
+                                                ) : (
+                                                    <span className="text-[9px] font-['DM_Mono',monospace] text-gray-300 uppercase italic">No File</span>
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-4 text-[14px] font-['Bebas_Neue',sans-serif] text-[var(--t-text)] text-right tracking-[0.05em]">
+                                                {formatCurrency(p.amount)}
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <button
+                                                    onClick={() => {
+                                                        showConfirm({
+                                                            title: "Void This Transaction?",
+                                                            message: "This will revert the paid amount and restore the bill balance. This cannot be undone.",
+                                                            confirmText: "Execute Void",
+                                                            type: "danger",
+                                                            onConfirm: async () => {
+                                                                try {
+                                                                    await dashboardService.deletePayment(p.id);refreshData();closeConfirm();
+                                                                } catch (error) { alert('Failed'); closeConfirm(); }
+                                                            }
+                                                        });
+                                                    }}
+                                                    className="text-[9px] font-['DM_Mono',monospace] font-bold text-[var(--t-danger)] uppercase tracking-[0.2em] opacity-40 group-hover:opacity-100 transition-all hover:scale-110"
+                                                >
+                                                    Void
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="5" className="px-6 py-12 text-center text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.4em]">
+                                            Empty Journal Log
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section className="space-y-4">
+                    <h3 className="text-[10px] font-['DM_Mono',monospace] font-bold text-[var(--t-text2)] uppercase tracking-[0.4em] flex items-center gap-4">
+                        Contextual Narrative
+                        <div className="h-px flex-1 bg-[var(--t-border)]" />
+                    </h3>
+                    <div className="text-xs text-[var(--t-text3)] leading-relaxed italic bg-[var(--t-surface2)] p-6 border-l-2 border-[var(--t-border)]">
+                        {expense.notes || "No supplemental documentation or descriptive notes provided for this ledger entry."}
+                    </div>
+                </section>
             </div>
         </Modal>
 
@@ -493,6 +510,11 @@ const ExpenseDetailModal = ({ isOpen, onClose, expenseId }) => {
             onConfirm={confirmConfig.onConfirm}
             onCancel={closeConfirm}
             type={confirmConfig.type || 'warning'}
+        />
+
+        <ProofViewer 
+            photo={viewingPhoto} 
+            onClose={() => setViewingPhoto(null)} 
         />
         </>
     );

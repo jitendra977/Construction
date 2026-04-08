@@ -4,6 +4,7 @@ import Modal from '../../common/Modal';
 import { useConstruction } from '../../../context/ConstructionContext';
 import ConfirmModal from '../../common/ConfirmModal';
 import UniversalPaymentModal from '../../finance/UniversalPaymentModal';
+import ProofViewer from '../../common/ProofViewer';
 
 const ContractorsTab = ({ searchQuery = '' }) => {
     const { dashboardData, refreshData } = useConstruction();
@@ -17,6 +18,7 @@ const ContractorsTab = ({ searchQuery = '' }) => {
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
     const [activeContractor, setActiveContractor] = useState(null);
     const [roleFilter, setRoleFilter] = useState('ALL');
+    const [viewingPhoto, setViewingPhoto] = useState(null);
 
     // Confirmation Modal System
     const [confirmConfig, setConfirmConfig] = useState({ isOpen: false });
@@ -163,13 +165,14 @@ const ContractorsTab = ({ searchQuery = '' }) => {
                     title: exp.title.replace('Labor Payment/Advance: ', ''), 
                     amount: p.amount, 
                     method: p.method, 
-                    notes: p.notes || exp.notes 
+                    notes: p.notes || exp.notes,
+                    proof_photo: p.proof_photo
                 });
             } else {
                 history.push({ id: `exp-${exp.id}`, date: exp.date, type: 'BILL', title: exp.title, amount: exp.amount, status: exp.status, notes: exp.notes });
                 if (exp.payments && exp.payments.length > 0) {
                     exp.payments.forEach(payment => {
-                        history.push({ id: `pay-${payment.id}`, date: payment.date, type: 'PAYMENT', title: `Payment: ${exp.title}`, amount: payment.amount, method: payment.method, notes: payment.notes });
+                        history.push({ id: `pay-${payment.id}`, date: payment.date, type: 'PAYMENT', title: `Payment: ${exp.title}`, amount: payment.amount, method: payment.method, notes: payment.notes, proof_photo: payment.proof_photo });
                     });
                 }
             }
@@ -582,6 +585,15 @@ const ContractorsTab = ({ searchQuery = '' }) => {
                                         {txn.type === 'DIRECT' ? 'Settle' : txn.type}
                                     </div>
                                 </div>
+                                {txn.proof_photo && (
+                                    <button 
+                                        onClick={() => setViewingPhoto(txn.proof_photo)}
+                                        className="ml-4 w-8 h-8 rounded-lg bg-[var(--t-surface3)] border border-[var(--t-border)] flex items-center justify-center text-[var(--t-primary)] hover:bg-[var(--t-primary)] hover:text-white transition-all active:scale-90"
+                                        title="View Proof of Payment"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                    </button>
+                                )}
                             </div>
                         ))
                     ) : (
@@ -601,6 +613,11 @@ const ContractorsTab = ({ searchQuery = '' }) => {
                 </div>
             </Modal>
 
+            <ProofViewer 
+                photo={viewingPhoto} 
+                onClose={() => setViewingPhoto(null)} 
+            />
+
             <ConfirmModal 
                 isOpen={confirmConfig.isOpen}
                 title={confirmConfig.title}
@@ -610,7 +627,7 @@ const ContractorsTab = ({ searchQuery = '' }) => {
                 onCancel={closeConfirm}
                 type={confirmConfig.type || 'warning'}
             />
-        </div >
+        </div>
     );
 };
 export default ContractorsTab;

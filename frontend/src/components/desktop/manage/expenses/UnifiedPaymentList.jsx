@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
+import ProofViewer from '../../../common/ProofViewer';
 
 const UnifiedPaymentList = ({ payments, handleSendReceipt, openHistoryModal, getMethodColor, emailState }) => {
+    const [viewingPhoto, setViewingPhoto] = useState(null);
     
     const EmailButton = ({ p }) => {
         const state = emailState[p.id] || 'idle';
@@ -54,6 +56,7 @@ const UnifiedPaymentList = ({ payments, handleSendReceipt, openHistoryModal, get
                             <th className="px-8 py-4 text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.2em]">Channel</th>
                             <th className="px-8 py-4 text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.2em]">Origin</th>
                             <th className="px-8 py-4 text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.2em] text-right">Debit Amount</th>
+                            <th className="px-8 py-4 text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.2em] text-center">Proof</th>
                             <th className="px-8 py-4 text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.2em] text-center">Receipt Logic</th>
                         </tr>
                     </thead>
@@ -102,6 +105,23 @@ const UnifiedPaymentList = ({ payments, handleSendReceipt, openHistoryModal, get
                                         </span>
                                     </td>
                                     <td className="px-8 py-5">
+                                        <div className="flex justify-center">
+                                            {p.proof_photo ? (
+                                                <button 
+                                                    onClick={() => setViewingPhoto(p.proof_photo)}
+                                                    className="flex flex-col items-center gap-1 group/proof p-2 hover:bg-[var(--t-primary)]/10 rounded-xl transition-all"
+                                                >
+                                                    <div className="w-7 h-7 rounded-lg bg-[var(--t-surface2)] border border-[var(--t-border)] flex items-center justify-center text-[var(--t-text3)] group-hover/proof:border-[var(--t-primary)]/50 group-hover/proof:text-[var(--t-primary)] transition-all">
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                                    </div>
+                                                    <span className="text-[8px] font-['DM_Mono',monospace] font-bold text-[var(--t-text3)] uppercase tracking-tighter group-hover/proof:text-[var(--t-primary)]">Evidence</span>
+                                                </button>
+                                            ) : (
+                                                <span className="text-[8px] font-['DM_Mono',monospace] text-[var(--t-text3)] opacity-30 uppercase tracking-tighter">No Proof</span>
+                                            )}
+                                        </div>
+                                    </td>
+                                    <td className="px-8 py-5">
                                         <div className="flex items-center justify-center">
                                             <EmailButton p={p} />
                                         </div>
@@ -110,7 +130,7 @@ const UnifiedPaymentList = ({ payments, handleSendReceipt, openHistoryModal, get
                             ))
                         ) : (
                             <tr>
-                                <td colSpan="6" className="px-6 py-20 text-center">
+                                <td colSpan="7" className="px-6 py-20 text-center">
                                     <div className="flex flex-col items-center opacity-40">
                                         <div className="text-4xl mb-4">💳</div>
                                         <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--t-text3)]">No disbursement records found matching your criteria</p>
@@ -121,6 +141,11 @@ const UnifiedPaymentList = ({ payments, handleSendReceipt, openHistoryModal, get
                     </tbody>
                 </table>
             </div>
+
+            <ProofViewer 
+                photo={viewingPhoto} 
+                onClose={() => setViewingPhoto(null)} 
+            />
         </div>
     );
 };

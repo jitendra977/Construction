@@ -18,6 +18,7 @@ const UniversalPaymentModal = ({
     const { dashboardData, refreshData } = useConstruction();
     const [loading, setLoading] = useState(false);
     const [paymentStatus, setPaymentStatus] = useState('IDLE'); // IDLE, PROCESSING, SUCCESS, ERROR
+    const [photoPreview, setPhotoPreview] = useState(null);
     const [paymentFormData, setPaymentFormData] = useState({
         amount: entity?.balance_due > 0 ? entity.balance_due : '',
         date: new Date().toISOString().split('T')[0],
@@ -25,14 +26,31 @@ const UniversalPaymentModal = ({
         reference_id: '',
         funding_source: '',
         notes: '',
+        proof_photo: null,
         send_receipt: true
     });
 
     const isContractor = type === 'CONTRACTOR';
     const title = isContractor ? `Pay Contractor: ${entity?.name}` : `Pay Supplier: ${entity?.name}`;
 
+    const handlePhotoChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setPaymentFormData({ ...paymentFormData, proof_photo: file });
+            const reader = new FileReader();
+            reader.onloadend = () => setPhotoPreview(reader.result);
+            reader.readAsDataURL(file);
+        }
+    };
+
     const handlePaymentSubmit = async (e) => {
         e.preventDefault();
+
+        if (!paymentFormData.proof_photo) {
+            alert('Security Requirement: Payment proof photo is mandatory to record this transaction.');
+            return;
+        }
+
         setLoading(true);
         setPaymentStatus('PROCESSING');
 
@@ -55,10 +73,8 @@ const UniversalPaymentModal = ({
             );
 
             if (unpaidExpenses && unpaidExpenses.length > 0) {
-                // Apply to most recent unpaid expense
                 targetExpenseId = unpaidExpenses[0].id;
             } else {
-                // Auto-create an advance/direct payment expense
                 const expensePayload = {
                     title: `${isContractor ? 'Labor' : 'Material'} Payment/Advance: ${entity.name}`,
                     amount: parseFloat(paymentFormData.amount),
@@ -69,34 +85,36 @@ const UniversalPaymentModal = ({
                     paid_to: entity.name,
                     funding_source: paymentFormData.funding_source
                 };
-                
-                // Add entity link
                 expensePayload[filterKey] = entity.id;
 
                 const expenseRes = await dashboardService.createExpense(expensePayload);
                 targetExpenseId = expenseRes.data.id;
             }
 
-            // 3. Create Payment
-            await dashboardService.createPayment({
-                expense: targetExpenseId,
-                funding_source: paymentFormData.funding_source,
-                amount: parseFloat(paymentFormData.amount),
-                date: paymentFormData.date,
-                method: paymentFormData.method,
-                reference_id: paymentFormData.reference_id,
-                notes: paymentFormData.notes,
-                send_receipt: paymentFormData.send_receipt
-            });
+            // 3. Create Payment with FormData
+            const formData = new FormData();
+            formData.append('expense', targetExpenseId);
+            formData.append('funding_source', paymentFormData.funding_source);
+            formData.append('amount', parseFloat(paymentFormData.amount));
+            formData.append('date', paymentFormData.date);
+            formData.append('method', paymentFormData.method);
+            formData.append('reference_id', paymentFormData.reference_id);
+            formData.append('notes', paymentFormData.notes);
+            formData.append('send_receipt', paymentFormData.send_receipt);
+            if (paymentFormData.proof_photo) {
+                formData.append('proof_photo', paymentFormData.proof_photo);
+            }
+
+            await dashboardService.createPayment(formData);
 
             setPaymentStatus('SUCCESS');
             refreshData();
             if (onSuccess) onSuccess();
             
-            // Auto close after success
             setTimeout(() => {
                 onClose();
                 setPaymentStatus('IDLE');
+                setPhotoPreview(null);
             }, 2000);
 
         } catch (error) {
@@ -216,8 +234,39 @@ const UniversalPaymentModal = ({
                         </div>
                     </div>
 
+                    <div className="bg-[var(--t-surface2)] p-6 rounded-2xl border-2 border-dashed border-[var(--t-border)] group hover:border-[var(--t-primary)]/50 transition-all flex flex-col items-center gap-4 relative overflow-hidden">
+                        <label className="text-[10px] font-black text-[var(--t-warn)] uppercase tracking-widest leading-none mb-1 flex items-center gap-2">
+                            📸 Mandatory Payment Proof
+                            <span className="text-[var(--t-danger)] leading-none text-[8px] italic">* Required</span>
+                        </label>
+                        
+                        <div className="flex items-center gap-6 w-full">
+                            <div className="flex-1">
+                                <input 
+                                    type="file" 
+                                    accept="image/*" 
+                                    onChange={handlePhotoChange}
+                                    className="hidden" 
+                                    id="universal-proof-upload"
+                                />
+                                <label 
+                                    htmlFor="universal-proof-upload" 
+                                    className="cursor-pointer py-3 px-4 bg-[var(--t-surface)] border border-[var(--t-border)] rounded-xl flex items-center justify-center gap-3 text-xs font-bold text-[var(--t-text2)] hover:text-[var(--t-primary)] hover:border-[var(--t-primary)]/30 transition-all uppercase tracking-tighter"
+                                >
+                                    <svg className="w-5 h-5 opacity-40 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                    {paymentFormData.proof_photo ? paymentFormData.proof_photo.name : 'Select / Snap Receipt'}
+                                </label>
+                            </div>
+                            {photoPreview && (
+                                <div className="w-16 h-16 rounded-xl overflow-hidden border border-[var(--t-border)] shadow-sm bg-white shrink-0 transform hover:scale-110 transition-transform">
+                                    <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                     <div>
-                        <label className="block text-sm font-semibold text-[var(--t-text2)] mb-1">Remarks / Notes</label>
+                        <label className="block text-sm font-semibold text-[var(--t-text2)] mb-1 uppercase tracking-tighter text-[10px]">Remarks / Ledger Notes</label>
                         <textarea
                             value={paymentFormData.notes}
                             onChange={e => setPaymentFormData({ ...paymentFormData, notes: e.target.value })}

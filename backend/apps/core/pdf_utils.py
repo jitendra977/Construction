@@ -171,3 +171,90 @@ def generate_payment_receipt_pdf(payment):
     pdf = buffer.getvalue()
     buffer.close()
     return pdf
+
+def generate_expense_report_pdf(expenses, filter_metadata=None):
+    """
+    Generate a professional multi-page Financial Statement / Expense Report.
+    """
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
+    
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'TitleStyle',
+        parent=styles['Heading1'],
+        fontSize=20,
+        textColor=colors.HexColor("#334155"),
+        spaceAfter=10,
+        alignment=0 # Left
+    )
+    
+    elements = []
+    
+    # Header Section
+    elements.append(Paragraph("PROJECT FINANCIAL STATEMENT", title_style))
+    elements.append(Paragraph(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}", styles['Normal']))
+    if filter_metadata:
+        elements.append(Paragraph(f"<i>Scope: {filter_metadata}</i>", styles['Normal']))
+    elements.append(Spacer(1, 20))
+    
+    # Financial Overview Metrics
+    total_amount = sum(e.amount for e in expenses)
+    total_due = sum(e.balance_due for e in expenses)
+    total_paid = total_amount - total_due
+    
+    summary_data = [
+        [Paragraph("<b>TOTAL EXPENDITURE</b>", styles['Normal']), 
+         Paragraph("<b>TOTAL DISBURSED</b>", styles['Normal']), 
+         Paragraph("<b>OUTSTANDING DUE</b>", styles['Normal'])],
+        [f"Rs. {total_amount:,.2f}", f"Rs. {total_paid:,.2f}", f"Rs. {total_due:,.2f}"]
+    ]
+    
+    summary_table = Table(summary_data, colWidths=[175, 175, 175])
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#f8fafc")),
+        ('BOX', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.lightgrey),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOTTOMPADDING', (0, 1), (-1, 1), 10),
+        ('TOPPADDING', (0, 1), (-1, 1), 10),
+    ]))
+    elements.append(summary_table)
+    elements.append(Spacer(1, 30))
+    
+    # Detailed Data Table
+    data = [['Date', 'Description', 'Category', 'Paid To', 'Total Amount', 'Status']]
+    for e in expenses:
+        data.append([
+            e.date.strftime('%Y-%m-%d'),
+            Paragraph(e.title, styles['Normal']),
+            e.category.name if e.category else 'N/A',
+            e.paid_to or 'N/A',
+            f"Rs. {e.amount:,.2f}",
+            Paragraph(f"<font color='{'red' if e.balance_due > 0 else 'green'}'>{e.status.upper()}</font>", styles['Normal'])
+        ])
+    
+    t = Table(data, colWidths=[65, 140, 90, 90, 80, 60], repeatRows=1)
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#334155")),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 9),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('TOPPADDING', (0, 0), (-1, 0), 8),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
+    ]))
+    elements.append(t)
+    
+    # Footer Note
+    elements.append(Spacer(1, 40))
+    elements.append(Paragraph("<i>End of Report - This document is electronically generated and verified by the Project Intelligence System.</i>", styles['Normal']))
+    
+    doc.build(elements)
+    pdf = buffer.getvalue()
+    buffer.close()
+    return pdf
