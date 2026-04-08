@@ -8,6 +8,8 @@ class FundingTransactionSerializer(serializers.ModelSerializer):
 
 class FundingSourceSerializer(serializers.ModelSerializer):
     transactions = FundingTransactionSerializer(many=True, read_only=True)
+    current_balance = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    
     class Meta:
         model = FundingSource
         fields = '__all__'
