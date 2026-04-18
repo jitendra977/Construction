@@ -751,7 +751,7 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '', initialViewMode = '
                                 required
                             >
                                 <option value="">Assign funding account...</option>
-                                {dashboardData.funding?.map(f => (
+                                {dashboardData.funding?.filter(f => parseFloat(formData.amount || 0) <= parseFloat(f.current_balance || 0)).map(f => (
                                     <option key={f.id} value={f.id}>
                                         {f.source_type === 'LOAN' ? '🏦' : f.source_type === 'OWN_MONEY' ? '💰' : '🤝'} {f.name}
                                     </option>
@@ -855,8 +855,8 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '', initialViewMode = '
                                     required
                                 >
                                     <option value="">Select funding account...</option>
-                                    {dashboardData.funding?.map(f => (
-                                        <option key={f.id} value={f.id} disabled={f.current_balance <= 0}>
+                                    {dashboardData.funding?.filter(f => parseFloat(paymentFormData.amount || 0) <= parseFloat(f.current_balance || 0)).map(f => (
+                                        <option key={f.id} value={f.id}>
                                             {f.source_type === 'LOAN' ? '🏦' : f.source_type === 'OWN_MONEY' ? '💰' : '🤝'} {f.name} (Available: {formatCurrency(f.current_balance)})
                                         </option>
                                     ))}

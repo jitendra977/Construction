@@ -3,6 +3,7 @@ import { dashboardService } from '../../../services/api';
 import Modal from '../../common/Modal';
 import { useConstruction } from '../../../context/ConstructionContext';
 import ConfirmModal from '../../common/ConfirmModal';
+import ExpenseDetailModal from '../../common/ExpenseDetailModal';
 
 const FundingTab = ({ searchQuery = '' }) => {
     const { dashboardData, refreshData, formatCurrency } = useConstruction();
@@ -13,6 +14,8 @@ const FundingTab = ({ searchQuery = '' }) => {
     const [loading, setLoading] = useState(false);
     const [isTopUpOpen, setIsTopUpOpen] = useState(false);
     const [activeFundingSource, setActiveFundingSource] = useState(null);
+    const [isExpenseDetailOpen, setIsExpenseDetailOpen] = useState(false);
+    const [selectedExpenseId, setSelectedExpenseId] = useState(null);
     const [topUpFormData, setTopUpFormData] = useState({
         amount: 0,
         date: new Date().toISOString().split('T')[0],
@@ -485,11 +488,18 @@ const FundingTab = ({ searchQuery = '' }) => {
                                         <div className={`text-sm font-black ${t.transaction_type === 'CREDIT' ? 'text-[var(--t-primary)]' : 'text-[var(--t-danger)]'}`}>
                                             {t.transaction_type === 'CREDIT' ? '+' : '-'}{formatCurrency(t.amount)}
                                         </div>
-                                        {!t.payment && (
+                                        {!t.payment ? (
                                             <button onClick={(e) => handleDeleteTransaction(t, e)} className="text-[10px] text-[var(--t-danger)] opacity-60 hover:opacity-100 uppercase font-bold tracking-widest transition-opacity mt-1">
                                                 Delete
                                             </button>
-                                        )}
+                                        ) : t.expense_id ? (
+                                            <button 
+                                                onClick={() => { setSelectedExpenseId(t.expense_id); setIsExpenseDetailOpen(true); }}
+                                                className="text-[10px] text-[var(--t-primary)] opacity-80 hover:opacity-100 uppercase font-bold tracking-widest transition-opacity mt-1 underline"
+                                            >
+                                                View Transaction
+                                            </button>
+                                        ) : null}
                                     </div>
                                 </div>
                             ))
@@ -510,6 +520,12 @@ const FundingTab = ({ searchQuery = '' }) => {
                 onConfirm={confirmConfig.onConfirm}
                 onCancel={closeConfirm}
                 type={confirmConfig.type || 'warning'}
+            />
+
+            <ExpenseDetailModal
+                isOpen={isExpenseDetailOpen}
+                onClose={() => setIsExpenseDetailOpen(false)}
+                expenseId={selectedExpenseId}
             />
         </div>
     );

@@ -359,7 +359,7 @@ const ExpenseDetailModal = ({ isOpen, onClose, expenseId }) => {
                                         required
                                     >
                                         <option value="">Choose Account</option>
-                                        {dashboardData.funding?.map(f => (
+                                        {dashboardData.funding?.filter(f => parseFloat(paymentData.amount || 0) <= parseFloat(f.current_balance || 0)).map(f => (
                                             <option key={f.id} value={f.id}>{f.name}</option>
                                         ))}
                                     </select>

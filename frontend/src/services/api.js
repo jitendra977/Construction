@@ -113,6 +113,7 @@ export const dashboardService = {
     // Payments
     getPayments: () => api.get('/payments/'),
     createPayment: (data) => api.post('/payments/', data),
+    updatePayment: (id, data) => api.patch(`/payments/${id}/`, data),
     deletePayment: (id) => api.delete(`/payments/${id}/`),
     emailPaymentReceipt: (id, data = {}) => api.post(`/payments/${id}/email-receipt/`, data),
     getEmailLogs: (params = {}) => api.get('/email-logs/', { params }),

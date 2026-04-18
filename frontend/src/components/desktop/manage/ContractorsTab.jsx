@@ -5,6 +5,7 @@ import { useConstruction } from '../../../context/ConstructionContext';
 import ConfirmModal from '../../common/ConfirmModal';
 import UniversalPaymentModal from '../../finance/UniversalPaymentModal';
 import ProofViewer from '../../common/ProofViewer';
+import PdfExportButton from '../../common/PdfExportButton';
 
 const ContractorsTab = ({ searchQuery = '' }) => {
     const { dashboardData, refreshData } = useConstruction();
@@ -19,6 +20,9 @@ const ContractorsTab = ({ searchQuery = '' }) => {
     const [activeContractor, setActiveContractor] = useState(null);
     const [roleFilter, setRoleFilter] = useState('ALL');
     const [viewingPhoto, setViewingPhoto] = useState(null);
+    const [editingTxn, setEditingTxn] = useState(null);
+    const [editTxnForm, setEditTxnForm] = useState({});
+    const [savingTxn, setSavingTxn] = useState(false);
 
     // Confirmation Modal System
     const [confirmConfig, setConfirmConfig] = useState({ isOpen: false });
@@ -178,8 +182,74 @@ const ContractorsTab = ({ searchQuery = '' }) => {
             }
         });
         return history.sort((a, b) => new Date(b.date) - new Date(a.date));
+    };    const handleDeleteTxn = (txn) => {
+        const isPayment = txn.id.startsWith('pay-') || txn.id.startsWith('direct-');
+        const rawId = txn.id.startsWith('direct-')
+            ? txn.id.split('-')[2]
+            : txn.id.split('-')[1];
+        showConfirm({
+            title: isPayment ? 'Delete Payment?' : 'Delete Bill/Expense?',
+            message: isPayment
+                ? 'This will permanently delete this payment and adjust all related balances. This cannot be undone.'
+                : 'This will permanently delete this bill/expense and ALL its payments. This cannot be undone.',
+            confirmText: 'Yes, Delete',
+            type: 'danger',
+            onConfirm: async () => {
+                try {
+                    if (isPayment) await dashboardService.deletePayment(rawId);
+                    else await dashboardService.deleteExpense(rawId);
+                    await refreshData();
+                    closeConfirm();
+                } catch (e) {
+                    alert('Delete failed. This record may be linked to other data.');
+                    closeConfirm();
+                }
+            }
+        });
     };
 
+    const handleEditTxn = (txn) => {
+        setEditingTxn(txn);
+        setEditTxnForm({
+            amount: txn.amount,
+            date: txn.date,
+            notes: txn.notes || '',
+            method: txn.method || 'CASH',
+            title: txn.title || '',
+        });
+    };
+
+    const handleSaveTxn = async () => {
+        if (!editingTxn) return;
+        setSavingTxn(true);
+        try {
+            const isPayment = editingTxn.id.startsWith('pay-') || editingTxn.id.startsWith('direct-');
+            const rawId = editingTxn.id.startsWith('direct-')
+                ? editingTxn.id.split('-')[2]
+                : editingTxn.id.split('-')[1];
+            if (isPayment) {
+                await dashboardService.updatePayment(rawId, {
+                    amount: editTxnForm.amount,
+                    date: editTxnForm.date,
+                    method: editTxnForm.method,
+                    notes: editTxnForm.notes,
+                });
+            } else {
+                await dashboardService.updateExpense(rawId, {
+                    amount: editTxnForm.amount,
+                    date: editTxnForm.date,
+                    notes: editTxnForm.notes,
+                    title: editTxnForm.title,
+                });
+            }
+            await refreshData();
+            setEditingTxn(null);
+        } catch (e) {
+            alert('Save failed. Please check your data.');
+        } finally {
+            setSavingTxn(false);
+        }
+    };
 
 
     const getRoleColor = (role) => {
@@ -557,16 +627,16 @@ const ContractorsTab = ({ searchQuery = '' }) => {
                 <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
                     {activeContractor && getContractorHistory(activeContractor.id).length > 0 ? (
                         getContractorHistory(activeContractor.id).map(txn => (
-                            <div key={txn.id} className="flex justify-between items-center p-3 border-b border-[var(--t-border)] last:border-0 hover:bg-[var(--t-surface2)] rounded-lg transition-colors">
-                                <div className="flex items-center gap-3">
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-lg 
+                            <div key={txn.id} className="flex justify-between items-start p-3 border-b border-[var(--t-border)] last:border-0 hover:bg-[var(--t-surface2)] rounded-lg transition-colors gap-2">
+                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                    <div className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center font-bold text-lg 
                                         ${txn.type === 'BILL' ? 'bg-[var(--t-danger)]/10 text-[var(--t-danger)] border border-[var(--t-danger)]/20 shadow-sm' : 
                                           txn.type === 'DIRECT' ? 'bg-[var(--t-primary)]/10 text-[var(--t-primary)] border border-[var(--t-primary)]/20 shadow-sm' :
                                           'bg-green-500/10 text-green-500 border border-green-500/20 shadow-sm'}`}>
                                         {txn.type === 'BILL' ? '🧾' : txn.type === 'DIRECT' ? '⚡' : '💸'}
                                     </div>
-                                    <div>
-                                        <div className="font-bold text-sm text-[var(--t-text)]">
+                                    <div className="min-w-0">
+                                        <div className="font-bold text-sm text-[var(--t-text)] truncate">
                                             {txn.type === 'DIRECT' ? 'Direct Settlement' : txn.title}
                                         </div>
                                         <div className="text-[10px] text-[var(--t-text2)] font-bold uppercase tracking-wider">
@@ -574,32 +644,102 @@ const ContractorsTab = ({ searchQuery = '' }) => {
                                             {(txn.type === 'PAYMENT' || txn.type === 'DIRECT') && ` • ${txn.method?.replace('_', ' ')}`}
                                             {txn.type === 'BILL' && ` • ${txn.status}`}
                                         </div>
-                                        {txn.notes && <div className="text-xs text-[var(--t-text2)] italic mt-0.5 max-w-[200px] truncate" title={txn.notes}>{txn.type === 'DIRECT' ? txn.title : `Txn Note: ${txn.notes}`}</div>}
+                                        {txn.notes && <div className="text-xs text-[var(--t-text2)] italic mt-0.5 max-w-[200px] truncate" title={txn.notes}>{txn.type === 'DIRECT' ? txn.title : `Note: ${txn.notes}`}</div>}
                                     </div>
                                 </div>
-                                <div className={`font-black tracking-tight text-right ${txn.type === 'BILL' ? 'text-[var(--t-danger)]' : 'text-green-600'}`}>
-                                    <div className="text-sm">
-                                        {txn.type === 'BILL' ? '+' : txn.type === 'DIRECT' ? '✓' : '-'}{Number(txn.amount).toLocaleString('en-IN')}
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <div className={`font-black tracking-tight text-right ${txn.type === 'BILL' ? 'text-[var(--t-danger)]' : 'text-green-600'}`}>
+                                        <div className="text-sm">
+                                            {txn.type === 'BILL' ? '+' : txn.type === 'DIRECT' ? '✓' : '-'}{Number(txn.amount).toLocaleString('en-IN')}
+                                        </div>
+                                        <div className={`text-[8px] uppercase tracking-wider opacity-70 ${txn.type === 'DIRECT' ? 'text-[var(--t-primary)]' : ''}`}>
+                                            {txn.type === 'DIRECT' ? 'Settle' : txn.type}
+                                        </div>
                                     </div>
-                                    <div className={`text-[8px] uppercase tracking-wider opacity-70 ${txn.type === 'DIRECT' ? 'text-[var(--t-primary)]' : ''}`}>
-                                        {txn.type === 'DIRECT' ? 'Settle' : txn.type}
-                                    </div>
-                                </div>
-                                {txn.proof_photo && (
-                                    <button 
-                                        onClick={() => setViewingPhoto(txn.proof_photo)}
-                                        className="ml-4 w-8 h-8 rounded-lg bg-[var(--t-surface3)] border border-[var(--t-border)] flex items-center justify-center text-[var(--t-primary)] hover:bg-[var(--t-primary)] hover:text-white transition-all active:scale-90"
-                                        title="View Proof of Payment"
+                                    {txn.proof_photo && (
+                                        <button 
+                                            onClick={() => setViewingPhoto(txn.proof_photo)}
+                                            className="w-7 h-7 rounded-lg bg-[var(--t-surface3)] border border-[var(--t-border)] flex items-center justify-center text-[var(--t-primary)] hover:bg-[var(--t-primary)] hover:text-white transition-all active:scale-90"
+                                            title="View Proof"
+                                        >
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => handleEditTxn(txn)}
+                                        className="w-7 h-7 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-500 hover:bg-blue-500 hover:text-white transition-all active:scale-90"
+                                        title="Edit Transaction"
                                     >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                                     </button>
-                                )}
+                                    <button
+                                        onClick={() => handleDeleteTxn(txn)}
+                                        className="w-7 h-7 rounded-lg bg-[var(--t-danger)]/10 border border-[var(--t-danger)]/20 flex items-center justify-center text-[var(--t-danger)] hover:bg-[var(--t-danger)] hover:text-white transition-all active:scale-90"
+                                        title="Delete Transaction"
+                                    >
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    </button>
+                                </div>
                             </div>
                         ))
                     ) : (
                         <div className="py-8 text-center text-[var(--t-text3)] italic text-sm">No transaction history found.</div>
                     )}
                 </div>
+
+                {/* Inline Edit Panel */}
+                {editingTxn && (
+                    <div className="mt-4 p-4 bg-blue-500/5 border border-blue-500/20 rounded-xl space-y-3">
+                        <div className="text-xs font-black uppercase tracking-widest text-blue-500 mb-2">
+                            Edit {editingTxn.id.startsWith('pay-') || editingTxn.id.startsWith('direct-') ? 'Payment' : 'Bill'} Transaction
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            {!(editingTxn.id.startsWith('pay-') || editingTxn.id.startsWith('direct-')) && (
+                                <div className="col-span-2">
+                                    <label className="block text-[10px] font-bold text-[var(--t-text3)] uppercase mb-1">Title</label>
+                                    <input type="text" value={editTxnForm.title} onChange={e => setEditTxnForm({...editTxnForm, title: e.target.value})}
+                                        className="w-full p-2 rounded-lg border border-[var(--t-border)] bg-[var(--t-surface)] text-sm outline-none focus:ring-2 focus:ring-blue-500/30" />
+                                </div>
+                            )}
+                            <div>
+                                <label className="block text-[10px] font-bold text-[var(--t-text3)] uppercase mb-1">Amount (Rs.)</label>
+                                <input type="number" value={editTxnForm.amount} onChange={e => setEditTxnForm({...editTxnForm, amount: e.target.value})}
+                                    className="w-full p-2 rounded-lg border border-[var(--t-border)] bg-[var(--t-surface)] text-sm outline-none focus:ring-2 focus:ring-blue-500/30" />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold text-[var(--t-text3)] uppercase mb-1">Date</label>
+                                <input type="date" value={editTxnForm.date} onChange={e => setEditTxnForm({...editTxnForm, date: e.target.value})}
+                                    className="w-full p-2 rounded-lg border border-[var(--t-border)] bg-[var(--t-surface)] text-sm outline-none focus:ring-2 focus:ring-blue-500/30" />
+                            </div>
+                            {(editingTxn.id.startsWith('pay-') || editingTxn.id.startsWith('direct-')) && (
+                                <div>
+                                    <label className="block text-[10px] font-bold text-[var(--t-text3)] uppercase mb-1">Method</label>
+                                    <select value={editTxnForm.method} onChange={e => setEditTxnForm({...editTxnForm, method: e.target.value})}
+                                        className="w-full p-2 rounded-lg border border-[var(--t-border)] bg-[var(--t-surface)] text-sm outline-none focus:ring-2 focus:ring-blue-500/30 appearance-none">
+                                        <option value="CASH">Cash</option>
+                                        <option value="BANK_TRANSFER">Bank Transfer</option>
+                                        <option value="CHEQUE">Cheque</option>
+                                        <option value="ESEWA">eSewa</option>
+                                        <option value="KHALTI">Khalti</option>
+                                    </select>
+                                </div>
+                            )}
+                            <div className={editingTxn.id.startsWith('pay-') || editingTxn.id.startsWith('direct-') ? '' : 'col-span-2'}>
+                                <label className="block text-[10px] font-bold text-[var(--t-text3)] uppercase mb-1">Notes / Remarks</label>
+                                <input type="text" value={editTxnForm.notes} onChange={e => setEditTxnForm({...editTxnForm, notes: e.target.value})}
+                                    className="w-full p-2 rounded-lg border border-[var(--t-border)] bg-[var(--t-surface)] text-sm outline-none focus:ring-2 focus:ring-blue-500/30"
+                                    placeholder="Optional remarks..." />
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-2 pt-1">
+                            <button onClick={() => setEditingTxn(null)} className="px-4 py-1.5 text-xs font-bold text-[var(--t-text2)] bg-[var(--t-surface3)] rounded-lg hover:bg-[var(--t-surface2)] transition-colors">Cancel</button>
+                            <button onClick={handleSaveTxn} disabled={savingTxn} className="px-4 py-1.5 text-xs font-bold text-white bg-blue-500 rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-colors">
+                                {savingTxn ? 'Saving...' : 'Save Changes'}
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 <div className="mt-6 pt-4 border-t border-[var(--t-border)]">
                     <div className="bg-[var(--t-surface2)] rounded-xl p-4 space-y-2">
                         <div className="flex justify-between items-center"><span className="text-[var(--t-text2)] font-bold text-[10px] uppercase tracking-wider">Total Billed:</span><span className="font-bold text-[var(--t-text)]">Rs. {Number(activeContractor?.total_amount || 0).toLocaleString()}</span></div>
@@ -607,9 +747,38 @@ const ContractorsTab = ({ searchQuery = '' }) => {
                         <div className="flex justify-between items-center pt-2 border-t border-[var(--t-border)] mt-2"><span className="text-[var(--t-danger)] font-black text-xs uppercase tracking-widest">Balance Due:</span><span className="font-black text-[var(--t-danger)] text-lg">Rs. {Number(activeContractor?.balance_due || 0).toLocaleString()}</span></div>
                     </div>
                 </div>
-                <div className="flex justify-end gap-3 mt-4">
-                    <button type="button" onClick={() => setIsHistoryModalOpen(false)} className="px-6 py-2.5 bg-[var(--t-surface3)] text-[var(--t-text2)] rounded-xl font-bold hover:bg-gray-200 transition-colors">Close</button>
-                    <button type="button" onClick={() => { setIsHistoryModalOpen(false); handleOpenPaymentModal(activeContractor); }} className="px-6 py-2.5 bg-[var(--t-primary)] text-white rounded-xl font-bold hover:bg-[var(--t-primary2)] transition-colors shadow-lg shadow-[var(--t-primary)]/20">Pay Now</button>
+                <div className="flex flex-wrap justify-between items-center gap-3 mt-4">
+                    <div className="hidden sm:block">
+                        {activeContractor && getContractorHistory(activeContractor.id).length > 0 && (
+                            <PdfExportButton
+                                data={{
+                                    columns: ['Date', 'Type', 'Description', 'Method/Status', 'Amount (Rs.)'],
+                                    rows: getContractorHistory(activeContractor.id).map(txn => [
+                                        new Date(txn.date).toLocaleDateString(),
+                                        txn.type,
+                                        txn.notes ? `${txn.title} - ${txn.notes}` : txn.title,
+                                        txn.type === 'BILL' ? (txn.status || 'N/A') : (txn.method || 'N/A'),
+                                        Number(txn.amount).toLocaleString('en-IN')
+                                    ])
+                                }}
+                                title={`PAYMENT HISTORY: ${activeContractor.display_name || activeContractor.name}`}
+                                filename={`${(activeContractor.display_name || activeContractor.name)?.replace(/\s+/g, '_')}_history.pdf`}
+                                summaryData={{
+                                    totalAmount: `Rs. ${Number(activeContractor.total_amount || 0).toLocaleString()}`,
+                                    totalPaid: `Rs. ${Number(activeContractor.total_paid || 0).toLocaleString()}`,
+                                    totalDue: `Rs. ${Number(activeContractor.balance_due || 0).toLocaleString()}`
+                                }}
+                                projectInfo={{
+                                    name: dashboardData.project?.name,
+                                    owner: dashboardData.project?.owner_name
+                                }}
+                            />
+                        )}
+                    </div>
+                    <div className="flex gap-3 ml-auto">
+                        <button type="button" onClick={() => setIsHistoryModalOpen(false)} className="px-6 py-2.5 bg-[var(--t-surface3)] text-[var(--t-text2)] rounded-xl font-bold hover:bg-gray-200 transition-colors">Close</button>
+                        <button type="button" onClick={() => { setIsHistoryModalOpen(false); handleOpenPaymentModal(activeContractor); }} className="px-6 py-2.5 bg-[var(--t-primary)] text-white rounded-xl font-bold hover:bg-[var(--t-primary2)] transition-colors shadow-lg shadow-[var(--t-primary)]/20">Pay Now</button>
+                    </div>
                 </div>
             </Modal>
 

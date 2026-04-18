@@ -3,6 +3,7 @@ import { dashboardService, getMediaUrl } from '../../services/api';
 import Modal from '../common/Modal';
 import { useConstruction } from '../../context/ConstructionContext';
 import ConfirmModal from '../common/ConfirmModal';
+import PdfExportButton from '../common/PdfExportButton';
 
 const MobileSupplierList = ({ searchQuery = '' }) => {
     const { dashboardData, refreshData } = useConstruction();
@@ -437,7 +438,7 @@ const MobileSupplierList = ({ searchQuery = '' }) => {
                                 required
                             >
                                 <option value="">Select Account / Funding Source</option>
-                                {dashboardData.funding?.map(f => (
+                                {dashboardData.funding?.filter(f => parseFloat(paymentFormData.amount || 0) <= parseFloat(f.current_balance || 0)).map(f => (
                                     <option key={f.id} value={f.id}>
                                         {f.source_type === 'LOAN' ? '🏦 Karja: ' : f.source_type === 'OWN_MONEY' ? '💰 Bachat: ' : '🤝 Saapathi: '}
                                         {f.name} (Avl: Rs. {f.current_balance?.toLocaleString()})
@@ -538,9 +539,36 @@ const MobileSupplierList = ({ searchQuery = '' }) => {
                         <div className="flex justify-between items-center pt-2 border-t border-[var(--t-border)] mt-2"><span className="text-[var(--t-danger)] font-black text-xs uppercase tracking-widest">Balance Due:</span><span className="font-black text-[var(--t-danger)] text-lg">Rs. {Number(activeSupplier?.balance_due || 0).toLocaleString()}</span></div>
                     </div>
                 </div>
-                <div className="flex justify-end gap-3 mt-4">
-                    <button type="button" onClick={() => setIsHistoryModalOpen(false)} className="px-6 py-2.5 bg-[var(--t-surface3)] text-[var(--t-text2)] rounded-xl font-bold hover:bg-gray-200 transition-colors">Close</button>
-                    <button type="button" onClick={() => { setIsHistoryModalOpen(false); handleOpenPaymentModal(activeSupplier); }} className="px-6 py-2.5 bg-[var(--t-primary)] text-white rounded-xl font-bold hover:bg-[var(--t-primary2)] transition-colors shadow-lg shadow-[var(--t-primary)]/20">Pay Now</button>
+                <div className="flex flex-col gap-3 mt-4">
+                    {activeSupplier && getSupplierHistory(activeSupplier.id).length > 0 && (
+                        <PdfExportButton
+                            data={{
+                                columns: ['Date', 'Type', 'Description', 'Method/Status', 'Amount (Rs.)'],
+                                rows: getSupplierHistory(activeSupplier.id).map(txn => [
+                                    new Date(txn.date).toLocaleDateString(),
+                                    txn.type,
+                                    txn.notes ? `${txn.title} - ${txn.notes}` : txn.title,
+                                    txn.type === 'BILL' ? (txn.status || 'N/A') : (txn.method || 'N/A'),
+                                    Number(txn.amount).toLocaleString('en-IN')
+                                ])
+                            }}
+                            title={`PAYMENT HISTORY: ${activeSupplier.name}`}
+                            filename={`${activeSupplier.name?.replace(/\s+/g, '_')}_history.pdf`}
+                            summaryData={{
+                                totalAmount: `Rs. ${Number(activeSupplier.total_billed || 0).toLocaleString()}`,
+                                totalPaid: `Rs. ${Number(activeSupplier.total_paid || 0).toLocaleString()}`,
+                                totalDue: `Rs. ${Number(activeSupplier.balance_due || 0).toLocaleString()}`
+                            }}
+                            projectInfo={{
+                                name: dashboardData.project?.name,
+                                owner: dashboardData.project?.owner_name
+                            }}
+                        />
+                    )}
+                    <div className="flex justify-end gap-3 w-full">
+                        <button type="button" onClick={() => setIsHistoryModalOpen(false)} className="px-6 py-2.5 bg-[var(--t-surface3)] text-[var(--t-text2)] rounded-xl font-bold hover:bg-gray-200 transition-colors">Close</button>
+                        <button type="button" onClick={() => { setIsHistoryModalOpen(false); handleOpenPaymentModal(activeSupplier); }} className="px-6 py-2.5 bg-[var(--t-primary)] text-white rounded-xl font-bold hover:bg-[var(--t-primary2)] transition-colors shadow-lg shadow-[var(--t-primary)]/20">Pay Now</button>
+                    </div>
                 </div>
             </Modal>
 

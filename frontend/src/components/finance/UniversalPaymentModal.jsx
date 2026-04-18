@@ -198,7 +198,7 @@ const UniversalPaymentModal = ({
                             required
                         >
                             <option value="">Select Account / Funding Source</option>
-                            {dashboardData.funding?.map(f => (
+                            {dashboardData.funding?.filter(f => parseFloat(paymentFormData.amount || 0) <= parseFloat(f.current_balance || 0)).map(f => (
                                 <option key={f.id} value={f.id}>
                                     {f.source_type === 'LOAN' ? '🏦 Karja: ' : f.source_type === 'OWN_MONEY' ? '💰 Bachat: ' : '🤝 Saapathi: '}
                                     {f.name} (Avl: Rs. {f.current_balance?.toLocaleString()})

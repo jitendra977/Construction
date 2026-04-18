@@ -2,6 +2,8 @@ from rest_framework import serializers
 from .models import BudgetCategory, Expense, Payment, FundingSource, FundingTransaction, PhaseBudgetAllocation
 
 class FundingTransactionSerializer(serializers.ModelSerializer):
+    expense_id = serializers.IntegerField(source='payment.expense.id', read_only=True)
+
     class Meta:
         model = FundingTransaction
         fields = '__all__'
