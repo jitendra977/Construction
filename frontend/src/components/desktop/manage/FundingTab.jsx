@@ -179,7 +179,9 @@ const FundingTab = ({ searchQuery = '' }) => {
                     </thead>
                     <tbody className="divide-y divide-[var(--t-border)]">
                         {filteredFunding.map(f => {
-                            const percent = f.amount > 0 ? (f.current_balance / f.amount) * 100 : 0;
+                            const rawPercent = f.amount > 0 ? (f.current_balance / f.amount) * 100 : 0;
+                            const isOverdrawn = f.current_balance < 0;
+                            const displayPercent = Math.min(100, Math.max(0, rawPercent));
                             return (
                                 <tr key={f.id} className="hover:bg-[var(--t-surface2)] transition-colors group">
                                     <td className="px-6 py-4">
@@ -195,17 +197,21 @@ const FundingTab = ({ searchQuery = '' }) => {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 font-black text-[var(--t-text)]">{formatCurrency(f.amount)}</td>
-                                    <td className="px-6 py-4 text-[var(--t-danger)] font-bold text-sm">{formatCurrency(Number(f.amount) - Number(f.current_balance))}</td>
+                                    <td className="px-6 py-4 text-[var(--t-danger)] font-bold text-sm">{formatCurrency(Math.max(0, Number(f.amount) - Number(f.current_balance)))}</td>
                                     <td className="px-6 py-4">
                                         <div className="flex flex-col">
                                             <div className="flex justify-between items-baseline mb-1">
-                                                <span className="text-sm font-black text-[var(--t-primary)]">{formatCurrency(f.current_balance)}</span>
-                                                <span className="text-[10px] text-[var(--t-text3)] font-bold uppercase tracking-tight">{Math.round(percent)}% LEFT</span>
+                                                <span className={`text-sm font-black ${isOverdrawn ? 'text-[var(--t-danger)]' : 'text-[var(--t-primary)]'}`}>{formatCurrency(f.current_balance)}</span>
+                                                {isOverdrawn ? (
+                                                    <span className="text-[10px] text-[var(--t-danger)] font-bold uppercase tracking-tight">⚠ OVERDRAWN</span>
+                                                ) : (
+                                                    <span className="text-[10px] text-[var(--t-text3)] font-bold uppercase tracking-tight">{Math.round(displayPercent)}% LEFT</span>
+                                                )}
                                             </div>
                                             <div className="w-full bg-[var(--t-surface3)] h-1.5 rounded-full overflow-hidden">
                                                 <div
-                                                    className={`h-full transition-all duration-700 ${percent < 20 ? 'bg-[var(--t-danger)]' : percent < 50 ? 'bg-orange-500' : 'bg-green-500'}`}
-                                                    style={{ width: `${percent}%` }}
+                                                    className={`h-full transition-all duration-700 ${isOverdrawn ? 'bg-[var(--t-danger)]' : displayPercent < 20 ? 'bg-[var(--t-danger)]' : displayPercent < 50 ? 'bg-orange-500' : 'bg-green-500'}`}
+                                                    style={{ width: isOverdrawn ? '100%' : `${displayPercent}%` }}
                                                 />
                                             </div>
                                         </div>
@@ -233,8 +239,10 @@ const FundingTab = ({ searchQuery = '' }) => {
             {/* Mobile View: Cyber List */}
             <div className="lg:hidden flex flex-col gap-0.5">
                 {filteredFunding.map(f => {
-                    const percent = f.amount > 0 ? (f.current_balance / f.amount) * 100 : 0;
-                    const isLow = percent < 20;
+                    const rawPercent = f.amount > 0 ? (f.current_balance / f.amount) * 100 : 0;
+                    const isOverdrawn = f.current_balance < 0;
+                    const displayPercent = Math.min(100, Math.max(0, rawPercent));
+                    const isLow = displayPercent < 20;
                     return (
                         <div key={f.id} className="bg-[var(--t-surface)] border border-[var(--t-border)] rounded-[2px] p-3 flex items-center gap-3
                             hover:border-[var(--t-primary)] transition-colors">
@@ -255,17 +263,17 @@ const FundingTab = ({ searchQuery = '' }) => {
                                     <span className="h-px bg-[var(--t-border)] flex-1" />
                                 </div>
                                 <div className="mt-1.5 h-1 bg-[var(--t-surface3)] rounded-sm overflow-hidden">
-                                    <div className={`h-full transition-all duration-700 ${isLow ? 'bg-[var(--t-danger)]' : percent < 50 ? 'bg-[var(--t-warn)]' : 'bg-[var(--t-primary)]'}`}
-                                        style={{ width: `${percent}%` }} />
+                                    <div className={`h-full transition-all duration-700 ${isOverdrawn || isLow ? 'bg-[var(--t-danger)]' : displayPercent < 50 ? 'bg-[var(--t-warn)]' : 'bg-[var(--t-primary)]'}`}
+                                        style={{ width: isOverdrawn ? '100%' : `${displayPercent}%` }} />
                                 </div>
                             </div>
                             {/* Right: amounts + actions */}
                             <div className="text-right shrink-0 flex flex-col gap-1">
-                                <p className="text-[16px] text-[var(--t-primary)] font-['Bebas_Neue',sans-serif] tracking-wide leading-none">
+                                <p className={`text-[16px] font-['Bebas_Neue',sans-serif] tracking-wide leading-none ${isOverdrawn ? 'text-[var(--t-danger)]' : 'text-[var(--t-primary)]'}`}>
                                     {formatCurrency(f.current_balance)}
                                 </p>
-                                <span className={`text-[7px] uppercase tracking-widest font-['DM_Mono',monospace] ${isLow ? 'text-[var(--t-danger)]' : 'text-[var(--t-text3)]'}`}>
-                                    {Math.round(percent)}% left
+                                <span className={`text-[7px] uppercase tracking-widest font-['DM_Mono',monospace] ${isOverdrawn ? 'text-[var(--t-danger)]' : isLow ? 'text-[var(--t-danger)]' : 'text-[var(--t-text3)]'}`}>
+                                    {isOverdrawn ? '⚠ overdrawn' : `${Math.round(displayPercent)}% left`}
                                 </span>
                                 <div className="flex gap-1 justify-end mt-1">
                                     <button onClick={() => handleOpenTopUp(f)}

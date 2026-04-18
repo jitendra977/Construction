@@ -176,11 +176,34 @@ class FundingSource(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._original_amount = self.amount
+
     def save(self, *args, **kwargs):
         is_new = self.id is None
         if is_new:
             self.current_balance = self.amount
+        else:
+            if hasattr(self, '_original_amount') and self.amount != self._original_amount:
+                # Update current_balance by the difference
+                diff = self.amount - self._original_amount
+                self.current_balance += diff
+
+                # Try to also update the initial transaction to maintain consistency
+                try:
+                    initial_tx = self.transactions.filter(
+                        description="Initial Funding Allocation", 
+                        transaction_type='CREDIT'
+                    ).first()
+                    if initial_tx:
+                        initial_tx.amount = self.amount
+                        initial_tx.save(update_fields=['amount'])
+                except Exception:
+                    pass
+
         super().save(*args, **kwargs)
+        self._original_amount = self.amount
         
         if is_new:
             FundingTransaction.objects.create(
