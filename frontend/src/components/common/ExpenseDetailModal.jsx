@@ -259,15 +259,15 @@ const ExpenseDetailModal = ({ isOpen, onClose, expenseId }) => {
                 <div className="bg-[var(--t-surface2)] p-6 rounded-[2px] border border-[var(--t-border)]">
                     <div className="grid grid-cols-3 gap-8">
                         <div>
-                            <div className="text-[9px] font-['DM_Mono',monospace] font-bold text-[var(--t-text3)] uppercase tracking-[0.3em] mb-2 text-center">Total Amount</div>
+                            <div className="text-[9px] font-['DM_Mono',monospace] font-bold text-[var(--t-text3)] uppercase tracking-[0.3em] mb-2 text-center">Total Bill Amount</div>
                             <div className="text-3xl font-['Bebas_Neue',sans-serif] text-[var(--t-text)] tracking-wider text-center">{formatCurrency(expense.amount)}</div>
                         </div>
                         <div className="border-l border-[var(--t-border)]">
-                            <div className="text-[9px] font-['DM_Mono',monospace] font-bold text-[var(--t-text3)] uppercase tracking-[0.3em] mb-2 text-center text-[var(--t-primary)]">Amount Paid</div>
+                            <div className="text-[9px] font-['DM_Mono',monospace] font-bold text-[var(--t-text3)] uppercase tracking-[0.3em] mb-2 text-center text-[var(--t-primary)]">Disbursed (Paid)</div>
                             <div className="text-3xl font-['Bebas_Neue',sans-serif] text-[var(--t-primary)] tracking-wider text-center">{formatCurrency(expense.total_paid)}</div>
                         </div>
                         <div className="border-l border-[var(--t-border)]">
-                            <div className="text-[9px] font-['DM_Mono',monospace] font-bold text-[var(--t-text3)] uppercase tracking-[0.3em] mb-2 text-center text-[var(--t-danger)]">Due Balance</div>
+                            <div className="text-[9px] font-['DM_Mono',monospace] font-bold text-[var(--t-text3)] uppercase tracking-[0.3em] mb-2 text-center text-[var(--t-danger)]">Outstanding Liability</div>
                             <div className="text-3xl font-['Bebas_Neue',sans-serif] text-[var(--t-danger)] tracking-wider text-center">{formatCurrency(expense.balance_due)}</div>
                         </div>
                     </div>

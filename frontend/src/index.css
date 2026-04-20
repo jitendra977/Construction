@@ -20,19 +20,19 @@
   
   --title-font: 'Outfit';
   --title-scale: 1.4;
-  --title-weight: 900;
+  --title-weight: 700;
   --title-spacing: -0.01em;
   --title-transform: none;
 
   --subtitle-font: 'Outfit';
   --subtitle-scale: 0.75;
-  --subtitle-weight: 800;
-  --subtitle-spacing: 0.08em;
+  --subtitle-weight: 600;
+  --subtitle-spacing: 0.02em;
   --subtitle-transform: uppercase;
 
   --header-font: 'Outfit';
   --header-scale: 2.0;
-  --header-weight: 900;
+  --header-weight: 800;
   --header-spacing: -0.02em;
   --header-transform: none;
 }
@@ -160,20 +160,19 @@
   }
 
   .card-glass {
-    background: var(--glass-bg);
-    backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.8);
-    box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.03);
-    transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+    background: var(--t-surface);
+    border: 1px solid var(--t-border);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease;
     position: relative;
     overflow: hidden;
+    border-radius: 0.75rem;
   }
 
   .card-glass:hover {
-    border-color: rgba(5, 150, 105, 0.2);
-    background: rgba(255, 255, 255, 0.9);
-    transform: translateY(-4px);
-    box-shadow: 0 12px 40px -10px rgba(5, 150, 105, 0.1);
+    border-color: var(--t-border2);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   }
 
   .hud-border {

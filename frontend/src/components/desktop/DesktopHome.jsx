@@ -264,124 +264,111 @@ const DesktopHome = () => {
     return (
         <div className="min-h-screen bg-[var(--t-bg)] font-sans">
             {/* Header Section with Stats */}
-            <div className="bg-[var(--t-surface)] border-b border-[var(--t-border)] pb-12 pt-8 px-6 relative overflow-hidden">
-                {/* Decorative Pattern */}
-                <div className="absolute inset-0 opacity-5 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, var(--t-primary) 1px, transparent 0)', backgroundSize: '32px 32px' }}></div>
+            <div className="bg-[var(--t-surface)] border-b border-[var(--t-border)] pb-8 pt-8 px-6 relative overflow-hidden">
                 <div className="max-w-7xl mx-auto">
                     <div className="flex items-center justify-between mb-8">
                         <div>
-                            <h1 className="text-3xl font-black text-[var(--t-text)] flex items-center gap-3 tracking-tight">
-                                <span className="text-4xl drop-shadow-[0_0_10px_rgba(var(--t-primary-rgb),0.3)]">🏗️</span>
+                            <h1 className="text-3xl font-bold text-[var(--t-text)] flex items-center gap-3 tracking-tight">
+                                <span className="text-4xl text-[var(--t-primary)]">🏗️</span>
                                 Project Dashboard
                             </h1>
-                            <p className="text-[var(--t-text2)] mt-2 text-lg font-medium opacity-80">
+                            <p className="text-[var(--t-text2)] mt-1 text-base font-medium">
                                 Dream Home Construction - Overview & Progress
                             </p>
                         </div>
-                        <div className="hidden md:flex items-center gap-3 bg-[var(--t-bg)]/30 backdrop-blur-sm px-4 py-2 rounded-xl border border-[var(--t-border)]">
-                            <span className="relative flex h-3 w-3">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--t-primary2)] opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-3 w-3 bg-[var(--t-primary2)] shadow-[0_0_8px_var(--t-primary2)]"></span>
-                            </span>
-                            <span className="text-[var(--t-text)] text-xs font-black uppercase tracking-widest">Live Project Status</span>
+                        <div className="hidden md:flex items-center gap-3 bg-[var(--t-surface2)] px-4 py-2 rounded-lg border border-[var(--t-border)]">
+                            <span className="flex h-2.5 w-2.5 rounded-full bg-[var(--t-primary)]"></span>
+                            <span className="text-[var(--t-text2)] text-[10px] font-bold uppercase tracking-wider">Live Status</span>
                         </div>
                     </div>
 
                     {/* Stats Grid inside Header */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div className="bg-[var(--t-bg)]/40 hover:bg-[var(--t-bg)]/60 backdrop-blur-md rounded-2xl p-5 border border-[var(--t-border)] transition-all group overflow-hidden relative">
-                            <div className="absolute top-0 right-0 p-2 opacity-5 group-hover:opacity-20 transition-opacity">
-                                <span className="text-4xl">💰</span>
-                            </div>
-                            <div className="flex justify-between items-start relative z-10">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="bg-[var(--t-surface)] rounded-xl p-6 border border-[var(--t-border)] shadow-sm transition-all hover:shadow-md h-full">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-[var(--t-primary)]/10 rounded-lg flex items-center justify-center text-2xl">💰</div>
                                 <div>
-                                    <div className="text-[var(--t-text3)] text-[10px] font-black uppercase tracking-[0.2em]">Budget Utilization</div>
-                                    <div className="text-2xl font-black text-[var(--t-primary)] mt-1.5 leading-none">
+                                    <div className="text-[var(--t-text3)] text-[10px] font-bold uppercase tracking-wider">Budget Used</div>
+                                    <div className="text-2xl font-bold text-[var(--t-text)] mt-0.5">
                                         {budgetStats.budgetPercent.toFixed(1)}%
                                     </div>
                                 </div>
                             </div>
-                            <div className="mt-4 text-[11px] text-[var(--t-text2)] font-bold flex items-center gap-2">
-                                <span className="text-[var(--t-primary)] font-black">{formatCurrency(budgetStats.totalSpent)}</span>
-                                <span className="opacity-40">/</span>
-                                <span className="opacity-60">{formatCurrency(budgetStats.totalBudget)}</span>
+                            <div className="mt-4 text-[11px] text-[var(--t-text3)]">
+                                <span className="text-[var(--t-text)] font-bold">{formatCurrency(budgetStats.totalSpent)}</span> utilized
                             </div>
                         </div>
 
-                        <div className="bg-[var(--t-bg)]/40 hover:bg-[var(--t-bg)]/60 backdrop-blur-md rounded-2xl p-5 border border-[var(--t-border)] transition-all group overflow-hidden relative">
-                            <div className="absolute top-0 right-0 p-2 opacity-5 group-hover:opacity-20 transition-opacity">
-                                <span className="text-4xl">💵</span>
-                            </div>
-                            <div className="flex justify-between items-start relative z-10">
+                        <div className="bg-[var(--t-surface)] rounded-xl p-6 border border-[var(--t-border)] shadow-sm transition-all hover:shadow-md h-full">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-[var(--t-info)]/10 rounded-lg flex items-center justify-center text-2xl">💵</div>
                                 <div>
-                                    <div className="text-[var(--t-text3)] text-[10px] font-black uppercase tracking-[0.2em]">Available Cash</div>
-                                    <div className="text-2xl font-black text-[var(--t-text)] mt-1.5 leading-none">
+                                    <div className="text-[var(--t-text3)] text-[10px] font-bold uppercase tracking-wider">Available Cash</div>
+                                    <div className="text-2xl font-bold text-[var(--t-text)] mt-0.5">
                                         {formatCurrency(budgetStats.availableCash)}
                                     </div>
                                 </div>
                             </div>
-                            <div className="mt-4 flex items-center">
-                                <div className={`inline-flex items-center px-2 py-0.5 rounded-[4px] text-[9px] font-black uppercase tracking-widest border ${budgetStats.availableCash > 0 ? 'bg-[var(--t-primary)]/10 text-[var(--t-primary)] border-[var(--t-primary)]/30 shadow-[0_0_8px_rgba(var(--t-primary-rgb),0.1)]' : 'bg-[var(--t-danger)]/10 text-[var(--t-danger)] border-[var(--t-danger)]/30'}`}>
-                                    {budgetStats.availableCash > 0 ? 'Liquid' : 'Cash Tight'}
+                            <div className="mt-4">
+                                <div className={`inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide ${budgetStats.availableCash > 0 ? 'bg-emerald-500/10 text-emerald-600' : 'bg-red-500/10 text-red-600'}`}>
+                                    {budgetStats.availableCash > 0 ? 'Healthy Liquidity' : 'Low Funds Warning'}
                                 </div>
                             </div>
                         </div>
 
-                        <div className="bg-[var(--t-bg)]/40 hover:bg-[var(--t-bg)]/60 backdrop-blur-md rounded-2xl p-5 border border-[var(--t-border)] transition-all group overflow-hidden relative">
-                            <div className="absolute top-0 right-0 p-2 opacity-5 group-hover:opacity-20 transition-opacity">
-                                <span className="text-4xl">🏗️</span>
-                            </div>
-                            <div className="flex justify-between items-start relative z-10">
+                        <div className="bg-[var(--t-surface)] rounded-xl p-6 border border-[var(--t-border)] shadow-sm transition-all hover:shadow-md h-full">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-indigo-500/10 rounded-lg flex items-center justify-center text-2xl">🏗️</div>
                                 <div>
-                                    <div className="text-[var(--t-text3)] text-[10px] font-black uppercase tracking-[0.2em]">Stock Value</div>
-                                    <div className="text-2xl font-black text-[var(--t-info)] mt-1.5 leading-none">
+                                    <div className="text-[var(--t-text3)] text-[10px] font-bold uppercase tracking-wider">Inventory Value</div>
+                                    <div className="text-2xl font-bold text-[var(--t-text)] mt-0.5">
                                         {formatCurrency(budgetStats.inventoryValue)}
                                     </div>
                                 </div>
                             </div>
-                            <div className="mt-4 text-[11px] text-[var(--t-text3)] font-black uppercase tracking-widest">
-                                {dashboardData.materials?.length || 0} Resource types
+                            <div className="mt-4 text-[11px] text-[var(--t-text3)]">
+                                {dashboardData.materials?.length || 0} Material types tracked
                             </div>
                         </div>
 
-                        <div className="bg-[var(--t-bg)]/40 hover:bg-[var(--t-bg)]/60 backdrop-blur-md rounded-2xl p-5 border border-[var(--t-border)] transition-all group overflow-hidden relative">
-                            <div className="absolute top-0 right-0 p-2 opacity-5 group-hover:opacity-20 transition-opacity">
-                                <span className="text-4xl">🛡️</span>
-                            </div>
-                            <div className="flex justify-between items-start relative z-10">
+                        <div className="bg-[var(--t-surface)] rounded-xl p-6 border border-[var(--t-border)] shadow-sm transition-all hover:shadow-md h-full">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-amber-500/10 rounded-lg flex items-center justify-center text-2xl">🛡️</div>
                                 <div>
-                                    <div className="text-[var(--t-text3)] text-[10px] font-black uppercase tracking-[0.2em]">Funding Coverage</div>
-                                    <div className="text-2xl font-black text-[var(--t-primary2)] mt-1.5 leading-none">
+                                    <div className="text-[var(--t-text3)] text-[10px] font-bold uppercase tracking-wider">Funding Coverage</div>
+                                    <div className="text-2xl font-bold text-[var(--t-text)] mt-0.5">
                                         {budgetStats.fundingCoverage.toFixed(0)}%
                                     </div>
                                 </div>
                             </div>
-                            <div className="mt-4 text-[11px] text-[var(--t-text3)] font-black uppercase tracking-widest flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-[var(--t-primary2)] shadow-[0_0_6px_var(--t-primary2)]"></span>
-                                Securing total project
+                            <div className="mt-4 text-[11px] text-[var(--t-text3)] flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                Total capital secured
                             </div>
                         </div>
                     </div>
                     {stats.find(s => s.title === 'Master Budget') && (
-                        <div className="mt-6 bg-[var(--t-surface2)]/40 backdrop-blur-md rounded-2xl p-5 border border-[var(--t-border)] relative overflow-hidden group">
-                            <div className="absolute -right-4 -bottom-4 text-7xl opacity-5 rotate-12 transition-transform group-hover:scale-110">💰</div>
+                        <div className="mt-8 bg-[var(--t-surface2)] rounded-xl p-6 border border-[var(--t-border)]">
                             <div className="flex items-center justify-between mb-4">
                                 <div>
-                                    <div className="text-[var(--t-text3)] text-[10px] font-black uppercase tracking-[0.2em]">Master Budget Plan</div>
-                                    <div className="text-3xl font-black text-[var(--t-text)] mt-1 leading-none">
-                                        Rs. {stats.find(s => s.title === 'Master Budget').value}
+                                    <div className="text-[var(--t-text3)] text-[10px] font-bold uppercase tracking-wider">Master Budget Overview</div>
+                                    <div className="flex items-baseline gap-2 mt-1">
+                                        <div className="text-3xl font-bold text-[var(--t-text)]">
+                                            Rs. {stats.find(s => s.title === 'Master Budget').value}
+                                        </div>
+                                        <div className="text-sm font-medium text-[var(--t-text3)]">Planned</div>
                                     </div>
                                 </div>
                                 <div className="text-right">
-                                    <div className="text-[var(--t-text3)] text-[10px] font-black uppercase tracking-[0.2em]">Utilization</div>
-                                    <div className="text-xl font-black text-[var(--t-primary)] mt-1">
+                                    <div className="text-[var(--t-text3)] text-[10px] font-bold uppercase tracking-wider">Utilization</div>
+                                    <div className="text-xl font-bold text-[var(--t-primary)] mt-1">
                                         {budgetStats.budgetPercent}%
                                     </div>
                                 </div>
                             </div>
-                            <div className="h-2 w-full bg-[var(--t-bg)]/40 rounded-full overflow-hidden border border-[var(--t-border)]">
+                            <div className="h-2.5 w-full bg-[var(--t-bg)] rounded-full overflow-hidden border border-[var(--t-border)]">
                                 <div 
-                                    className="h-full bg-gradient-to-r from-[var(--t-primary)] to-[var(--t-primary2)] rounded-full shadow-[0_0_15px_var(--t-primary)] transition-all duration-1000 ease-out" 
+                                    className="h-full bg-[var(--t-primary)] rounded-full transition-all duration-1000 ease-out" 
                                     style={{ width: `${budgetStats.budgetPercent}%` }} 
                                 />
                             </div>
@@ -394,13 +381,13 @@ const DesktopHome = () => {
             <div className="max-w-7xl mx-auto px-6 -mt-6 pb-12 relative z-10">
                 {/* Action Required Section */}
                 {(budgetStats.lowStockItems?.length > 0 || budgetStats.projectHealth?.status === 'OVER_ALLOCATED') && (
-                    <div className="bg-[var(--t-surface)] rounded-2xl border border-[var(--t-danger)]/20 shadow-lg mb-8 overflow-hidden animate-fadeIn">
-                        <div className="bg-[var(--t-danger)]/5 px-6 py-3 border-b border-[var(--t-danger)]/10 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
+                    <div className="bg-white rounded-xl border-l-4 border-l-red-500 shadow-sm mb-8 overflow-hidden animate-fadeIn">
+                        <div className="bg-red-50 px-6 py-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
                                 <span className="text-xl">⚠️</span>
-                                <h2 className="text-sm font-black text-[var(--t-danger)] uppercase tracking-widest">Action Required (तत्काल ध्यान दिनुहोस्)</h2>
+                                <h2 className="text-sm font-bold text-red-700 uppercase tracking-wider">Attention Required</h2>
                             </div>
-                            <span className="text-[10px] font-bold text-[var(--t-danger)] bg-[var(--t-danger)]/10 px-3 py-1 rounded-full uppercase tracking-wide">High Priority</span>
+                            <span className="text-[10px] font-bold text-red-600 bg-red-100 px-3 py-1 rounded-full uppercase tracking-wide">Critical Info</span>
                         </div>
                         <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                             {/* Low Stock Items */}
@@ -498,204 +485,161 @@ const DesktopHome = () => {
                             <div className="p-6 relative pl-4 space-y-12 bg-[var(--t-surface)]">
                                 {/* Vertical Progress Line */}
                                 <div className="absolute left-10 top-6 bottom-6 w-[2px] bg-[var(--t-surface3)] rounded-full -translate-x-1/2"></div>
-                                {/* Phases Rendering */}
-                                {dashboardData.phases.map((phase) => {
-                                    const phaseTasks = dashboardData.tasks.filter(t => t.phase === phase.id).sort((a, b) => {
-                                        const dateA = a.due_date ? new Date(a.due_date) : null;
-                                        const dateB = b.due_date ? new Date(b.due_date) : null;
-                                        if (dateA && dateB) return dateA - dateB;
-                                        if (dateA) return -1;
-                                        if (dateB) return 1;
-                                        return new Date(b.created_at) - new Date(a.created_at);
-                                    });
-                                    const completedTasks = phaseTasks.filter(t => t.status === 'COMPLETED').length;
-                                    const totalTasks = phaseTasks.length;
-                                    const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-                                    const isCompleted = phase.status === 'COMPLETED';
-                                    const isInProgress = phase.status === 'IN_PROGRESS';
+                                                {/* Phases Rendering */}
+                                                {dashboardData.phases.map((phase) => {
+                                                    const phaseTasks = dashboardData.tasks.filter(t => t.phase === phase.id);
+                                                    const completedTasks = phaseTasks.filter(t => t.status === 'COMPLETED').length;
+                                                    const progress = phaseTasks.length > 0 ? Math.round((completedTasks / phaseTasks.length) * 100) : 0;
+                                                    const isCompleted = phase.status === 'COMPLETED';
+                                                    const isInProgress = phase.status === 'IN_PROGRESS';
 
-                                    return (
-                                        <div key={phase.id} className="relative group pl-16">
-                                            {/* Phase Connector Node */}
-                                            <div className={`absolute top-0 left-6 -ml-3 mt-6 w-10 h-10 rounded-full border-4 flex items-center justify-center font-black text-xs z-10 transition-all duration-500 bg-[var(--t-surface)] ${isCompleted ? 'border-[var(--t-primary2)] text-[var(--t-primary2)] shadow-lg shadow-[var(--t-primary2)]/10' :
-                                                isInProgress ? 'border-[var(--t-primary)] text-[var(--t-primary)] shadow-lg shadow-[var(--t-primary)]/10 scale-110 ring-4 ring-[var(--t-primary)]/5' :
-                                                    'border-[var(--t-border)] text-[var(--t-text3)]'
-                                                }`}>
-                                                {isCompleted ? '✓' : phase.order}
-                                            </div>
-
-                                            {/* Phase Content */}
-                                            <div className={`bg-[var(--t-surface)] rounded-2xl border transition-all duration-300 overflow-hidden ${isInProgress ? 'border-[var(--t-primary)]/30 shadow-md ring-1 ring-[var(--t-primary)]/10' : 'border-[var(--t-border)] hover:border-[var(--t-border2)] shadow-sm'}`}>
-
-                                                <div
-                                                    className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer select-none"
-                                                    onClick={() => togglePhase(phase.id)}
-                                                >
-                                                    <div className="flex-1">
-                                                        <div className="flex items-center gap-3 mb-1">
-                                                            <h3 className={`font-black text-lg tracking-tight ${isInProgress ? 'text-[var(--t-primary)]' : 'text-[var(--t-text)]'}`}>
-                                                                {phase.name}
-                                                            </h3>
-                                                            {isInProgress && (
-                                                                <span className="animate-pulse px-2 py-0.5 rounded-full bg-[var(--t-nav-active-bg)] text-[var(--t-primary)] text-[10px] font-bold uppercase tracking-wide">Active Phase</span>
-                                                            )}
-                                                        </div>
-                                                        <p className="text-sm text-[var(--t-text2)] font-medium line-clamp-2 leading-relaxed max-w-2xl">{phase.description}</p>
-
-                                                        {/* Detailed Meta-Data Subtitle */}
-                                                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3 text-[10px] font-black uppercase tracking-[0.12em]">
-                                                            <div className="flex items-center gap-2 text-[var(--t-primary2)] bg-[var(--t-primary2)]/5 px-2.5 py-1 rounded-md border border-[var(--t-primary2)]/10 shadow-sm">
-                                                                <span className="text-[12px] leading-none">💰</span>
-                                                                <span className="opacity-60 mr-0.5">Budget:</span>
-                                                                {formatCurrency(phase.estimated_budget)}
+                                                    return (
+                                                        <div key={phase.id} className="relative group pl-16 mb-12 last:mb-0">
+                                                            {/* Phase Connector Node */}
+                                                            <div className={`absolute top-0 left-6 -ml-3 mt-6 w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold text-xs z-10 transition-all bg-white ${
+                                                                isCompleted ? 'border-emerald-500 text-emerald-600' :
+                                                                isInProgress ? 'border-[var(--t-primary)] text-[var(--t-primary)] shadow-sm' :
+                                                                'border-slate-300 text-slate-400'
+                                                            }`}>
+                                                                {isCompleted ? '✓' : phase.order}
                                                             </div>
-                                                            <div className="flex items-center gap-2 text-[var(--t-nav-active-text)] bg-[var(--t-nav-active-bg)] px-2.5 py-1 rounded-md border border-[var(--t-border)] shadow-sm">
-                                                                <span className="text-[12px] leading-none">📋</span>
-                                                                <span className="opacity-60 mr-0.5">Scope:</span>
-                                                                {phaseTasks.length} {phaseTasks.length === 1 ? 'Task' : 'Tasks'}
-                                                            </div>
-                                                            {(phase.start_date || phase.end_date) && (
-                                                                <div className="flex items-center gap-2 text-[var(--t-text2)] bg-[var(--t-surface2)]/50 px-2.5 py-1 rounded-md border border-[var(--t-border)] shadow-sm">
-                                                                    <span className="text-[12px] leading-none">📅</span>
-                                                                    <span className="opacity-60 mr-0.5">Timeline:</span>
-                                                                    <span className="tracking-normal font-bold">
-                                                                        {phase.start_date ? new Date(phase.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '...'}
-                                                                        <span className="mx-1.5 opacity-40">→</span>
-                                                                        {phase.end_date ? new Date(phase.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '...'}
-                                                                    </span>
-                                                                </div>
-                                                            )}
-                                                        </div>
 
-                                                        {/* Progress Bar */}
-                                                        <div className="mt-4 flex items-center gap-3 w-full max-w-md">
-                                                            <div className="flex-1 h-2 bg-[var(--t-surface3)] rounded-full overflow-hidden">
+                                                            {/* Phase Content Card */}
+                                                            <div className={`bg-white rounded-xl border transition-all overflow-hidden ${isInProgress ? 'border-[var(--t-primary)]/40 shadow-sm' : 'border-slate-200'}`}>
                                                                 <div
-                                                                    className={`h-full rounded-full transition-all duration-1000 ease-out ${isCompleted ? 'bg-[var(--t-primary2)]' : isInProgress ? 'bg-[var(--t-primary)]' : 'bg-[var(--t-border)]'}`}
-                                                                    style={{ width: `${isCompleted ? 100 : progress}%` }}
-                                                                />
-                                                            </div>
-                                                            <span className="text-[10px] font-bold text-[var(--t-text3)] uppercase">
-                                                                {isCompleted ? '100%' : `${progress}%`}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="flex flex-col items-end gap-3" onClick={(e) => e.stopPropagation()}>
-                                                        <div className="flex items-center gap-2">
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setDetailPhase(phase);
-                                                                }}
-                                                                className="p-2 rounded-lg text-[var(--t-text3)] hover:bg-[var(--t-surface3)] hover:text-[var(--t-primary)] transition-all"
-                                                                title="Manage Phase Details (Mockups, Photos, Docs)"
-                                                            >
-                                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                                                            </button>
-                                                            <select
-                                                                value={phase.status}
-                                                                onChange={(e) => handleStatusChange(phase.id, e.target.value)}
-                                                                className={`text-[10px] font-bold uppercase tracking-wide border-0 rounded-lg py-1.5 px-3 cursor-pointer outline-none focus:ring-2 focus:ring-offset-1 ${isCompleted ? 'bg-[var(--t-primary2)]/10 text-[var(--t-primary2)] focus:ring-[var(--t-primary2)]' :
-                                                                    isInProgress ? 'bg-[var(--t-nav-active-bg)] text-[var(--t-nav-active-text)] focus:ring-[var(--t-primary)]' :
-                                                                        'bg-[var(--t-surface3)] text-[var(--t-text2)] focus:ring-[var(--t-border2)]'
-                                                                    }`}
-                                                            >
-                                                                <option value="NOT_STARTED">To Do</option>
-                                                                <option value="IN_PROGRESS">In Progress</option>
-                                                                <option value="COMPLETED">Done</option>
-                                                            </select>
-                                                        </div>
-
-                                                        {/* Image Previews - Tiny Row */}
-                                                        <div className="flex -space-x-2 overflow-hidden py-1">
-                                                            {phase.completion_photo && (
-                                                                <img
-                                                                    src={getMediaUrl(phase.completion_photo)}
-                                                                    alt="Completion"
-                                                                    className="inline-block h-8 w-8 rounded-full ring-2 ring-[var(--t-surface)] object-cover cursor-pointer hover:scale-110 transition-transform"
-                                                                    title="Completion Photo"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        setDetailPhase(phase);
-                                                                    }}
-                                                                />
-                                                            )}
-                                                            {phase.naksa_file && (
-                                                                <div className="inline-block h-8 w-8 rounded-full ring-2 ring-[var(--t-surface)] bg-[var(--t-primary)]/10 flex items-center justify-center text-[8px] font-bold text-[var(--t-primary)] cursor-pointer" title="Blueprint">BP</div>
-                                                            )}
-                                                        </div>
-
-                                                        <div className="flex gap-2">
-                                                            <button
-                                                                onClick={() => openAddTaskModal(phase)}
-                                                                className="w-8 h-8 flex items-center justify-center rounded-lg bg-[var(--t-surface2)] text-[var(--t-text3)] hover:bg-[var(--t-nav-active-bg)] hover:text-[var(--t-primary)] transition-all font-bold text-lg"
-                                                                title="Add Task"
-                                                            >
-                                                                +
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {/* Expanded Tasks */}
-                                                {expandedPhases.has(phase.id) && (
-                                                    <div className="border-t border-[var(--t-border)] bg-[var(--t-surface2)]/30 p-5 animate-slideDown">
-                                                        <div className="grid grid-cols-1 gap-2">
-                                                            {phaseTasks.map(task => (
-                                                                <div key={task.id} 
-                                                                     onClick={() => setPreviewTask(task)}
-                                                                     className="bg-[var(--t-surface)] p-3 rounded-xl border border-[var(--t-border)] flex items-center justify-between group hover:border-[var(--t-primary)]/40 hover:shadow-md transition-all shadow-sm cursor-pointer">
-                                                                    <div className="flex items-center gap-3">
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={task.status === 'COMPLETED'}
-                                                                            onChange={(e) => { e.stopPropagation(); handleTaskToggle(task); }}
-                                                                            className="w-4 h-4 rounded border-[var(--t-border2)] text-[var(--t-primary)] focus:ring-[var(--t-primary)] cursor-pointer"
-                                                                        />
-                                                                        <div className="flex flex-col">
-                                                                            <span className={`text-sm font-semibold transition-colors ${task.status === 'COMPLETED' ? 'text-[var(--t-text3)] line-through' : 'text-[var(--t-text)]'}`}>
-                                                                                {task.title}
-                                                                            </span>
-                                                                            <div className="flex items-center gap-2 mt-0.5">
-                                                                                <span className={`text-[8px] font-black uppercase tracking-widest px-1 rounded-[2px] ${
-                                                                                    task.priority === 'CRITICAL' ? 'bg-red-500/10 text-red-500' :
-                                                                                    task.priority === 'HIGH' ? 'bg-orange-500/10 text-orange-500' :
-                                                                                    'bg-[var(--t-primary)]/10 text-[var(--t-primary)]'
-                                                                                }`}>
-                                                                                    {task.priority || 'MEDIUM'}
-                                                                                </span>
-                                                                                {task.due_date && (
-                                                                                    <span className="text-[9px] text-[var(--t-text3)] font-bold uppercase">
-                                                                                        Due: {new Date(task.due_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
-                                                                                    </span>
-                                                                                )}
+                                                                    className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:bg-slate-50/50 transition-colors"
+                                                                    onClick={() => togglePhase(phase.id)}
+                                                                >
+                                                                    <div className="flex-1">
+                                                                        <div className="flex items-center gap-3 mb-1">
+                                                                            <h3 className={`font-bold text-lg ${isInProgress ? 'text-[var(--t-primary)]' : 'text-slate-900'}`}>{phase.name}</h3>
+                                                                            {isInProgress && (
+                                                                                <span className="px-2 py-0.5 rounded-full bg-[var(--t-primary)]/10 text-[var(--t-primary)] text-[10px] font-bold uppercase tracking-wide">In Progress</span>
+                                                                            )}
+                                                                        </div>
+                                                                        <p className="text-sm text-slate-500 font-medium line-clamp-2 max-w-2xl">{phase.description}</p>
+                                                                        
+                                                                        <div className="flex flex-wrap items-center gap-4 mt-4 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                                                            <span className="flex items-center gap-1.5"><span className="text-sm">💰</span> {formatCurrency(phase.estimated_budget)}</span>
+                                                                            <span className="flex items-center gap-1.5"><span className="text-sm">📋</span> {phaseTasks.length} Units</span>
+                                                                        </div>
+                                                                        
+                                                                        {/* Simple Progress Strip inside the info column */}
+                                                                        <div className="mt-4 flex items-center gap-3 w-full max-w-xs">
+                                                                            <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                                                <div className={`h-full rounded-full ${isCompleted ? 'bg-emerald-500' : 'bg-[var(--t-primary)]'}`} style={{ width: `${isCompleted ? 100 : progress}%` }} />
                                                                             </div>
+                                                                            <span className="text-[10px] font-bold text-slate-500">{isCompleted ? '100%' : `${progress}%`}</span>
                                                                         </div>
                                                                     </div>
-                                                                    <div className="flex items-center gap-3">
-                                                                        {task.media?.length > 0 && (
-                                                                            <span className="text-[10px] text-[var(--t-text3)] opacity-40 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                                                                                📸 {task.media.length}
-                                                                            </span>
-                                                                        )}
-                                                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} className="text-[var(--t-text3)] hover:text-[var(--t-danger)] opacity-0 group-hover:opacity-100 transition-opacity px-2 text-lg">×</button>
+
+                                                                    {/* Management Column */}
+                                                                    <div className="flex flex-col items-end gap-3" onClick={(e) => e.stopPropagation()}>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <button
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    setDetailPhase(phase);
+                                                                                }}
+                                                                                className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-indigo-600 transition-all"
+                                                                                title="Settings"
+                                                                            >
+                                                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                                                            </button>
+                                                                            <select
+                                                                                value={phase.status}
+                                                                                onChange={(e) => handleStatusChange(phase.id, e.target.value)}
+                                                                                className={`text-[10px] font-bold uppercase rounded-lg py-1.5 px-3 border outline-none ${
+                                                                                    isCompleted ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                                                                    isInProgress ? 'bg-indigo-50 text-indigo-600 border-indigo-100' :
+                                                                                    'bg-slate-50 text-slate-500 border-slate-100'
+                                                                                }`}
+                                                                            >
+                                                                                <option value="NOT_STARTED">To Do</option>
+                                                                                <option value="IN_PROGRESS">Active</option>
+                                                                                <option value="COMPLETED">Finished</option>
+                                                                            </select>
+                                                                        </div>
+                                                                        
+                                                                        <div className="flex -space-x-2 overflow-hidden py-1">
+                                                                            {phase.completion_photo && (
+                                                                                <img
+                                                                                    src={getMediaUrl(phase.completion_photo)}
+                                                                                    alt="Completion"
+                                                                                    className="inline-block h-8 w-8 rounded-full ring-2 ring-white object-cover cursor-pointer hover:scale-110 transition-transform"
+                                                                                    onClick={(e) => { e.stopPropagation(); setDetailPhase(phase); }}
+                                                                                />
+                                                                            )}
+                                                                            {phase.naksa_file && (
+                                                                                <div className="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-indigo-50 flex items-center justify-center text-[8px] font-bold text-indigo-600 cursor-pointer" title="Blueprint">BP</div>
+                                                                            )}
+                                                                            <button
+                                                                                onClick={() => openAddTaskModal(phase)}
+                                                                                className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition-all font-bold text-sm ring-2 ring-white"
+                                                                                title="Add Task"
+                                                                            >
+                                                                                +
+                                                                            </button>
+                                                                        </div>
                                                                     </div>
                                                                 </div>
-                                                            ))}
-                                                            <button
-                                                                onClick={() => openAddTaskModal(phase)}
-                                                                className="p-3 border-2 border-dashed border-[var(--t-border)] rounded-xl text-[var(--t-text3)] hover:text-[var(--t-primary)] hover:border-[var(--t-primary)] hover:bg-[var(--t-primary)]/5 transition-all text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2"
-                                                            >
-                                                                + Add New Task
-                                                            </button>
+
+                                                                {/* Expanded Task List (Inside Card) */}
+                                                                {expandedPhases.has(phase.id) && (
+                                                                    <div className="border-t border-slate-100 bg-slate-50/30 p-5 space-y-2">
+                                                                        {phaseTasks.map(task => (
+                                                                            <div key={task.id} 
+                                                                                 onClick={() => setPreviewTask(task)}
+                                                                                 className="bg-white p-3 rounded-lg border border-slate-200 flex items-center justify-between group hover:border-indigo-300 transition-all shadow-sm cursor-pointer">
+                                                                                <div className="flex items-center gap-3">
+                                                                                    <input
+                                                                                        type="checkbox"
+                                                                                        checked={task.status === 'COMPLETED'}
+                                                                                        onChange={(e) => { e.stopPropagation(); handleTaskToggle(task); }}
+                                                                                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                                                                    />
+                                                                                    <div className="flex flex-col">
+                                                                                        <span className={`text-sm font-semibold ${task.status === 'COMPLETED' ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
+                                                                                            {task.title}
+                                                                                        </span>
+                                                                                        <div className="flex items-center gap-2 mt-0.5">
+                                                                                            <span className={`text-[8px] font-black uppercase tracking-widest px-1 rounded-[2px] ${
+                                                                                                task.priority === 'CRITICAL' ? 'bg-red-50 text-red-600' :
+                                                                                                task.priority === 'HIGH' ? 'bg-orange-50 text-orange-600' :
+                                                                                                'bg-indigo-50 text-indigo-600'
+                                                                                            }`}>
+                                                                                                {task.priority || 'MEDIUM'}
+                                                                                            </span>
+                                                                                            {task.due_date && (
+                                                                                                <span className="text-[9px] text-slate-400 font-bold uppercase">
+                                                                                                    Due: {new Date(task.due_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+                                                                                                </span>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                                <div className="flex items-center gap-3">
+                                                                                    {task.media?.length > 0 && (
+                                                                                        <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                                                                                            📸 {task.media.length}
+                                                                                        </span>
+                                                                                    )}
+                                                                                    <button onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity px-2 text-lg">×</button>
+                                                                                </div>
+                                                                            </div>
+                                                                        ))}
+                                                                        <button
+                                                                            onClick={() => openAddTaskModal(phase)}
+                                                                            className="w-full py-2 border-2 border-dashed border-slate-200 rounded-lg text-slate-400 hover:text-indigo-600 hover:border-indigo-300 hover:bg-white transition-all text-[10px] font-bold uppercase tracking-widest"
+                                                                        >
+                                                                            + Add New Task
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+                                                    );
+                                                })}
                             </div>
                         </div>
                     </div>
@@ -703,43 +647,27 @@ const DesktopHome = () => {
                     {/* Right Column: Activity & Quick Actions */}
                     <div className="space-y-6">
                         {/* Quick Actions Card */}
-                        <div className="bg-[var(--t-surface)] rounded-2xl shadow-sm border border-[var(--t-border)] p-6">
-                            <h2 className="text-xs font-black text-[var(--t-text3)] uppercase tracking-[0.2em] mb-4">Quick Actions</h2>
+                        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+                            <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Quick Actions</h2>
                             <div className="grid grid-cols-2 gap-3">
                                 {[
-                                {
-                                    title: 'New Expense',
-                                    icon: '💸',
-                                    color: 'bg-[var(--t-danger)]/5 text-[var(--t-danger)] border-[var(--t-danger)]/10 hover:bg-[var(--t-danger)]/10'
-                                },
-                                {
-                                    title: 'Add Material',
-                                    icon: '📦',
-                                    color: 'bg-[var(--t-primary2)]/5 text-[var(--t-primary2)] border-[var(--t-primary2)]/10 hover:bg-[var(--t-primary2)]/10'
-                                },
-                                {
-                                    title: 'Upload Photo',
-                                    icon: '📷',
-                                    color: 'bg-[var(--t-primary)]/5 text-[var(--t-primary)] border-[var(--t-primary)]/10 hover:bg-[var(--t-primary)]/10'
-                                },
-                                {
-                                    title: 'Create Task',
-                                    icon: '📋',
-                                    color: 'bg-indigo-500/5 text-indigo-500 border-indigo-500/10 hover:bg-indigo-500/10'
-                                },
+                                { title: 'New Expense', icon: '💸', color: 'hover:bg-red-50 text-slate-700' },
+                                { title: 'Add Material', icon: '📦', color: 'hover:bg-indigo-50 text-slate-700' },
+                                { title: 'Upload Photo', icon: '📷', color: 'hover:bg-sky-50 text-slate-700' },
+                                { title: 'Create Task', icon: '📋', color: 'hover:bg-emerald-50 text-slate-700' },
                                 ].map((a, i) => (
-                                    <button key={i} className={`p-4 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all group ${a.color}`}>
+                                    <button key={i} className={`p-4 rounded-xl border border-slate-100 flex flex-col items-center justify-center gap-2 transition-all group ${a.color}`}>
                                         <span className="text-2xl group-hover:scale-110 transition-transform">{a.icon}</span>
-                                        <span className="text-[10px] font-black tracking-wider uppercase text-center">{a.title}</span>
+                                        <span className="text-[10px] font-bold uppercase tracking-wide text-center">{a.title}</span>
                                     </button>
                                 ))}
                             </div>
                         </div>
 
                         {/* Log Stream Card */}
-                        <div className="bg-[var(--t-surface)] rounded-2xl shadow-sm border border-[var(--t-border)] flex flex-col h-[500px]">
-                            <div className="px-6 py-4 border-b border-[var(--t-border)]">
-                                <h2 className="text-xs font-black text-[var(--t-text3)] uppercase tracking-[0.2em]">Activity Log</h2>
+                        <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-[500px] shadow-sm">
+                            <div className="px-6 py-4 border-b border-slate-100">
+                                <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Recent Activity</h2>
                             </div>
                             <div className="flex-1 overflow-y-auto p-6 space-y-6">
                                 {recentActivities.map((activity) => (
@@ -760,10 +688,10 @@ const DesktopHome = () => {
                         </div>
 
                         {/* Nepali User Guide Dashboard */}
-                        <div className="bg-[var(--t-surface)] rounded-2xl shadow-sm border border-[var(--t-border)] flex flex-col overflow-hidden">
-                            <div className="px-6 py-4 border-b border-[var(--t-border)] bg-[var(--t-primary)]/5 flex items-center justify-between">
-                                <h2 className="text-xs font-black text-[var(--t-primary)] uppercase tracking-[0.2em]">प्रयोगकर्ता निर्देशिका (User Guide)</h2>
-                                <span className="text-[10px] font-black text-[var(--t-primary)] uppercase bg-[var(--t-primary)]/10 px-2 py-0.5 rounded-full">Dashboard Help</span>
+                        <div className="bg-white rounded-xl border border-slate-200 flex flex-col overflow-hidden shadow-sm">
+                            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                                <h2 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">How to use (प्रयोगकर्ता सम्बन्धी जानकारी)</h2>
+                                <span className="text-[8px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full uppercase">User Guide</span>
                             </div>
                             <div className="p-6 space-y-5">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

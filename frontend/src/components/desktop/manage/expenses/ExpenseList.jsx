@@ -8,8 +8,27 @@ const ExpenseList = ({
     handleOpenModal,
     handleDelete,
     formatCurrency,
-    dashboardData
+    dashboardData,
+    
+    // Selection Props
+    selectedIds = [],
+    toggleSelect,
+    toggleSelectAll,
+    sortConfig,
+    setSortConfig
 }) => {
+    const handleSort = (key) => {
+        setSortConfig(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
+    };
+
+    const SortIcon = ({ column }) => {
+        if (sortConfig.key !== column) return <span className="opacity-20 ml-1">⇅</span>;
+        return <span className="ml-1 text-[var(--t-primary)]">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>;
+    };
+
     const getTypeStyle = (type) => {
         switch (type) {
             case 'MATERIAL': return 'bg-[var(--t-info)]/10 border-[var(--t-info)]/30 text-[var(--t-info)]';
@@ -29,22 +48,59 @@ const ExpenseList = ({
     return (
         <div className="space-y-4">
             {/* Desktop Table View */}
-            <div className="hidden lg:block bg-[var(--t-surface)] rounded-[2px] border border-[var(--t-border)] overflow-hidden">
+            <div className="hidden lg:block bg-[var(--t-surface)] rounded-[2px] border border-[var(--t-border)] overflow-hidden shadow-sm">
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="bg-[var(--t-surface2)] border-b border-[var(--t-border)]">
-                            <th className="px-8 py-4 text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.2em]">Expense Details</th>
-                            <th className="px-8 py-4 text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.2em]">Status</th>
-                            <th className="px-8 py-4 text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.2em]">Financials</th>
-                            <th className="px-8 py-4 text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.2em]">Recipient & Date</th>
+                            <th className="px-6 py-4 w-10">
+                                <input 
+                                    type="checkbox" 
+                                    className="w-4 h-4 rounded border-[var(--t-border)] text-[var(--t-primary)] focus:ring-[var(--t-primary)] cursor-pointer translate-y-0.5"
+                                    checked={expenses.length > 0 && selectedIds.length === expenses.length}
+                                    onChange={toggleSelectAll}
+                                />
+                            </th>
+                            <th 
+                                className="px-8 py-4 text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.2em] cursor-pointer hover:text-[var(--t-primary)] transition-colors"
+                                onClick={() => handleSort('title')}
+                            >
+                                Expense Details <SortIcon column="title" />
+                            </th>
+                            <th 
+                                className="px-8 py-4 text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.2em] cursor-pointer hover:text-[var(--t-primary)] transition-colors"
+                                onClick={() => handleSort('status')}
+                            >
+                                Status <SortIcon column="status" />
+                            </th>
+                            <th 
+                                className="px-8 py-4 text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.2em] cursor-pointer hover:text-[var(--t-primary)] transition-colors"
+                                onClick={() => handleSort('amount')}
+                            >
+                                Financials <SortIcon column="amount" />
+                            </th>
+                            <th 
+                                className="px-8 py-4 text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.2em] cursor-pointer hover:text-[var(--t-primary)] transition-colors"
+                                onClick={() => handleSort('date')}
+                            >
+                                Recipient & Date <SortIcon column="date" />
+                            </th>
                             <th className="px-8 py-4 text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.2em] text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--t-border)]">
                         {expenses.map(e => {
                             const ss = getStatusStyle(e.status);
+                            const isSelected = selectedIds.includes(e.id);
                             return (
-                            <tr key={e.id} className="hover:bg-[var(--t-surface2)] transition-all duration-200 group">
+                            <tr key={e.id} className={`${isSelected ? 'bg-[var(--t-primary)]/[0.03]' : 'hover:bg-[var(--t-surface2)]'} transition-all duration-200 group`}>
+                                <td className="px-6 py-5">
+                                    <input 
+                                        type="checkbox" 
+                                        className="w-4 h-4 rounded border-[var(--t-border)] text-[var(--t-primary)] focus:ring-[var(--t-primary)] cursor-pointer translate-y-0.5"
+                                        checked={isSelected}
+                                        onChange={() => toggleSelect(e.id)}
+                                    />
+                                </td>
                                 <td className="px-8 py-5 cursor-pointer" onClick={() => handleViewDetail(e.id)}>
                                     <div className="flex flex-col">
                                         <div className="flex items-center gap-2 mb-1.5">
@@ -68,9 +124,19 @@ const ExpenseList = ({
                                     </div>
                                 </td>
                                 <td className="px-8 py-5">
-                                    <div className={`inline-flex items-center px-2.5 py-1 rounded-[1px] text-[9px] font-['DM_Mono',monospace] uppercase tracking-widest border ${ss.badge}`}>
-                                        <div className={`w-1.5 h-1.5 rounded-full mr-2 ${ss.dot}`} />
-                                        {e.status}
+                                    <div className="flex flex-col gap-1.5">
+                                        <div 
+                                            onClick={() => Number(e.balance_due) > 0 && handleOpenPaymentModal(e)}
+                                            className={`inline-flex items-center px-2.5 py-1 rounded-[1px] text-[9px] font-['DM_Mono',monospace] uppercase tracking-widest border transition-all cursor-pointer hover:brightness-110 ${ss.badge}`}
+                                        >
+                                            <div className={`w-1.5 h-1.5 rounded-full mr-2 ${ss.dot}`} />
+                                            {e.status}
+                                        </div>
+                                        {Number(e.balance_due) > 0 && (
+                                            <span className="text-[8px] font-black text-[var(--t-danger)] uppercase tracking-[0.2em] animate-pulse">
+                                                ⚠ Outstanding Liability
+                                            </span>
+                                        )}
                                     </div>
                                 </td>
                                 <td className="px-8 py-5">
@@ -78,7 +144,10 @@ const ExpenseList = ({
                                         <span className="text-[15px] font-['Bebas_Neue',sans-serif] tracking-wide text-[var(--t-text)]">{formatCurrency(e.amount)}</span>
                                         {Number(e.balance_due) > 0 && (
                                             <div className="mt-1.5 flex flex-col gap-1">
-                                                <span className="text-[9px] text-[var(--t-danger)] font-['DM_Mono',monospace] uppercase tracking-tighter">Due: {formatCurrency(e.balance_due)}</span>
+                                                <div className="flex justify-between items-center w-28 text-[8px] font-black tracking-tighter uppercase mb-0.5">
+                                                    <span className="text-[var(--t-danger)]">Due {formatCurrency(e.balance_due)}</span>
+                                                    <span className="text-[var(--t-text3)]">{Math.round((Number(e.total_paid) / Number(e.amount)) * 100)}%</span>
+                                                </div>
                                                 <div className="w-28 bg-[var(--t-surface3)] h-1 rounded-sm overflow-hidden">
                                                     <div
                                                         className="bg-[var(--t-primary)] h-full transition-all duration-1000"
@@ -101,7 +170,7 @@ const ExpenseList = ({
                                                     {(e.paid_to || 'U').charAt(0)}
                                                 </div>
                                             )}
-                                            <span className="text-[12px] font-semibold text-[var(--t-text2)] uppercase tracking-tight">{e.paid_to || 'N/A'}</span>
+                                            <span className="text-[12px] font-semibold text-[var(--t-text2)] uppercase tracking-tight truncate max-w-[120px]">{e.paid_to || 'N/A'}</span>
                                         </div>
                                         <span className="text-[10px] text-[var(--t-text3)] font-['DM_Mono',monospace]">
                                             {new Date(e.date).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}
@@ -113,7 +182,7 @@ const ExpenseList = ({
                                         {Number(e.balance_due) > 0 && (
                                             <button
                                                 onClick={() => handleOpenPaymentModal(e)}
-                                                className="px-3 py-1.5 bg-[var(--t-primary)] text-[var(--t-bg)] text-[9px] font-['DM_Mono',monospace] uppercase tracking-widest rounded-[1px] hover:opacity-90 transition-all"
+                                                className="px-3 py-1.5 bg-[var(--t-primary)] text-white text-[9px] font-['DM_Mono',monospace] uppercase tracking-widest rounded-[1px] hover:opacity-90 transition-all shadow-lg shadow-[var(--t-primary)]/10"
                                             >
                                                 Pay Due
                                             </button>
@@ -135,65 +204,52 @@ const ExpenseList = ({
                 </table>
             </div>
 
-            {/* Mobile View: Cyber List */}
-            <div className="lg:hidden flex flex-col gap-0.5">
+            {/* Mobile View: High Density List */}
+            <div className="lg:hidden flex flex-col gap-1">
                 {expenses.map(e => {
                     const ss = getStatusStyle(e.status);
                     const hasDue = Number(e.balance_due) > 0;
+                    const isSelected = selectedIds.includes(e.id);
                     const paidPct = hasDue ? Math.min((Number(e.total_paid) / Number(e.amount)) * 100, 100) : 100;
 
                     return (
-                        <div key={e.id} className="bg-[var(--t-surface)] border border-[var(--t-border)] rounded-[2px] p-3 flex items-center gap-3 hover:border-[var(--t-primary)] transition-colors">
+                        <div key={e.id} className={`${isSelected ? 'border-[var(--t-primary)] bg-[var(--t-primary)]/[0.02]' : 'bg-[var(--t-surface)] border-[var(--t-border)]'} rounded-[2px] p-4 flex items-center gap-4 hover:border-[var(--t-primary)]/40 transition-all`}>
+                            {/* Checkbox */}
+                            <input 
+                                type="checkbox" 
+                                className="w-4 h-4 rounded border-[var(--t-border)] text-[var(--t-primary)] focus:ring-[var(--t-primary)] cursor-pointer"
+                                checked={isSelected}
+                                onChange={() => toggleSelect(e.id)}
+                            />
+                            
                             {/* Type icon */}
-                            <div className={`w-9 h-9 rounded shrink-0 flex flex-col items-center justify-center border ${getTypeStyle(e.expense_type)}`}>
-                                <span className="text-[8px] font-['DM_Mono',monospace] uppercase leading-none">
+                            <div className={`w-10 h-10 rounded-lg shrink-0 flex flex-col items-center justify-center border shadow-sm ${getTypeStyle(e.expense_type)}`}>
+                                <span className="text-[10px] font-black uppercase leading-none">
                                     {e.expense_type?.charAt(0)}
                                 </span>
                             </div>
                             {/* Middle */}
                             <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleViewDetail(e.id)}>
-                                <p className="text-[13px] text-[var(--t-text)] font-semibold truncate leading-tight">{e.title}</p>
-                                <div className="flex items-center gap-1.5 mt-0.5">
-                                    <span className="text-[7px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-widest truncate">
+                                <p className="text-[14px] text-[var(--t-text)] font-black uppercase tracking-tight truncate leading-tight">{e.title}</p>
+                                <div className="flex items-center gap-1.5 mt-1">
+                                    <span className="text-[8px] font-bold text-[var(--t-text3)] uppercase tracking-widest truncate">
                                         {e.category_name} · {new Date(e.date).toLocaleDateString('en-GB', { day:'2-digit', month:'short' })}
                                     </span>
-                                    {e.material_transaction && <span className="text-[var(--t-info)] text-[8px]">📦</span>}
                                 </div>
                                 {hasDue && (
-                                    <div className="mt-1.5 h-1 bg-[var(--t-surface3)] rounded-sm overflow-hidden">
+                                    <div className="mt-2 h-1 bg-[var(--t-surface3)] rounded-sm overflow-hidden">
                                         <div className="h-full bg-[var(--t-primary)] transition-all duration-700" style={{ width: `${paidPct}%` }} />
                                     </div>
                                 )}
                             </div>
                             {/* Right */}
-                            <div className="text-right shrink-0 flex flex-col items-end gap-1">
-                                <p className="text-[16px] text-[var(--t-text)] font-['Bebas_Neue',sans-serif] tracking-wide leading-none">
+                            <div className="text-right shrink-0 flex flex-col items-end gap-1.5">
+                                <p className="text-[18px] text-[var(--t-text)] font-['Bebas_Neue',sans-serif] tracking-wide leading-none font-bold">
                                     {formatCurrency(e.amount)}
                                 </p>
-                                <span className={`text-[7px] uppercase tracking-widest font-['DM_Mono',monospace] border px-1.5 py-0.5 rounded-[1px] ${ss.badge}`}>
+                                <span className={`text-[8px] font-black uppercase tracking-widest border px-2 py-0.5 rounded-[1px] ${ss.badge}`}>
                                     {e.status}
                                 </span>
-                                {hasDue && (
-                                    <span className="text-[7px] font-['DM_Mono',monospace] text-[var(--t-danger)] uppercase">
-                                        Due {formatCurrency(e.balance_due)}
-                                    </span>
-                                )}
-                                <div className="flex gap-1 mt-0.5">
-                                    {hasDue && (
-                                        <button onClick={() => handleOpenPaymentModal(e)}
-                                            className="px-2 py-0.5 text-[7px] uppercase tracking-widest font-['DM_Mono',monospace] border border-[var(--t-primary)]/40 text-[var(--t-primary)] rounded-[1px] hover:bg-[var(--t-primary)]/10 transition-colors">
-                                            Pay
-                                        </button>
-                                    )}
-                                    <button onClick={() => handleOpenModal(e)}
-                                        className="px-2 py-0.5 text-[7px] uppercase tracking-widest font-['DM_Mono',monospace] border border-[var(--t-border)] text-[var(--t-text3)] rounded-[1px] hover:border-[var(--t-border2)] transition-colors">
-                                        Edit
-                                    </button>
-                                    <button onClick={() => handleDelete(e.id)}
-                                        className="px-2 py-0.5 text-[7px] uppercase tracking-widest font-['DM_Mono',monospace] border border-[var(--t-danger)]/30 text-[var(--t-danger)] rounded-[1px] hover:bg-[var(--t-danger)]/10 transition-colors">
-                                        Del
-                                    </button>
-                                </div>
                             </div>
                         </div>
                     );
@@ -201,7 +257,10 @@ const ExpenseList = ({
             </div>
 
             {expenses.length === 0 && (
-                <div className="ht-empty"><span>🔍</span><p>No expenses found</p></div>
+                <div className="flex flex-col items-center justify-center py-20 bg-[var(--t-surface)] border border-dashed border-[var(--t-border)] rounded-[2px]">
+                    <span className="text-4xl mb-4 grayscale">🔍</span>
+                    <p className="text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest">No matching records found</p>
+                </div>
             )}
         </div >
     );

@@ -58,7 +58,7 @@ class Expense(models.Model):
     
     date = models.DateField()
     paid_to = models.CharField(max_length=200, help_text="Vendor or person paid")
-    is_paid = models.BooleanField(default=True)
+    is_paid = models.BooleanField(default=False)
     
     receipt = models.ForeignKey(Document, on_delete=models.SET_NULL, null=True, blank=True, related_name='expenses')
     notes = models.TextField(blank=True)

@@ -16,6 +16,24 @@ class FundingSourceViewSet(viewsets.ModelViewSet):
     queryset = FundingSource.objects.all()
     serializer_class = FundingSourceSerializer
 
+    @action(detail=True, methods=['post'], url_path='recalculate')
+    def recalculate_balance(self, request, pk=None):
+        """
+        Recalculate current_balance from transaction history.
+        Fixes data inconsistencies where balance doesn't match transactions.
+        Also syncs the 'amount' field to match total credits.
+        """
+        from decimal import Decimal
+        source = self.get_object()
+        credits = source.transactions.filter(transaction_type='CREDIT').aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        debits = source.transactions.filter(transaction_type='DEBIT').aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        source.current_balance = credits - debits
+        source.amount = credits  # Sync initial amount to total credits
+        source.save(update_fields=['current_balance', 'amount'])
+        serializer = self.get_serializer(source)
+        return Response({'status': 'recalculated', 'current_balance': str(source.current_balance), 'total_credited': str(credits), 'total_debited': str(debits)})
+
+
 class BudgetCategoryViewSet(viewsets.ModelViewSet):
     queryset = BudgetCategory.objects.all()
     serializer_class = BudgetCategorySerializer

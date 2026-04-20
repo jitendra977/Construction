@@ -100,7 +100,6 @@ export const dashboardService = {
     deleteBudgetCategory: (id) => api.delete(`/budget-categories/${id}/`),
 
     getBudgetStats: () => api.get('/expenses/'),
-    getBudgetOverview: () => api.get('/expenses/overview/'),
     getExpenses: () => api.get('/expenses/'),
     createExpense: (data) => api.post('/expenses/', data),
     updateExpense: (id, data) => api.patch(`/expenses/${id}/`, data),
@@ -183,6 +182,7 @@ export const dashboardService = {
     deleteFundingSource: (id) => api.delete(`/funding-sources/${id}/`),
     createFundingTransaction: (data) => api.post('/funding-transactions/', data),
     deleteFundingTransaction: (id) => api.delete(`/funding-transactions/${id}/`),
+    recalculateFundingBalance: (id) => api.post(`/funding-sources/${id}/recalculate/`),
     getPhaseBudgetAllocations: () => api.get('/phase-budget-allocations/'),
     createPhaseBudgetAllocation: (data) => api.post('/phase-budget-allocations/', data),
     updatePhaseBudgetAllocation: (id, data) => api.patch(`/phase-budget-allocations/${id}/`, data),

@@ -9,7 +9,6 @@ import SuppliersTab from './manage/SuppliersTab';
 import MaterialsTab from './manage/MaterialsTab';
 import StockTab from './manage/StockTab';
 import FundingTab from './manage/FundingTab';
-import BudgetOverview from '../finance/BudgetOverview';
 
 const DesktopManage = () => {
     const { dashboardData, setActiveHelpKey } = useConstruction();
@@ -45,7 +44,6 @@ const DesktopManage = () => {
             accent: '#10b981', // Emerald
             bgGlow: 'rgba(16, 185, 129, 0.1)',
             tabs: [
-                { id: 'overview', label: 'Overview', labelNe: 'सारांश' },
                 { id: 'funding', label: 'Funding', labelNe: 'लगानी' },
                 { id: 'categories', label: 'Categories', labelNe: 'शिर्षक' },
                 { id: 'expenses', label: 'Expenses', labelNe: 'खर्च' },
@@ -210,7 +208,6 @@ const DesktopManage = () => {
                             {/* Finance Section Tabs */}
                             {activeSection === 'finance' && (
                                 <>
-                                    {activeTab === 'overview' && <BudgetOverview onResolve={handleResolve} />}
                                     {activeTab === 'categories' && (
                                         <CategoriesTab
                                             searchQuery={searchQuery}

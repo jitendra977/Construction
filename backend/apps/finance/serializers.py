@@ -11,10 +11,21 @@ class FundingTransactionSerializer(serializers.ModelSerializer):
 class FundingSourceSerializer(serializers.ModelSerializer):
     transactions = FundingTransactionSerializer(many=True, read_only=True)
     current_balance = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    total_credited = serializers.SerializerMethodField()
+    total_debited = serializers.SerializerMethodField()
     
     class Meta:
         model = FundingSource
         fields = '__all__'
+    
+    def get_total_credited(self, obj):
+        from decimal import Decimal
+        return sum(t.amount for t in obj.transactions.filter(transaction_type='CREDIT')) or Decimal('0.00')
+    
+    def get_total_debited(self, obj):
+        from decimal import Decimal
+        return sum(t.amount for t in obj.transactions.filter(transaction_type='DEBIT')) or Decimal('0.00')
+
 
 class PaymentSerializer(serializers.ModelSerializer):
     send_receipt = serializers.BooleanField(write_only=True, required=False, default=True)

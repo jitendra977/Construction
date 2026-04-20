@@ -3,7 +3,6 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 
 // Desktop Components
 import DesktopHome from '../../components/desktop/DesktopHome';
-import DesktopBudget from '../../components/desktop/DesktopBudget';
 import DesktopPhotos from '../../components/desktop/DesktopPhotos';
 import DesktopManage from '../../components/desktop/DesktopManage';
 import EstimatorHub from '../../pages/estimator/EstimatorHub';
@@ -19,7 +18,6 @@ const DesktopRoutes = () => {
         <Routes>
             <Route index element={<Navigate to="home" replace />} />
             <Route path="home" element={<DesktopHome />} />
-            <Route path="budget" element={<Navigate to="../manage" replace />} />
             <Route path="estimator" element={<EstimatorHub />} />
             <Route path="permits" element={<PermitPage />} />
             <Route path="manage" element={<DesktopManage />} />

@@ -12,6 +12,9 @@ import SummaryCards from './expenses/SummaryCards';
 import ExpenseActions from './expenses/ExpenseActions';
 import ExpenseList from './expenses/ExpenseList';
 import UnifiedPaymentList from './expenses/UnifiedPaymentList';
+import FinanceInsights from './expenses/FinanceInsights';
+import BulkActionToolbar from './expenses/BulkActionToolbar';
+import AccountLedger from './expenses/AccountLedger';
 import { EmailLogHistoryModal, EmailConfirmationModal } from './expenses/PaymentModals';
 
 const ExpensesTab = ({ searchQuery: initialSearchQuery = '', initialViewMode = 'expenses' }) => {
@@ -39,10 +42,16 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '', initialViewMode = '
     const [emailState, setEmailState] = useState({}); // { [paymentId]: 'idle' | 'sending' | 'sent' | 'error' }
     const [emailLogs, setEmailLogs] = useState([]);
     const [fetchingLogs, setFetchingLogs] = useState(false);
+    const [isPayImmediately, setIsPayImmediately] = useState(false);
     
     // Modal states for Payments
     const [confirmation, setConfirmation] = useState({ isOpen: false, status: 'success', message: '' });
     const [historyModal, setHistoryModal] = useState({ isOpen: false, logs: [], title: '' });
+    
+    // Pro Feature States
+    const [selectedIds, setSelectedIds] = useState([]);
+    const [showInsights, setShowInsights] = useState(false);
+    const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
 
     const [paymentStatus, setPaymentStatus] = useState('IDLE'); // IDLE, PROCESSING, SUCCESS, ERROR
     const [paymentMethodFilter, setPaymentMethodFilter] = useState('ALL');
@@ -112,8 +121,90 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '', initialViewMode = '
             result = result.filter(e => e.date <= expenseDateFilter.end);
         }
 
+        // 5. Sorting
+        result = [...result].sort((a, b) => {
+            let aVal = a[sortConfig.key];
+            let bVal = b[sortConfig.key];
+            
+            // Handle numeric or date strings
+            if (sortConfig.key === 'amount' || sortConfig.key === 'balance_due') {
+                aVal = Number(aVal);
+                bVal = Number(bVal);
+            }
+            
+            if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+
         return result;
-    }, [dashboardData.expenses, searchQuery, expenseStatusFilter, expenseCategoryFilter, expenseDateFilter]);
+    }, [dashboardData.expenses, searchQuery, expenseStatusFilter, expenseCategoryFilter, expenseDateFilter, sortConfig]);
+
+    // Selection Handlers
+    const toggleSelect = useCallback((id) => {
+        setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+    }, []);
+
+    const toggleSelectAll = useCallback(() => {
+        if (selectedIds.length === filteredExpenses.length) setSelectedIds([]);
+        else setSelectedIds(filteredExpenses.map(e => e.id));
+    }, [selectedIds.length, filteredExpenses]);
+
+    // Bulk Action Handlers
+    const handleBulkDelete = async () => {
+        showConfirm({
+            title: `Delete ${selectedIds.length} Expenses?`,
+            message: "This will permanently remove selected records and update your budget balances. This action cannot be undone.",
+            confirmText: "Yes, Delete Selected",
+            type: "danger",
+            onConfirm: async () => {
+                setLoading(true);
+                try {
+                    await Promise.all(selectedIds.map(id => dashboardService.deleteExpense(id)));
+                    setSelectedIds([]);
+                    refreshData();
+                    closeConfirm();
+                } catch (err) {
+                    alert("Some deletions failed.");
+                } finally {
+                    setLoading(false);
+                }
+            }
+        });
+    };
+
+    const handleBulkMarkPaid = async () => {
+        const dues = filteredExpenses.filter(e => selectedIds.includes(e.id) && Number(e.balance_due) > 0);
+        if (dues.length === 0) return alert("No items with balance due selected.");
+
+        showConfirm({
+            title: `Settle ${dues.length} Outstanding Bills?`,
+            message: `This will create full payments for selected expenses using their default funding sources. Total: ${formatCurrency(dues.reduce((sum, e) => sum + Number(e.balance_due), 0))}`,
+            confirmText: "Process Bulk Payment",
+            type: "primary",
+            onConfirm: async () => {
+                setLoading(true);
+                try {
+                    for (const exp of dues) {
+                        const formData = new FormData();
+                        formData.append('expense', exp.id);
+                        formData.append('funding_source', exp.funding_source);
+                        formData.append('amount', exp.balance_due);
+                        formData.append('date', new Date().toISOString().split('T')[0]);
+                        formData.append('method', 'BANK_TRANSFER'); // Default for bulk
+                        await dashboardService.createPayment(formData);
+                    }
+                    setSelectedIds([]);
+                    refreshData();
+                    closeConfirm();
+                } catch (err) {
+                    alert("Bulk payment failed.");
+                } finally {
+                    setLoading(false);
+                }
+            }
+        });
+    };
 
     // Metadata for PDF export based on active filters
     const filterMetadata = useMemo(() => {
@@ -276,9 +367,21 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '', initialViewMode = '
                 if (!dataToSubmit.paid_to) {
                     dataToSubmit.paid_to = dataToSubmit.supplier_name || dataToSubmit.contractor_name || dataToSubmit.title || 'General Expense';
                 }
-                await dashboardService.createExpense(dataToSubmit);
+                const response = await dashboardService.createExpense(dataToSubmit);
+                
+                // Real-Life Payment System: If Pay Immediately is on
+                if (isPayImmediately && response.data?.id) {
+                    const payData = new FormData();
+                    payData.append('expense', response.data.id);
+                    payData.append('funding_source', formData.funding_source);
+                    payData.append('amount', formData.amount);
+                    payData.append('date', formData.date);
+                    payData.append('method', 'CASH'); // Default for immediate
+                    await dashboardService.createPayment(payData);
+                }
             }
             setIsModalOpen(false);
+            setIsPayImmediately(false);
             refreshData();
         } catch (error) {
             console.error("Expense operation failed:", error);
@@ -383,7 +486,17 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '', initialViewMode = '
                 budgetStats={budgetStats}
                 dashboardData={dashboardData}
                 formatCurrency={formatCurrency}
+                showInsights={showInsights}
+                setShowInsights={setShowInsights}
             />
+
+            {/* 3. Pro Visual Insights */}
+            {showInsights && (
+                <FinanceInsights 
+                    dashboardData={dashboardData} 
+                    formatCurrency={formatCurrency} 
+                />
+            )}
 
             {/* 4. Search & Action Controls */}
             <ExpenseActions
@@ -445,7 +558,7 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '', initialViewMode = '
                         </span>
                     </div>
 
-                    <ExpenseList
+                <ExpenseList
                         expenses={filteredExpenses}
                         handleViewDetail={handleViewDetail}
                         handleOpenPaymentModal={handleOpenPaymentModal}
@@ -453,8 +566,31 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '', initialViewMode = '
                         handleDelete={handleDelete}
                         formatCurrency={formatCurrency}
                         dashboardData={dashboardData}
+                        
+                        // Selection Props
+                        selectedIds={selectedIds}
+                        toggleSelect={toggleSelect}
+                        toggleSelectAll={toggleSelectAll}
+                        sortConfig={sortConfig}
+                        setSortConfig={setSortConfig}
                     />
+                    
+                    {/* Floating Bulk Toolbar */}
+                    {selectedIds.length > 0 && (
+                        <BulkActionToolbar 
+                            selectedCount={selectedIds.length}
+                            onDelete={handleBulkDelete}
+                            onMarkPaid={handleBulkMarkPaid}
+                            onClear={() => setSelectedIds([])}
+                            formatCurrency={formatCurrency}
+                            totalAmount={filteredExpenses
+                                .filter(e => selectedIds.includes(e.id))
+                                .reduce((sum, e) => sum + Number(e.amount), 0)}
+                        />
+                    )}
                 </>
+            ) : viewMode === 'ledger' ? (
+                <AccountLedger dashboardData={dashboardData} formatCurrency={formatCurrency} />
             ) : (
                 <UnifiedPaymentList
                     payments={flattenedPayments}
@@ -741,44 +877,51 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '', initialViewMode = '
                         </div>
                     </div>
 
-                    <div className="bg-[var(--t-surface)] p-6 rounded-[2rem] border-2 border-dashed border-[var(--t-border)] space-y-4 shadow-sm">
-                        <label className="block text-[10px] font-black text-[var(--t-primary)] uppercase tracking-[0.2em] ml-1">Payment/Funding Source</label>
-                        <div className="relative">
-                            <select
-                                value={formData.funding_source || ''}
-                                onChange={e => setFormData({ ...formData, funding_source: e.target.value })}
-                                className="w-full rounded-2xl border-transparent bg-[var(--t-surface2)] p-4 border outline-none appearance-none font-black text-[var(--t-text)] shadow-inner"
-                                required
-                            >
-                                <option value="">Assign funding account...</option>
-                                {dashboardData.funding?.filter(f => parseFloat(formData.amount || 0) <= parseFloat(f.current_balance || 0)).map(f => (
-                                    <option key={f.id} value={f.id}>
-                                        {f.source_type === 'LOAN' ? '🏦' : f.source_type === 'OWN_MONEY' ? '💰' : '🤝'} {f.name}
-                                    </option>
-                                ))}
-                            </select>
-                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--t-text3)]">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                    <div className="bg-[var(--t-surface2)] p-6 rounded-[2rem] border border-[var(--t-border)] shadow-sm group hover:border-[var(--t-primary)]/40 transition-all">
+                        <div className="flex items-center justify-between mb-4 px-1">
+                            <div className="flex items-center gap-3">
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl transition-all ${isPayImmediately ? 'bg-[var(--t-primary)]/10 text-[var(--t-primary)] ring-2 ring-[var(--t-primary)]/20' : 'bg-[var(--t-surface3)] text-[var(--t-text3)]'}`}>
+                                    {isPayImmediately ? '✅' : '⏳'}
+                                </div>
+                                <div>
+                                    <h4 className="text-[11px] font-black uppercase tracking-widest text-[var(--t-text)] leading-none italic">Instant Disbursement</h4>
+                                    <p className="text-[9px] text-[var(--t-text3)] font-bold uppercase tracking-tighter mt-1 opacity-60">
+                                        {isPayImmediately ? 'Register payment and update ledger now' : 'Create bill only (Pay later)'}
+                                    </p>
+                                </div>
                             </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input 
+                                    type="checkbox" 
+                                    className="sr-only peer"
+                                    checked={isPayImmediately}
+                                    onChange={e => setIsPayImmediately(e.target.checked)}
+                                />
+                                <div className="w-11 h-6 bg-[var(--t-surface3)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--t-primary)]"></div>
+                            </label>
                         </div>
-                        {formData.funding_source && (
-                            <div className="flex items-center justify-between px-3 animate-in fade-in slide-in-from-left-2">
-                                <span className="text-[10px] font-bold text-[var(--t-text3)] italic">Account Status</span>
-                                {(() => {
-                                    const fs = dashboardData.funding?.find(f => f.id === parseInt(formData.funding_source));
-                                    if (!fs) return null;
-                                    return (
-                                        <div className="flex items-center gap-3">
-                                            <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest ${fs.source_type === 'LOAN' ? 'bg-orange-500/10 text-orange-500' :
-                                                fs.source_type === 'OWN_MONEY' ? 'bg-green-500/10 text-green-500' :
-                                                    'bg-purple-500/10 text-purple-600'
-                                                }`}>
-                                                {fs.source_type}
-                                            </span>
-                                            <span className="text-[12px] font-black text-[var(--t-text)]">Avl: {formatCurrency(fs.current_balance)}</span>
-                                        </div>
-                                    );
-                                })()}
+
+                        {isPayImmediately && (
+                            <div className="space-y-4 pt-4 border-t border-[var(--t-border)]/50 animate-in fade-in slide-in-from-top-2 duration-300">
+                                <label className="block text-[10px] font-black text-[var(--t-primary)] uppercase tracking-[0.2em] ml-1">Payment/Funding Source</label>
+                                <div className="relative">
+                                    <select
+                                        value={formData.funding_source || ''}
+                                        onChange={e => setFormData({ ...formData, funding_source: e.target.value })}
+                                        className="w-full rounded-2xl border-none bg-[var(--t-surface)] p-4 outline-none appearance-none font-black text-[var(--t-text)] shadow-inner"
+                                        required={isPayImmediately}
+                                    >
+                                        <option value="">Assign funding account...</option>
+                                        {dashboardData.funding?.filter(f => parseFloat(formData.amount || 0) <= parseFloat(f.current_balance || 0)).map(f => (
+                                            <option key={f.id} value={f.id}>
+                                                {f.source_type === 'LOAN' ? '🏦' : f.source_type === 'OWN_MONEY' ? '💰' : '🤝'} {f.name} (Avl: {formatCurrency(f.current_balance)})
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--t-text3)]">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>

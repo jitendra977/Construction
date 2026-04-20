@@ -18,7 +18,7 @@ def funding_transaction_post_save(sender, instance, created, **kwargs):
     """
     if kwargs.get('raw'):
         return
-    if created and not instance.payment:
+    if created and not instance.payment_id:
         # Avoid double-processing the initial allocation
         if "Initial" in instance.description:
             return
@@ -37,7 +37,7 @@ def funding_transaction_post_delete(sender, instance, **kwargs):
     """
     Revert balance updates when a manual funding transaction is deleted.
     """
-    if not instance.payment:
+    if not instance.payment_id:
         fs = instance.funding_source
         if instance.transaction_type == 'CREDIT':
             fs.current_balance = Decimal(str(fs.current_balance)) - instance.amount
