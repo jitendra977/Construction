@@ -1,5 +1,16 @@
 from django.db import models
 
+# Re-export Permit Co-Pilot models
+from .copilot_models import (  # noqa: F401
+    ChecklistItem,
+    DeadlineReminder,
+    DocumentTemplate,
+    MunicipalityStep,
+    MunicipalityTemplate,
+    PermitChecklist,
+)
+
+
 class PermitStep(models.Model):
     STATUS_CHOICES = [
         ('PENDING', 'Pending'),

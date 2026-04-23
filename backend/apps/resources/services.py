@@ -69,6 +69,11 @@ class ResourceService:
     def _handle_linked_expense(txn):
         Expense = apps.get_model('finance', 'Expense')
         BudgetCategory = apps.get_model('finance', 'BudgetCategory')
+        Bill = apps.get_model('finance', 'Bill')
+        BillItem = apps.get_model('finance', 'BillItem')
+        JournalEntry = apps.get_model('finance', 'JournalEntry')
+        Account = apps.get_model('finance', 'Account')
+        BillPayment = apps.get_model('finance', 'BillPayment')
         
         category = txn.material.budget_category
         if not category:
@@ -88,8 +93,9 @@ class ResourceService:
             is_usage = True
             paid_to = "Inventory Allocation"
         else:
-            return # No expense for wastage/return handled here currently
+            return  # No expense for wastage/return handled here currently
 
+        # LEGACY EXPENSE CREATION
         new_expense = Expense.objects.create(
             title=expense_title,
             amount=amount,
@@ -103,27 +109,82 @@ class ResourceService:
             funding_source=txn.funding_source,
             date=txn.date,
             paid_to=paid_to,
-            is_paid=False,  # Initially unpaid, will be updated by process_payment if funded
+            is_paid=False,
             is_inventory_usage=is_usage,
             notes=f"Auto-generated from Material {txn.get_transaction_type_display()}"
         )
-        
-        # 1. NEW: Process actual payment if funding_source is provided for a purchase
+
+        new_bill = None
+        # NEW BILL CREATION FOR DOUBLE-ENTRY
+        if txn.transaction_type == 'IN':
+            new_bill = Bill.objects.create(
+                bill_number=f"MTX-{txn.id}",
+                supplier=txn.supplier,
+                date_issued=txn.date,
+                due_date=txn.date,
+                total_amount=amount,
+                amount_paid=0,
+                status='UNPAID',
+                notes=f"Auto-generated from Material Purchase IN"
+            )
+            BillItem.objects.create(
+                bill=new_bill,
+                category=category,
+                phase=txn.phase,
+                material=txn.material,
+                description=expense_title,
+                quantity=txn.quantity,
+                unit_price=txn.unit_price or 0,
+                amount=amount
+            )
+
+        # Process actual payment if funding_source is provided for a purchase
         if txn.transaction_type == 'IN' and txn.funding_source:
             from apps.finance.services import FinanceService
-            # We assume it's fully paid since it was selected at time of stock registration
+            # LEGACY PAYMENTS
             FinanceService.process_payment(
                 expense=new_expense,
                 amount=amount,
                 date=txn.date,
-                method='CASH', # Defaulting to CASH for stock entries
+                method='CASH',
                 funding_source=txn.funding_source,
                 notes=f"Automatic payment for stock purchase: {txn.material.name}"
             )
+            
+            # DOUBLE-ENTRY BILL PAYMENT
+            if new_bill:
+                cash_account = Account.objects.filter(account_type='ASSET').first()
+                if not cash_account:
+                    cash_account = Account.objects.create(
+                        name="Default Cash Account", 
+                        code="1000", 
+                        account_type="ASSET"
+                    )
+                
+                BillPayment.objects.create(
+                    bill=new_bill,
+                    account=cash_account,
+                    amount=amount,
+                    date=txn.date,
+                    method='CASH',
+                    reference_id=f"MTX-{txn.id}-PAY"
+                )
+                new_bill.amount_paid += amount
+                if new_bill.amount_paid >= new_bill.total_amount:
+                    new_bill.status = 'PAID'
+                new_bill.save()
+
         elif is_usage:
-            # Usage is a virtual expense (inventory allocation), so mark it paid without account movement
+            # Usage is a virtual expense (inventory allocation), mark paid
             new_expense.is_paid = True
             new_expense.save(update_fields=['is_paid'])
+            
+            JournalEntry.objects.create(
+                date=txn.date,
+                description=f"Inventory Usage: {txn.material.name}",
+                source='MANUAL',
+                reference_id=f"MTX-{txn.id}-USE"
+            )
 
         txn.expense = new_expense
         txn.save(update_fields=['expense'])
@@ -151,6 +212,17 @@ class ResourceService:
                 for payment in txn.expense.payments.all():
                     FinanceService.delete_payment(payment)
                 txn.expense.delete()
+
+            # DELETE NEW DOUBLE-ENTRY RECORD
+            Bill = apps.get_model('finance', 'Bill')
+            BillPayment = apps.get_model('finance', 'BillPayment')
+            bills = Bill.objects.filter(bill_number=f"MTX-{txn.id}")
+            for bill in bills:
+                BillPayment.objects.filter(bill=bill).delete()
+                bill.delete()
+            
+            JournalEntry = apps.get_model('finance', 'JournalEntry')
+            JournalEntry.objects.filter(reference_id=f"MTX-{txn.id}-USE").delete()
         
         txn.delete()
 

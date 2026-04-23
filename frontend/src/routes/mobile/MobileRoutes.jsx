@@ -11,6 +11,8 @@ import PermitPage from '../../pages/permits/PermitPage';
 import Profile from '../../pages/Profile';
 import ActivityLogs from '../../pages/accounts/ActivityLogs';
 import DataImportPage from '../../pages/DataImportPage';
+import TimelapsePage from '../../pages/TimelapsePage';
+import AnalyticsPage from '../../pages/AnalyticsPage';
 
 const MobileRoutes = () => {
     return (
@@ -25,6 +27,8 @@ const MobileRoutes = () => {
             <Route path="profile" element={<Profile />} />
             <Route path="activity-logs" element={<ActivityLogs />} />
             <Route path="import" element={<DataImportPage />} />
+            <Route path="timelapse" element={<TimelapsePage />} />
+            <Route path="analytics" element={<AnalyticsPage />} />
             {/* Catch-all to home */}
             <Route path="*" element={<Navigate to="home" replace />} />
         </Routes>

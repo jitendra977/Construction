@@ -5,6 +5,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { authService } from './services/auth';
 import { ConstructionProvider } from './context/ConstructionContext';
 import { ThemeProvider } from './context/ThemeContext';
+import SathiButton from './components/assistant/SathiButton';
+import OfflineStatus from './components/common/OfflineStatus';
 
 // Lazy load dashboard components
 const DesktopDashboard = lazy(() => import('./pages/desktop/DesktopDashboard'));
@@ -120,6 +122,9 @@ function App() {
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
+            {/* Global overlays — only show when signed in */}
+            {isAuthenticated && <SathiButton />}
+            <OfflineStatus />
           </ResponsiveRedirector>
         </Router>
       </ConstructionProvider>

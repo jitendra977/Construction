@@ -1,4 +1,5 @@
 import axios from 'axios';
+import offlineQueue from './offlineQueue';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
@@ -67,9 +68,39 @@ api.interceptors.response.use(
             }
         }
 
+        // ── Offline queue (HCMS-2 Phase 6) ─────────────────────
+        // If this is a mutation and we lost the network, queue the
+        // request so it replays when we're back online.
+        const method = (originalRequest?.method || '').toLowerCase();
+        const isMutation = ['post', 'patch', 'put', 'delete'].includes(method);
+        const isNetworkError = !error.response || error.code === 'ERR_NETWORK';
+        if (isMutation && isNetworkError && originalRequest?.url) {
+            try {
+                await offlineQueue.enqueue({
+                    url: originalRequest.url,
+                    method: originalRequest.method,
+                    body: originalRequest.data,
+                    headers: {
+                        Authorization: originalRequest.headers?.Authorization,
+                        'Content-Type': 'application/json',
+                    },
+                });
+                return Promise.resolve({
+                    data: { queued: true, offline: true },
+                    status: 202,
+                    queued: true,
+                });
+            } catch {
+                /* fall through */
+            }
+        }
+
         return Promise.reject(error);
     }
 );
+
+// Flush queued writes when connectivity returns
+offlineQueue.installOnlineFlush(api);
 
 export const dashboardService = {
     // Project
@@ -93,29 +124,29 @@ export const dashboardService = {
     getTasks: () => api.get('/tasks/'),
     getRecentUpdates: () => api.get('/updates/'),
 
-    // Finance
-    getBudgetCategories: () => api.get('/budget-categories/'),
-    createBudgetCategory: (data) => api.post('/budget-categories/', data),
-    updateBudgetCategory: (id, data) => api.patch(`/budget-categories/${id}/`, data),
-    deleteBudgetCategory: (id) => api.delete(`/budget-categories/${id}/`),
+    // Finance (Legacy & Categories)
+    getBudgetCategories: () => api.get('/finance/budget-categories/'),
+    createBudgetCategory: (data) => api.post('/finance/budget-categories/', data),
+    updateBudgetCategory: (id, data) => api.patch(`/finance/budget-categories/${id}/`, data),
+    deleteBudgetCategory: (id) => api.delete(`/finance/budget-categories/${id}/`),
 
-    getBudgetStats: () => api.get('/expenses/'),
-    getExpenses: () => api.get('/expenses/'),
-    createExpense: (data) => api.post('/expenses/', data),
-    updateExpense: (id, data) => api.patch(`/expenses/${id}/`, data),
-    deleteExpense: (id) => api.delete(`/expenses/${id}/`),
-    exportExpensesPdf: (params = {}) => api.get('/expenses/export-pdf/', { 
+    getBudgetStats: () => api.get('/finance/expenses/'),
+    getExpenses: () => api.get('/finance/expenses/'),
+    createExpense: (data) => api.post('/finance/expenses/', data),
+    updateExpense: (id, data) => api.patch(`/finance/expenses/${id}/`, data),
+    deleteExpense: (id) => api.delete(`/finance/expenses/${id}/`),
+    exportExpensesPdf: (params = {}) => api.get('/finance/expenses/export-pdf/', { 
         params, 
         responseType: 'blob' 
     }),
 
     // Payments
-    getPayments: () => api.get('/payments/'),
-    createPayment: (data) => api.post('/payments/', data),
-    updatePayment: (id, data) => api.patch(`/payments/${id}/`, data),
-    deletePayment: (id) => api.delete(`/payments/${id}/`),
-    emailPaymentReceipt: (id, data = {}) => api.post(`/payments/${id}/email-receipt/`, data),
-    getEmailLogs: (params = {}) => api.get('/email-logs/', { params }),
+    getPayments: () => api.get('/finance/payments/'),
+    createPayment: (data) => api.post('/finance/payments/', data),
+    updatePayment: (id, data) => api.patch(`/finance/payments/${id}/`, data),
+    deletePayment: (id) => api.delete(`/finance/payments/${id}/`),
+    emailPaymentReceipt: (id, data = {}) => api.post(`/finance/payments/${id}/email-receipt/`, data),
+    getEmailLogs: (params = {}) => api.get('/email-logs/', { params }), // core email logs not finance
 
     // Resources
     getSuppliers: () => api.get('/suppliers/'),
@@ -176,22 +207,23 @@ export const dashboardService = {
     getGallery: (groupBy = 'category') => api.get(`/gallery/?group_by=${groupBy}`),
 
     // Funding
-    getFundingSources: () => api.get('/funding-sources/'),
-    createFundingSource: (data) => api.post('/funding-sources/', data),
-    updateFundingSource: (id, data) => api.patch(`/funding-sources/${id}/`, data),
-    deleteFundingSource: (id) => api.delete(`/funding-sources/${id}/`),
-    createFundingTransaction: (data) => api.post('/funding-transactions/', data),
-    deleteFundingTransaction: (id) => api.delete(`/funding-transactions/${id}/`),
-    recalculateFundingBalance: (id) => api.post(`/funding-sources/${id}/recalculate/`),
-    getPhaseBudgetAllocations: () => api.get('/phase-budget-allocations/'),
-    createPhaseBudgetAllocation: (data) => api.post('/phase-budget-allocations/', data),
-    updatePhaseBudgetAllocation: (id, data) => api.patch(`/phase-budget-allocations/${id}/`, data),
-    deletePhaseBudgetAllocation: (id) => api.delete(`/phase-budget-allocations/${id}/`),
+    getFundingSources: () => api.get('/finance/funding-sources/'),
+    createFundingSource: (data) => api.post('/finance/funding-sources/', data),
+    updateFundingSource: (id, data) => api.patch(`/finance/funding-sources/${id}/`, data),
+    deleteFundingSource: (id) => api.delete(`/finance/funding-sources/${id}/`),
+    createFundingTransaction: (data) => api.post('/finance/funding-transactions/', data),
+    deleteFundingTransaction: (id) => api.delete(`/finance/funding-transactions/${id}/`),
+    recalculateFundingBalance: (id) => api.post(`/finance/funding-sources/${id}/recalculate/`),
+    getPhaseBudgetAllocations: () => api.get('/finance/phase-budget-allocations/'),
+    createPhaseBudgetAllocation: (data) => api.post('/finance/phase-budget-allocations/', data),
+    updatePhaseBudgetAllocation: (id, data) => api.patch(`/finance/phase-budget-allocations/${id}/`, data),
+    deletePhaseBudgetAllocation: (id) => api.delete(`/finance/phase-budget-allocations/${id}/`),
 
-    // Aggregated Dashboard Data
-    getDashboardData: async () => {
+    // Aggregated Dashboard Data (pass project_id to scope to a specific project)
+    getDashboardData: async (projectId = null) => {
         try {
-            const response = await api.get('/dashboard/combined/');
+            const params = projectId ? { project_id: projectId } : {};
+            const response = await api.get('/dashboard/combined/', { params });
             return response.data;
         } catch (error) {
             console.error("Dashboard consolidated fetch failed, falling back to multi-fetch", error);
@@ -229,6 +261,35 @@ export const dashboardService = {
     createGuideFaq: (data) => api.post('/user-guide-faqs/', data),
     updateGuideFaq: (id, data) => api.patch(`/user-guide-faqs/${id}/`, data),
     deleteGuideFaq: (id) => api.delete(`/user-guide-faqs/${id}/`),
+};
+
+export const financeService = {
+    // Accounts & Ledger
+    getAccounts: () => api.get('/finance/accounts/'),
+    createAccount: (data) => api.post('/finance/accounts/', data),
+    updateAccount: (id, data) => api.patch(`/finance/accounts/${id}/`, data),
+    
+    getJournalEntries: () => api.get('/finance/journal-entries/'),
+    createJournalEntry: (data) => api.post('/finance/journal-entries/', data),
+    
+    // Accounts Payable
+    getPurchaseOrders: () => api.get('/finance/purchase-orders/'),
+    createPurchaseOrder: (data) => api.post('/finance/purchase-orders/', data),
+    updatePurchaseOrder: (id, data) => api.patch(`/finance/purchase-orders/${id}/`, data),
+    
+    getBills: () => api.get('/finance/bills/'),
+    createBill: (data) => api.post('/finance/bills/', data),
+    updateBill: (id, data) => api.patch(`/finance/bills/${id}/`, data),
+    
+    getBillPayments: () => api.get('/finance/bill-payments/'),
+    createBillPayment: (data) => api.post('/finance/bill-payments/', data),
+    
+    // Treasury
+    getBankTransfers: () => api.get('/finance/bank-transfers/'),
+    createBankTransfer: (data) => api.post('/finance/bank-transfers/', data),
+
+    // Intelligence
+    getOverview: () => api.get('/finance/expenses/overview/'),
 };
 
 
@@ -338,6 +399,98 @@ export const accountsService = {
     updateUser: (id, data) => api.patch(`/users/${id}/`, data),
     deleteUser: (id) => api.delete(`/users/${id}/`),
     getRoles: () => api.get('/roles/'),
+};
+
+/**
+ * Phase 1 — Photo Intelligence & Timelapse.
+ *
+ * Backend: apps/photo_intel (analyses, timelapses, digests).
+ * Every TaskMedia upload automatically schedules a background analysis;
+ * these endpoints expose the results and allow re-triggering.
+ */
+export const photoIntelService = {
+    // ── Analyses ────────────────────────────────────────────────
+    getAnalyses: (params = {}) => api.get('/photo-intel/analyses/', { params }),
+    getAnalysisForTask: (taskId) =>
+        api.get('/photo-intel/analyses/', { params: { task: taskId } }),
+    getMismatches: () => api.get('/photo-intel/analyses/mismatches/'),
+    getAnalysisStats: () => api.get('/photo-intel/analyses/stats/'),
+    reanalyze: (id) => api.post(`/photo-intel/analyses/${id}/reanalyze/`),
+
+    // ── Timelapses ──────────────────────────────────────────────
+    getTimelapses: (params = {}) => api.get('/photo-intel/timelapses/', { params }),
+    generateTimelapse: (payload) => api.post('/photo-intel/timelapses/generate/', payload),
+    regenerateTimelapse: (id) => api.post(`/photo-intel/timelapses/${id}/regenerate/`),
+    deleteTimelapse: (id) => api.delete(`/photo-intel/timelapses/${id}/`),
+
+    // ── Weekly digests ──────────────────────────────────────────
+    getDigests: () => api.get('/photo-intel/digests/'),
+    buildCurrentDigest: () => api.post('/photo-intel/digests/build_current/'),
+};
+
+/**
+ * Phase 2 — Predictive Budget Engine.
+ * Forecasts per budget category, rolling supplier rate trends, and a unified
+ * alerts feed. The backend services are refreshed on demand via /refresh/.
+ */
+export const analyticsService = {
+    getForecasts: () => api.get('/analytics/forecasts/'),
+    refreshForecasts: () => api.post('/analytics/forecasts/refresh/'),
+
+    getRateTrends: () => api.get('/analytics/rate-trends/'),
+    refreshRateTrends: () => api.post('/analytics/rate-trends/refresh/'),
+
+    getAlerts: (params = {}) => api.get('/analytics/alerts/', { params }),
+    resolveAlert: (id, note = '') =>
+        api.post(`/analytics/alerts/${id}/resolve/`, { note }),
+    rebuildAll: () => api.post('/analytics/alerts/rebuild/'),
+};
+
+/**
+ * ── BoQ Auto-Generator (HCMS-2 Phase 3) ───────────────────────────
+ */
+export const boqService = {
+    getTemplates: (params = {}) => api.get('/estimator/boq-templates/', { params }),
+    createTemplate: (payload) => api.post('/estimator/boq-templates/', payload),
+    seedDefaults: () => api.post('/estimator/boq-templates/seed-defaults/'),
+
+    getGenerated: (projectId) =>
+        api.get('/estimator/boqs/', { params: projectId ? { project: projectId } : {} }),
+    getGeneratedDetail: (id) => api.get(`/estimator/boqs/${id}/`),
+    generateBoQ: (payload) => api.post('/estimator/boqs/generate/', payload),
+    applyToBudget: (id) => api.post(`/estimator/boqs/${id}/apply/`),
+};
+
+/**
+ * ── Voice Assistant (HCMS-2 Phase 4) ──────────────────────────────
+ */
+export const assistantService = {
+    ask: (transcript, language = 'ne') =>
+        api.post('/assistant/voice-commands/ask/', { transcript, language }),
+    getHistory: () => api.get('/assistant/voice-commands/'),
+    getPhrases: () => api.get('/assistant/phrases/'),
+    addPhrase: (payload) => api.post('/assistant/phrases/', payload),
+};
+
+/**
+ * ── Permit Co-Pilot (HCMS-2 Phase 5) ──────────────────────────────
+ */
+export const permitCopilotService = {
+    getTemplates: () => api.get('/permits/municipality-templates/'),
+    seedKathmandu: () => api.post('/permits/municipality-templates/seed-kathmandu/'),
+
+    getChecklists: (projectId) =>
+        api.get('/permits/checklists/', { params: projectId ? { project: projectId } : {} }),
+    getChecklistDetail: (id) => api.get(`/permits/checklists/${id}/`),
+    materialiseChecklist: (payload) =>
+        api.post('/permits/checklists/materialise/', payload),
+    refreshDeadlines: () =>
+        api.post('/permits/checklists/refresh-deadlines/'),
+
+    getItems: (checklistId) =>
+        api.get('/permits/checklist-items/', { params: { checklist: checklistId } }),
+    updateItem: (id, payload) =>
+        api.patch(`/permits/checklist-items/${id}/`, payload),
 };
 
 /**

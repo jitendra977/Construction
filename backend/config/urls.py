@@ -12,7 +12,7 @@ from apps.core.views import HouseProjectViewSet, ConstructionPhaseViewSet, RoomV
 from apps.core.import_views import SqlImportView, RawDataPopulationView
 from apps.core.gallery_views import GalleryViewSet
 from apps.tasks.views import TaskViewSet, TaskUpdateViewSet, TaskMediaViewSet
-from apps.finance.views import BudgetCategoryViewSet, ExpenseViewSet, PaymentViewSet, FundingSourceViewSet, FundingTransactionViewSet, PhaseBudgetAllocationViewSet
+
 from apps.resources.views import ContractorViewSet, MaterialViewSet, DocumentViewSet, SupplierViewSet, MaterialTransactionViewSet, WastageAlertViewSet
 
 router = DefaultRouter()
@@ -26,12 +26,6 @@ router.register(r'rooms', RoomViewSet)
 router.register(r'tasks', TaskViewSet)
 router.register(r'updates', TaskUpdateViewSet)
 router.register(r'task-media', TaskMediaViewSet)
-router.register(r'budget-categories', BudgetCategoryViewSet)
-router.register(r'expenses', ExpenseViewSet)
-router.register(r'payments', PaymentViewSet)
-router.register(r'funding-sources', FundingSourceViewSet)
-router.register(r'funding-transactions', FundingTransactionViewSet)
-router.register(r'phase-budget-allocations', PhaseBudgetAllocationViewSet)
 router.register(r'contractors', ContractorViewSet)
 router.register(r'suppliers', SupplierViewSet)
 router.register(r'materials', MaterialViewSet)
@@ -51,8 +45,13 @@ urlpatterns = [
     path('api/v1/import/sql/', SqlImportView.as_view(), name='sql-import'),
     path('api/v1/import/populate-raw-data/', RawDataPopulationView.as_view(), name='populate-raw-data'),
     path('api/v1/', include(router.urls)),       # Main API
+    path('api/v1/finance/', include('apps.finance.urls')),
+    path('api/v1/accounting/', include('apps.accounting.urls')),
     path('api/v1/estimator/', include('apps.estimator.urls')),
     path('api/v1/permits/', include('apps.permits.urls')),
+    path('api/v1/photo-intel/', include('apps.photo_intel.urls')),
+    path('api/v1/analytics/', include('apps.analytics.urls')),
+    path('api/v1/assistant/', include('apps.assistant.urls')),
 ]
 
 # Serve media files in development

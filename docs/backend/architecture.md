@@ -45,8 +45,12 @@ For non-technical understanding, the backend is organized into "Engines" that po
 *   **Integration**: Every other engine checks with this one to ensure the user is allowed to see or change data.
 
 ### 💰 Financial Ledger Engine (`apps.finance`)
-*   **What it does**: The central accounting system. It tracks where money comes from (Loans/Savings) and where it goes (Expenses/Contractor Payments).
-*   **Integration**: Automatically talks to the **Project Engine** to alert you if you are spending more than your planned budget.
+*   **What it does**: A professional liability-based double-entry accounting system. It tracks all financial events via a General Ledger (Journal Entries & Lines).
+*   **Core Components**:
+    *   **Chart of Accounts**: Managed ledger accounts (Assets, Liabilities, Equity, Expenses, Revenue).
+    *   **Automated Ledger**: Actions like Bank Transfers or Bill payments automatically generate balanced Debit/Credit entries.
+    *   **Accounts Payable**: Tracks unpaid vendor bills as liabilities until settled via disbursements.
+*   **Integration**: Dynamically aggregates account balances to provide real-time budget health, available cash, and debt-to-equity ratios for the **Project Engine**.
 
 ### 📦 Inventory Engine (`apps.resources`)
 *   **What it does**: Keeps track of every "Bora" of cement and "Tipper" of sand. It logs inward deliveries and outward site usage.

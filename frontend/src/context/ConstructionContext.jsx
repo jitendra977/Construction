@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
-import { dashboardService, constructionService, permitService } from '../services/api';
+import { dashboardService, constructionService, permitService, financeService } from '../services/api';
 import { authService } from '../services/auth';
 
 // Create Context
@@ -78,22 +78,49 @@ export const ConstructionProvider = ({ children }) => {
         permitSteps: [],
         funding: [],
         transactions: [],
-        userGuides: []
+        userGuides: [],
+        accounts: [],
     });
 
-    // Fetch all dashboard data
-    const fetchData = useCallback(async (silent = false) => {
+    const [financeOverview, setFinanceOverview] = useState(null);
+
+    // Multi-project support
+    const [projects, setProjects] = useState([]);
+    const [activeProjectId, setActiveProjectId] = useState(() => {
+        return localStorage.getItem('active-project-id') || null;
+    });
+
+    // Fetch all dashboard data for the active project
+    const fetchData = useCallback(async (silent = false, projectId = null) => {
         if (!authService.isAuthenticated()) return;
+        const resolvedProjectId = projectId ?? activeProjectId;
         try {
             if (!silent) setLoading(true);
-            const data = await dashboardService.getDashboardData();
+            const [data, overview, projectList] = await Promise.all([
+                dashboardService.getDashboardData(resolvedProjectId),
+                financeService.getOverview(),
+                dashboardService.getProjects(),
+            ]);
             setDashboardData(data);
+            setFinanceOverview(overview.data);
+            setProjects(projectList.data?.results ?? projectList.data ?? []);
         } catch (error) {
             console.error("Failed to load dashboard data", error);
         } finally {
             if (!silent) setLoading(false);
         }
-    }, []);
+    }, [activeProjectId]);
+
+    // Switch active project and reload dashboard data
+    const switchProject = useCallback(async (projectId) => {
+        setActiveProjectId(projectId);
+        if (projectId) {
+            localStorage.setItem('active-project-id', projectId);
+        } else {
+            localStorage.removeItem('active-project-id');
+        }
+        await fetchData(false, projectId);
+    }, [fetchData]);
 
     // Auth actions
     const login = useCallback(async (username, password) => {
@@ -112,7 +139,7 @@ export const ConstructionProvider = ({ children }) => {
             project: null, rooms: [], tasks: [], phases: [], expenses: [],
             materials: [], contractors: [], budgetCategories: [], suppliers: [],
             floors: [], permitSteps: [], funding: [], transactions: [],
-            userGuides: []
+            userGuides: [], accounts: [], finance_summary: null,
         });
     }, []);
 
@@ -173,8 +200,9 @@ export const ConstructionProvider = ({ children }) => {
         const expenses = dashboardData.expenses || [];
         const phases = dashboardData.phases || [];
         const totalBudget = dashboardData.project ? Number(dashboardData.project.total_budget) : 0;
+        const financeSummary = dashboardData.finance_summary;
 
-        // Cashflow Total (Purcheses only) for master budget progress
+        // Cashflow Total (Purchases only)
         const totalSpent = expenses.filter(e => !e.is_inventory_usage).reduce((acc, exp) => acc + Number(exp.amount), 0);
 
         // Funding calculations
@@ -193,8 +221,20 @@ export const ConstructionProvider = ({ children }) => {
         const remainingBudget = Math.max(0, totalBudget - totalSpent);
         const budgetPercent = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
 
-        // Liquidity: Money actually received and available to spend
-        const availableCash = Math.max(0, totalFunded - totalSpent);
+        // Priority: Use GL (General Ledger) data if available for accurate cash position
+        const glAssets = financeOverview ? Number(financeOverview.account_balances?.ASSET || 0) : null;
+        const glLiabilities = financeOverview ? Number(financeOverview.account_balances?.LIABILITY || 0) : null;
+        const glAccountsPayable = financeOverview ? Number(financeOverview.total_accounts_payable || 0) : null;
+        const glExpenses = financeOverview ? Number(financeOverview.total_spent || 0) : null;
+
+        // Available Cash: prefer GL asset balance; fallback to legacy funding calc
+        const availableCash = glAssets !== null ? glAssets : Math.max(0, totalFunded - totalSpent);
+        // Accounts Payable: outstanding bills (UNPAID + PARTIAL)
+        const totalPayables = glAccountsPayable !== null ? glAccountsPayable : 0;
+        // Net Financial Position: total assets minus all outstanding liabilities
+        const netPosition = glAssets !== null ? glAssets - totalPayables : null;
+        // Full GL liability balance (for advanced analysis)
+        const glNetPosition = glAssets !== null && glLiabilities !== null ? glAssets - glLiabilities : null;
 
         // Coverage: How much of the total project budget is secured by funding
         const fundingCoverage = totalBudget > 0 ? (totalFunded / totalBudget) * 100 : 0;
@@ -238,7 +278,7 @@ export const ConstructionProvider = ({ children }) => {
 
         return {
             totalBudget,
-            totalSpent,
+            totalSpent: glExpenses !== null ? glExpenses : totalSpent,
             remainingBudget,
             budgetPercent,
             totalFunded,
@@ -247,6 +287,9 @@ export const ConstructionProvider = ({ children }) => {
             fundingCoverage,
             inventoryValue,
             availableCash,
+            totalPayables,
+            netPosition,
+            glNetPosition,
             debtToEquity: dte,
             isOverBudget: totalSpent > totalBudget,
             isUnderFunded: totalFunded < totalSpent,
@@ -256,9 +299,11 @@ export const ConstructionProvider = ({ children }) => {
             completedTasks,
             activeTasks,
             pendingTasks,
-            activePhases
+            activePhases,
+            // Expose raw GL summary for direct use by GL-aware components
+            glSummary: financeOverview,
         };
-    }, [dashboardData]);
+    }, [dashboardData, financeOverview]);
 
     // Recent Activities
     const recentActivities = useMemo(() => {
@@ -474,9 +519,15 @@ export const ConstructionProvider = ({ children }) => {
         user,
         loading,
         dashboardData,
+        financeOverview,
         stats,
         budgetStats,
         recentActivities,
+
+        // Multi-project
+        projects,
+        activeProjectId,
+        switchProject,
 
         // Utilities
         formatCurrency,

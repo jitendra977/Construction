@@ -6,13 +6,18 @@ import FlooringCalculator from './FlooringCalculator';
 import StructuralBudgetEstimator from './StructuralBudgetEstimator';
 import DataTab from './DataTab';
 import MobileLayout from '../../components/mobile/MobileLayout';
+import BoQWizard from '../../components/estimator/BoQWizard';
+import { useConstruction } from '../../context/ConstructionContext';
 
 const EstimatorHub = () => {
     const [isMobile] = useState(window.innerWidth < 1024);
     const [activeTab, setActiveTab] = useState('budget');
+    const { dashboardData } = useConstruction();
+    const projectId = dashboardData?.project?.id;
 
     const tabs = [
         { id: 'budget', label: 'Full Budget', icon: '💰' },
+        { id: 'boq', label: 'Auto BoQ', icon: '✨' },
         { id: 'data', label: 'Market Rates', icon: '📊' },
         { id: 'wall', label: 'Walls', icon: '🧱' },
         { id: 'concrete', label: 'Concrete', icon: '🏗️' },
@@ -41,6 +46,7 @@ const EstimatorHub = () => {
         <div className="space-y-8">
             <div className="card-glass rounded-[2rem] p-6 shadow-sm min-h-[500px]">
                 {activeTab === 'budget' && <StructuralBudgetEstimator />}
+                {activeTab === 'boq' && <BoQWizard projectId={projectId} />}
                 {activeTab === 'data' && <DataTab />}
                 {activeTab === 'wall' && <BrickCalculator />}
                 {activeTab === 'concrete' && <ConcreteCalculator />}

@@ -1,152 +1,133 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { getMediaUrl } from '../../services/api';
 import { useConstruction } from '../../context/ConstructionContext';
 import ThemeToggle from '../common/ThemeToggle';
-import HouseConfigModal from '../common/HouseConfigModal';
+import ProjectSwitcher from '../common/ProjectSwitcher';
+
+const NAV_SECTIONS = [
+    {
+        label: 'Overview',
+        ids: ['home', 'analytics', 'estimator'],
+    },
+    {
+        label: 'Construction',
+        ids: ['permits', 'manage', 'photos', 'timelapse'],
+    },
+    {
+        label: 'Settings',
+        ids: ['guides', 'import', 'users'],
+    },
+];
 
 const DesktopSidebar = ({ user, onLogout, navItems }) => {
     const { dashboardData } = useConstruction();
-    const project = dashboardData?.project;
-    const [showConfigModal, setShowConfigModal] = useState(false);
 
-    // Derive display name from project
-    const projectName = project?.name || 'Mero Ghar Construction';
-    const nameParts = projectName.split(' ');
-    const displayTitle = nameParts.length > 1 ? nameParts.slice(0, 2).join(' ') : nameParts[0];
-    const displaySub = nameParts.length > 2 ? nameParts.slice(2).join(' ') : 'Construction Manager';
-
-    const linkClasses = ({ isActive }) =>
-        `w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left font-medium transition-all ${isActive
-            ? 'bg-[var(--t-nav-active-bg)] text-[var(--t-nav-active-text)] shadow-sm font-semibold'
-            : 'text-[var(--t-text2)] hover:bg-[var(--t-nav-hover-bg)] hover:text-[var(--t-text)]'
-        }`;
+    const getInitials = (name = '') =>
+        name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
 
     return (
-        <>
-        <aside className="w-64 flex flex-col fixed h-full z-10 transition-colors duration-200"
-            style={{ background: 'var(--t-surface)', borderRight: '1px solid var(--t-border)' }}>
-            {/* Logo — clickable to open project config */}
-            <div 
-                className="p-6 relative overflow-hidden group cursor-pointer"
-                style={{ borderBottom: '1px solid var(--t-border)' }}
-                onClick={() => setShowConfigModal(true)}
-                title="Configure Project"
+        <aside
+            className="w-64 flex flex-col fixed h-full z-10"
+            style={{ background: '#0d1117', borderRight: '1px solid #1f2937' }}
+        >
+            {/* ── Logo / App Header ── */}
+            <div
+                className="flex items-center gap-3 px-5 py-5"
+                style={{ borderBottom: '1px solid #1f2937' }}
             >
-                <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full blur-2xl pointer-events-none"
-                    style={{ background: 'color-mix(in srgb, var(--t-primary) 8%, transparent)' }} />
-
-                <div className="flex items-center gap-3 relative z-10">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shrink-0 group-hover:scale-105 transition-transform"
-                        style={{ background: 'var(--t-primary)' }}>
-                        <span className="text-xl">🏠</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <h1 className="text-lg font-black leading-none tracking-tight truncate"
-                            style={{ color: 'var(--t-text)' }}>
-                            {displayTitle}
-                        </h1>
-                        <p className="text-[10px] font-bold uppercase tracking-widest mt-1 truncate group-hover:text-[var(--t-nav-active-text)] transition-colors"
-                            style={{ color: 'var(--t-primary)' }}>
-                            {displaySub}
-                        </p>
-                    </div>
-                    <div className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <svg className="w-4 h-4" fill="none" stroke="var(--t-text3)" viewBox="0 0 24 24" strokeWidth="2">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                    </div>
+                <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xl"
+                    style={{ background: '#ea580c' }}
+                >
+                    🏗️
+                </div>
+                <div className="min-w-0">
+                    <h1 className="text-base font-black tracking-tight leading-none text-white">
+                        HCMS
+                    </h1>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest mt-0.5"
+                        style={{ color: '#f97316' }}>
+                        Construction Manager
+                    </p>
                 </div>
             </div>
 
-            {/* Navigation */}
-            <nav className="flex-1 px-4 py-4 space-y-6 overflow-y-auto">
-                <div>
-                    <p className="px-4 text-xs font-semibold uppercase tracking-wider mb-2"
-                        style={{ color: 'var(--t-text3)' }}>Overview</p>
-                    <div className="space-y-1">
-                        {navItems.filter(item => ['home', 'budget', 'photos', 'estimator'].includes(item.id)).map((item) => (
-                            <NavLink
-                                key={item.id}
-                                to={`/dashboard/desktop/${item.id}`}
-                                className={linkClasses}
-                            >
-                                <span className="text-xl">{item.icon}</span>
-                                <span>{item.label}</span>
-                            </NavLink>
-                        ))}
-                    </div>
-                </div>
+            {/* ── Project Switcher ── */}
+            <div className="px-4 py-3" style={{ borderBottom: '1px solid #1f2937' }}>
+                <ProjectSwitcher />
+            </div>
 
-                <div>
-                    <p className="px-4 text-xs font-semibold uppercase tracking-wider mb-2"
-                        style={{ color: 'var(--t-text3)' }}>Construction Journey</p>
-                    <div className="space-y-1">
-                        {navItems.filter(item => ['permits', 'manage'].includes(item.id)).map((item) => (
-                            <NavLink
-                                key={item.id}
-                                to={`/dashboard/desktop/${item.id}`}
-                                className={linkClasses}
+            {/* ── Navigation ── */}
+            <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
+                {NAV_SECTIONS.map((section) => {
+                    const sectionItems = navItems.filter(item =>
+                        section.ids.includes(item.id)
+                    );
+                    if (sectionItems.length === 0) return null;
+                    return (
+                        <div key={section.label}>
+                            <p
+                                className="px-3 text-[9px] font-bold uppercase tracking-widest mb-1.5"
+                                style={{ color: '#4b5563' }}
                             >
-                                <span className="text-xl">{item.icon}</span>
-                                <span>{item.label}</span>
-                            </NavLink>
-                        ))}
-                    </div>
-                </div>
-
-                {navItems.some(item => ['import', 'users', 'guides'].includes(item.id)) && (
-                    <div>
-                        <p className="px-4 text-xs font-semibold uppercase tracking-wider mb-2"
-                            style={{ color: 'var(--t-text3)' }}>System Control</p>
-                        <div className="space-y-1">
-                            {navItems.filter(item => ['import', 'users', 'guides'].includes(item.id)).map((item) => (
-                                <NavLink
-                                    key={item.id}
-                                    to={`/dashboard/desktop/${item.id}`}
-                                    className={linkClasses}
-                                >
-                                    <span className="text-xl">{item.icon}</span>
-                                    <span>{item.label}</span>
-                                </NavLink>
-                            ))}
+                                {section.label}
+                            </p>
+                            <div className="space-y-0.5">
+                                {sectionItems.map((item) => (
+                                    <NavLink
+                                        key={item.id}
+                                        to={`/dashboard/desktop/${item.id}`}
+                                        className={({ isActive }) =>
+                                            `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                                                isActive
+                                                    ? 'font-semibold'
+                                                    : ''
+                                            }`
+                                        }
+                                        style={({ isActive }) => ({
+                                            background: isActive
+                                                ? 'rgba(249,115,22,0.14)'
+                                                : 'transparent',
+                                            color: isActive ? '#f97316' : '#9ca3af',
+                                        })}
+                                        onMouseEnter={e => {
+                                            if (!e.currentTarget.classList.contains('active')) {
+                                                e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                                                e.currentTarget.style.color = '#e5e7eb';
+                                            }
+                                        }}
+                                        onMouseLeave={e => {
+                                            if (!e.currentTarget.getAttribute('aria-current')) {
+                                                e.currentTarget.style.background = 'transparent';
+                                                e.currentTarget.style.color = '#9ca3af';
+                                            }
+                                        }}
+                                    >
+                                        <span className="text-base shrink-0">{item.icon}</span>
+                                        <span className="truncate">{item.label}</span>
+                                    </NavLink>
+                                ))}
+                            </div>
                         </div>
-                    </div>
-                )}
+                    );
+                })}
             </nav>
 
-            {/* Footer */}
-            <div className="p-4 space-y-2" style={{ borderTop: '1px solid var(--t-border)' }}>
-                <NavLink
-                    to="/dashboard/desktop/activity-logs"
-                    className={({ isActive }) =>
-                        `flex items-center gap-3 px-4 py-2 rounded-xl transition-all text-sm font-medium ${isActive
-                            ? 'font-bold'
-                            : ''
-                        }`
-                    }
-                    style={({ isActive }) => ({
-                        background: isActive ? 'var(--t-nav-active-bg)' : 'transparent',
-                        color: isActive ? 'var(--t-nav-active-text)' : 'var(--t-text2)'
-                    })}
-                >
-                    <span className="text-xl">📊</span>
-                    <span>Activity Logs</span>
-                </NavLink>
-
+            {/* ── Footer ── */}
+            <div className="px-3 py-3 space-y-2" style={{ borderTop: '1px solid #1f2937' }}>
+                {/* User row */}
                 <NavLink
                     to="/dashboard/desktop/profile"
-                    className={({ isActive }) =>
-                        `flex items-center gap-3 px-4 py-3 mb-2 rounded-xl transition-all ${isActive ? 'border' : ''}`
-                    }
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all"
                     style={({ isActive }) => ({
-                        background: isActive ? 'var(--t-nav-active-bg)' : 'transparent',
-                        borderColor: isActive ? 'var(--t-border2)' : 'transparent'
+                        background: isActive ? 'rgba(249,115,22,0.14)' : 'transparent',
                     })}
                 >
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold shadow-sm overflow-hidden"
-                        style={{ background: 'var(--t-primary)', color: 'var(--t-primary-btn-text)' }}>
+                    <div
+                        className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden"
+                        style={{ background: '#ea580c', color: '#ffffff' }}
+                    >
                         {user?.profile_image ? (
                             <img
                                 src={getMediaUrl(user.profile_image)}
@@ -155,67 +136,50 @@ const DesktopSidebar = ({ user, onLogout, navItems }) => {
                                 onError={(e) => {
                                     e.target.onerror = null;
                                     e.target.style.display = 'none';
-                                    e.target.parentNode.innerHTML = user?.username?.charAt(0).toUpperCase();
+                                    e.target.parentNode.innerHTML = getInitials(user?.username);
                                 }}
                             />
                         ) : (
-                            user?.username?.charAt(0).toUpperCase()
+                            getInitials(user?.username)
                         )}
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold truncate" style={{ color: 'var(--t-text)' }}>{user?.username}</p>
-                        <p className="text-[10px] font-black uppercase tracking-widest opacity-70"
-                            style={{ color: 'var(--t-primary)' }}>
+                        <p className="text-sm font-semibold truncate text-white">{user?.username}</p>
+                        <p className="text-[10px] uppercase tracking-wider" style={{ color: '#6b7280' }}>
                             {user?.role?.name || 'Admin'}
                         </p>
                     </div>
-                    <span className="text-xs" style={{ color: 'var(--t-text3)' }}>👤</span>
                 </NavLink>
 
-                {/* Theme toggle + Logout row */}
-                <div className="flex items-center gap-2 pb-2">
+                {/* Theme toggle + Logout */}
+                <div className="flex items-center gap-2">
                     <ThemeToggle className="flex-shrink-0" />
                     <button
                         onClick={onLogout}
-                        className="flex-1 flex items-center gap-2 px-4 py-2 text-sm rounded-lg transition-colors"
-                        style={{ color: 'var(--t-danger)' }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'color-mix(in srgb, var(--t-danger) 10%, transparent)'}
+                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-lg font-medium transition-colors"
+                        style={{ color: '#ef4444' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
-                        <span>🚪</span> Logout
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        Logout
                     </button>
                 </div>
 
-                {/* Developer Copyright */}
-                <NavLink 
+                {/* Developer credit */}
+                <NavLink
                     to="/about-developer"
-                    className="flex flex-col items-center justify-center pt-3 mt-1 hover:brightness-110 active:scale-95 transition-all group" 
-                    style={{ borderTop: '1px solid var(--t-border2)' }}>
-                    <div className="w-10 h-10 rounded-full overflow-hidden border shadow-sm mb-1.5 group-hover:scale-110 transition-transform" 
-                         style={{ borderColor: 'var(--t-primary)' }}>
-                        <img src="/jitendra.png" alt="Jitendra Khadka" className="w-full h-full object-cover" />
-                    </div>
-                    <p className="text-[9px] font-bold tracking-widest uppercase opacity-70 mb-0.5" style={{ color: 'var(--t-text2)' }}>
-                        Designed & Built By
+                    className="flex items-center justify-center gap-2 pt-2 mt-1 transition-opacity hover:opacity-80"
+                    style={{ borderTop: '1px solid #1f2937' }}
+                >
+                    <p className="text-[10px]" style={{ color: '#374151' }}>
+                        © 2026 Jitendra Khadka
                     </p>
-                    <div className="flex items-center gap-1.5">
-                        <p className="text-[11px] font-black tracking-wide" style={{ color: 'var(--t-text)' }}>
-                            © 2026 @jitendra khadka
-                        </p>
-                        <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-md" 
-                              style={{ background: 'color-mix(in srgb, var(--t-primary) 15%, transparent)', color: 'var(--t-primary)' }}>
-                            v1.0.0
-                        </span>
-                    </div>
                 </NavLink>
             </div>
         </aside>
-
-        <HouseConfigModal 
-            isOpen={showConfigModal}
-            onClose={() => setShowConfigModal(false)}
-        />
-        </>
     );
 };
 

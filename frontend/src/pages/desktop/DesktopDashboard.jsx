@@ -30,10 +30,12 @@ function DesktopDashboard() {
 
     const navItems = [
         { id: 'home', icon: '🏠', label: 'Dashboard (ड्यासबोर्ड)' },
+        { id: 'analytics', icon: '📈', label: 'Analytics (विश्लेषण)' },
         { id: 'estimator', icon: '🧮', label: 'Estimator (इस्टिमेटर)' },
         { id: 'permits', icon: '📜', label: 'Permits (नक्सा पास)' },
         { id: 'manage', icon: '🛠️', label: 'Manage (व्यवस्थापन)' },
         { id: 'photos', icon: '📸', label: 'Gallery (फोटो ग्यालरी)' },
+        { id: 'timelapse', icon: '🎞️', label: 'Timelapse (टाइमल्याप्स)' },
         { id: 'guides', icon: '📚', label: 'User Guide (मद्दत निर्देशिका)' },
         { id: 'import', icon: '📥', label: 'Import Data (डाटा आयात)' },
         ...(user?.is_system_admin ? [

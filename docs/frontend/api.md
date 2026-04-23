@@ -9,6 +9,14 @@ The frontend encapsulates all direct backend HTTP requests inside a dedicated `s
 *   `authService.logout()`: Clears local storage state and forces interface redirection.
 *   `authService.getProfile() / updateProfile(data)`: Manages the active user's settings (e.g. dynamic Typography settings).
 
+### 💰 Finance & Accounting (`financeService` in `api.js`)
+A full-featured double-entry accounting SDK:
+*   **Where it is used**: `AccountsTab.jsx`, `LedgerTab.jsx`, `BillsTab.jsx`, `ConstructionContext.jsx`.
+*   **Chart of Accounts**: `getAccounts()`, `createAccount()`, `updateAccount()`. Handles live asset/liability balance fetching.
+*   **General Ledger**: `getJournalEntries()`, `createJournalEntry(data)`. Supports atomic posting of multi-line journal entries.
+*   **Treasury**: `getBankTransfers()`, `createBankTransfer(data)`. Orchestrates automated ledger entries for intra-account cash movement.
+*   **Accounts Payable**: `getBills()`, `createBill(data)`, `getBillPayments()`, `createBillPayment(data)`. Tracks vendor liabilities and settlements.
+
 ### Dashboard Master Service (`dashboardService` in `api.js`)
 This massive class manages the bulk of the management application operations:
 *   **Where it is used**: Mainly aggregated in `ConstructionContext.jsx` (which distributes it), but directly used in `DesktopHome.jsx`, `BudgetOverview.jsx`, `WastageAlertPanel.jsx`, and almost all Mobile lists (`MobileCategoryList`, `MobileMaterialList`, etc.).

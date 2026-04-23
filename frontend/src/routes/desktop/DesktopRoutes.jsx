@@ -12,6 +12,8 @@ import ActivityLogs from '../../pages/accounts/ActivityLogs';
 import UserManagement from '../../pages/accounts/UserManagement';
 import DataImportPage from '../../pages/DataImportPage';
 import UserGuidePage from '../../pages/desktop/UserGuidePage';
+import TimelapsePage from '../../pages/TimelapsePage';
+import AnalyticsPage from '../../pages/AnalyticsPage';
 
 const DesktopRoutes = () => {
     return (
@@ -27,6 +29,8 @@ const DesktopRoutes = () => {
             <Route path="users" element={<UserManagement />} />
             <Route path="import" element={<DataImportPage />} />
             <Route path="guides" element={<UserGuidePage />} />
+            <Route path="timelapse" element={<TimelapsePage />} />
+            <Route path="analytics" element={<AnalyticsPage />} />
             {/* Catch-all to home */}
             <Route path="*" element={<Navigate to="/dashboard/desktop/home" replace />} />
         </Routes>

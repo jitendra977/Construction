@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import PermitTracker from '../../components/desktop/permits/PermitTracker';
 import DocumentVault from '../../components/desktop/permits/DocumentVault';
+import PermitWizard from '../../components/permits/PermitWizard';
 import { permitService } from '../../services/api';
 import MobileLayout from '../../components/mobile/MobileLayout';
+import { useConstruction } from '../../context/ConstructionContext';
 
 const PermitPage = () => {
     const [isMobile] = useState(window.innerWidth < 1024);
     const [activeTab, setActiveTab] = useState('tracker');
+    const { dashboardData } = useConstruction();
+    const projectId = dashboardData?.project?.id;
     const [stats, setStats] = useState({
         total: 0,
         approved: 0,
@@ -39,6 +43,7 @@ const PermitPage = () => {
 
     const tabs = [
         { id: 'tracker', label: 'Timeline', icon: '📋' },
+        { id: 'wizard', label: 'Co-Pilot', icon: '✨' },
         { id: 'documents', label: 'Vault', icon: '📁' }
     ];
 
@@ -89,7 +94,9 @@ const PermitPage = () => {
 
             {/* Main Content Area */}
             <div className="bg-[var(--t-surface)] rounded-[2rem] p-6 shadow-sm min-h-[500px] border border-[var(--t-border)]">
-                {activeTab === 'tracker' ? <PermitTracker onUpdate={fetchStats} /> : <DocumentVault onUpdate={fetchStats} />}
+                {activeTab === 'tracker' && <PermitTracker onUpdate={fetchStats} />}
+                {activeTab === 'wizard' && <PermitWizard projectId={projectId} />}
+                {activeTab === 'documents' && <DocumentVault onUpdate={fetchStats} />}
             </div>
 
             {/* Help Section */}

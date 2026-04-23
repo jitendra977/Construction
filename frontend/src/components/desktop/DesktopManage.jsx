@@ -8,7 +8,12 @@ import ContractorsTab from './manage/ContractorsTab';
 import SuppliersTab from './manage/SuppliersTab';
 import MaterialsTab from './manage/MaterialsTab';
 import StockTab from './manage/StockTab';
-import FundingTab from './manage/FundingTab';
+
+import AccountsTab from './manage/finance/AccountsTab';
+import LedgerTab from './manage/finance/LedgerTab';
+import BillsTab from './manage/finance/BillsTab';
+import AnalysisTab from './manage/finance/AnalysisTab';
+import AccountingDashboard from './accounting/AccountingDashboard';
 
 const DesktopManage = () => {
     const { dashboardData, setActiveHelpKey } = useConstruction();
@@ -44,9 +49,7 @@ const DesktopManage = () => {
             accent: '#10b981', // Emerald
             bgGlow: 'rgba(16, 185, 129, 0.1)',
             tabs: [
-                { id: 'funding', label: 'Funding', labelNe: 'लगानी' },
-                { id: 'categories', label: 'Categories', labelNe: 'शिर्षक' },
-                { id: 'expenses', label: 'Expenses', labelNe: 'खर्च' },
+                { id: 'accounting', label: 'Accounting Portal', labelNe: 'लेखा प्रणाली' },
             ]
         },
         {
@@ -169,8 +172,8 @@ const DesktopManage = () => {
             {/* Workspace Area */}
             <div className="max-w-7xl mx-auto px-6 mt-6 w-full pb-12">
                 <div className="bg-[var(--t-surface)] rounded-2xl border border-[var(--t-border)] shadow-sm overflow-hidden flex flex-col min-h-[600px]">
-                    {/* Tab Bar — tighter, like Dashboard's nav */}
-                    <div className="border-b border-[var(--t-border)] bg-[var(--t-surface2)]/30 backdrop-blur sticky top-0 z-30">
+                    {/* Tab Bar — hidden when section has only one tab */}
+                    <div className={`border-b border-[var(--t-border)] bg-[var(--t-surface2)]/30 backdrop-blur sticky top-0 z-30 ${tabs.length <= 1 ? 'hidden' : ''}`}>
                         <div className="flex overflow-x-auto no-scrollbar px-4">
                             {tabs.map((tab) => (
                                 <button
@@ -208,15 +211,7 @@ const DesktopManage = () => {
                             {/* Finance Section Tabs */}
                             {activeSection === 'finance' && (
                                 <>
-                                    {activeTab === 'categories' && (
-                                        <CategoriesTab
-                                            searchQuery={searchQuery}
-                                            resolveMetadata={resolveMetadata}
-                                            onClearMetadata={() => setResolveMetadata(null)}
-                                        />
-                                    )}
-                                    {activeTab === 'expenses' && <ExpensesTab searchQuery={searchQuery} />}
-                                    {activeTab === 'funding' && <FundingTab searchQuery={searchQuery} />}
+                                    {activeTab === 'accounting' && <AccountingDashboard />}
                                 </>
                             )}
 

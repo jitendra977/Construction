@@ -4,10 +4,10 @@ import { NavLink } from 'react-router-dom';
 const MobileNav = () => {
     const navItems = [
         { id: 'home', icon: '🏠', label: 'Home' },
-        { id: 'manage', icon: '🛠️', label: 'Manage' },
-        { id: 'budget', icon: '💰', label: 'Budget' },
+        { id: 'analytics', icon: '📈', label: 'Analytics' },
         { id: 'estimator', icon: '🧮', label: 'Estimator' },
         { id: 'permits', icon: '📜', label: 'Permits' },
+        { id: 'timelapse', icon: '🎞️', label: 'Timelapse' },
         { id: 'photos', icon: '📸', label: 'Photos' },
     ];
 

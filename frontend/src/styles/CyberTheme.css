@@ -1,110 +1,168 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Bebas+Neue&family=Outfit:wght@300;400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap');
 
 /* ─── LIGHT THEME (default) ────────────────────────────────── */
 :root,
 [data-theme="light"] {
-  --c-bg:      #f1f5f9;
+  --c-bg:      #f8fafc;
   --c-s1:      #ffffff;
-  --c-s2:      #f8fafc;
-  --c-s3:      #f1f5f9;
+  --c-s2:      #f1f5f9;
+  --c-s3:      #e2e8f0;
   --c-bd:      #e2e8f0;
   --c-bd2:     #cbd5e1;
-  --c-lime:    #4f46e5;  /* indigo replaces lime in light */
-  --c-lime2:   #4338ca;
-  --c-lime3:   #c7d2fe;
+  --c-lime:    #ea580c;
+  --c-lime2:   #c2410c;
+  --c-lime3:   #fed7aa;
   --c-red:     #ef4444;
   --c-amber:   #f59e0b;
   --c-blue:    #3b82f6;
   --c-txt:     #0f172a;
   --c-txt2:    #475569;
   --c-txt3:    #94a3b8;
-  --c-accent:  #4f46e5;
+  --c-accent:  #ea580c;
   --c-accent2: #ef4444;
 
-  /* Semantic aliases for desktop compat */
-  --t-bg:      var(--c-bg);
-  --t-surface: var(--c-s1);
-  --t-surface2: var(--c-s2);
-  --t-surface3: var(--c-s3);
-  --t-border:  var(--c-bd);
-  --t-border2: var(--c-bd2);
-  --t-text:    var(--c-txt);
-  --t-text2:   var(--c-txt2);
-  --t-text3:   var(--c-txt3);
-  --t-primary: var(--c-lime);
-  --t-primary2: var(--c-lime2);
-  --t-danger:  var(--c-red);
-  --t-info:    var(--c-blue);
-  --t-warn:    var(--c-amber);
-  --t-nav-active-bg: #ede9fe;
-  --t-nav-active-text: #4f46e5;
-  --t-nav-hover-bg: #f8fafc;
-  --t-primary-btn-bg: #4f46e5;
+  /* Semantic aliases */
+  --t-bg:               var(--c-bg);
+  --t-surface:          var(--c-s1);
+  --t-surface2:         var(--c-s2);
+  --t-surface3:         var(--c-s3);
+  --t-border:           var(--c-bd);
+  --t-border2:          var(--c-bd2);
+  --t-text:             var(--c-txt);
+  --t-text2:            var(--c-txt2);
+  --t-text3:            var(--c-txt3);
+  --t-primary:          var(--c-lime);
+  --t-primary2:         var(--c-lime2);
+  --t-danger:           var(--c-red);
+  --t-info:             var(--c-blue);
+  --t-warn:             var(--c-amber);
+  --t-nav-active-bg:    #fff7ed;
+  --t-nav-active-text:  #ea580c;
+  --t-nav-hover-bg:     #f8fafc;
+  --t-primary-btn-bg:   #ea580c;
   --t-primary-btn-text: #ffffff;
-  --t-danger-btn-bg: #ef4444;
-  --t-input-bg: #ffffff;
+  --t-danger-btn-bg:    #ef4444;
+  --t-input-bg:         #ffffff;
 
-  --f-disp:    'Outfit', sans-serif;
-  --f-body:    'Outfit', sans-serif;
-  --f-mono:    'Outfit', sans-serif;
+  --f-disp: 'Inter', sans-serif;
+  --f-body: 'Inter', sans-serif;
+  --f-mono: 'DM Mono', monospace;
 }
 
 /* ─── DARK THEME ─────────────────────────────────────────── */
 [data-theme="dark"] {
-  --c-bg:      #0c0d0f;
-  --c-s1:      #131417;
-  --c-s2:      #1b1d21;
-  --c-s3:      #242629;
-  --c-bd:      #2e3035;
-  --c-bd2:     #3d4047;
-  --c-lime:    #c9f731;
-  --c-lime2:   #9bbf1e;
-  --c-lime3:   #e8ffa0;
-  --c-red:     #ff4429;
-  --c-amber:   #f5a623;
-  --c-blue:    #4a9eff;
-  --c-txt:     #edeef0;
-  --c-txt2:    #8b8f9a;
-  --c-txt3:    #54575f;
-  --c-accent:  #c9f731;
-  --c-accent2: #ff4429;
+  --c-bg:      #0d1117;
+  --c-s1:      #111827;
+  --c-s2:      #1f2937;
+  --c-s3:      #374151;
+  --c-bd:      #1f2937;
+  --c-bd2:     #374151;
+  --c-lime:    #f97316;
+  --c-lime2:   #ea580c;
+  --c-lime3:   #431407;
+  --c-red:     #f87171;
+  --c-amber:   #fbbf24;
+  --c-blue:    #60a5fa;
+  --c-txt:     #f9fafb;
+  --c-txt2:    #9ca3af;
+  --c-txt3:    #4b5563;
+  --c-accent:  #f97316;
+  --c-accent2: #f87171;
 
-  /* Semantic aliases for desktop compat */
-  --t-bg:      var(--c-bg);
-  --t-surface: var(--c-s1);
-  --t-surface2: var(--c-s2);
-  --t-surface3: var(--c-s3);
-  --t-border:  var(--c-bd);
-  --t-border2: var(--c-bd2);
-  --t-text:    var(--c-txt);
-  --t-text2:   var(--c-txt2);
-  --t-text3:   var(--c-txt3);
-  --t-primary: var(--c-lime);
-  --t-primary2: var(--c-lime2);
-  --t-danger:  var(--c-red);
-  --t-info:    var(--c-blue);
-  --t-warn:    var(--c-amber);
-  --t-nav-active-bg: rgba(201,247,49,0.08);
-  --t-nav-active-text: var(--c-lime);
-  --t-nav-hover-bg: rgba(255,255,255,0.04);
-  --t-primary-btn-bg: var(--c-lime);
-  --t-primary-btn-text: #0c0d0f;
-  --t-danger-btn-bg: var(--c-red);
-  --t-input-bg: var(--c-s2);
+  /* Semantic aliases */
+  --t-bg:               var(--c-bg);
+  --t-surface:          var(--c-s1);
+  --t-surface2:         var(--c-s2);
+  --t-surface3:         var(--c-s3);
+  --t-border:           var(--c-bd);
+  --t-border2:          var(--c-bd2);
+  --t-text:             var(--c-txt);
+  --t-text2:            var(--c-txt2);
+  --t-text3:            var(--c-txt3);
+  --t-primary:          var(--c-lime);
+  --t-primary2:         var(--c-lime2);
+  --t-danger:           var(--c-red);
+  --t-info:             var(--c-blue);
+  --t-warn:             var(--c-amber);
+  --t-nav-active-bg:    rgba(249,115,22,0.12);
+  --t-nav-active-text:  #f97316;
+  --t-nav-hover-bg:     rgba(255,255,255,0.04);
+  --t-primary-btn-bg:   #f97316;
+  --t-primary-btn-text: #ffffff;
+  --t-danger-btn-bg:    #f87171;
+  --t-input-bg:         var(--c-s2);
 
-  --f-disp:    'Outfit', sans-serif;
-  --f-body:    'Outfit', sans-serif;
-  --f-mono:    'Outfit', sans-serif;
+  --f-disp: 'Inter', sans-serif;
+  --f-body: 'Inter', sans-serif;
+  --f-mono: 'DM Mono', monospace;
+}
+
+/* ─── CONSTRUCTION THEME (dark sidebar, amber-orange accents) ─── */
+[data-theme="construction"] {
+  --c-bg:      #f5f5f4;
+  --c-s1:      #ffffff;
+  --c-s2:      #fafaf9;
+  --c-s3:      #f0f0ee;
+  --c-bd:      #e7e5e4;
+  --c-bd2:     #d6d3d1;
+  --c-lime:    #d97706;
+  --c-lime2:   #b45309;
+  --c-lime3:   #fef3c7;
+  --c-red:     #dc2626;
+  --c-amber:   #d97706;
+  --c-blue:    #2563eb;
+  --c-txt:     #1c1917;
+  --c-txt2:    #57534e;
+  --c-txt3:    #a8a29e;
+  --c-accent:  #d97706;
+  --c-accent2: #dc2626;
+
+  /* Semantic aliases */
+  --t-bg:               var(--c-bg);
+  --t-surface:          var(--c-s1);
+  --t-surface2:         var(--c-s2);
+  --t-surface3:         var(--c-s3);
+  --t-border:           var(--c-bd);
+  --t-border2:          var(--c-bd2);
+  --t-text:             var(--c-txt);
+  --t-text2:            var(--c-txt2);
+  --t-text3:            var(--c-txt3);
+  --t-primary:          var(--c-lime);
+  --t-primary2:         var(--c-lime2);
+  --t-danger:           var(--c-red);
+  --t-info:             var(--c-blue);
+  --t-warn:             var(--c-amber);
+  --t-nav-active-bg:    #fef9ee;
+  --t-nav-active-text:  #d97706;
+  --t-nav-hover-bg:     #fafaf9;
+  --t-primary-btn-bg:   #d97706;
+  --t-primary-btn-text: #ffffff;
+  --t-danger-btn-bg:    #dc2626;
+  --t-input-bg:         #ffffff;
+
+  --f-disp: 'Inter', sans-serif;
+  --f-body: 'Inter', sans-serif;
+  --f-mono: 'DM Mono', monospace;
 }
 
 /* ─── Global body theming ─────────────────────────────────── */
 body {
   background-color: var(--t-bg) !important;
   color: var(--t-text) !important;
+  font-family: var(--f-body);
   transition: background-color 0.25s ease, color 0.25s ease;
 }
 
-/* ─── Base utility for Cyber Theme container ──────────────── */
+/* ─── Scrollbar ───────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--t-border2);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--t-text3); }
+
+/* ─── Base utility wrapper ────────────────────────────────── */
 .cyber-wrap * { box-sizing: border-box; }
 
 .cyber-wrap {
@@ -116,19 +174,19 @@ body {
   min-height: 100vh;
 }
 
-/* ─── Grid background ─────────────────────────────────────── */
+/* ─── Grid background (subtle) ───────────────────────────── */
 .cyber-grid-bg::before {
   content: '';
   position: fixed; inset: 0;
   background-image:
-    linear-gradient(rgba(201,247,49,.018) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(201,247,49,.018) 1px, transparent 1px);
-  background-size: 32px 32px;
+    linear-gradient(rgba(234,88,12,.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(234,88,12,.015) 1px, transparent 1px);
+  background-size: 40px 40px;
   pointer-events: none;
   z-index: 0;
 }
 
-/* ─── Common Section Wrapper ──────────────────────────────── */
+/* ─── Section wrappers ────────────────────────────────────── */
 .ht-sec { padding: 0 16px; position: relative; z-index: 1; margin-bottom: 24px; }
 .ht-sec-head {
   display: flex;
@@ -141,81 +199,96 @@ body {
   align-items: center;
   gap: 8px;
   font-family: var(--f-mono);
-  font-size: 9px;
-  letter-spacing: .28em;
+  font-size: 10px;
+  letter-spacing: .15em;
   color: var(--t-text2);
   text-transform: uppercase;
+  font-weight: 600;
 }
 .ht-sec-label::before {
   content: '';
-  width: 3px; height: 3px;
+  width: 3px; height: 14px;
   background: var(--t-primary);
-  border-radius: 50%;
+  border-radius: 2px;
 }
 .ht-sec-right { display: flex; gap: 4px; }
 .ht-ctrl {
-  font-family: var(--f-mono);
-  font-size: 8px;
-  letter-spacing: .12em;
-  text-transform: uppercase;
+  font-family: var(--f-body);
+  font-size: 12px;
+  font-weight: 500;
   background: transparent;
   border: 1px solid var(--t-border);
   color: var(--t-text2);
-  padding: 5px 9px;
+  padding: 6px 12px;
   cursor: pointer;
-  border-radius: 2px;
-  transition: border-color .15s, color .15s;
+  border-radius: 6px;
+  transition: border-color .15s, color .15s, background .15s;
 }
-.ht-ctrl:hover { border-color: var(--t-primary); color: var(--t-primary); }
+.ht-ctrl:hover {
+  border-color: var(--t-primary);
+  color: var(--t-primary);
+  background: color-mix(in srgb, var(--t-primary) 6%, transparent);
+}
 
-/* ─── Common Empty State ──────────────────────────────────── */
-.ht-empty { padding: 40px 20px; border: 1px dashed var(--t-border); text-align: center; border-radius: 2px; }
-.ht-empty p { font-family: var(--f-mono); font-size: 9px; letter-spacing: .25em; color: var(--t-text2); text-transform: uppercase; }
+/* ─── Empty state ─────────────────────────────────────────── */
+.ht-empty {
+  padding: 40px 20px;
+  border: 1px dashed var(--t-border);
+  text-align: center;
+  border-radius: 8px;
+}
+.ht-empty p {
+  font-size: 13px;
+  color: var(--t-text3);
+}
 
-/* ─── Global Animations ───────────────────────────────────── */
+/* ─── Animations ──────────────────────────────────────────── */
 @keyframes htPulse {
-  0%,100% { box-shadow: 0 0 0 0 rgba(201,247,49,.5) }
-  50%      { box-shadow: 0 0 0 5px rgba(201,247,49,0) }
+  0%,100% { box-shadow: 0 0 0 0 rgba(234,88,12,.4) }
+  50%      { box-shadow: 0 0 0 6px rgba(234,88,12,0) }
 }
 @keyframes htTick { from { transform: translateX(0) } to { transform: translateX(-50%) } }
 @keyframes htFadeUp { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:translateY(0) } }
 @keyframes htSlideIn { from { opacity:0; transform:translateX(-6px) } to { opacity:1; transform:translateX(0) } }
-@keyframes htGPulse { 0%,100% { opacity: .4 } 50% { opacity: .9 } }
+@keyframes htGPulse { 0%,100% { opacity:.4 } 50% { opacity:.9 } }
 @keyframes htGSpin  { to { transform: rotate(360deg) } }
 @keyframes animate-fadeIn { from { opacity:0; transform:translateY(4px) } to { opacity:1; transform:translateY(0) } }
 
 .animate-fadeIn { animation: animate-fadeIn 0.2s ease forwards; }
 
-/* ─── Shared Utilities ────────────────────────────────────── */
+/* ─── Shared card ─────────────────────────────────────────── */
 .cyber-card {
   background: var(--t-surface);
   border: 1px solid var(--t-border);
-  border-radius: 3px;
-  padding: 16px;
+  border-radius: 10px;
+  padding: 20px;
   position: relative;
   overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,.04);
 }
 
-/* Theme-aware input */
+/* ─── Theme-aware input ───────────────────────────────────── */
 .cyber-input {
   background: var(--t-input-bg) !important;
   border: 1px solid var(--t-border) !important;
   color: var(--t-text) !important;
-  border-radius: 0.75rem;
-  padding: 0.75rem;
+  border-radius: 8px;
+  padding: 0.625rem 0.75rem;
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  font-size: 14px;
 }
 .cyber-input:focus {
   border-color: var(--t-primary) !important;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--t-primary) 15%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--t-primary) 12%, transparent);
 }
 
-/* Theme-aware select */
+/* ─── Theme-aware select ──────────────────────────────────── */
 .cyber-select {
   background: var(--t-input-bg) !important;
   border: 1px solid var(--t-border) !important;
   color: var(--t-text) !important;
+  border-radius: 8px;
 }
 
 /* ─── ThemeToggle button ──────────────────────────────────── */
@@ -237,5 +310,5 @@ body {
 .theme-toggle-btn:hover {
   border-color: var(--t-primary);
   color: var(--t-primary);
-  background: var(--t-surface3);
+  background: color-mix(in srgb, var(--t-primary) 8%, transparent);
 }

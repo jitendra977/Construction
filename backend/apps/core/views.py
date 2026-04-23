@@ -9,8 +9,8 @@ from apps.accounts.permissions import IsSystemAdmin
 
 from apps.tasks.models import Task
 from apps.tasks.serializers import TaskSerializer
-from apps.finance.models import Expense, BudgetCategory, FundingSource, PhaseBudgetAllocation
-from apps.finance.serializers import ExpenseSerializer, BudgetCategorySerializer, FundingSourceSerializer, PhaseBudgetAllocationSerializer
+from apps.finance.models import Expense, BudgetCategory, FundingSource, PhaseBudgetAllocation, Account, Bill, PurchaseOrder
+from apps.finance.serializers import ExpenseSerializer, BudgetCategorySerializer, FundingSourceSerializer, PhaseBudgetAllocationSerializer, AccountSerializer, BillSerializer, PurchaseOrderSerializer
 from apps.resources.models import Material, Contractor, Supplier, MaterialTransaction, Document
 from apps.resources.serializers import MaterialSerializer, ContractorSerializer, SupplierSerializer, MaterialTransactionSerializer, DocumentSerializer
 from apps.permits.models import PermitStep
@@ -45,10 +45,19 @@ class DashboardDataView(APIView):
     def get(self, request):
         """
         Unified endpoint to fetch all dashboard data in a single request.
-        Optimized with select_related and prefetch_related where possible.
+        Accepts optional ?project_id=<id> to load a specific project.
         """
-        project = HouseProject.objects.first()
-        phases = ConstructionPhase.objects.all()
+        project_id = request.query_params.get('project_id')
+        if project_id:
+            project = HouseProject.objects.filter(pk=project_id).first()
+        else:
+            project = HouseProject.objects.first()
+
+        # Filter phases by project if project is set
+        if project:
+            phases = ConstructionPhase.objects.filter(project=project)
+        else:
+            phases = ConstructionPhase.objects.all()
         rooms = Room.objects.all()
         tasks = Task.objects.prefetch_related('updates', 'media').all()
         expenses = Expense.objects.select_related('category', 'phase', 'supplier', 'contractor', 'funding_source').prefetch_related('payments').all()
@@ -68,6 +77,31 @@ class DashboardDataView(APIView):
             user_guides = UserGuide.objects.filter(is_active=True).prefetch_related('steps', 'faqs')
         user_guide_progress = UserGuideProgress.objects.filter(user=request.user)
 
+        # -----------------------------------------------------
+        # Finance Summary (Double-Entry Aggregation)
+        # -----------------------------------------------------
+        accounts = Account.objects.all()
+        # Evaluate balances in memory to avoid N+1 queries if we already fetched them, or just use properties
+        # For efficiency, computing in Python since Account count is very low.
+        total_assets = sum(acc.balance for acc in accounts if acc.account_type == 'ASSET')
+        total_liabilities = sum(acc.balance for acc in accounts if acc.account_type == 'LIABILITY')
+        total_equity = sum(acc.balance for acc in accounts if acc.account_type == 'EQUITY')
+        total_expenses = sum(acc.balance for acc in accounts if acc.account_type == 'EXPENSE')
+        total_revenue = sum(acc.balance for acc in accounts if acc.account_type == 'REVENUE')
+
+        finance_summary = {
+            'total_assets': total_assets,
+            'total_liabilities': total_liabilities,
+            'total_equity': total_equity,
+            'total_expenses': total_expenses,
+            'total_revenue': total_revenue,
+        }
+
+        # We also pass all accounts back to easily map for forms on the dashboard if needed
+        # Or bills/purchases to keep the main view fully loaded (if performance is okay, we keep it simple for now).
+        # To avoid explosive payload size, we don't send *all* bills and Journal entries through DashboardDataView,
+        # but we send Accounts so the UI has them cached.
+        
         return Response({
             'project': HouseProjectSerializer(project).data if project else None,
             'phases': ConstructionPhaseSerializer(phases, many=True).data,
@@ -85,6 +119,8 @@ class DashboardDataView(APIView):
             'phaseBudgetAllocations': PhaseBudgetAllocationSerializer(phase_allocations, many=True).data,
             'userGuides': UserGuideSerializer(user_guides, many=True).data,
             'userGuideProgress': UserGuideProgressSerializer(user_guide_progress, many=True).data,
+            'accounts': AccountSerializer(accounts, many=True).data,
+            'finance_summary': finance_summary,
         })
 
 class RoomViewSet(viewsets.ModelViewSet):

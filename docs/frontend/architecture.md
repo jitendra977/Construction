@@ -64,10 +64,11 @@ The Manage section is further subdivided into three logical pillars:
 *   `Manage > Structure (संरचना)`: Defining the building's physical layout (Floors, Rooms).
 
 #### 💰 Financial Control
-*   `Manage > Overview (सारांश)`: High-level financial analytics and debt-to-equity ratios.
-*   `Manage > Funding (लगानी)`: Where the money comes from (Bank Loans, Personal Savings).
-*   `Manage > Categories (शिर्षक)`: Setting limits for specific costs (e.g., "Rs. 10 Lakh for Cement").
-*   `Manage > Expenses & Payments (खर्च र भुक्तानी)`: A unified financial hub for logging expenses and tracking payment history with shared logic and automated receipts.
+*   `Manage > Finance > Accounts`: Full Chart of Accounts management with real-time General Ledger balances.
+*   `Manage > Finance > Ledger`: A double-entry transaction journal for auditing all debits and credits across the project.
+*   `Manage > Finance > Bills`: Accounts Payable (AP) management for tracking and settling vendor liabilities.
+*   `Manage > Finance > Funding`: Capital sourcing and debt tracking (Loans, Own Capital).
+*   `Manage > Overview`: Real-time liquidity analysis (Available Cash vs. Total Payables) powered by the `finance_summary` aggregation.
 
 #### 📦 Resource & Inventory
 *   `Manage > Suppliers (सप्लायर्स)`: Catalog of hardware stores and material vendors.
@@ -88,6 +89,12 @@ To reduce financial clutter, the frontend implements a **Smart History Merger**.
 A context-aware orchestration component used in both Desktop and Mobile experiences:
 - **Entity Detection**: Automatically switches logic between Contractors (Labor) and Suppliers (Materials).
 - **Embedded Intelligence**: Displays bank details for suppliers and triggers automated PDF receipts via the backend.
+
+### 3. Interactive GL & Treasury Suite
+New specialized modals for deep financial management:
+- **Bank Transfer Modal**: Orchestrates asset relocation between bank accounts with automated double-entry posting.
+- **Journal Entry Modal**: Features real-time balance validation (Debits must equal Credits) before allowing a manual post to the ledger.
+- **Liability (Bill) Modal**: Allows recording of vendor invoices without immediate cash outflow, correctly establishing a liability in the General Ledger.
 
 ---
 

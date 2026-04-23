@@ -1,5 +1,14 @@
 from django.db import models
 
+# Re-export BoQ models so Django discovers them via apps.estimator
+from .boq_models import (  # noqa: F401
+    BoQTemplate,
+    BoQTemplateItem,
+    GeneratedBoQ,
+    GeneratedBoQItem,
+)
+
+
 class ConstructionRate(models.Model):
     CATEGORY_CHOICES = [
         ('MATERIAL', 'Material'),

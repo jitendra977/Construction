@@ -20,8 +20,9 @@ The HCMS frontend is designed with a centralized state architecture that orchest
 
 ### 1. Core Orchestration (`App.jsx` & `Context`)
 - **`App.jsx`**: Acts as the application's skeletal framework. It wraps the entire app in `ThemeProvider` and `ConstructionProvider`, ensuring that every component has access to global settings and construction data.
-- **`ConstructionContext.jsx`**: The "brain" of the frontend. It consumes multiple services (`dashboardService`, `constructionService`, `permitService`) to fetch data from the API and holds it in a unified state (`dashboardData`). It manages:
+- **`ConstructionContext.jsx`**: The "brain" of the frontend. It consumes multiple services (`financeService`, `dashboardService`, `constructionService`, `permitService`) to fetch data from the API and holds it in a unified state (`dashboardData`). It manages:
   - User authentication and profile synchronization.
+  - **Financial Intelligence**: Aggregates the `finance_summary` from the General Ledger. `budgetStats` now prioritizes live Asset and Liability balances over legacy list-based calculations.
   - Global construction metrics (Overall Progress, Total Spent, Days Elapsed).
   - Business logic computations (e.g., Currency formatting, Budget health calculations).
 

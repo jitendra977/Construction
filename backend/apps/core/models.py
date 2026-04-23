@@ -156,7 +156,8 @@ class ConstructionPhase(models.Model):
     ]
 
     # Pre-defined Nepali phases will be seeded
-    name = models.CharField(max_length=100, unique=True, help_text="e.g., Jag Khanne, DPC, Piller Thadaune, Slab Dhalaan")
+    project = models.ForeignKey('core.HouseProject', on_delete=models.CASCADE, related_name='phases', null=True, blank=True)
+    name = models.CharField(max_length=100, help_text="e.g., Jag Khanne, DPC, Piller Thadaune, Slab Dhalaan")
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
@@ -188,6 +189,7 @@ class ConstructionPhase(models.Model):
 
     class Meta:
         ordering = ['order']
+        unique_together = [('project', 'name')]
 
     def __str__(self):
         return f"{self.order}. {self.name}"
@@ -199,7 +201,10 @@ class Floor(models.Model):
     name = models.CharField(max_length=100, help_text="e.g., Ground Floor, First Floor")
     level = models.IntegerField(default=0, help_text="Level for sorting (0=Ground, 1=First, etc.)")
     image = models.ImageField(upload_to='floor_plans/', null=True, blank=True)
-    
+    # 2D plan dimensions (exterior, in cm)
+    plan_width_cm  = models.IntegerField(null=True, blank=True, help_text="Building exterior width in cm")
+    plan_depth_cm  = models.IntegerField(null=True, blank=True, help_text="Building exterior depth in cm")
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -223,8 +228,13 @@ class Room(models.Model):
     floor = models.ForeignKey(Floor, on_delete=models.CASCADE, related_name='rooms')
     area_sqft = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='NOT_STARTED')
-    
     budget_allocation = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+
+    # 2D plan layout (all in cm, from building outer top-left corner)
+    width_cm = models.IntegerField(null=True, blank=True, help_text="Room interior width in cm")
+    depth_cm = models.IntegerField(null=True, blank=True, help_text="Room interior depth in cm")
+    pos_x    = models.IntegerField(null=True, blank=True, help_text="X position from building left (cm)")
+    pos_y    = models.IntegerField(null=True, blank=True, help_text="Y position from building top (cm)")
 
     def __str__(self):
         return f"{self.name} ({self.floor.name})"

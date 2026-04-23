@@ -48,10 +48,24 @@ INSTALLED_APPS = [
     'apps.core',
     'apps.tasks',
     'apps.finance',
+    'apps.accounting',
     'apps.resources',
     'apps.estimator',
     'apps.permits',
+    'apps.photo_intel',
+    'apps.analytics',
+    'apps.assistant',
 ]
+
+# ─── Photo Intelligence (HCMS-2) ──────────────────────────────────────
+# Swap to 'google_vision' or 'openai_vision' to call an external vision
+# API. Falls back to the heuristic analyzer automatically when credentials
+# are missing. PHOTO_INTEL_SYNC=True makes the post-save signal run the
+# analyzer inline (used by tests).
+PHOTO_INTEL_ANALYZER = config('PHOTO_INTEL_ANALYZER', default='heuristic')
+PHOTO_INTEL_SYNC = config('PHOTO_INTEL_SYNC', default=False, cast=bool)
+GOOGLE_VISION_API_KEY = config('GOOGLE_VISION_API_KEY', default='')
+OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
