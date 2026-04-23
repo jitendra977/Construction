@@ -3,9 +3,13 @@ from .models import Task, TaskMedia, TaskUpdate
 
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
-    list_display = ('title', 'phase', 'room', 'assigned_to', 'status', 'priority', 'due_date')
-    list_filter = ('status', 'priority', 'phase')
+    list_display = ('title', 'project_name', 'phase', 'room', 'assigned_to', 'status', 'priority', 'due_date')
+    list_filter = ('phase__project', 'status', 'priority', 'phase')
     search_fields = ('title', 'description')
+
+    def project_name(self, obj):
+        return obj.phase.project.name if obj.phase and obj.phase.project else "-"
+    project_name.short_description = "Project"
 
 @admin.register(TaskMedia)
 class TaskMediaAdmin(admin.ModelAdmin):

@@ -98,7 +98,7 @@ export const ConstructionProvider = ({ children }) => {
             if (!silent) setLoading(true);
             const [data, overview, projectList] = await Promise.all([
                 dashboardService.getDashboardData(resolvedProjectId),
-                financeService.getOverview(),
+                financeService.getOverview(resolvedProjectId),
                 dashboardService.getProjects(),
             ]);
             setDashboardData(data);

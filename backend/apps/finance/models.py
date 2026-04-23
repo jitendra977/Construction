@@ -46,6 +46,10 @@ class Account(models.Model):
     )
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
+    project = models.ForeignKey(
+        "core.HouseProject", on_delete=models.CASCADE, related_name="accounts",
+        null=True, blank=True, help_text="Scope this account to a specific project"
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -121,6 +125,10 @@ class JournalEntry(models.Model):
     description = models.CharField(max_length=255)
     source = models.CharField(max_length=20, choices=ENTRY_SOURCE_CHOICES, default="MANUAL")
     reference_id = models.CharField(max_length=100, blank=True)
+    project = models.ForeignKey(
+        "core.HouseProject", on_delete=models.CASCADE, related_name="journal_entries",
+        null=True, blank=True
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -166,6 +174,10 @@ class BudgetCategory(models.Model):
     associated_account = models.ForeignKey(
         Account, on_delete=models.SET_NULL, null=True, blank=True,
         related_name="budget_categories",
+    )
+    project = models.ForeignKey(
+        "core.HouseProject", on_delete=models.CASCADE, related_name="budget_categories",
+        null=True, blank=True
     )
 
     class Meta:
@@ -244,6 +256,10 @@ class FundingSource(models.Model):
         related_name="funding_sources",
         help_text="The GL Asset account where this money is held"
     )
+    project = models.ForeignKey(
+        "core.HouseProject", on_delete=models.CASCADE, related_name="funding_sources",
+        null=True, blank=True
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -300,12 +316,16 @@ class PurchaseOrder(models.Model):
 
     po_number = models.CharField(max_length=50, unique=True)
     date = models.DateField()
-    supplier = models.ForeignKey("resources.Supplier", on_delete=models.SET_NULL, null=True, blank=True, related_name="purchase_orders")
+    supplier = models.ForeignKey("accounting.Vendor", on_delete=models.SET_NULL, null=True, blank=True, related_name="legacy_purchase_orders")
     contractor = models.ForeignKey("resources.Contractor", on_delete=models.SET_NULL, null=True, blank=True, related_name="purchase_orders")
     phase = models.ForeignKey(ConstructionPhase, on_delete=models.SET_NULL, null=True, blank=True)
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=ZERO)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="DRAFT")
     notes = models.TextField(blank=True)
+    project = models.ForeignKey(
+        "core.HouseProject", on_delete=models.CASCADE, related_name="purchase_orders",
+        null=True, blank=True
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -325,7 +345,7 @@ class Bill(models.Model):
 
     bill_number = models.CharField(max_length=50, blank=True)
     purchase_order = models.ForeignKey(PurchaseOrder, on_delete=models.SET_NULL, null=True, blank=True, related_name="bills")
-    supplier = models.ForeignKey("resources.Supplier", on_delete=models.SET_NULL, null=True, blank=True, related_name="bills")
+    supplier = models.ForeignKey("accounting.Vendor", on_delete=models.SET_NULL, null=True, blank=True, related_name="legacy_bills")
     contractor = models.ForeignKey("resources.Contractor", on_delete=models.SET_NULL, null=True, blank=True, related_name="bills")
     date_issued = models.DateField()
     due_date = models.DateField()
@@ -334,6 +354,10 @@ class Bill(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="UNPAID")
     journal_entry = models.OneToOneField(JournalEntry, on_delete=models.SET_NULL, null=True, blank=True, related_name="bill_source")
     notes = models.TextField(blank=True)
+    project = models.ForeignKey(
+        "core.HouseProject", on_delete=models.CASCADE, related_name="bills",
+        null=True, blank=True
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -394,6 +418,10 @@ class BillPayment(models.Model):
     method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES)
     reference_id = models.CharField(max_length=100, blank=True)
     journal_entry = models.OneToOneField(JournalEntry, on_delete=models.SET_NULL, null=True, blank=True, related_name="bill_payment_source")
+    project = models.ForeignKey(
+        "core.HouseProject", on_delete=models.CASCADE, related_name="bill_payments",
+        null=True, blank=True
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -415,6 +443,10 @@ class BankTransfer(models.Model):
     reference_id = models.CharField(max_length=100, blank=True)
     notes = models.TextField(blank=True)
     journal_entry = models.OneToOneField(JournalEntry, on_delete=models.SET_NULL, null=True, blank=True, related_name="bank_transfer_source")
+    project = models.ForeignKey(
+        "core.HouseProject", on_delete=models.CASCADE, related_name="bank_transfers",
+        null=True, blank=True
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -449,7 +481,7 @@ class Expense(models.Model):
     quantity = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     unit_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
 
-    supplier = models.ForeignKey("resources.Supplier", on_delete=models.SET_NULL, null=True, blank=True, related_name="expenses")
+    supplier = models.ForeignKey("accounting.Vendor", on_delete=models.SET_NULL, null=True, blank=True, related_name="expenses")
     contractor = models.ForeignKey("resources.Contractor", on_delete=models.SET_NULL, null=True, blank=True, related_name="expenses")
     funding_source = models.ForeignKey(FundingSource, on_delete=models.SET_NULL, null=True, blank=True, related_name="expenses")
     task = models.ForeignKey("tasks.Task", on_delete=models.SET_NULL, null=True, blank=True, related_name="expenses")
@@ -462,6 +494,10 @@ class Expense(models.Model):
     is_inventory_usage = models.BooleanField(
         default=False,
         help_text="Internal cost allocation — excluded from cashflow to avoid double counting.",
+    )
+    project = models.ForeignKey(
+        "core.HouseProject", on_delete=models.CASCADE, related_name="expenses",
+        null=True, blank=True
     )
     created_at = models.DateTimeField(auto_now_add=True)
     history = HistoricalRecords()
@@ -516,6 +552,10 @@ class Payment(models.Model):
     reference_id = models.CharField(max_length=100, blank=True)
     notes = models.TextField(blank=True)
     proof_photo = models.ImageField(upload_to="payments/proofs/", null=True, blank=True)
+    project = models.ForeignKey(
+        "core.HouseProject", on_delete=models.CASCADE, related_name="payments",
+        null=True, blank=True
+    )
     history = HistoricalRecords()
 
     class Meta:

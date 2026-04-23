@@ -10,7 +10,7 @@ class ExpenseFilter(filters.FilterSet):
 
     class Meta:
         model = Expense
-        fields = ["category", "phase"]
+        fields = ["category", "phase", "project"]
 
     def filter_status(self, queryset, name, value):
         value = (value or "").upper()

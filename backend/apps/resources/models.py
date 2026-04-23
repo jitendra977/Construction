@@ -2,42 +2,7 @@ from django.db import models
 from django.conf import settings
 from decimal import Decimal
 
-class Supplier(models.Model):
-    """
-    Suppliers for materials (e.g., Hardware shops, Brick kilns).
-    """
-    name = models.CharField(max_length=200)
-    contact_person = models.CharField(max_length=100, blank=True)
-    email = models.EmailField(null=True, blank=True)
-    phone = models.CharField(max_length=20)
-    address = models.TextField(null=True, blank=True)
-    photo = models.ImageField(upload_to='suppliers/', null=True, blank=True)
-    is_active = models.BooleanField(default=True)
-    category = models.CharField(max_length=100, help_text="e.g., Civil Materials, Electrical, Plumbing")
-    
-    # Advanced Fields
-    pan_number = models.CharField(max_length=20, blank=True, verbose_name="PAN/VAT Number")
-    bank_name = models.CharField(max_length=100, blank=True)
-    account_number = models.CharField(max_length=50, blank=True)
-    branch = models.CharField(max_length=100, blank=True)
-    
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
 
-    @property
-    def total_billed(self):
-        return sum(exp.amount for exp in self.expenses.all())
-
-    @property
-    def total_paid(self):
-        return sum(exp.total_paid for exp in self.expenses.all())
-
-    @property
-    def balance_due(self):
-        return self.total_billed - self.total_paid
-
-    def __str__(self):
-        return self.name
 
 class Contractor(models.Model):
     """
@@ -81,6 +46,10 @@ class Contractor(models.Model):
     rate = models.DecimalField(max_digits=10, decimal_places=2, help_text="Contract Amount", null=True, blank=True)
     daily_wage = models.DecimalField(max_digits=10, decimal_places=2, help_text="Daily Wage (Jyaala) for laborers", null=True, blank=True)
     is_active = models.BooleanField(default=True)
+    project = models.ForeignKey(
+        'core.HouseProject', on_delete=models.CASCADE, related_name='contractors',
+        null=True, blank=True
+    )
     
     joined_date = models.DateField(auto_now_add=True)
 
@@ -142,9 +111,13 @@ class Material(models.Model):
     name = models.CharField(max_length=100, help_text="e.g., OPC Cement, Baluwa (Sand), Gitti (Aggregates)")
     category = models.CharField(max_length=50, blank=True, help_text="e.g., Civil, Plumbing, Electrical")
     unit = models.CharField(max_length=10, choices=UNIT_CHOICES)
-    supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, null=True, blank=True, related_name='materials')
+    supplier = models.ForeignKey('accounting.Vendor', on_delete=models.SET_NULL, null=True, blank=True, related_name='materials')
     budget_category = models.ForeignKey('finance.BudgetCategory', on_delete=models.SET_NULL, null=True, blank=True, related_name='materials')
     image = models.ImageField(upload_to='materials/', null=True, blank=True)
+    project = models.ForeignKey(
+        'core.HouseProject', on_delete=models.CASCADE, related_name='materials',
+        null=True, blank=True
+    )
     
     quantity_estimated = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     quantity_purchased = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -227,7 +200,7 @@ class MaterialTransaction(models.Model):
     date = models.DateField()
     
     # Related entities
-    supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, null=True, blank=True, related_name='material_transactions')
+    supplier = models.ForeignKey('accounting.Vendor', on_delete=models.SET_NULL, null=True, blank=True, related_name='material_transactions')
     expense = models.ForeignKey('finance.Expense', on_delete=models.SET_NULL, null=True, blank=True, related_name='material_transactions')
     funding_source = models.ForeignKey('finance.FundingSource', on_delete=models.SET_NULL, null=True, blank=True, related_name='material_transactions')
     room = models.ForeignKey('core.Room', on_delete=models.SET_NULL, null=True, blank=True, related_name='material_usage')

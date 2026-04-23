@@ -43,260 +43,379 @@ const StatusBadge = ({ status }) => {
 const FLOOR_COLORS = ['#ea580c', '#3b82f6', '#8b5cf6', '#10b981'];
 const floorColor = (level) => FLOOR_COLORS[level % FLOOR_COLORS.length];
 
-/* ── Room Detail Panel — Design Inspector ────────────────────────────────── */
-const RoomDetailPanel = ({ room, floorName, floorColor: fc, onClose, onEdit, onDelete }) => {
-    const st = STATUS[room?.status] || STATUS.NOT_STARTED;
+/* ── shared polygon helpers ──────────────────────────────────────────────── */
+const polyArea = (pts) => {
+    if (!pts || pts.length < 3) return 0;
+    let a = 0;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++)
+        a += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
+    return Math.abs(a) / 2;
+};
+const polyCentroid = (pts) => {
+    if (!pts || !pts.length) return { x: 0, y: 0 };
+    return { x: pts.reduce((s,p)=>s+p.x,0)/pts.length, y: pts.reduce((s,p)=>s+p.y,0)/pts.length };
+};
+const rectToPoly = (room) => {
+    const x=room.pos_x||0, y=room.pos_y||0, w=room.width_cm||200, h=room.depth_cm||200;
+    return [{x,y},{x:x+w,y},{x:x+w,y:y+h},{x,y:y+h}];
+};
+const SHAPE_PRESETS = {
+    L: (r) => { const x=r.pos_x||0,y=r.pos_y||0,w=r.width_cm||300,h=r.depth_cm||300;
+        return [{x,y},{x:x+w,y},{x:x+w,y:y+Math.round(h*.45)},{x:x+Math.round(w*.55),y:y+Math.round(h*.45)},{x:x+Math.round(w*.55),y:y+h},{x,y:y+h}]; },
+    U: (r) => { const x=r.pos_x||0,y=r.pos_y||0,w=r.width_cm||400,h=r.depth_cm||300,t=Math.round(w*.28),mid=Math.round(h*.55);
+        return [{x,y},{x:x+w,y},{x:x+w,y:y+h},{x:x+w-t,y:y+h},{x:x+w-t,y:y+mid},{x:x+t,y:y+mid},{x:x+t,y:y+h},{x,y:y+h}]; },
+    T: (r) => { const x=r.pos_x||0,y=r.pos_y||0,w=r.width_cm||400,h=r.depth_cm||300,arm=Math.round(w*.3),top=Math.round(h*.38);
+        return [{x,y},{x:x+w,y},{x:x+w,y:y+top},{x:x+Math.round(w/2)+arm,y:y+top},{x:x+Math.round(w/2)+arm,y:y+h},{x:x+Math.round(w/2)-arm,y:y+h},{x:x+Math.round(w/2)-arm,y:y+top},{x,y:y+top}]; },
+};
+
+/* ── Room Inspector Panel — always-editable ──────────────────────────────── */
+const RoomDetailPanel = ({ room, floorName, floorColor: fc, onClose, onDelete, onRoomSaved }) => {
+    // ── local editable form ────────────────────────────────────────────────
+    const [form, setForm] = useState({
+        name:              room.name || '',
+        status:            room.status || 'NOT_STARTED',
+        width_cm:          room.width_cm  || '',
+        depth_cm:          room.depth_cm  || '',
+        pos_x:             room.pos_x  ?? 0,
+        pos_y:             room.pos_y  ?? 0,
+        budget_allocation: room.budget_allocation || '',
+        polygon_points:    room.polygon_points || null,
+    });
+    const [saving, setSaving]     = useState(false);
+    const [savedFlash, setSavedFlash] = useState(false);
+    const timerRef = useRef(null);
+
+    // sync position/shape updates coming from canvas drag
+    useEffect(() => {
+        setForm(f => ({
+            ...f,
+            width_cm:       room.width_cm  ?? f.width_cm,
+            depth_cm:       room.depth_cm  ?? f.depth_cm,
+            pos_x:          room.pos_x     ?? f.pos_x,
+            pos_y:          room.pos_y     ?? f.pos_y,
+            polygon_points: room.polygon_points !== undefined ? room.polygon_points : f.polygon_points,
+        }));
+    }, [room.width_cm, room.depth_cm, room.pos_x, room.pos_y, room.polygon_points]);
 
     useEffect(() => {
-        const handler = (e) => { if (e.key === 'Escape') onClose(); };
-        document.addEventListener('keydown', handler);
-        return () => document.removeEventListener('keydown', handler);
+        const h = (e) => { if (e.key === 'Escape') onClose(); };
+        document.addEventListener('keydown', h);
+        return () => document.removeEventListener('keydown', h);
     }, [onClose]);
 
-    if (!room) return null;
+    // ── debounced save ────────────────────────────────────────────────────
+    const save = useCallback((data) => {
+        clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(async () => {
+            setSaving(true);
+            try {
+                const w = +data.width_cm || 0, d = +data.depth_cm || 0;
+                const payload = {
+                    ...data,
+                    width_cm:  w || null,
+                    depth_cm:  d || null,
+                    pos_x:     +data.pos_x || 0,
+                    pos_y:     +data.pos_y || 0,
+                    area_sqft: data.polygon_points
+                        ? +(polyArea(data.polygon_points) / 929.03).toFixed(2)
+                        : (w && d ? +(w * d / 929.03).toFixed(2) : null),
+                    budget_allocation: +data.budget_allocation || 0,
+                };
+                await dashboardService.updateRoom(room.id, payload);
+                onRoomSaved?.({ ...room, ...payload });
+                setSavedFlash(true);
+                setTimeout(() => setSavedFlash(false), 1200);
+            } catch(e) { console.error('Save failed', e); }
+            finally { setSaving(false); }
+        }, 550);
+    }, [room, onRoomSaved]);
 
-    const nameParts = room.name.split('/');
-    const nameEn    = nameParts[0]?.trim() || room.name;
-    const nameNe    = nameParts[1]?.trim() || '';
-    const W  = room.width_cm  || 0;
-    const D  = room.depth_cm  || 0;
-    const px = room.pos_x     || 0;
-    const py = room.pos_y     || 0;
-    const areaSqft = Number(room.area_sqft || (W && D ? W * D / 929.03 : 0));
-    const areaM2   = W && D ? (W * D / 10000) : 0;
-    const budget   = Number(room.budget_allocation || 0);
+    const change = (field, value) => {
+        const next = { ...form, [field]: value };
+        setForm(next);
+        save(next);
+    };
 
-    // Mini SVG room preview dimensions
-    const PRV = 200, PRV_PAD = 28;
-    const scale   = Math.min((PRV - PRV_PAD * 2) / (W || 1), (PRV - PRV_PAD * 2) / (D || 1));
-    const rW      = W * scale, rH = D * scale;
-    const rX      = (PRV - rW) / 2,  rY = (PRV - rH) / 2;
-    const dimFont = 9;
+    // ── apply shape preset ────────────────────────────────────────────────
+    const applyShape = (key) => {
+        let pts = null;
+        if (key === 'rect') {
+            pts = null;
+        } else {
+            const fn = SHAPE_PRESETS[key];
+            pts = fn ? fn({ pos_x: +form.pos_x||0, pos_y: +form.pos_y||0, width_cm: +form.width_cm||300, depth_cm: +form.depth_cm||300 }) : null;
+        }
+        change('polygon_points', pts);
+    };
 
-    // Property row helper
-    const Prop = ({ label, value, mono = false, accent = false }) => (
-        <div className="flex items-center justify-between py-2 border-b border-[var(--t-border)] last:border-0">
-            <span className="text-[10px] font-semibold text-[var(--t-text3)]">{label}</span>
-            <span className={`text-[11px] font-black ${mono ? 'font-mono' : ''} ${accent ? '' : 'text-[var(--t-text)]'}`}
-                  style={accent ? { color: fc } : {}}>
-                {value}
-            </span>
+    // ── derived display values ────────────────────────────────────────────
+    const pts = form.polygon_points;
+    const isPoly = pts && pts.length >= 3;
+    const W = +form.width_cm || 0, D = +form.depth_cm || 0;
+    const areaCm2 = isPoly ? polyArea(pts) : (W * D);
+    const areaSqft = (areaCm2 / 929.03).toFixed(1);
+    const areaM2   = (areaCm2 / 10000).toFixed(2);
+    const nameParts = form.name.split('/');
+    const nameEn = nameParts[0]?.trim() || form.name;
+    const nameNe = nameParts[1]?.trim() || '';
+
+    // ── mini preview SVG ──────────────────────────────────────────────────
+    const PRV = 212, PAD_P = 26;
+    const usePts = isPoly ? pts : (W && D ? rectToPoly({ pos_x:0, pos_y:0, width_cm:W, depth_cm:D }) : null);
+    let previewPts = null;
+    if (usePts) {
+        const xs = usePts.map(p=>p.x), ys = usePts.map(p=>p.y);
+        const minX=Math.min(...xs), minY=Math.min(...ys), maxX=Math.max(...xs), maxY=Math.max(...ys);
+        const bw=maxX-minX||1, bh=maxY-minY||1;
+        const sc = Math.min((PRV-PAD_P*2)/bw, (PRV-PAD_P*2)/bh);
+        const ox = (PRV-(bw*sc))/2 - minX*sc, oy = (PRV-(bh*sc))/2 - minY*sc;
+        previewPts = usePts.map(p=>({ x: ox+p.x*sc, y: oy+p.y*sc }));
+    }
+    const svgPolyStr = previewPts ? previewPts.map(p=>`${p.x},${p.y}`).join(' ') : '';
+    const center = previewPts ? polyCentroid(previewPts) : { x: PRV/2, y: PRV/2 };
+
+    // ── input style helpers ───────────────────────────────────────────────
+    const iBase = {
+        background: 'transparent', border: '1px solid transparent', borderRadius: 6,
+        fontSize: 11, fontWeight: 700, color: 'var(--t-text)',
+        padding: '3px 6px', width: '100%', outline: 'none', fontFamily: 'monospace',
+        transition: 'border-color 0.15s, background 0.15s',
+    };
+    const iStyle = { ...iBase };
+
+    const Row = ({ label, unit, children }) => (
+        <div className="flex items-center h-9 border-b border-[var(--t-border)]">
+            <span className="pl-4 text-[10px] font-medium text-[var(--t-text3)] shrink-0" style={{width:90}}>{label}</span>
+            <div className="flex-1 flex items-center gap-1 pr-3">{children}</div>
+            {unit && <span className="text-[9px] text-[var(--t-text3)] pr-3 shrink-0">{unit}</span>}
+        </div>
+    );
+    const SecHead = ({ label, right }) => (
+        <div className="flex items-center gap-2 px-4 pt-3 pb-1">
+            <span className="text-[9px] font-black uppercase tracking-[0.12em] text-[var(--t-text3)]">{label}</span>
+            <div className="flex-1 h-px bg-[var(--t-border)]"/>
+            {right}
         </div>
     );
 
-    // Section header helper
-    const Section = ({ label, children }) => (
-        <div className="px-4 pb-1">
-            <div className="flex items-center gap-2 py-2.5">
-                <span className="text-[9px] font-black uppercase tracking-[0.12em] text-[var(--t-text3)]">{label}</span>
-                <div className="flex-1 h-px bg-[var(--t-border)]" />
-            </div>
-            {children}
-        </div>
-    );
+    const currentShape = isPoly
+        ? (pts.length === 6 ? 'L' : pts.length === 8 && pts[4] ? 'U/T' : `${pts.length}pt`)
+        : 'rect';
 
     return (
-        /* Panel sits over the page without blurring it */
-        <div
-            className="fixed right-0 top-0 h-full z-50 flex"
-            style={{ width: 296 }}
-        >
-            {/* thin click-away strip */}
-            <div className="absolute inset-0 -left-[100vw]" onClick={onClose} />
+        <div className="fixed right-0 top-0 h-full z-50 flex flex-col"
+             style={{ width: 288, background: 'var(--t-surface)', borderLeft: '1px solid var(--t-border)', boxShadow: '-6px 0 24px rgba(0,0,0,0.12)' }}>
 
-            <div
-                className="relative flex flex-col h-full w-full shadow-[−4px_0_32px_rgba(0,0,0,0.18)]"
-                style={{
-                    background: 'var(--t-surface)',
-                    borderLeft: '1px solid var(--t-border)',
-                }}
-            >
-                {/* ── Top accent bar ── */}
-                <div className="h-[3px] w-full shrink-0" style={{ background: fc }} />
+            {/* accent bar */}
+            <div className="h-[3px] shrink-0" style={{ background: fc }} />
 
-                {/* ── Panel header ── */}
-                <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--t-border)] shrink-0">
-                    <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center text-lg shrink-0"
-                             style={{ background: `color-mix(in srgb, ${fc} 14%, var(--t-surface2))` }}>
-                            {roomIcon(room.name)}
-                        </div>
-                        <div>
-                            <p className="text-[11px] font-black text-[var(--t-text)] leading-tight truncate max-w-[160px]">{nameEn}</p>
-                            {nameNe
-                                ? <p className="text-[9px] text-[var(--t-text3)] leading-tight">{nameNe}</p>
-                                : <p className="text-[9px] text-[var(--t-text3)] leading-tight">{floorName?.split('/')[0]?.trim()}</p>
-                            }
+            {/* header */}
+            <div className="flex items-center gap-2 px-3 py-2.5 border-b border-[var(--t-border)] shrink-0">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center text-base shrink-0"
+                     style={{ background: `color-mix(in srgb, ${fc} 14%, var(--t-surface2))` }}>
+                    {roomIcon(form.name)}
+                </div>
+                {/* editable name inline */}
+                <input
+                    value={form.name}
+                    onChange={e => change('name', e.target.value)}
+                    className="flex-1 text-[11px] font-black bg-transparent border-b border-transparent focus:border-current focus:outline-none truncate"
+                    style={{ color: 'var(--t-text)', minWidth: 0 }}
+                    title="Room name"
+                />
+                {/* save indicator */}
+                <span className="text-[8px] font-bold shrink-0 w-10 text-right transition-all"
+                      style={{ color: savedFlash ? '#10b981' : saving ? fc : 'transparent' }}>
+                    {savedFlash ? '✓ saved' : saving ? '…' : ''}
+                </span>
+                <button onClick={onClose}
+                        className="w-6 h-6 flex items-center justify-center rounded text-[var(--t-text3)] hover:bg-[var(--t-surface2)] text-xs transition-colors shrink-0">✕</button>
+            </div>
+
+            {/* scrollable body */}
+            <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+
+                {/* ── PREVIEW ── */}
+                {previewPts && (
+                    <div className="px-4 pt-4 pb-3 border-b border-[var(--t-border)]">
+                        <svg width={PRV} height={PRV}
+                             style={{ display:'block', margin:'0 auto', background:'#f8f7f4', borderRadius:10, border:'1px solid var(--t-border)' }}>
+                            <defs>
+                                <pattern id="pdot" width="10" height="10" patternUnits="userSpaceOnUse">
+                                    <circle cx="0" cy="0" r="0.6" fill="#d1d5db"/>
+                                </pattern>
+                                <clipPath id="pclip">
+                                    <polygon points={svgPolyStr}/>
+                                </clipPath>
+                            </defs>
+                            <rect width={PRV} height={PRV} fill="url(#pdot)" rx="10"/>
+                            <polygon points={svgPolyStr}
+                                     fill={`color-mix(in srgb, ${fc} 18%, #fff)`}
+                                     stroke={fc} strokeWidth="2"/>
+                            {/* diagonal hatch */}
+                            <g clipPath="url(#pclip)" opacity="0.18">
+                                {Array.from({length:20},(_,i)=>(
+                                    <line key={i} x1={i*14-40} y1={0} x2={i*14-40+PRV+40} y2={PRV} stroke={fc} strokeWidth="5"/>
+                                ))}
+                            </g>
+                            {/* vertex dots */}
+                            {previewPts.map((p,i)=>(
+                                <circle key={i} cx={p.x} cy={p.y} r="3.5" fill={fc}/>
+                            ))}
+                            {/* icon + area */}
+                            <text x={center.x} y={center.y-6} textAnchor="middle" dominantBaseline="central" fontSize="20" style={{userSelect:'none'}}>{roomIcon(form.name)}</text>
+                            <text x={center.x} y={center.y+16} textAnchor="middle" fontSize="8.5" fontWeight="800" fill={fc} fontFamily="monospace" style={{userSelect:'none'}}>{areaSqft} ft²</text>
+                            {/* shape label */}
+                            <rect x={PRV-42} y={PRV-20} width={38} height={14} fill={`color-mix(in srgb, ${fc} 15%, white)`} rx="4"/>
+                            <text x={PRV-23} y={PRV-13} textAnchor="middle" fontSize="7.5" fontWeight="800" fill={fc} fontFamily="monospace" style={{userSelect:'none'}}>{currentShape}</text>
+                        </svg>
+                    </div>
+                )}
+
+                {/* ── SHAPE presets ── */}
+                <SecHead label="Shape" />
+                <div className="px-4 pb-3 grid grid-cols-4 gap-1.5">
+                    {[
+                        { key:'rect', svg: <rect x="4" y="4" width="22" height="22" fill="currentColor" rx="2"/> },
+                        { key:'L',    svg: <><rect x="4" y="4" width="14" height="22" fill="currentColor" rx="1"/><rect x="4" y="4" width="22" height="12" fill="currentColor" rx="1"/></> },
+                        { key:'U',    svg: <><rect x="4" y="4" width="8"  height="22" fill="currentColor" rx="1"/><rect x="18" y="4" width="8"  height="22" fill="currentColor" rx="1"/><rect x="4" y="4" width="22" height="10" fill="currentColor" rx="1"/></> },
+                        { key:'T',    svg: <><rect x="4" y="4" width="22" height="10" fill="currentColor" rx="1"/><rect x="11" y="4" width="8"  height="22" fill="currentColor" rx="1"/></> },
+                    ].map(({key, svg}) => {
+                        const active = key === 'rect' ? !isPoly : (currentShape === key);
+                        return (
+                            <button key={key} onClick={() => applyShape(key)}
+                                className="flex flex-col items-center gap-1 py-2 rounded-lg border transition-all"
+                                style={{ borderColor: active ? fc : 'var(--t-border)', background: active ? `color-mix(in srgb, ${fc} 10%, var(--t-surface2))` : 'var(--t-surface2)', color: active ? fc : 'var(--t-text3)' }}>
+                                <svg width="30" height="30" viewBox="0 0 30 30">{svg}</svg>
+                                <span className="text-[8px] font-black uppercase">{key}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {/* ── GEOMETRY ── */}
+                <SecHead label="Geometry"
+                    right={<span className="text-[8px] font-mono text-[var(--t-text3)]">{isPoly ? `${pts.length} pts` : 'rect'}</span>}
+                />
+                <Row label="Width" unit="cm">
+                    <input type="number" value={form.width_cm} min={10} step={5}
+                        onChange={e => change('width_cm', e.target.value)}
+                        style={iStyle}
+                        onFocus={e=>e.target.style.borderColor=fc}
+                        onBlur={e=>e.target.style.borderColor='transparent'}
+                    />
+                    <span className="text-[9px] text-[var(--t-text3)] shrink-0 font-mono w-12 text-right">{W ? `${(W/100).toFixed(2)}m` : ''}</span>
+                </Row>
+                <Row label="Depth" unit="cm">
+                    <input type="number" value={form.depth_cm} min={10} step={5}
+                        onChange={e => change('depth_cm', e.target.value)}
+                        style={iStyle}
+                        onFocus={e=>e.target.style.borderColor=fc}
+                        onBlur={e=>e.target.style.borderColor='transparent'}
+                    />
+                    <span className="text-[9px] text-[var(--t-text3)] shrink-0 font-mono w-12 text-right">{D ? `${(D/100).toFixed(2)}m` : ''}</span>
+                </Row>
+                {isPoly && (
+                    <div className="px-4 py-2 border-b border-[var(--t-border)]">
+                        <p className="text-[8px] text-[var(--t-text3)] mb-1.5 font-semibold">Vertices — drag in canvas to reshape</p>
+                        <div className="grid grid-cols-2 gap-1">
+                            {pts.map((p,i)=>(
+                                <div key={i} className="flex items-center gap-1 rounded px-2 py-1 text-[9px] font-mono"
+                                     style={{background:'var(--t-surface2)', border:'1px solid var(--t-border)'}}>
+                                    <span className="text-[var(--t-text3)] w-4 shrink-0">P{i+1}</span>
+                                    <span style={{color:fc}}>{Math.round(p.x)}</span>
+                                    <span className="text-[var(--t-text3)]">,</span>
+                                    <span style={{color:fc}}>{Math.round(p.y)}</span>
+                                </div>
+                            ))}
                         </div>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="w-6 h-6 flex items-center justify-center rounded-md text-[var(--t-text3)] hover:bg-[var(--t-surface2)] hover:text-[var(--t-text)] text-xs transition-colors shrink-0"
-                    >✕</button>
+                )}
+
+                {/* ── AREA ── */}
+                <SecHead label="Area" />
+                <div className="px-4 pb-3 flex gap-2">
+                    <div className="flex-1 rounded-lg px-3 py-2.5 text-center border border-[var(--t-border)]"
+                         style={{ background: `color-mix(in srgb, ${fc} 7%, var(--t-surface2))` }}>
+                        <p className="text-lg font-black leading-none" style={{color:fc}}>{areaSqft}</p>
+                        <p className="text-[8px] font-bold text-[var(--t-text3)] mt-0.5 uppercase">sqft</p>
+                    </div>
+                    <div className="flex-1 rounded-lg px-3 py-2.5 text-center border border-[var(--t-border)]"
+                         style={{ background: 'var(--t-surface2)' }}>
+                        <p className="text-lg font-black leading-none text-[var(--t-text)]">{areaM2}</p>
+                        <p className="text-[8px] font-bold text-[var(--t-text3)] mt-0.5 uppercase">m²</p>
+                    </div>
                 </div>
 
-                {/* ── Scrollable body ── */}
-                <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+                {/* ── POSITION ── */}
+                <SecHead label="Position" />
+                <Row label="X (→ left)" unit="cm">
+                    <input type="number" value={form.pos_x} min={0} step={25}
+                        onChange={e => change('pos_x', e.target.value)}
+                        style={iStyle}
+                        onFocus={e=>e.target.style.borderColor=fc}
+                        onBlur={e=>e.target.style.borderColor='transparent'}
+                    />
+                    <span className="text-[9px] text-[var(--t-text3)] shrink-0 font-mono w-12 text-right">{(+form.pos_x/100).toFixed(2)}m</span>
+                </Row>
+                <Row label="Y (↓ top)" unit="cm">
+                    <input type="number" value={form.pos_y} min={0} step={25}
+                        onChange={e => change('pos_y', e.target.value)}
+                        style={iStyle}
+                        onFocus={e=>e.target.style.borderColor=fc}
+                        onBlur={e=>e.target.style.borderColor='transparent'}
+                    />
+                    <span className="text-[9px] text-[var(--t-text3)] shrink-0 font-mono w-12 text-right">{(+form.pos_y/100).toFixed(2)}m</span>
+                </Row>
 
-                    {/* ── Mini room preview SVG ── */}
-                    {W > 0 && D > 0 && (
-                        <div className="px-4 py-4 border-b border-[var(--t-border)]">
-                            <svg width={PRV} height={PRV} style={{ display: 'block', margin: '0 auto', background: '#f8f7f4', borderRadius: 10, border: '1px solid var(--t-border)' }}>
-                                {/* grid dots */}
-                                <pattern id="rdot" width="12" height="12" patternUnits="userSpaceOnUse">
-                                    <circle cx="0" cy="0" r="0.7" fill="#d1d5db"/>
-                                </pattern>
-                                <rect width={PRV} height={PRV} fill="url(#rdot)" rx="10"/>
-
-                                {/* room fill */}
-                                <rect x={rX} y={rY} width={rW} height={rH}
-                                      fill={`color-mix(in srgb, ${fc} 16%, #fff)`}
-                                      stroke={fc} strokeWidth="2" rx="3"/>
-
-                                {/* hatch lines inside */}
-                                <clipPath id="rclip">
-                                    <rect x={rX} y={rY} width={rW} height={rH} rx="3"/>
-                                </clipPath>
-                                <g clipPath="url(#rclip)" opacity="0.25">
-                                    {Array.from({ length: 16 }, (_, i) => (
-                                        <line key={i} x1={rX + i * 14 - 40} y1={rY} x2={rX + i * 14 - 40 + rH + 40} y2={rY + rH}
-                                              stroke={fc} strokeWidth="4"/>
-                                    ))}
-                                </g>
-
-                                {/* corner marks */}
-                                {[[rX, rY],[rX+rW, rY],[rX, rY+rH],[rX+rW, rY+rH]].map(([cx,cy],i) => (
-                                    <rect key={i} x={cx-3} y={cy-3} width={6} height={6} fill={fc} rx="1"/>
-                                ))}
-
-                                {/* room icon + name */}
-                                <text x={PRV/2} y={rY+rH/2-8} textAnchor="middle" dominantBaseline="central" fontSize="22" style={{userSelect:'none'}}>{roomIcon(room.name)}</text>
-                                <text x={PRV/2} y={rY+rH/2+14} textAnchor="middle" fontSize="9" fontWeight="700" fill={fc} fontFamily="'Inter',system-ui" style={{userSelect:'none'}}>
-                                    {nameEn.split(' ').slice(0,2).join(' ')}
-                                </text>
-
-                                {/* width dimension arrow (top) */}
-                                <line x1={rX} y1={rY-11} x2={rX+rW} y2={rY-11} stroke="#64748b" strokeWidth="1"/>
-                                <line x1={rX} y1={rY-15} x2={rX} y2={rY-7} stroke="#64748b" strokeWidth="1"/>
-                                <line x1={rX+rW} y1={rY-15} x2={rX+rW} y2={rY-7} stroke="#64748b" strokeWidth="1"/>
-                                <text x={rX+rW/2} y={rY-16} textAnchor="middle" fontSize={dimFont} fontWeight="700" fill="#475569" fontFamily="monospace">
-                                    {(W/100).toFixed(2)}m
-                                </text>
-
-                                {/* depth dimension arrow (right) */}
-                                <line x1={rX+rW+11} y1={rY} x2={rX+rW+11} y2={rY+rH} stroke="#64748b" strokeWidth="1"/>
-                                <line x1={rX+rW+7} y1={rY} x2={rX+rW+15} y2={rY} stroke="#64748b" strokeWidth="1"/>
-                                <line x1={rX+rW+7} y1={rY+rH} x2={rX+rW+15} y2={rY+rH} stroke="#64748b" strokeWidth="1"/>
-                                <text x={rX+rW+20} y={rY+rH/2} textAnchor="middle" fontSize={dimFont} fontWeight="700" fill="#475569" fontFamily="monospace"
-                                      transform={`rotate(90,${rX+rW+20},${rY+rH/2})`}>
-                                    {(D/100).toFixed(2)}m
-                                </text>
-
-                                {/* area badge */}
-                                <rect x={PRV/2-28} y={rY+rH-20} width={56} height={16} fill="white" fillOpacity="0.85" rx="4"/>
-                                <text x={PRV/2} y={rY+rH-12} textAnchor="middle" fontSize="8" fontWeight="800" fill={fc} fontFamily="monospace">
-                                    {areaSqft.toFixed(1)} ft²
-                                </text>
-                            </svg>
-                        </div>
-                    )}
-
-                    {/* ── GEOMETRY section ── */}
-                    <Section label="Geometry">
-                        <div className="space-y-0">
-                            <Prop label="Width (W)" value={`${(W/100).toFixed(2)} m  ·  ${(W/30.48).toFixed(1)}'`} mono accent />
-                            <Prop label="Depth (D)" value={`${(D/100).toFixed(2)} m  ·  ${(D/30.48).toFixed(1)}'`} mono accent />
-                            <Prop label="Raw (cm)" value={`${W} × ${D}`} mono />
-                        </div>
-                    </Section>
-
-                    {/* ── AREA section ── */}
-                    <Section label="Area">
-                        <div className="flex gap-2 pb-2">
-                            <div className="flex-1 rounded-lg border border-[var(--t-border)] px-3 py-2.5 text-center" style={{ background: `color-mix(in srgb, ${fc} 6%, var(--t-surface2))` }}>
-                                <p className="text-lg font-black leading-none" style={{ color: fc }}>{areaSqft.toFixed(1)}</p>
-                                <p className="text-[8px] font-bold text-[var(--t-text3)] mt-0.5 uppercase tracking-wide">sqft</p>
-                            </div>
-                            <div className="flex-1 rounded-lg border border-[var(--t-border)] px-3 py-2.5 text-center" style={{ background: 'var(--t-surface2)' }}>
-                                <p className="text-lg font-black text-[var(--t-text)] leading-none">{areaM2.toFixed(2)}</p>
-                                <p className="text-[8px] font-bold text-[var(--t-text3)] mt-0.5 uppercase tracking-wide">m²</p>
-                            </div>
-                        </div>
-                        {/* Proportion bar */}
-                        {W > 0 && D > 0 && (() => {
-                            const ratio = W / D;
-                            const barW  = Math.min(Math.max(ratio / (ratio + 1), 0.2), 0.8);
-                            return (
-                                <div className="pb-2">
-                                    <div className="flex items-center gap-1.5 mb-1">
-                                        <div className="h-5 rounded-sm border"
-                                             style={{ width: `${barW * 100}%`, background: `color-mix(in srgb, ${fc} 20%, var(--t-surface3))`, borderColor: `color-mix(in srgb, ${fc} 40%, transparent)` }} />
-                                    </div>
-                                    <p className="text-[8px] text-[var(--t-text3)] font-mono">Ratio {W}:{D} cm</p>
-                                </div>
-                            );
-                        })()}
-                    </Section>
-
-                    {/* ── POSITION section ── */}
-                    {(room.pos_x != null && room.pos_y != null) && (
-                        <Section label="Position">
-                            <div className="grid grid-cols-2 gap-2 pb-2">
-                                {[
-                                    { lbl: 'X (→ from left)', val: (px/100).toFixed(2)+'m' },
-                                    { lbl: 'Y (↓ from top)',  val: (py/100).toFixed(2)+'m' },
-                                ].map(({ lbl, val }) => (
-                                    <div key={lbl} className="rounded-lg border border-[var(--t-border)] bg-[var(--t-surface2)] px-2.5 py-2">
-                                        <p className="text-[8px] font-semibold text-[var(--t-text3)] mb-0.5">{lbl}</p>
-                                        <p className="text-[11px] font-black font-mono text-[var(--t-text)]">{val}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </Section>
-                    )}
-
-                    {/* ── STATUS + BUDGET section ── */}
-                    <Section label="Properties">
-                        <div className="space-y-0">
-                            <div className="flex items-center justify-between py-2 border-b border-[var(--t-border)]">
-                                <span className="text-[10px] font-semibold text-[var(--t-text3)]">Status</span>
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wide"
-                                      style={{ background: st.fill, color: st.stroke, border: `1px solid ${st.stroke}33` }}>
-                                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: st.stroke }} />
-                                    {st.label}
-                                </span>
-                            </div>
-                            <Prop label="Floor" value={floorName?.split('/')[0]?.trim() || '—'} />
-                            {budget > 0 && (
-                                <div className="flex items-center justify-between py-2">
-                                    <span className="text-[10px] font-semibold text-[var(--t-text3)]">Budget</span>
-                                    <span className="text-[11px] font-black" style={{ color: fc }}>
-                                        NPR {budget.toLocaleString()}
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-                    </Section>
-
-                    <div className="h-4" />
+                {/* ── PROPERTIES ── */}
+                <SecHead label="Properties" />
+                {/* Status buttons */}
+                <div className="px-4 pb-2 pt-1">
+                    <p className="text-[9px] text-[var(--t-text3)] mb-1.5 font-semibold">Status</p>
+                    <div className="flex gap-1">
+                        {Object.entries(STATUS).map(([k,v])=>(
+                            <button key={k} onClick={()=>change('status',k)}
+                                className="flex-1 py-1.5 rounded-md text-[8px] font-black uppercase tracking-wide border transition-all"
+                                style={{
+                                    background: form.status===k ? v.fill : 'transparent',
+                                    borderColor: form.status===k ? v.stroke : 'var(--t-border)',
+                                    color: form.status===k ? v.stroke : 'var(--t-text3)',
+                                }}>
+                                {v.label.split(' ')[0]}
+                            </button>
+                        ))}
+                    </div>
                 </div>
+                <Row label="Floor" unit="">
+                    <span className="text-[11px] font-semibold text-[var(--t-text)]">{floorName?.split('/')[0]?.trim()}</span>
+                </Row>
+                <Row label="Budget" unit="NPR">
+                    <input type="number" value={form.budget_allocation} min={0} step={1000}
+                        onChange={e => change('budget_allocation', e.target.value)}
+                        style={iStyle}
+                        placeholder="0"
+                        onFocus={e=>e.target.style.borderColor=fc}
+                        onBlur={e=>e.target.style.borderColor='transparent'}
+                    />
+                </Row>
 
-                {/* ── Footer actions ── */}
-                <div className="shrink-0 border-t border-[var(--t-border)] p-3 flex gap-2" style={{ background: 'var(--t-surface)' }}>
-                    <button
-                        onClick={() => { onEdit(room); onClose(); }}
-                        className="flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all hover:opacity-90 text-white shadow-sm"
-                        style={{ background: fc }}
-                    >
-                        ✏️ Edit
-                    </button>
-                    <button
-                        onClick={() => { onDelete(room.id); onClose(); }}
-                        className="px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border border-red-200 bg-red-50 text-red-500 hover:bg-red-100 transition-colors"
-                    >
-                        🗑️
-                    </button>
+                <div className="h-4"/>
+            </div>
+
+            {/* footer */}
+            <div className="shrink-0 border-t border-[var(--t-border)] px-3 py-2.5 flex items-center gap-2"
+                 style={{background:'var(--t-surface)'}}>
+                <div className="flex-1 text-[9px] text-[var(--t-text3)]">
+                    {isPoly
+                        ? <span style={{color:fc}}>◆ {pts.length}-point polygon · drag vertices in canvas</span>
+                        : <span>⬜ Rectangle · drag walls/corners to resize</span>
+                    }
                 </div>
+                <button onClick={()=>{onDelete(room.id);onClose();}}
+                    className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide border border-red-200 bg-red-50 text-red-500 hover:bg-red-100 transition-colors shrink-0">
+                    🗑️ Delete
+                </button>
             </div>
         </div>
     );
@@ -359,7 +478,7 @@ const BuildingElevation = ({ floors, activeLevel, onSelect }) => {
 };
 
 /* ── 2D Floor Plan Canvas — drag-to-move + drag-wall-to-resize ──────────── */
-const FloorPlanCanvas = ({ floor, floorColor: fc, onRoomClick }) => {
+const FloorPlanCanvas = ({ floor, floorColor: fc, onRoomClick, onRoomSaved, onCreateRoom, height = 530 }) => {
     // ── constants ──────────────────────────────────────────────────────────
     const SNAP    = 25;   // cm grid for snapping
     const MIN_DIM = 50;   // minimum room dimension in cm
@@ -376,17 +495,22 @@ const FloorPlanCanvas = ({ floor, floorColor: fc, onRoomClick }) => {
     const [isEditing, setIsEditing]     = useState(false); // show snap grid
     const [snapOn, setSnapOn]           = useState(true);
     const [tooltip, setTooltip]         = useState(null);
+    const [drawMode, setDrawMode]       = useState(false);  // draw-room mode
+    const [drawGhost, setDrawGhost]     = useState(null);   // {x,y,w,h} in cm
 
     const containerRef = useRef(null);
     // interaction state machine (ref for perf — no re-render)
-    const ia = useRef({ mode: 'idle' }); // mode: idle | pan | move | resize
+    const ia = useRef({ mode: 'idle' }); // mode: idle | pan | move | resize | vertex | draw
     // always-fresh refs for event handlers
-    const panRef    = useRef(pan);
-    const zoomRef   = useRef(zoom);
-    const snapRef   = useRef(snapOn);
-    useEffect(() => { panRef.current  = pan;    }, [pan]);
-    useEffect(() => { zoomRef.current = zoom;   }, [zoom]);
-    useEffect(() => { snapRef.current = snapOn; }, [snapOn]);
+    const panRef      = useRef(pan);
+    const zoomRef     = useRef(zoom);
+    const snapRef     = useRef(snapOn);
+    const drawModeRef = useRef(false);
+    const drawGhostRef= useRef(null);
+    useEffect(() => { panRef.current    = pan;      }, [pan]);
+    useEffect(() => { zoomRef.current   = zoom;     }, [zoom]);
+    useEffect(() => { snapRef.current   = snapOn;   }, [snapOn]);
+    useEffect(() => { drawModeRef.current = drawMode; }, [drawMode]);
 
     const rooms     = floor?.rooms || [];
     const W         = floor?.plan_width_cm  || 1000;
@@ -394,7 +518,8 @@ const FloorPlanCanvas = ({ floor, floorColor: fc, onRoomClick }) => {
     const PAD       = PAD_SVG;
     const svgW      = W + PAD * 2;
     const svgH      = H + PAD * 2 + 45;
-    const hasLayout = rooms.some(r => r.width_cm && r.depth_cm);
+    const hasLayout = (floor?.plan_width_cm && floor?.plan_depth_cm) ||
+                      rooms.some(r => r.width_cm && r.depth_cm);
 
     // ── sync local rooms whenever floor changes ─────────────────────────────
     useEffect(() => {
@@ -481,23 +606,84 @@ const FloorPlanCanvas = ({ floor, floorColor: fc, onRoomClick }) => {
         return () => el.removeEventListener('wheel', handler);
     }, []);
 
-    // ── mouse: room mousedown (starts move or resize) ──────────────────────
+    // ── polygon helpers ────────────────────────────────────────────────────
+    const getVertex = (cmX, cmY, room) => {
+        const pts = room.polygon_points;
+        if (!pts) return null;
+        const t = 15 / zoomRef.current;
+        for (let i = 0; i < pts.length; i++) {
+            if (Math.abs(cmX - pts[i].x) < t && Math.abs(cmY - pts[i].y) < t) return i;
+        }
+        return null;
+    };
+    const getEdgeMid = (cmX, cmY, room) => {
+        const pts = room.polygon_points;
+        if (!pts || pts.length < 3) return null;
+        const t = 11 / zoomRef.current;
+        for (let i = 0; i < pts.length; i++) {
+            const a = pts[i], b = pts[(i+1) % pts.length];
+            const mx = (a.x+b.x)/2, my = (a.y+b.y)/2;
+            if (Math.abs(cmX - mx) < t && Math.abs(cmY - my) < t) return i;
+        }
+        return null;
+    };
+    const polyBBox = (pts) => {
+        const xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
+        const minX=Math.min(...xs), minY=Math.min(...ys);
+        return { pos_x:minX, pos_y:minY, width_cm:Math.max(...xs)-minX, depth_cm:Math.max(...ys)-minY };
+    };
+
+    // ── mouse: room mousedown (starts move / resize / vertex drag) ─────────
     const onRoomDown = (e, room) => {
         e.stopPropagation();
         if (e.button !== 0) return;
-        const cm     = toCm(e.clientX, e.clientY);
-        const handle = getHandle(cm.x, cm.y, room);
-        ia.current   = { mode: handle ? 'resize' : 'move', roomId: room.id,
-                          handle, startCm: cm, startRoom: { ...room }, moved: false };
-        setIsEditing(true);
-        setHoveredId(room.id);
-        setTooltip(null);
-        setCursor(handle ? (HANDLE_CURSORS[handle] || 'move') : 'move');
+        const cm = toCm(e.clientX, e.clientY);
+
+        if (room.polygon_points) {
+            // check vertex handle first
+            const vIdx = getVertex(cm.x, cm.y, room);
+            if (vIdx !== null) {
+                ia.current = { mode: 'vertex', roomId: room.id, vertexIdx: vIdx,
+                               startCm: cm, startPts: room.polygon_points.map(p=>({...p})), moved: false };
+                setIsEditing(true); setHoveredId(room.id); setTooltip(null); setCursor('move');
+                return;
+            }
+            // check edge midpoint (insert new vertex)
+            const eIdx = getEdgeMid(cm.x, cm.y, room);
+            if (eIdx !== null) {
+                const newPts = [...room.polygon_points];
+                const a = newPts[eIdx], b = newPts[(eIdx+1) % newPts.length];
+                newPts.splice(eIdx+1, 0, { x: snp((a.x+b.x)/2), y: snp((a.y+b.y)/2) });
+                setLocalRooms(prev => prev.map(r => r.id === room.id ? {...r, polygon_points: newPts} : r));
+                ia.current = { mode: 'vertex', roomId: room.id, vertexIdx: eIdx+1,
+                               startCm: cm, startPts: newPts, moved: false };
+                setIsEditing(true); setHoveredId(room.id); setTooltip(null); setCursor('crosshair');
+                return;
+            }
+            // move whole polygon
+            ia.current = { mode: 'move', roomId: room.id, startCm: cm, startRoom: {...room}, moved: false };
+        } else {
+            const handle = getHandle(cm.x, cm.y, room);
+            ia.current = { mode: handle ? 'resize' : 'move', roomId: room.id,
+                           handle, startCm: cm, startRoom: {...room}, moved: false };
+            setCursor(handle ? (HANDLE_CURSORS[handle] || 'move') : 'move');
+        }
+        setIsEditing(true); setHoveredId(room.id); setTooltip(null);
+        if (!room.polygon_points) setCursor(ia.current.mode === 'resize' ? (HANDLE_CURSORS[ia.current.handle]||'move') : 'move');
+        else setCursor('move');
     };
 
-    // ── mouse: container mousedown (starts pan) ────────────────────────────
+    // ── mouse: container mousedown (draw room OR pan) ─────────────────────
     const onContainerDown = (e) => {
         if (e.button !== 0) return;
+        if (drawModeRef.current) {
+            const cm = toCm(e.clientX, e.clientY);
+            const cx = Math.max(0, Math.min(W, cm.x));
+            const cy = Math.max(0, Math.min(H, cm.y));
+            ia.current = { mode: 'draw', startCm: { x: cx, y: cy }, moved: false };
+            setCursor('crosshair');
+            return;
+        }
         ia.current = { mode: 'pan', startSx: e.clientX, startSy: e.clientY,
                         startPan: { ...panRef.current }, moved: false };
     };
@@ -517,6 +703,43 @@ const FloorPlanCanvas = ({ floor, floorColor: fc, onRoomClick }) => {
             return;
         }
 
+        // ── draw (ghost rect for new room) ──
+        if (state.mode === 'draw') {
+            const cm = toCm(e.clientX, e.clientY);
+            const cx = Math.max(0, Math.min(W, cm.x));
+            const cy = Math.max(0, Math.min(H, cm.y));
+            const gx = snp(Math.min(state.startCm.x, cx));
+            const gy = snp(Math.min(state.startCm.y, cy));
+            const gw = snp(Math.abs(cx - state.startCm.x));
+            const gh = snp(Math.abs(cy - state.startCm.y));
+            if (gw > 5 || gh > 5) state.moved = true;
+            const ghost = { x: gx, y: gy, w: gw, h: gh };
+            drawGhostRef.current = ghost;
+            setDrawGhost(ghost);
+            return;
+        }
+
+        // ── vertex drag (polygon point) ──
+        if (state.mode === 'vertex') {
+            const cm = toCm(e.clientX, e.clientY);
+            const dx = cm.x - state.startCm.x, dy = cm.y - state.startCm.y;
+            if (Math.abs(dx) > 1/zoomRef.current || Math.abs(dy) > 1/zoomRef.current) state.moved = true;
+            if (!state.moved) return;
+            const newPts = state.startPts.map((p,i) =>
+                i === state.vertexIdx ? { x: snp(p.x+dx), y: snp(p.y+dy) } : p
+            );
+            const bb = polyBBox(newPts);
+            setLocalRooms(prev => prev.map(r => r.id === state.roomId ? {...r, polygon_points: newPts, ...bb} : r));
+            const cRect = containerRef.current?.getBoundingClientRect();
+            const dr = localRooms.find(r => r.id === state.roomId);
+            setDragDisplay({
+                x: Math.min(e.clientX-(cRect?.left||0)+18, (cRect?.width||600)-175),
+                y: Math.max(e.clientY-(cRect?.top||0)-80, 8),
+                room: dr ? {...dr, polygon_points: newPts, ...bb} : null,
+            });
+            return;
+        }
+
         // ── move / resize ──
         if (state.mode === 'move' || state.mode === 'resize') {
             const cm = toCm(e.clientX, e.clientY);
@@ -528,10 +751,17 @@ const FloorPlanCanvas = ({ floor, floorColor: fc, onRoomClick }) => {
             let upd = {};
 
             if (state.mode === 'move') {
-                upd = {
-                    pos_x: snp(Math.max(0, Math.min(W - sr.width_cm,  sr.pos_x + dx))),
-                    pos_y: snp(Math.max(0, Math.min(H - sr.depth_cm, sr.pos_y + dy))),
-                };
+                if (sr.polygon_points) {
+                    // move all polygon vertices
+                    const newPts = sr.polygon_points.map(p => ({ x: snp(p.x+dx), y: snp(p.y+dy) }));
+                    const bb = polyBBox(newPts);
+                    upd = { polygon_points: newPts, ...bb };
+                } else {
+                    upd = {
+                        pos_x: snp(Math.max(0, Math.min(W - sr.width_cm,  sr.pos_x + dx))),
+                        pos_y: snp(Math.max(0, Math.min(H - sr.depth_cm, sr.pos_y + dy))),
+                    };
+                }
             } else {
                 let rx = sr.pos_x || 0, ry = sr.pos_y || 0, rw = sr.width_cm, rd = sr.depth_cm;
                 const h = state.handle;
@@ -554,6 +784,7 @@ const FloorPlanCanvas = ({ floor, floorColor: fc, onRoomClick }) => {
         }
 
         // ── idle: update cursor + tooltip position based on proximity ──
+        if (drawModeRef.current) { setCursor('crosshair'); return; }
         const cm = toCm(e.clientX, e.clientY);
         const cRect = containerRef.current?.getBoundingClientRect();
         let cur = 'grab';
@@ -581,7 +812,30 @@ const FloorPlanCanvas = ({ floor, floorColor: fc, onRoomClick }) => {
         ia.current  = { mode: 'idle' };
         setIsEditing(false);
         setDragDisplay(null);
-        setCursor('grab');
+        setCursor(drawModeRef.current ? 'crosshair' : 'grab');
+
+        // ── draw: create new room from ghost rect ──
+        if (state.mode === 'draw') {
+            const ghost = drawGhostRef.current;
+            drawGhostRef.current = null;
+            setDrawGhost(null);
+            if (!ghost || ghost.w < MIN_DIM || ghost.h < MIN_DIM) return;
+            const roomData = {
+                pos_x:     ghost.x,
+                pos_y:     ghost.y,
+                width_cm:  Math.max(MIN_DIM, ghost.w),
+                depth_cm:  Math.max(MIN_DIM, ghost.h),
+                area_sqft: +(ghost.w * ghost.h / 929.03).toFixed(2),
+                name:      'New Room',
+                status:    'NOT_STARTED',
+            };
+            const newRoom = await onCreateRoom?.(roomData);
+            if (newRoom) {
+                setLocalRooms(prev => [...prev, { ...newRoom }]);
+                onRoomClick?.(newRoom);
+            }
+            return;
+        }
 
         if (state.mode === 'pan') return;
 
@@ -600,16 +854,28 @@ const FloorPlanCanvas = ({ floor, floorColor: fc, onRoomClick }) => {
         if (!updated) return;
         setSavingId(roomId);
         try {
-            await dashboardService.updateRoom(roomId, {
+            const payload = updated.polygon_points ? {
+                polygon_points: updated.polygon_points,
+                pos_x:     updated.pos_x,
+                pos_y:     updated.pos_y,
+                width_cm:  updated.width_cm,
+                depth_cm:  updated.depth_cm,
+                area_sqft: +(polyArea(updated.polygon_points) / 929.03).toFixed(2),
+            } : {
                 pos_x:     updated.pos_x,
                 pos_y:     updated.pos_y,
                 width_cm:  updated.width_cm,
                 depth_cm:  updated.depth_cm,
                 area_sqft: +(updated.width_cm * updated.depth_cm / 929.03).toFixed(2),
-            });
+            };
+            await dashboardService.updateRoom(roomId, payload);
+            onRoomSaved?.({ ...updated, ...payload });
         } catch {
             // revert on error
-            setLocalRooms(prev => prev.map(r => r.id === roomId ? { ...r, ...startRoom } : r));
+            const revertRoom = state.startPts
+                ? { polygon_points: state.startPts, ...polyBBox(state.startPts) }
+                : startRoom;
+            setLocalRooms(prev => prev.map(r => r.id === roomId ? { ...r, ...revertRoom } : r));
         } finally {
             setSavingId(null);
         }
@@ -629,7 +895,7 @@ const FloorPlanCanvas = ({ floor, floorColor: fc, onRoomClick }) => {
         <div
             ref={containerRef}
             className="relative rounded-2xl border border-[var(--t-border)] overflow-hidden select-none"
-            style={{ height: 530, background: '#f4f2ec', cursor }}
+            style={{ height, background: '#f4f2ec', cursor }}
             onMouseDown={onContainerDown}
             onMouseMove={onMouseMove}
             onMouseUp={onMouseUp}
@@ -655,6 +921,28 @@ const FloorPlanCanvas = ({ floor, floorColor: fc, onRoomClick }) => {
                 >
                     ⊞ Snap{snapOn ? ` ${SNAP}cm` : ' Off'}
                 </button>
+
+                {/* ── Draw Room toggle ── */}
+                <button
+                    onClick={() => {
+                        const next = !drawMode;
+                        setDrawMode(next);
+                        drawModeRef.current = next;
+                        setCursor(next ? 'crosshair' : 'grab');
+                    }}
+                    className={`h-8 px-3 rounded-xl border shadow-sm text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5
+                        ${drawMode
+                            ? 'bg-emerald-500 border-emerald-500 text-white shadow-emerald-200 shadow-md'
+                            : 'bg-white/95 border-gray-200 text-gray-500 hover:text-gray-800 hover:border-emerald-400'}`}
+                    title="Draw a new room by clicking and dragging on the canvas"
+                >
+                    <svg width="11" height="11" viewBox="0 0 11 11" fill="none" style={{ display:'inline' }}>
+                        <rect x="1" y="1" width="9" height="9" rx="1" stroke="currentColor" strokeWidth="1.8" strokeDasharray={drawMode ? 'none' : '2.5 1.5'} fill={drawMode ? 'currentColor' : 'none'} fillOpacity="0.15"/>
+                        <line x1="1" y1="5.5" x2="10" y2="5.5" stroke="currentColor" strokeWidth="1" strokeDasharray="1.5 1.5"/>
+                        <line x1="5.5" y1="1" x2="5.5" y2="10" stroke="currentColor" strokeWidth="1" strokeDasharray="1.5 1.5"/>
+                    </svg>
+                    {drawMode ? '✓ Drawing' : 'Draw Room'}
+                </button>
             </div>
 
             {/* ── Legend ─────────────────────────────────────────────────── */}
@@ -670,9 +958,15 @@ const FloorPlanCanvas = ({ floor, floorColor: fc, onRoomClick }) => {
 
             {/* ── Hint ───────────────────────────────────────────────────── */}
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
-                <span className="text-[9px] font-semibold text-gray-400 bg-white/70 backdrop-blur px-2.5 py-1 rounded-full border border-gray-200">
-                    Drag room to move · Drag wall/corner to resize · Click to open
-                </span>
+                {drawMode ? (
+                    <span className="text-[9px] font-bold text-white bg-emerald-500/90 backdrop-blur px-3 py-1.5 rounded-full border border-emerald-400 shadow-sm">
+                        ✏ Draw mode — click & drag to create a room · press Draw Room again to exit
+                    </span>
+                ) : (
+                    <span className="text-[9px] font-semibold text-gray-400 bg-white/70 backdrop-blur px-2.5 py-1 rounded-full border border-gray-200">
+                        Move: drag room · Resize: drag edge/corner · Draw new room: click Draw Room button
+                    </span>
+                )}
             </div>
 
             {/* ── SVG canvas (CSS-transformed for zoom/pan) ──────────────── */}
@@ -736,12 +1030,13 @@ const FloorPlanCanvas = ({ floor, floorColor: fc, onRoomClick }) => {
                     {/* ── Rooms ── */}
                     {localRooms.map(room => {
                         if (!room.width_cm || !room.depth_cm) return null;
-                        const rx   = PAD + (room.pos_x || 0), ry = PAD + (room.pos_y || 0);
-                        const rw   = room.width_cm, rd = room.depth_cm;
-                        const st   = STATUS[room.status] || STATUS.NOT_STARTED;
-                        const isH  = hoveredId === room.id;
-                        const isSv = savingId === room.id;
-                        const sqft = (rw * rd / 929.03).toFixed(1);
+                        const isPoly = room.polygon_points && room.polygon_points.length >= 3;
+                        const pts    = isPoly ? room.polygon_points : null;
+                        const rx     = PAD + (room.pos_x || 0), ry = PAD + (room.pos_y || 0);
+                        const rw     = room.width_cm, rd = room.depth_cm;
+                        const st     = STATUS[room.status] || STATUS.NOT_STARTED;
+                        const isH    = hoveredId === room.id;
+                        const isSv   = savingId === room.id;
                         const nameEn = room.name.split('/')[0].trim();
                         const words  = nameEn.split(' ');
                         const icon   = roomIcon(room.name);
@@ -753,80 +1048,133 @@ const FloorPlanCanvas = ({ floor, floorColor: fc, onRoomClick }) => {
                         const mid2    = Math.ceil(words.length / 2);
                         const line1   = words.slice(0, mid2).join(' ');
                         const line2   = words.slice(mid2).join(' ');
-                        const lcx     = rx + rw / 2, lcy = ry + rd / 2;
                         const hasLines = rd > 85 && big;
 
-                        return (
-                            <g key={room.id} style={{ cursor: 'inherit' }}
-                                onMouseDown={e => onRoomDown(e, room)}
-                                onMouseEnter={e => {
-                                    if (ia.current.mode !== 'idle') return;
-                                    setHoveredId(room.id);
-                                    const cRect = containerRef.current?.getBoundingClientRect();
-                                    setTooltip({ room, x: e.clientX - (cRect?.left || 0), y: e.clientY - (cRect?.top || 0) });
-                                }}
-                                onMouseLeave={() => {
-                                    if (ia.current.mode !== 'idle') return;
-                                    setHoveredId(null);
-                                    setTooltip(null);
-                                }}
-                            >
-                                {/* Fill */}
-                                <rect x={rx} y={ry} width={rw} height={rd}
-                                    fill={st.fill} fillOpacity={isH ? 0.95 : 0.85}
-                                    stroke={isH ? st.stroke : '#94a3b8'}
-                                    strokeWidth={isH ? IW * 2 : IW}
-                                    filter={isSv ? 'url(#saving-glow)' : isH ? `url(#glow-${floor?.id})` : undefined}
-                                />
-                                {isH && <rect x={rx} y={ry} width={rw} height={rd} fill={st.stroke} fillOpacity="0.06" />}
+                        // centroid for labels
+                        const labelCx = isPoly ? PAD + polyCentroid(pts).x : rx + rw/2;
+                        const labelCy = isPoly ? PAD + polyCentroid(pts).y : ry + rd/2;
 
-                                {/* Interior label */}
+                        // polygon SVG string
+                        const svgPts = isPoly ? pts.map(p=>`${PAD+p.x},${PAD+p.y}`).join(' ') : '';
+
+                        // filter id per room
+                        const glowId = `glow-${floor?.id}`;
+
+                        const sharedEvents = {
+                            onMouseDown: e => onRoomDown(e, room),
+                            onMouseEnter: e => {
+                                if (ia.current.mode !== 'idle') return;
+                                setHoveredId(room.id);
+                                const cRect = containerRef.current?.getBoundingClientRect();
+                                setTooltip({ room, x: e.clientX-(cRect?.left||0), y: e.clientY-(cRect?.top||0) });
+                            },
+                            onMouseLeave: () => {
+                                if (ia.current.mode !== 'idle') return;
+                                setHoveredId(null); setTooltip(null);
+                            },
+                        };
+
+                        return (
+                            <g key={room.id} style={{ cursor: 'inherit' }} {...sharedEvents}>
+                                {/* ── POLYGON room ── */}
+                                {isPoly && (
+                                    <>
+                                        <polygon points={svgPts}
+                                            fill={st.fill} fillOpacity={isH ? 0.95 : 0.85}
+                                            stroke={isH ? st.stroke : '#94a3b8'}
+                                            strokeWidth={isH ? IW*2 : IW}
+                                            strokeLinejoin="round"
+                                            filter={isSv ? 'url(#saving-glow)' : isH ? `url(#${glowId})` : undefined}
+                                        />
+                                        {isH && <polygon points={svgPts} fill={st.stroke} fillOpacity="0.06"/>}
+
+                                        {/* vertex handles — drag to reshape */}
+                                        {isH && pts.map((p,i) => {
+                                            const vx = PAD+p.x, vy = PAD+p.y;
+                                            return (
+                                                <circle key={`v${i}`} cx={vx} cy={vy} r={handleSzCm * 0.7}
+                                                    fill="white" stroke={fc} strokeWidth={handleSzCm*0.22}
+                                                    style={{ cursor:'move', pointerEvents:'all' }}/>
+                                            );
+                                        })}
+
+                                        {/* edge midpoint handles — drag to add vertex */}
+                                        {isH && pts.map((p,i) => {
+                                            const q = pts[(i+1)%pts.length];
+                                            const mx = PAD+(p.x+q.x)/2, my = PAD+(p.y+q.y)/2;
+                                            const s  = handleSzCm * 0.52;
+                                            return (
+                                                <rect key={`m${i}`}
+                                                    x={mx-s} y={my-s} width={s*2} height={s*2}
+                                                    fill={`color-mix(in srgb, ${fc} 30%, white)`}
+                                                    stroke={fc} strokeWidth={handleSzCm*0.16}
+                                                    transform={`rotate(45,${mx},${my})`}
+                                                    style={{ cursor:'crosshair', pointerEvents:'all' }}/>
+                                            );
+                                        })}
+
+                                        {/* saving pulse */}
+                                        {isSv && <polygon points={svgPts} fill="none" stroke="#f59e0b" strokeWidth="5" strokeDasharray="14 6" opacity="0.7"/>}
+                                    </>
+                                )}
+
+                                {/* ── RECTANGLE room ── */}
+                                {!isPoly && (
+                                    <>
+                                        <rect x={rx} y={ry} width={rw} height={rd}
+                                            fill={st.fill} fillOpacity={isH ? 0.95 : 0.85}
+                                            stroke={isH ? st.stroke : '#94a3b8'}
+                                            strokeWidth={isH ? IW*2 : IW}
+                                            filter={isSv ? 'url(#saving-glow)' : isH ? `url(#${glowId})` : undefined}
+                                        />
+                                        {isH && <rect x={rx} y={ry} width={rw} height={rd} fill={st.stroke} fillOpacity="0.06"/>}
+
+                                        {/* resize handles */}
+                                        {isH && handlePos(room).map(({x,y,h}) => (
+                                            <rect key={h}
+                                                x={x-handleSzCm/2} y={y-handleSzCm/2}
+                                                width={handleSzCm} height={handleSzCm}
+                                                fill="white" stroke={fc} strokeWidth={handleSzCm*0.18}
+                                                rx={handleSzCm*0.2}
+                                                style={{ cursor: HANDLE_CURSORS[h]||'move', pointerEvents:'all' }}/>
+                                        ))}
+
+                                        {/* width tick */}
+                                        {rw > 150 && (
+                                            <g style={{pointerEvents:'none'}}>
+                                                <line x1={rx+4} y1={ry-8} x2={rx+rw-4} y2={ry-8} stroke="#94a3b8" strokeWidth="0.7"/>
+                                                <line x1={rx+4} y1={ry-11} x2={rx+4} y2={ry-5} stroke="#94a3b8" strokeWidth="0.7"/>
+                                                <line x1={rx+rw-4} y1={ry-11} x2={rx+rw-4} y2={ry-5} stroke="#94a3b8" strokeWidth="0.7"/>
+                                                <text x={rx+rw/2} y={ry-11} textAnchor="middle" fontSize={dimSz-1} fill="#94a3b8" fontFamily="monospace" style={{userSelect:'none'}}>{m(rw)}</text>
+                                            </g>
+                                        )}
+                                        {/* saving pulse */}
+                                        {isSv && <rect x={rx-3} y={ry-3} width={rw+6} height={rd+6} fill="none" stroke="#f59e0b" strokeWidth="4" strokeDasharray="12 6" rx="4" opacity="0.7"/>}
+                                    </>
+                                )}
+
+                                {/* ── labels (shared for both shapes) ── */}
                                 {big && (
                                     <g style={{ pointerEvents: 'none' }}>
-                                        <text x={lcx} y={hasLines ? lcy - iconSz * 0.85 : lcy - iconSz * 0.3}
-                                            textAnchor="middle" dominantBaseline="central" fontSize={iconSz} style={{ userSelect: 'none' }}>{icon}</text>
+                                        <text x={labelCx} y={hasLines ? labelCy - iconSz*0.85 : labelCy - iconSz*0.3}
+                                            textAnchor="middle" dominantBaseline="central" fontSize={iconSz} style={{userSelect:'none'}}>{icon}</text>
                                         {hasLines && (
                                             <>
-                                                <text x={lcx} y={lcy + nameSz * 0.6} textAnchor="middle" dominantBaseline="central"
-                                                    fontSize={nameSz} fontWeight="700" fill={isH ? st.stroke : '#1e293b'} fontFamily="'Inter',system-ui" style={{ userSelect: 'none' }}>{line1}</text>
-                                                {line2 && <text x={lcx} y={lcy + nameSz * 2} textAnchor="middle" dominantBaseline="central"
-                                                    fontSize={nameSz} fontWeight="700" fill={isH ? st.stroke : '#1e293b'} fontFamily="'Inter',system-ui" style={{ userSelect: 'none' }}>{line2}</text>}
+                                                <text x={labelCx} y={labelCy + nameSz*0.6} textAnchor="middle" dominantBaseline="central"
+                                                    fontSize={nameSz} fontWeight="700" fill={isH ? st.stroke : '#1e293b'} fontFamily="'Inter',system-ui" style={{userSelect:'none'}}>{line1}</text>
+                                                {line2 && <text x={labelCx} y={labelCy + nameSz*2} textAnchor="middle" dominantBaseline="central"
+                                                    fontSize={nameSz} fontWeight="700" fill={isH ? st.stroke : '#1e293b'} fontFamily="'Inter',system-ui" style={{userSelect:'none'}}>{line2}</text>}
                                             </>
                                         )}
-                                        {!hasLines && <text x={lcx} y={lcy + iconSz * 0.7} textAnchor="middle" dominantBaseline="central"
-                                            fontSize={Math.min(nameSz, 12)} fontWeight="700" fill={isH ? st.stroke : '#1e293b'} fontFamily="'Inter',system-ui" style={{ userSelect: 'none' }}>{words.slice(0, 2).join(' ')}</text>}
-                                        {rd > 110 && <text x={lcx} y={ry + rd - dimSz * 1.6} textAnchor="middle" fontSize={dimSz} fontWeight="600" fill="#64748b" fontFamily="monospace" style={{ userSelect: 'none' }}>{m(rw)} × {m(rd)}</text>}
-                                        {rd > 140 && <text x={lcx} y={ry + rd - dimSz * 0.3} textAnchor="middle" fontSize={dimSz - 1} fill="#94a3b8" fontFamily="monospace" style={{ userSelect: 'none' }}>{sqft} ft²</text>}
+                                        {!hasLines && <text x={labelCx} y={labelCy + iconSz*0.7} textAnchor="middle" dominantBaseline="central"
+                                            fontSize={Math.min(nameSz,12)} fontWeight="700" fill={isH ? st.stroke : '#1e293b'} fontFamily="'Inter',system-ui" style={{userSelect:'none'}}>{words.slice(0,2).join(' ')}</text>}
+                                        {rd > 110 && <text x={labelCx} y={ry + rd - dimSz*1.6} textAnchor="middle" fontSize={dimSz} fontWeight="600" fill="#64748b" fontFamily="monospace" style={{userSelect:'none'}}>{m(rw)} × {m(rd)}</text>}
                                     </g>
                                 )}
                                 {!big && minSide > 28 && (
-                                    <text x={lcx} y={lcy} textAnchor="middle" dominantBaseline="central"
-                                        fontSize={Math.min(minSide * 0.38, 22)} style={{ userSelect: 'none', pointerEvents: 'none' }}>{icon}</text>
+                                    <text x={labelCx} y={labelCy} textAnchor="middle" dominantBaseline="central"
+                                        fontSize={Math.min(minSide*0.38, 22)} style={{userSelect:'none', pointerEvents:'none'}}>{icon}</text>
                                 )}
-
-                                {/* Per-room width tick */}
-                                {rw > 150 && (
-                                    <g style={{ pointerEvents: 'none' }}>
-                                        <line x1={rx+4} y1={ry-8} x2={rx+rw-4} y2={ry-8} stroke="#94a3b8" strokeWidth="0.7"/>
-                                        <line x1={rx+4} y1={ry-11} x2={rx+4} y2={ry-5} stroke="#94a3b8" strokeWidth="0.7"/>
-                                        <line x1={rx+rw-4} y1={ry-11} x2={rx+rw-4} y2={ry-5} stroke="#94a3b8" strokeWidth="0.7"/>
-                                        <text x={rx+rw/2} y={ry-11} textAnchor="middle" fontSize={dimSz-1} fill="#94a3b8" fontFamily="monospace" style={{ userSelect: 'none' }}>{m(rw)}</text>
-                                    </g>
-                                )}
-
-                                {/* Resize handles — visible only on hovered room */}
-                                {isH && handlePos(room).map(({ x, y, h }) => (
-                                    <rect key={h}
-                                        x={x - handleSzCm / 2} y={y - handleSzCm / 2}
-                                        width={handleSzCm} height={handleSzCm}
-                                        fill="white" stroke={fc} strokeWidth={handleSzCm * 0.18}
-                                        rx={handleSzCm * 0.2}
-                                        style={{ cursor: HANDLE_CURSORS[h] || 'move', pointerEvents: 'all' }}
-                                    />
-                                ))}
-
-                                {/* Saving pulse ring */}
-                                {isSv && <rect x={rx-3} y={ry-3} width={rw+6} height={rd+6} fill="none" stroke="#f59e0b" strokeWidth="4" strokeDasharray="12 6" rx="4" opacity="0.7"/>}
                             </g>
                         );
                     })}
@@ -864,6 +1212,58 @@ const FloorPlanCanvas = ({ floor, floorColor: fc, onRoomClick }) => {
                             </g>
                         );
                     })()}
+
+                    {/* ── Draw ghost rectangle (new room preview) ─────────── */}
+                    {drawGhost && drawGhost.w >= MIN_DIM && drawGhost.h >= MIN_DIM && (
+                        <g style={{ pointerEvents: 'none' }}>
+                            {/* shadow */}
+                            <rect
+                                x={PAD + drawGhost.x + 4} y={PAD + drawGhost.y + 4}
+                                width={drawGhost.w} height={drawGhost.h}
+                                fill="#000" fillOpacity="0.08" rx={3}
+                            />
+                            {/* fill */}
+                            <rect
+                                x={PAD + drawGhost.x} y={PAD + drawGhost.y}
+                                width={drawGhost.w} height={drawGhost.h}
+                                fill="#10b981" fillOpacity="0.12"
+                                stroke="#10b981" strokeWidth={2.5 / zoom}
+                                strokeDasharray={`${10/zoom} ${5/zoom}`}
+                                rx={3}
+                            />
+                            {/* corner dots */}
+                            {[[0,0],[drawGhost.w,0],[0,drawGhost.h],[drawGhost.w,drawGhost.h]].map(([dx,dy],i) => (
+                                <circle key={i}
+                                    cx={PAD + drawGhost.x + dx} cy={PAD + drawGhost.y + dy}
+                                    r={4 / zoom} fill="#10b981"/>
+                            ))}
+                            {/* dimension label */}
+                            <rect
+                                x={PAD + drawGhost.x + drawGhost.w/2 - 42/zoom}
+                                y={PAD + drawGhost.y + drawGhost.h/2 - 11/zoom}
+                                width={84/zoom} height={22/zoom}
+                                fill="white" rx={4/zoom} fillOpacity="0.92"
+                                stroke="#10b981" strokeWidth={1/zoom}
+                            />
+                            <text
+                                x={PAD + drawGhost.x + drawGhost.w/2}
+                                y={PAD + drawGhost.y + drawGhost.h/2 + 1/zoom}
+                                textAnchor="middle" dominantBaseline="middle"
+                                fontSize={11/zoom} fontWeight="900" fill="#059669"
+                                fontFamily="'Inter', system-ui">
+                                {m(drawGhost.w)} × {m(drawGhost.h)}
+                            </text>
+                            {/* area sub-label */}
+                            <text
+                                x={PAD + drawGhost.x + drawGhost.w/2}
+                                y={PAD + drawGhost.y + drawGhost.h/2 + 16/zoom}
+                                textAnchor="middle" dominantBaseline="middle"
+                                fontSize={8.5/zoom} fontWeight="600" fill="#6ee7b7"
+                                fontFamily="'Inter', system-ui">
+                                {(drawGhost.w * drawGhost.h / 929.03).toFixed(1)} ft²
+                            </text>
+                        </g>
+                    )}
                 </svg>
             </div>
 
@@ -991,7 +1391,9 @@ const FloorsTab = ({ searchQuery = '' }) => {
     const { dashboardData, refreshData } = useConstruction();
     const [activeLevel, setActiveLevel]       = useState(0);
     const [viewMode, setViewMode]             = useState('grid'); // 'grid' | 'plan'
-    const [selectedRoom, setSelectedRoom]     = useState(null);
+    const [selectedRoomId, setSelectedRoomId] = useState(null);
+    // live panel room — kept in sync when canvas drag saves or panel edits save
+    const [panelRoom, setPanelRoom]           = useState(null);
     const [isModalOpen, setIsModalOpen]       = useState(false);
     const [isRoomModalOpen, setIsRoomModalOpen] = useState(false);
     const [editingItem, setEditingItem]       = useState(null);
@@ -1075,169 +1477,35 @@ const FloorsTab = ({ searchQuery = '' }) => {
         } catch { alert('Save failed.'); } finally { setLoading(false); }
     };
 
+    // Called by both canvas drag-save and inspector panel auto-save
+    const handleRoomSaved = useCallback((updatedRoom) => {
+        setPanelRoom(prev => prev?.id === updatedRoom.id ? { ...prev, ...updatedRoom } : prev);
+        refreshData();
+    }, [refreshData]);
+
+    // Called when user draws a new room rect on the canvas
+    const handleCreateRoom = useCallback(async (roomData) => {
+        if (!activeFloor) return null;
+        try {
+            const res = await dashboardService.createRoom({ ...roomData, floor: activeFloor.id });
+            const newRoom = res.data;
+            refreshData();
+            // open inspector immediately
+            setSelectedRoomId(newRoom.id);
+            setPanelRoom(newRoom);
+            return newRoom;
+        } catch {
+            alert('Failed to create room. Please try again.');
+            return null;
+        }
+    }, [activeFloor, refreshData]);
+
     const inp = 'w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--t-border)] bg-[var(--t-surface)] text-[var(--t-text)] focus:outline-none focus:ring-2 focus:ring-[#ea580c]/30 transition-all';
     const lbl = 'block text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest mb-1.5';
 
-    return (
-        <div className="space-y-5">
-            {/* ── Global stat bar ──────────────────────────────────────── */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                {[
-                    { label: 'Floors / तल्लाहरू',    value: floors.length,         sub: 'levels',              accent: '#ea580c' },
-                    { label: 'Rooms / कोठाहरू',       value: totalRooms,            sub: 'spaces',              accent: '#3b82f6' },
-                    { label: 'Total Area / क्षेत्र',  value: totalSqft.toFixed(0),  sub: 'sqft',                accent: '#8b5cf6' },
-                    { label: 'Complete / सकियो',       value: `${globalPct}%`,       sub: `${totalDone}/${totalRooms} rooms`, accent: '#10b981' },
-                ].map(({ label, value, sub, accent }) => (
-                    <div key={label} className="bg-[var(--t-surface)] border border-[var(--t-border)] rounded-xl p-4 shadow-sm">
-                        <p className="text-[9px] font-black uppercase tracking-wider text-[var(--t-text3)] mb-1">{label}</p>
-                        <p className="text-2xl font-black" style={{ color: accent }}>{value}</p>
-                        <p className="text-[9px] text-[var(--t-text3)] mt-0.5">{sub}</p>
-                    </div>
-                ))}
-            </div>
-
-            {/* ── Main layout ─────────────────────────────────────────── */}
-            <div className="flex gap-5 items-start">
-
-                {/* Left: Building elevation */}
-                <div className="w-52 shrink-0 space-y-3">
-                    <div className="flex items-center justify-between">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-[var(--t-text3)]">Building</p>
-                        <button onClick={() => handleOpenModal()}
-                            className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border border-dashed border-[var(--t-primary)]/50 text-[var(--t-primary)] hover:bg-[var(--t-primary)]/5 transition-colors">
-                            + Floor
-                        </button>
-                    </div>
-                    {filteredFloors.length > 0
-                        ? <BuildingElevation floors={filteredFloors} activeLevel={activeLevel} onSelect={setActiveLevel} />
-                        : <div className="p-6 text-center text-[var(--t-text3)] text-xs border-2 border-dashed border-[var(--t-border)] rounded-xl">No floors yet</div>
-                    }
-                </div>
-
-                {/* Right: Floor detail */}
-                <div className="flex-1 min-w-0">
-                    {activeFloor ? (
-                        <div className="space-y-4">
-                            {/* Floor header */}
-                            <div className="rounded-2xl border p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-                                style={{
-                                    borderColor: fc,
-                                    background: `linear-gradient(135deg, color-mix(in srgb, ${fc} 6%, var(--t-surface)), var(--t-surface))`,
-                                }}>
-                                <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <span className="text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest"
-                                            style={{ background: `color-mix(in srgb, ${fc} 15%, transparent)`, color: fc }}>
-                                            Level {activeFloor.level}
-                                        </span>
-                                        <span className="text-[9px] text-[var(--t-text3)]">
-                                            {activeFloor.rooms?.length || 0} rooms · {floorTotalSqft.toFixed(0)} sqft
-                                            {activeFloor.plan_width_cm && (
-                                                <span className="ml-2 font-mono">
-                                                    · {(activeFloor.plan_width_cm/100).toFixed(2)}m × {(activeFloor.plan_depth_cm/100).toFixed(2)}m
-                                                </span>
-                                            )}
-                                        </span>
-                                    </div>
-                                    <h2 className="text-lg font-black text-[var(--t-text)]">{activeFloor.name}</h2>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                                    {/* View toggle */}
-                                    <div className="flex items-center bg-[var(--t-surface2)] rounded-xl p-0.5 border border-[var(--t-border)]">
-                                        {[
-                                            { key: 'grid', icon: '⊞', label: 'Grid' },
-                                            { key: 'plan', icon: '📐', label: 'Plan' },
-                                        ].map(({ key, icon, label }) => (
-                                            <button key={key} onClick={() => setViewMode(key)}
-                                                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
-                                                    viewMode === key
-                                                        ? 'text-white shadow-sm'
-                                                        : 'text-[var(--t-text3)] hover:text-[var(--t-text)]'
-                                                }`}
-                                                style={{ background: viewMode === key ? fc : 'transparent' }}>
-                                                {icon} {label}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    <button onClick={() => handleOpenRoomModal(null, activeFloor.id)}
-                                        className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-white transition-all hover:opacity-90 shadow-md"
-                                        style={{ background: fc }}>
-                                        + Add Room
-                                    </button>
-                                    <button onClick={() => handleOpenModal(activeFloor)}
-                                        className="px-3 py-2 rounded-xl text-xs font-black uppercase tracking-widest border border-[var(--t-border)] text-[var(--t-text2)] hover:text-[var(--t-text)] transition-colors">
-                                        Edit
-                                    </button>
-                                    <button onClick={() => handleDelete(activeFloor.id)}
-                                        className="px-3 py-2 rounded-xl text-xs font-black uppercase tracking-widest bg-red-50 text-red-500 hover:bg-red-100 transition-colors">
-                                        Del
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Room status summary strip */}
-                            {activeFloor.rooms?.length > 0 && (
-                                <div className="flex gap-4 px-1">
-                                    {['NOT_STARTED', 'IN_PROGRESS', 'COMPLETED'].map(s => {
-                                        const count = (activeFloor.rooms || []).filter(r => r.status === s).length;
-                                        if (!count) return null;
-                                        return (
-                                            <div key={s} className="flex items-center gap-1.5">
-                                                <span className="w-2 h-2 rounded-full" style={{ background: STATUS[s].dot }} />
-                                                <span className="text-[10px] font-bold text-[var(--t-text3)]">{count} {STATUS[s].label}</span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-
-                            {/* ── Plan View ── */}
-                            {viewMode === 'plan' && (
-                                <FloorPlanCanvas
-                                    floor={activeFloor}
-                                    floorColor={fc}
-                                    onRoomClick={(r) => setSelectedRoom(r)}
-                                />
-                            )}
-
-                            {/* ── Grid View ── */}
-                            {viewMode === 'grid' && (
-                                visibleRooms.length > 0 ? (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                                        {visibleRooms.map(room => (
-                                            <RoomCard key={room.id} room={room} floorColor={fc}
-                                                floorTotalSqft={floorTotalSqft}
-                                                onEdit={(r) => handleOpenRoomModal(r, activeFloor.id)}
-                                                onDelete={handleDeleteRoom}
-                                                onSelect={(r) => setSelectedRoom(r)} />
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="p-12 border-2 border-dashed border-[var(--t-border)] rounded-2xl text-center">
-                                        <p className="text-3xl mb-2">🏗️</p>
-                                        <p className="text-sm font-bold text-[var(--t-text3)]">No rooms on this floor yet</p>
-                                        <button onClick={() => handleOpenRoomModal(null, activeFloor.id)}
-                                            className="mt-3 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-white"
-                                            style={{ background: fc }}>
-                                            + Add First Room
-                                        </button>
-                                    </div>
-                                )
-                            )}
-                        </div>
-                    ) : (
-                        <div className="p-16 text-center border-2 border-dashed border-[var(--t-border)] rounded-2xl">
-                            <p className="text-4xl mb-3">🏢</p>
-                            <p className="text-sm font-bold text-[var(--t-text3)]">No floors found</p>
-                            <button onClick={() => handleOpenModal()}
-                                className="mt-4 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-[var(--t-primary)] text-white">
-                                + Add First Floor
-                            </button>
-                        </div>
-                    )}
-                </div>
-            </div>
-
+    /* ── shared modals + panel (rendered in both layout modes) ── */
+    const Modals = (
+        <>
             {/* ── Floor Modal ──────────────────────────────────────────── */}
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}
                 title={`${editingItem ? 'Edit' : 'Add New'} Floor`} maxWidth="max-w-md">
@@ -1353,15 +1621,15 @@ const FloorsTab = ({ searchQuery = '' }) => {
                 </form>
             </Modal>
 
-            {/* ── Room Detail Panel ────────────────────────────────────── */}
-            {selectedRoom && (
+            {/* ── Room Detail Panel — always-editable inspector ─────────── */}
+            {selectedRoomId && panelRoom && (
                 <RoomDetailPanel
-                    room={selectedRoom}
+                    room={panelRoom}
                     floorName={activeFloor?.name}
                     floorColor={fc}
-                    onClose={() => setSelectedRoom(null)}
-                    onEdit={(r) => { handleOpenRoomModal(r, activeFloor.id); }}
-                    onDelete={(id) => { handleDeleteRoom(id); }}
+                    onClose={() => { setSelectedRoomId(null); setPanelRoom(null); }}
+                    onDelete={(id) => { handleDeleteRoom(id); setSelectedRoomId(null); setPanelRoom(null); }}
+                    onRoomSaved={handleRoomSaved}
                 />
             )}
 
@@ -1374,6 +1642,264 @@ const FloorsTab = ({ searchQuery = '' }) => {
                 onCancel={closeConfirm}
                 type={confirmConfig.type || 'warning'}
             />
+        </>
+    );
+
+    /* ════════════════════════════════════════════════════════════════════════
+       MAIN LAYOUT — sidebar (floors list) + content area
+       ════════════════════════════════════════════════════════════════════════ */
+
+    /* derived per-floor stats for sidebar */
+    const floorDone = (f) => (f.rooms || []).filter(r => r.status === 'COMPLETED').length;
+    const floorPct  = (f) => (f.rooms?.length || 0) > 0
+        ? Math.round(floorDone(f) / f.rooms.length * 100) : 0;
+    const floorSqft = (f) => (f.rooms || []).reduce((s,r) => s + Number(r.area_sqft || 0), 0);
+
+    return (
+        <div className="flex" style={{ height: 'calc(100vh - 112px)', overflow: 'hidden' }}>
+
+            {/* ╔══════════════════════════════════╗
+                ║  LEFT SIDEBAR — Floors List      ║
+                ╚══════════════════════════════════╝ */}
+            <aside style={{ width: 256, flexShrink: 0 }}
+                className="flex flex-col bg-[var(--t-surface)] border-r border-[var(--t-border)]">
+
+                {/* Sidebar header */}
+                <div className="flex items-center justify-between px-4 py-3.5 border-b border-[var(--t-border)] shrink-0">
+                    <div>
+                        <p className="text-xs font-black text-[var(--t-text)] uppercase tracking-widest">Floors</p>
+                        <p className="text-[9px] text-[var(--t-text3)] mt-0.5">{filteredFloors.length} total · {totalRooms} rooms</p>
+                    </div>
+                    <button onClick={() => handleOpenModal()}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg text-white text-base font-bold transition-all hover:opacity-80"
+                        style={{ background: '#ea580c' }} title="Add new floor">
+                        +
+                    </button>
+                </div>
+
+                {/* Floor list */}
+                <div className="flex-1 overflow-y-auto">
+                    {filteredFloors.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                            <span className="text-3xl mb-2">🏗️</span>
+                            <p className="text-xs font-bold text-[var(--t-text2)]">No floors yet</p>
+                            <p className="text-[10px] text-[var(--t-text3)] mt-1">Click + to add your first floor</p>
+                        </div>
+                    ) : (
+                        filteredFloors.map(floor => {
+                            const fCol  = floorColor(floor.level);
+                            const isAct = floor.level === activeLevel;
+                            const pct   = floorPct(floor);
+                            const sqft  = floorSqft(floor);
+                            return (
+                                <button key={floor.id}
+                                    onClick={() => setActiveLevel(floor.level)}
+                                    className="relative w-full flex items-start gap-3 px-4 py-3.5 text-left transition-all border-b border-[var(--t-border)] group"
+                                    style={{ background: isAct ? `color-mix(in srgb, ${fCol} 8%, var(--t-surface2))` : undefined }}>
+
+                                    {/* Active accent bar */}
+                                    {isAct && (
+                                        <div className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full"
+                                            style={{ background: fCol }} />
+                                    )}
+
+                                    {/* Level badge */}
+                                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-[11px] font-black shrink-0 mt-0.5"
+                                        style={{ background: isAct ? fCol : `color-mix(in srgb, ${fCol} 60%, #94a3b8)` }}>
+                                        {floor.level === 0 ? 'G' : `F${floor.level}`}
+                                    </div>
+
+                                    {/* Floor info */}
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[13px] font-bold text-[var(--t-text)] truncate leading-tight"
+                                            style={{ color: isAct ? fCol : undefined }}>
+                                            {floor.name.split('/')[0].trim()}
+                                        </p>
+                                        {floor.name.includes('/') && (
+                                            <p className="text-[9px] text-[var(--t-text3)] truncate mt-0.5">
+                                                {floor.name.split('/')[1]?.trim()}
+                                            </p>
+                                        )}
+                                        <div className="flex items-center gap-2 mt-1.5">
+                                            <span className="text-[9px] font-semibold text-[var(--t-text3)]">
+                                                {floor.rooms?.length || 0} rooms
+                                            </span>
+                                            {sqft > 0 && (
+                                                <span className="text-[9px] text-[var(--t-text3)]">· {sqft.toFixed(0)} ft²</span>
+                                            )}
+                                        </div>
+
+                                        {/* Mini progress bar */}
+                                        {(floor.rooms?.length || 0) > 0 && (
+                                            <div className="flex items-center gap-1.5 mt-1.5">
+                                                <div className="flex-1 h-1 rounded-full bg-[var(--t-border)] overflow-hidden">
+                                                    <div className="h-full rounded-full transition-all duration-500"
+                                                        style={{ width: `${pct}%`, background: fCol }} />
+                                                </div>
+                                                <span className="text-[8px] font-black shrink-0"
+                                                    style={{ color: isAct ? fCol : 'var(--t-text3)' }}>{pct}%</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </button>
+                            );
+                        })
+                    )}
+                </div>
+
+                {/* Sidebar footer — global summary */}
+                <div className="px-4 py-3 border-t border-[var(--t-border)] shrink-0 bg-[var(--t-surface2)]">
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                        {[
+                            [totalRooms,           'Rooms'],
+                            [totalSqft.toFixed(0), 'Sqft'],
+                            [`${globalPct}%`,       'Done'],
+                        ].map(([val, lbl]) => (
+                            <div key={lbl}>
+                                <p className="text-sm font-black text-[var(--t-text)]">{val}</p>
+                                <p className="text-[8px] font-bold uppercase tracking-widest text-[var(--t-text3)]">{lbl}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </aside>
+
+            {/* ╔═══════════════════════════════════════════════════════════╗
+                ║  RIGHT CONTENT — Floor Detail                             ║
+                ╚═══════════════════════════════════════════════════════════╝ */}
+            <main className="flex-1 flex flex-col min-w-0 bg-[var(--t-surface2)]">
+
+                {activeFloor ? (<>
+                    {/* ── Floor header bar ─────────────────────────────────── */}
+                    <div className="flex items-center gap-3 px-5 py-3 bg-[var(--t-surface)] border-b border-[var(--t-border)] shrink-0">
+
+                        {/* Floor identity */}
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-black shrink-0"
+                                style={{ background: fc }}>
+                                {activeFloor.level === 0 ? 'G' : `F${activeFloor.level}`}
+                            </div>
+                            <div className="min-w-0">
+                                <h2 className="text-base font-black text-[var(--t-text)] truncate leading-tight">
+                                    {activeFloor.name.split('/')[0].trim()}
+                                </h2>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                    <span className="text-[10px] text-[var(--t-text3)]">Level {activeFloor.level}</span>
+                                    <span className="text-[var(--t-border)]">·</span>
+                                    <span className="text-[10px] text-[var(--t-text3)]">{visibleRooms.length} rooms</span>
+                                    {floorTotalSqft > 0 && <>
+                                        <span className="text-[var(--t-border)]">·</span>
+                                        <span className="text-[10px] text-[var(--t-text3)]">{floorTotalSqft.toFixed(1)} ft²</span>
+                                    </>}
+                                    {/* completion badge */}
+                                    {visibleRooms.length > 0 && (() => {
+                                        const done = visibleRooms.filter(r => r.status === 'COMPLETED').length;
+                                        const pct = Math.round(done / visibleRooms.length * 100);
+                                        return (
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black"
+                                                style={{ background: `color-mix(in srgb, ${fc} 15%, transparent)`, color: fc }}>
+                                                {pct}% done
+                                            </span>
+                                        );
+                                    })()}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* View toggle */}
+                        <div className="flex rounded-xl overflow-hidden border border-[var(--t-border)] shrink-0" style={{ padding: 2, gap: 2 }}>
+                            {[['grid', '⊞ Grid'], ['plan', '📐 Plan']].map(([mode, label]) => (
+                                <button key={mode} onClick={() => setViewMode(mode)}
+                                    className="px-3.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all"
+                                    style={viewMode === mode
+                                        ? { background: fc, color: '#fff' }
+                                        : { color: 'var(--t-text3)' }}>
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-2 shrink-0">
+                            <button onClick={() => handleOpenRoomModal(null, activeFloor.id)}
+                                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider text-white transition-all hover:opacity-85"
+                                style={{ background: fc }}>
+                                + Add Room
+                            </button>
+                            <button onClick={() => handleOpenModal(activeFloor)}
+                                className="px-3 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider border border-[var(--t-border)] text-[var(--t-text2)] hover:text-[var(--t-text)] hover:bg-[var(--t-surface2)] transition-all">
+                                Edit
+                            </button>
+                            <button onClick={() => handleDelete(activeFloor.id)}
+                                className="px-3 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider text-red-400 hover:bg-red-50 transition-all">
+                                Del
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* ── Plan canvas / Room grid ───────────────────────────── */}
+                    {viewMode === 'plan' ? (
+                        /* Full-height plan canvas */
+                        <FloorPlanCanvas
+                            floor={activeFloor}
+                            floorColor={fc}
+                            onRoomClick={r => { setSelectedRoomId(r.id); setPanelRoom(r); }}
+                            onRoomSaved={handleRoomSaved}
+                            onCreateRoom={handleCreateRoom}
+                            height="calc(100vh - 164px)"
+                        />
+                    ) : (
+                        /* Room cards grid */
+                        <div className="flex-1 overflow-y-auto p-5">
+                            {visibleRooms.length > 0 ? (
+                                <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))' }}>
+                                    {visibleRooms.map(room => (
+                                        <RoomCard
+                                            key={room.id}
+                                            room={room}
+                                            floorColor={fc}
+                                            floorTotalSqft={floorTotalSqft}
+                                            onEdit={r => handleOpenRoomModal(r, activeFloor.id)}
+                                            onDelete={handleDeleteRoom}
+                                            onSelect={r => { setSelectedRoomId(r.id); setPanelRoom(r); }}
+                                        />
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center h-full py-20 text-center">
+                                    <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl mb-5"
+                                        style={{ background: `color-mix(in srgb, ${fc} 10%, var(--t-surface))` }}>
+                                        🏠
+                                    </div>
+                                    <p className="text-base font-black text-[var(--t-text2)]">No rooms yet</p>
+                                    <p className="text-sm text-[var(--t-text3)] mt-1 mb-5">
+                                        Add rooms to start planning this floor
+                                    </p>
+                                    <button onClick={() => handleOpenRoomModal(null, activeFloor.id)}
+                                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black text-white transition-all hover:opacity-85"
+                                        style={{ background: fc }}>
+                                        + Add First Room
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </>) : (
+                    /* No floor selected */
+                    <div className="flex-1 flex flex-col items-center justify-center text-center px-8">
+                        <div className="w-24 h-24 rounded-3xl flex items-center justify-center text-5xl mb-6"
+                            style={{ background: 'color-mix(in srgb, #ea580c 8%, var(--t-surface))' }}>
+                            🏗️
+                        </div>
+                        <p className="text-lg font-black text-[var(--t-text2)]">Select a Floor</p>
+                        <p className="text-sm text-[var(--t-text3)] mt-2 max-w-xs leading-relaxed">
+                            Click any floor from the sidebar to view and manage its rooms and layout
+                        </p>
+                    </div>
+                )}
+            </main>
+
+            {Modals}
         </div>
     );
 };

@@ -18,7 +18,10 @@ Mount point: /api/v1/finance/...
 
 from __future__ import annotations
 
+import logging
 from datetime import date as _date
+
+logger = logging.getLogger(__name__)
 from decimal import Decimal
 
 from django.db.models import Sum, Q, Count, F, DecimalField, Value
@@ -74,7 +77,7 @@ class AccountViewSet(viewsets.ModelViewSet):
     queryset = Account.objects.all().order_by("code")
     serializer_class = AccountSerializer
     permission_classes = [permissions.IsAuthenticated, CanManageFinances]
-    filterset_fields = ["account_type", "is_active"]
+    filterset_fields = ["account_type", "is_active", "project"]
     search_fields = ["name", "code"]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
 
@@ -83,7 +86,7 @@ class JournalEntryViewSet(viewsets.ModelViewSet):
     queryset = JournalEntry.objects.all().prefetch_related("lines", "lines__account").order_by("-date", "-id")
     serializer_class = JournalEntrySerializer
     permission_classes = [permissions.IsAuthenticated, CanManageFinances]
-    filterset_fields = ["source"]
+    filterset_fields = ["source", "project"]
 
 
 # -----------------------------------------------------------------------------
@@ -94,7 +97,7 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
     queryset = PurchaseOrder.objects.all().order_by("-date")
     serializer_class = PurchaseOrderSerializer
     permission_classes = [permissions.IsAuthenticated, CanManageFinances]
-    filterset_fields = ["status", "supplier", "contractor"]
+    filterset_fields = ["status", "supplier", "contractor", "project"]
 
 
 class BillViewSet(viewsets.ModelViewSet):
@@ -106,7 +109,25 @@ class BillViewSet(viewsets.ModelViewSet):
     )
     serializer_class = BillSerializer
     permission_classes = [permissions.IsAuthenticated, CanManageFinances]
-    filterset_fields = ["status", "supplier", "contractor"]
+    filterset_fields = ["status", "supplier", "contractor", "project"]
+
+    def perform_create(self, serializer):
+        """Save the bill then immediately post the AP journal entry.
+        Dr Expense (per item or generic)  /  Cr Accounts Payable.
+        """
+        bill = serializer.save()
+        try:
+            BillService.post_bill_ledger(bill)
+        except Exception as exc:
+            logger.error("Bill GL post failed for Bill %s: %s", bill.id, exc)
+
+    def perform_update(self, serializer):
+        """Re-post the ledger if bill details changed."""
+        bill = serializer.save()
+        try:
+            BillService.sync_bill_ledger(bill)
+        except Exception as exc:
+            logger.error("Bill GL sync failed for Bill %s: %s", bill.id, exc)
 
     def perform_destroy(self, instance):
         BillService.delete_bill(instance)
@@ -119,7 +140,7 @@ class BillViewSet(viewsets.ModelViewSet):
         try:
             payment = BillService.pay_bill(
                 bill,
-                account=Account.objects.get(pk=request.data["account"]),
+                account=Account.objects.get(pk=request.data["account"], project=bill.project),
                 amount=request.data["amount"],
                 date=request.data["date"],
                 method=request.data.get("method", "CASH"),
@@ -136,13 +157,13 @@ class BillPaymentViewSet(viewsets.ModelViewSet):
     queryset = BillPayment.objects.all().select_related("account", "bill").order_by("-date", "-id")
     serializer_class = BillPaymentSerializer
     permission_classes = [permissions.IsAuthenticated, CanManageFinances]
-    filterset_fields = ["method", "account", "bill"]
+    filterset_fields = ["method", "account", "bill", "project"]
 
     def create(self, request, *args, **kwargs):
         """Override so we always go through the service (updates bill + posts JE)."""
         try:
             bill = Bill.objects.get(pk=request.data["bill"])
-            account = Account.objects.get(pk=request.data["account"])
+            account = Account.objects.get(pk=request.data["account"], project=bill.project)
             payment = BillService.pay_bill(
                 bill,
                 account=account,
@@ -170,7 +191,23 @@ class BankTransferViewSet(viewsets.ModelViewSet):
     queryset = BankTransfer.objects.all().select_related("from_account", "to_account").order_by("-date", "-id")
     serializer_class = BankTransferSerializer
     permission_classes = [permissions.IsAuthenticated, CanManageFinances]
-    filterset_fields = ["from_account", "to_account"]
+    filterset_fields = ["from_account", "to_account", "project"]
+
+    def perform_create(self, serializer):
+        """Save the transfer then post the GL journal entry."""
+        transfer = serializer.save()
+        try:
+            TransferService.execute(transfer)
+        except Exception as exc:
+            logger.error("BankTransfer GL post failed for Transfer %s: %s", transfer.id, exc)
+
+    def perform_update(self, serializer):
+        """Re-execute the transfer logic if details changed."""
+        transfer = serializer.save()
+        try:
+            TransferService.sync(transfer)
+        except Exception as exc:
+            logger.error("BankTransfer GL sync failed for Transfer %s: %s", transfer.id, exc)
 
     def perform_destroy(self, instance):
         TransferService.delete(instance)
@@ -184,6 +221,7 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
     queryset = BudgetCategory.objects.all().order_by("name")
     serializer_class = BudgetCategorySerializer
     permission_classes = [permissions.IsAuthenticated, CanManageFinances]
+    filterset_fields = ["project"]
 
 
 class PhaseBudgetAllocationViewSet(viewsets.ModelViewSet):
@@ -200,6 +238,7 @@ class FundingSourceViewSet(viewsets.ModelViewSet):
     queryset = FundingSource.objects.all().prefetch_related("transactions").order_by("-received_date")
     serializer_class = FundingSourceSerializer
     permission_classes = [permissions.IsAuthenticated, CanManageFinances]
+    filterset_fields = ["project"]
 
     @action(detail=True, methods=["post"], url_path="recalculate")
     def recalculate(self, request, pk=None):
@@ -218,6 +257,7 @@ class FundingTransactionViewSet(viewsets.ModelViewSet):
     queryset = FundingTransaction.objects.all().order_by("-date", "-id")
     serializer_class = FundingTransactionSerializer
     permission_classes = [permissions.IsAuthenticated, CanManageFinances]
+    filterset_fields = ["transaction_type", "funding_source"]
 
 
 # -----------------------------------------------------------------------------
@@ -262,11 +302,19 @@ class ExpenseViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"])
     def overview(self, request):
         """Aggregated finance dashboard payload. Safe against empty data."""
-        project = HouseProject.objects.first()
+        project_id = request.query_params.get("project_id")
+        if project_id:
+            project = HouseProject.objects.filter(pk=project_id).first()
+        else:
+            project = HouseProject.objects.first()
+            
         project_budget = _float(project.total_budget if project else 0)
 
+        # Base filter for related objects
+        p_filter = {"project": project} if project else {}
+
         # Funding summary
-        funding_agg = FundingSource.objects.aggregate(
+        funding_agg = FundingSource.objects.filter(**p_filter).aggregate(
             total=Sum("amount"),
             balance=Sum("current_balance"),
         )
@@ -274,7 +322,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         funding_balance = _float(funding_agg["balance"])
 
         # Expenses summary (direct-spend flow)
-        expense_agg = Expense.objects.filter(is_inventory_usage=False).aggregate(
+        expense_agg = Expense.objects.filter(is_inventory_usage=False, **p_filter).aggregate(
             total=Sum("amount"),
             count=Count("id"),
         )
@@ -282,7 +330,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         expense_count = expense_agg["count"] or 0
 
         # Accounts Payable from Bills — use DB fields (NOT the balance_due property)
-        bills_qs = Bill.objects.filter(status__in=["UNPAID", "PARTIAL"])
+        bills_qs = Bill.objects.filter(status__in=["UNPAID", "PARTIAL"], **p_filter)
         ap_agg = bills_qs.aggregate(
             total_liability=Coalesce(Sum("total_amount"), Value(0, output_field=DecimalField())),
             total_paid=Coalesce(Sum("amount_paid"), Value(0, output_field=DecimalField())),
@@ -292,7 +340,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         # GL balances by account type
         account_type_balances = {}
         bank_cash_details = []
-        for acc in Account.objects.filter(is_active=True):
+        for acc in Account.objects.filter(is_active=True, **p_filter):
             atype = acc.account_type
             bal = float(acc.balance)
             account_type_balances[atype] = account_type_balances.get(atype, 0.0) + bal
@@ -305,7 +353,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
                 })
 
         # Category burn — unified (both Expense and Bill contribute)
-        categories = BudgetCategory.objects.all()
+        categories = BudgetCategory.objects.filter(**p_filter)
         category_breakdown = []
         for cat in categories:
             spent = float(cat.total_spent)
@@ -383,7 +431,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
                 from apps.core.email_utils import send_payment_receipt_email
                 send_payment_receipt_email(payment=payment, user=self.request.user)
             except Exception as e:
-                print(f"Error triggering payment receipt email: {e}")
+                logger.error("Error triggering payment receipt email: %s", e)
 
         serializer.instance = payment
 

@@ -6,6 +6,7 @@ import { useConstruction } from '../../../../context/ConstructionContext';
 const BillFormModal = ({ isOpen, onClose, suppliers = [], contractors = [] }) => {
     const { refreshData } = useConstruction();
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
     const [formData, setFormData] = useState({
         bill_number: '',
         date_issued: new Date().toISOString().split('T')[0],
@@ -19,6 +20,13 @@ const BillFormModal = ({ isOpen, onClose, suppliers = [], contractors = [] }) =>
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setError(null);
+
+        if (new Date(formData.due_date) < new Date(formData.date_issued)) {
+            setError('Due date cannot be before the date issued.');
+            return;
+        }
+
         setLoading(true);
         try {
             const dataToSubmit = { ...formData };
@@ -43,7 +51,13 @@ const BillFormModal = ({ isOpen, onClose, suppliers = [], contractors = [] }) =>
                 notes: ''
             });
         } catch (err) {
-            alert('Failed to create Bill. ' + (err.response?.data?.error || err.message));
+            const detail = err.response?.data;
+            if (typeof detail === 'object') {
+                const msgs = Object.entries(detail).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`).join(' | ');
+                setError(msgs);
+            } else {
+                setError(err.message || 'Failed to create bill.');
+            }
         } finally {
             setLoading(false);
         }
@@ -52,6 +66,7 @@ const BillFormModal = ({ isOpen, onClose, suppliers = [], contractors = [] }) =>
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Record Vendor Bill">
             <form onSubmit={handleSubmit} className="space-y-4 p-4 min-w-[400px]">
+                {error && <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm font-bold">{error}</div>}
                 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -85,13 +100,13 @@ const BillFormModal = ({ isOpen, onClose, suppliers = [], contractors = [] }) =>
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-xs font-bold text-[var(--t-text2)] uppercase tracking-wider mb-1">Bill Number</label>
+                        <label className="block text-xs font-bold text-[var(--t-text2)] uppercase tracking-wider mb-1">Bill Number <span className="font-normal text-[var(--t-text3)]">(optional)</span></label>
                         <input
-                            type="text" required
+                            type="text"
                             value={formData.bill_number}
                             onChange={(e) => setFormData({...formData, bill_number: e.target.value})}
                             className="w-full bg-[var(--t-surface)] border border-[var(--t-border)] p-2.5 rounded-xl font-bold text-[var(--t-text)] font-mono"
-                            placeholder="INV-2049"
+                            placeholder="INV-2049 (leave blank for auto)"
                         />
                     </div>
                     <div>

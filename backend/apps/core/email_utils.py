@@ -1,6 +1,10 @@
 """
 Email utility functions for sending notifications to contractors and suppliers.
 """
+import logging
+
+logger = logging.getLogger(__name__)
+
 from django.core.mail import EmailMultiAlternatives, send_mail
 from django.utils.html import strip_tags
 from django.template.loader import render_to_string
@@ -41,7 +45,7 @@ def send_material_order_email(material, quantity, user=None, custom_subject=None
     try:
         pdf_content = generate_purchase_order_pdf(material, quantity, recipient)
     except Exception as pdf_err:
-        print(f"Failed to generate PDF: {pdf_err}")
+        logger.error("Failed to generate PDF: %s", pdf_err)
         pdf_content = None
 
     log_entry = EmailLog.objects.create(
@@ -73,7 +77,7 @@ def send_material_order_email(material, quantity, user=None, custom_subject=None
         return True
     except Exception as e:
         error_msg = str(e)
-        print(f"Error sending email: {error_msg}")
+        logger.error("Error sending email: %s", error_msg)
         log_entry.status = 'FAILED'
         log_entry.error_message = error_msg
         log_entry.save()
@@ -109,7 +113,7 @@ def send_contractor_notification(contractor, subject, message, user=None):
         return True
     except Exception as e:
         error_msg = str(e)
-        print(f"Error sending email: {error_msg}")
+        logger.error("Error sending email: %s", error_msg)
         log_entry.status = 'FAILED'
         log_entry.error_message = error_msg
         log_entry.save()
@@ -123,12 +127,12 @@ def send_payment_receipt_email(payment, user=None, custom_subject=None, custom_m
     from .models import EmailLog
     recipient = payment.expense.supplier or payment.expense.contractor
     if not recipient:
-        print(f"Skipping email for payment {payment.id}: no associated supplier or contractor")
+        logger.info("Skipping email for payment %s: no associated supplier or contractor", payment.id)
         return False
         
     if not recipient.email:
         error_msg = f"Recipient '{recipient.name}' has no email address"
-        print(f"Skipping email for payment {payment.id}: {error_msg}")
+        logger.warning("Skipping email for payment %s: %s", payment.id, error_msg)
         EmailLog.objects.create(
             email_type='PAYMENT_RECEIPT',
             recipient_name=recipient.name,
@@ -164,10 +168,10 @@ def send_payment_receipt_email(payment, user=None, custom_subject=None, custom_m
     try:
         pdf_content = generate_payment_receipt_pdf(payment)
     except Exception as pdf_err:
-        print(f"Failed to generate PDF: {pdf_err}")
+        logger.error("Failed to generate PDF: %s", pdf_err)
         pdf_content = None
 
-    print(f"DEBUG: Attempting to create EmailLog for payment {payment.id}")
+    logger.debug("Attempting to create EmailLog for payment %s", payment.id)
     log_entry = EmailLog.objects.create(
         email_type='PAYMENT_RECEIPT',
         recipient_name=recipient.name,
@@ -198,7 +202,7 @@ def send_payment_receipt_email(payment, user=None, custom_subject=None, custom_m
         return True
     except Exception as e:
         error_msg = str(e)
-        print(f"Error sending email: {error_msg}")
+        logger.error("Error sending email: %s", error_msg)
         log_entry.status = 'FAILED'
         log_entry.error_message = error_msg
         log_entry.save()

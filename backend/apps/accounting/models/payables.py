@@ -19,6 +19,15 @@ class Vendor(models.Model):
         max_length=50, blank=True, null=True,
         help_text="e.g. Civil Contractor, Electrical, Material Supplier, Labor"
     )
+    
+    # Fields imported from legacy Supplier
+    contact_person = models.CharField(max_length=100, blank=True, null=True)
+    email = models.EmailField(blank=True, null=True)
+    photo = models.ImageField(upload_to='vendors/', null=True, blank=True)
+    bank_name = models.CharField(max_length=100, blank=True, null=True)
+    account_number = models.CharField(max_length=50, blank=True, null=True)
+    branch = models.CharField(max_length=100, blank=True, null=True)
+    
     is_active = models.BooleanField(default=True)
 
     def __str__(self):

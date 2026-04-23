@@ -25,6 +25,10 @@ class PermitStep(models.Model):
     date_issued = models.DateField(null=True, blank=True)
     notes = models.TextField(blank=True, null=True)
     order = models.PositiveIntegerField(default=0)
+    project = models.ForeignKey(
+        'core.HouseProject', on_delete=models.CASCADE, related_name='permit_steps',
+        null=True, blank=True
+    )
     
     # Document attachments for this permit step
     documents = models.ManyToManyField(

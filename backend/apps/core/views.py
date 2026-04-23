@@ -11,7 +11,8 @@ from apps.tasks.models import Task
 from apps.tasks.serializers import TaskSerializer
 from apps.finance.models import Expense, BudgetCategory, FundingSource, PhaseBudgetAllocation, Account, Bill, PurchaseOrder
 from apps.finance.serializers import ExpenseSerializer, BudgetCategorySerializer, FundingSourceSerializer, PhaseBudgetAllocationSerializer, AccountSerializer, BillSerializer, PurchaseOrderSerializer
-from apps.resources.models import Material, Contractor, Supplier, MaterialTransaction, Document
+from apps.resources.models import Material, Contractor, MaterialTransaction, Document
+from apps.accounting.models import Vendor
 from apps.resources.serializers import MaterialSerializer, ContractorSerializer, SupplierSerializer, MaterialTransactionSerializer, DocumentSerializer
 from apps.permits.models import PermitStep
 from apps.permits.serializers import PermitStepSerializer
@@ -62,23 +63,42 @@ class DashboardDataView(APIView):
         else:
             project = HouseProject.objects.first()
 
-        # Filter phases by project if project is set
+        # Filter all data by project if project is set
         if project:
             phases = ConstructionPhase.objects.filter(project=project)
+            # 1. Core/Phases-linked
+            tasks = Task.objects.filter(phase__project=project).prefetch_related('updates', 'media')
+            rooms = Room.objects.filter(floor__project=project)
+            floors = Floor.objects.filter(project=project).prefetch_related('rooms')
+            
+            # 2. Resources (Using direct project link I just added)
+            materials = Material.objects.filter(project=project).select_related('budget_category', 'supplier')
+            transactions = MaterialTransaction.objects.filter(material__project=project).select_related('material', 'supplier')
+            permits = PermitStep.objects.filter(project=project).prefetch_related('documents')
+            
+            # 3. Finance (Using direct project link I just added)
+            expenses = Expense.objects.filter(project=project).select_related('category', 'phase', 'supplier', 'contractor', 'funding_source').prefetch_related('payments')
+            budget_categories = BudgetCategory.objects.filter(project=project).prefetch_related('expenses')
+            funding = FundingSource.objects.filter(project=project).prefetch_related('transactions')
+            phase_allocations = PhaseBudgetAllocation.objects.filter(category__project=project).select_related('category', 'phase')
+            accounts = Account.objects.filter(project=project)
         else:
             phases = ConstructionPhase.objects.all()
-        rooms = Room.objects.all()
-        tasks = Task.objects.prefetch_related('updates', 'media').all()
-        expenses = Expense.objects.select_related('category', 'phase', 'supplier', 'contractor', 'funding_source').prefetch_related('payments').all()
-        floors = Floor.objects.prefetch_related('rooms').all()
-        materials = Material.objects.select_related('budget_category', 'supplier').all()
-        contractors = Contractor.objects.all()
-        budget_categories = BudgetCategory.objects.prefetch_related('expenses').all()
-        suppliers = Supplier.objects.all()
-        transactions = MaterialTransaction.objects.select_related('material', 'supplier').all()
-        permits = PermitStep.objects.prefetch_related('documents').all()
-        funding = FundingSource.objects.prefetch_related('transactions').all()
-        phase_allocations = PhaseBudgetAllocation.objects.select_related('category', 'phase').all()
+            rooms = Room.objects.all()
+            tasks = Task.objects.prefetch_related('updates', 'media').all()
+            expenses = Expense.objects.select_related('category', 'phase', 'supplier', 'contractor', 'funding_source').prefetch_related('payments').all()
+            floors = Floor.objects.prefetch_related('rooms').all()
+            materials = Material.objects.select_related('budget_category', 'supplier').all()
+            budget_categories = BudgetCategory.objects.prefetch_related('expenses').all()
+            transactions = MaterialTransaction.objects.select_related('material', 'supplier').all()
+            funding = FundingSource.objects.prefetch_related('transactions').all()
+            phase_allocations = PhaseBudgetAllocation.objects.select_related('category', 'phase').all()
+            accounts = Account.objects.all()
+
+        contractors = Contractor.objects.all() # Contractors might be global/shared
+        suppliers = Vendor.objects.all()       # Suppliers might be global/shared
+        permits = PermitStep.objects.prefetch_related('documents').all() # Permits likely global configuration or filtered later
+
         # Admins see all guides, regular users only active ones
         if getattr(request.user, 'is_system_admin', False):
             user_guides = UserGuide.objects.all().prefetch_related('steps', 'faqs')
@@ -89,7 +109,6 @@ class DashboardDataView(APIView):
         # -----------------------------------------------------
         # Finance Summary (Double-Entry Aggregation)
         # -----------------------------------------------------
-        accounts = Account.objects.all()
         # Evaluate balances in memory to avoid N+1 queries if we already fetched them, or just use properties
         # For efficiency, computing in Python since Account count is very low.
         total_assets = sum(acc.balance for acc in accounts if acc.account_type == 'ASSET')
@@ -97,6 +116,7 @@ class DashboardDataView(APIView):
         total_equity = sum(acc.balance for acc in accounts if acc.account_type == 'EQUITY')
         total_expenses = sum(acc.balance for acc in accounts if acc.account_type == 'EXPENSE')
         total_revenue = sum(acc.balance for acc in accounts if acc.account_type == 'REVENUE')
+
 
         finance_summary = {
             'total_assets': total_assets,
@@ -111,24 +131,26 @@ class DashboardDataView(APIView):
         # To avoid explosive payload size, we don't send *all* bills and Journal entries through DashboardDataView,
         # but we send Accounts so the UI has them cached.
         
+        ctx = {'request': request, 'project': project}
+
         return Response({
             'project': HouseProjectSerializer(project).data if project else None,
-            'phases': ConstructionPhaseSerializer(phases, many=True).data,
-            'rooms': RoomSerializer(rooms, many=True).data,
-            'tasks': TaskSerializer(tasks, many=True).data,
-            'expenses': ExpenseSerializer(expenses, many=True).data,
-            'floors': FloorSerializer(floors, many=True).data,
-            'materials': MaterialSerializer(materials, many=True).data,
-            'contractors': ContractorSerializer(contractors, many=True).data,
-            'budgetCategories': BudgetCategorySerializer(budget_categories, many=True).data,
-            'suppliers': SupplierSerializer(suppliers, many=True).data,
-            'transactions': MaterialTransactionSerializer(transactions, many=True).data,
-            'permits': PermitStepSerializer(permits, many=True).data,
-            'funding': FundingSourceSerializer(funding, many=True).data,
-            'phaseBudgetAllocations': PhaseBudgetAllocationSerializer(phase_allocations, many=True).data,
-            'userGuides': UserGuideSerializer(user_guides, many=True).data,
-            'userGuideProgress': UserGuideProgressSerializer(user_guide_progress, many=True).data,
-            'accounts': AccountSerializer(accounts, many=True).data,
+            'phases': ConstructionPhaseSerializer(phases, many=True, context=ctx).data,
+            'rooms': RoomSerializer(rooms, many=True, context=ctx).data,
+            'tasks': TaskSerializer(tasks, many=True, context=ctx).data,
+            'expenses': ExpenseSerializer(expenses, many=True, context=ctx).data,
+            'floors': FloorSerializer(floors, many=True, context=ctx).data,
+            'materials': MaterialSerializer(materials, many=True, context=ctx).data,
+            'contractors': ContractorSerializer(contractors, many=True, context=ctx).data,
+            'budgetCategories': BudgetCategorySerializer(budget_categories, many=True, context=ctx).data,
+            'suppliers': SupplierSerializer(suppliers, many=True, context=ctx).data,
+            'transactions': MaterialTransactionSerializer(transactions, many=True, context=ctx).data,
+            'permits': PermitStepSerializer(permits, many=True, context=ctx).data,
+            'funding': FundingSourceSerializer(funding, many=True, context=ctx).data,
+            'phaseBudgetAllocations': PhaseBudgetAllocationSerializer(phase_allocations, many=True, context=ctx).data,
+            'userGuides': UserGuideSerializer(user_guides, many=True, context=ctx).data,
+            'userGuideProgress': UserGuideProgressSerializer(user_guide_progress, many=True, context=ctx).data,
+            'accounts': AccountSerializer(accounts, many=True, context=ctx).data,
             'finance_summary': finance_summary,
         })
 

@@ -10,7 +10,8 @@ Usage:
 from django.core.management.base import BaseCommand
 from apps.core.models import HouseProject, ConstructionPhase
 from apps.finance.models import BudgetCategory, FundingSource, FundingTransaction, Expense, Payment
-from apps.resources.models import Material, Supplier, Contractor
+from apps.resources.models import Material, Contractor
+from apps.accounting.models import Vendor
 from decimal import Decimal
 
 
@@ -36,7 +37,7 @@ class Command(BaseCommand):
 
         phases = {p.name: p for p in ConstructionPhase.objects.all()}
         categories = {c.name: c for c in BudgetCategory.objects.all()}
-        suppliers = {s.name: s for s in Supplier.objects.all()}
+        suppliers = {s.name: s for s in Vendor.objects.all()}
         contractors = {c.name: c for c in Contractor.objects.all()}
 
         if not phases or not categories:

@@ -1,3 +1,5 @@
+import logging
+
 from rest_framework import status, generics, permissions, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -7,6 +9,8 @@ from django.contrib.auth import authenticate, get_user_model
 from .serializers import UserSerializer, LoginSerializer, RegisterSerializer, RoleSerializer, ActivityLogSerializer
 from .models import Role, ActivityLog
 from .permissions import IsSystemAdmin
+
+logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
@@ -41,7 +45,7 @@ def log_activity(request, user, action, model_name, object_id=None, object_repr=
             )
     except Exception as e:
         # Don't let logging break the main request
-        print(f"Failed to log activity: {e}")
+        logger.warning("Failed to log activity: %s", e)
 
 
 @api_view(['POST'])
@@ -63,24 +67,24 @@ def login_view(request):
     )
 
     # Django's authenticate() uses USERNAME_FIELD='email', so pass email=
-    print(f"DEBUG: Login attempt for email: {email}")
+    logger.debug("Login attempt for email: %s", email)
     user = authenticate(request, email=email, password=password)
 
     # Fallback: if the custom backend wasn't used, try via User.objects
     if user is None:
-        print(f"DEBUG: authenticate() returned None, trying User.objects fallback")
+        logger.debug("authenticate() returned None, trying User.objects fallback")
         try:
             candidate = User.objects.get(email=email)
             if candidate.check_password(password):
                 if candidate.is_active:
                     user = candidate
-                    print(f"DEBUG: Fallback successful for {email}")
+                    logger.debug("Fallback auth successful for %s", email)
                 else:
-                    print(f"DEBUG: User {email} is inactive")
+                    logger.debug("User %s is inactive", email)
             else:
-                print(f"DEBUG: Incorrent password for {email}")
+                logger.debug("Incorrect password for %s", email)
         except User.DoesNotExist:
-            print(f"DEBUG: User {email} does not exist")
+            logger.debug("User %s does not exist", email)
 
     if user is not None:
         try:

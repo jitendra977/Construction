@@ -65,7 +65,7 @@ export async function enqueue(entry) {
         tries: 0,
         status: 'PENDING',
     };
-    return tx('readwrite', (store) => {
+    const id = await tx('readwrite', (store) => {
         if (store.list) {
             item.id = Date.now();
             store.list.push(item);
@@ -75,6 +75,10 @@ export async function enqueue(entry) {
         const r = store.add(item);
         return new Promise((resolve) => { r.onsuccess = () => resolve(r.result); });
     });
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('offline-queue-changed'));
+    }
+    return id;
 }
 
 export async function list() {
@@ -92,7 +96,7 @@ export async function list() {
 }
 
 export async function remove(id) {
-    return tx('readwrite', (store) => {
+    await tx('readwrite', (store) => {
         if (store.list) {
             const filtered = store.list.filter((x) => x.id !== id);
             localStorage.setItem(LS_KEY, JSON.stringify(filtered));
@@ -103,6 +107,9 @@ export async function remove(id) {
             r.onsuccess = () => resolve();
         });
     });
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('offline-queue-changed'));
+    }
 }
 
 export async function flush(axiosInstance) {
@@ -123,6 +130,9 @@ export async function flush(axiosInstance) {
             // Only give up after 5 tries
             if ((e.tries || 0) >= 5) await remove(e.id);
         }
+    }
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('offline-queue-changed'));
     }
     return results;
 }

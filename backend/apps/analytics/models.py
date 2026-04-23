@@ -15,7 +15,8 @@ from django.db import models
 from django.conf import settings
 
 from apps.finance.models import BudgetCategory
-from apps.resources.models import Material, Supplier
+from apps.resources.models import Material
+from apps.accounting.models import Vendor
 
 
 class BudgetForecast(models.Model):
@@ -66,7 +67,7 @@ class SupplierRateTrend(models.Model):
     """
 
     supplier = models.ForeignKey(
-        Supplier, on_delete=models.CASCADE, related_name="rate_trends"
+        Vendor, on_delete=models.CASCADE, related_name="rate_trends"
     )
     material = models.ForeignKey(
         Material, on_delete=models.CASCADE, related_name="rate_trends"

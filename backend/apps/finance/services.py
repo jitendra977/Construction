@@ -146,6 +146,20 @@ class BillService:
 
     @staticmethod
     @transaction.atomic
+    def sync_bill_ledger(bill: Bill):
+        """Update the ledger entry for an existing bill.
+        Reverse the old one (if any) and post a new one.
+        """
+        if bill.journal_entry:
+            old_je = bill.journal_entry
+            bill.journal_entry = None
+            bill.save(update_fields=["journal_entry"])
+            LedgerService.reverse(old_je)
+        
+        return BillService.post_bill_ledger(bill)
+
+    @staticmethod
+    @transaction.atomic
     def pay_bill(
         bill: Bill,
         *,
@@ -245,6 +259,18 @@ class TransferService:
         transfer.journal_entry = je
         transfer.save(update_fields=["journal_entry"])
         return je
+
+    @staticmethod
+    @transaction.atomic
+    def sync(transfer: BankTransfer):
+        """Update the ledger entry for an existing transfer."""
+        if transfer.journal_entry:
+            old_je = transfer.journal_entry
+            transfer.journal_entry = None
+            transfer.save(update_fields=["journal_entry"])
+            LedgerService.reverse(old_je)
+        
+        return TransferService.execute(transfer)
 
     @staticmethod
     @transaction.atomic

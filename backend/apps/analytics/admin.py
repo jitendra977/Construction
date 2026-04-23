@@ -1,17 +1,18 @@
 from django.contrib import admin
-
 from .models import BudgetAlert, BudgetForecast, SupplierRateTrend
-
 
 @admin.register(BudgetForecast)
 class BudgetForecastAdmin(admin.ModelAdmin):
     list_display = (
-        "id", "category", "risk_level", "daily_burn_rate",
+        "id", "get_project", "category", "risk_level", "daily_burn_rate",
         "projected_total", "projected_overrun", "days_to_exhaustion",
         "confidence", "computed_at",
     )
-    list_filter = ("risk_level",)
+    list_filter = ("category__project", "risk_level")
 
+    def get_project(self, obj):
+        return obj.category.project
+    get_project.short_description = "Project"
 
 @admin.register(SupplierRateTrend)
 class SupplierRateTrendAdmin(admin.ModelAdmin):
@@ -21,7 +22,6 @@ class SupplierRateTrendAdmin(admin.ModelAdmin):
     )
     list_filter = ("supplier", "material")
     search_fields = ("supplier__name", "material__name")
-
 
 @admin.register(BudgetAlert)
 class BudgetAlertAdmin(admin.ModelAdmin):

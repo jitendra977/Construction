@@ -2,7 +2,8 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 from apps.core.models import HouseProject, ConstructionPhase
 from apps.finance.models import BudgetCategory, FundingSource, Expense, Payment, FundingTransaction
-from apps.resources.models import Material, Supplier, Contractor, MaterialTransaction
+from apps.resources.models import Material, Contractor, MaterialTransaction
+from apps.accounting.models import Vendor
 from apps.permits.models import PermitStep
 from decimal import Decimal
 import random
@@ -20,7 +21,7 @@ class Command(BaseCommand):
         FundingTransaction.objects.all().delete()
         FundingSource.objects.all().delete()
         Material.objects.all().delete()
-        Supplier.objects.all().delete()
+        Vendor.objects.all().delete()
         Contractor.objects.all().delete()
         BudgetCategory.objects.all().delete()
         ConstructionPhase.objects.all().delete()
@@ -109,7 +110,7 @@ class Command(BaseCommand):
         
         supplier_objs = {}
         for name, addr, phone, cat in suppliers_data:
-            s = Supplier.objects.create(name=name, address=addr, phone=phone, category=cat)
+            s = Vendor.objects.create(name=name, address=addr, phone=phone, category=cat)
             supplier_objs[name] = s
 
         # 5. Contractors

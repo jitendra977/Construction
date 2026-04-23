@@ -1,3 +1,5 @@
+import logging
+
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
@@ -6,11 +8,13 @@ from .models import Contractor, MaterialTransaction, WastageAlert, Material
 from utils.audit_log import log_activity_automated, get_model_diff
 from apps.core.signals import get_current_user, get_current_request
 
+logger = logging.getLogger(__name__)
+
 User = get_user_model()
 
 def send_in_app_notification(material, severity, pct):
     # Placeholder for in-app notification system
-    print(f"[NOTIFICATION] {severity} Wastage Alert! {material.name} wastage is at {pct}%")
+    logger.info("[NOTIFICATION] %s Wastage Alert! %s wastage is at %.1f%%", severity, material.name, pct)
 
 @receiver(post_save, sender=MaterialTransaction)
 def sync_material_stock_on_save(sender, instance, **kwargs):
@@ -104,13 +108,26 @@ def resources_audit_log_save(sender, instance, created, **kwargs):
         description=f"{action} {sender.__name__}: {str(instance)}"
     )
 
+@receiver(post_delete, sender=MaterialTransaction)
+def sync_material_stock_on_delete(sender, instance, **kwargs):
+    """
+    Recalculate material stock when a transaction is deleted so that
+    current_stock never drifts from the true transaction history.
+    """
+    try:
+        mat = instance.material
+        mat.recalculate_stock()
+    except Exception:
+        pass  # Material may already be deleted in a cascade
+
+
 @receiver(post_delete, sender=Material)
 @receiver(post_delete, sender=MaterialTransaction)
 @receiver(post_delete, sender=Contractor)
 def resources_audit_log_delete(sender, instance, **kwargs):
     user = get_current_user()
     request = get_current_request()
-    
+
     log_activity_automated(
         request, user, 'DELETE', instance,
         description=f"DELETED {sender.__name__}: {str(instance)}"

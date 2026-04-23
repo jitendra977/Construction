@@ -8,6 +8,15 @@ import {
 import { accountsService } from '../../services/api';
 import MobileLayout from '../../components/mobile/MobileLayout';
 
+/** Generate a local SVG data-URI avatar from initials — no external requests. */
+const localAvatar = (username) => {
+    const initials = (username || '?').slice(0, 2).toUpperCase();
+    const palette = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444'];
+    const color = palette[(username || '').charCodeAt(0) % palette.length];
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" rx="32" fill="${color}"/><text x="32" y="42" text-anchor="middle" font-family="sans-serif" font-size="26" font-weight="700" fill="white">${initials}</text></svg>`;
+    return `data:image/svg+xml;base64,${btoa(svg)}`;
+};
+
 const ActivityLogs = () => {
     const [isMobile] = useState(window.innerWidth < 1024);
     const [logs, setLogs] = useState([]);
@@ -269,11 +278,11 @@ const ActivityLogs = () => {
                                             <td className="px-8 py-6">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-8 h-8 rounded-full overflow-hidden border border-[var(--t-border)] shadow-sm">
-                                                        <img 
-                                                            src={log.user_avatar} 
-                                                            className="w-full h-full object-cover" 
-                                                            alt="" 
-                                                            onError={(e) => e.target.src = `https://ui-avatars.com/api/?name=${log.username}&background=random`}
+                                                        <img
+                                                            src={log.user_avatar || localAvatar(log.username)}
+                                                            className="w-full h-full object-cover"
+                                                            alt=""
+                                                            onError={(e) => { e.target.onerror = null; e.target.src = localAvatar(log.username); }}
                                                         />
                                                     </div>
                                                     <div>
@@ -339,11 +348,11 @@ const ActivityLogs = () => {
                             <div className="flex items-center gap-6">
                                 <div className="relative">
                                     <div className="w-16 h-16 rounded-[1.5rem] overflow-hidden border-2 border-[var(--t-surface)] shadow-xl">
-                                        <img 
-                                            src={selectedLog.user_avatar} 
+                                        <img
+                                            src={selectedLog.user_avatar || localAvatar(selectedLog.username)}
                                             alt={selectedLog.user_display_name}
                                             className="w-full h-full object-cover"
-                                            onError={(e) => e.target.src = `https://ui-avatars.com/api/?name=${selectedLog.username}&background=random`}
+                                            onError={(e) => { e.target.onerror = null; e.target.src = localAvatar(selectedLog.username); }}
                                         />
                                     </div>
                                     <div className={`absolute -bottom-1 -right-1 w-7 h-7 rounded-2xl ${getActionStyles(selectedLog.action).bg} ${getActionStyles(selectedLog.action).color} flex items-center justify-center border-4 border-[var(--t-surface)] shadow-lg`}>

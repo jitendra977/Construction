@@ -1,8 +1,13 @@
+import logging
+
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import Contractor, Material, Document, Supplier, MaterialTransaction, WastageAlert, WastageThreshold
+
+logger = logging.getLogger(__name__)
+from .models import Contractor, Material, Document, MaterialTransaction, WastageAlert, WastageThreshold
+from apps.accounting.models import Vendor
 from .serializers import (
     ContractorSerializer, MaterialSerializer, DocumentSerializer,
     SupplierSerializer, MaterialTransactionSerializer,
@@ -10,7 +15,7 @@ from .serializers import (
 )
 
 class SupplierViewSet(viewsets.ModelViewSet):
-    queryset = Supplier.objects.all()
+    queryset = Vendor.objects.all()
     serializer_class = SupplierSerializer
 
 class ContractorViewSet(viewsets.ModelViewSet):
@@ -44,7 +49,7 @@ class MaterialViewSet(viewsets.ModelViewSet):
         Expects: { "quantity": <number>, "supplier_id": <number>, "subject": <string>, "body": <string> }
         """
         from apps.core.email_utils import send_material_order_email
-        from apps.resources.models import Supplier
+        from apps.accounting.models import Vendor
         from rest_framework import status
         
         material = self.get_object()
@@ -56,8 +61,8 @@ class MaterialViewSet(viewsets.ModelViewSet):
         # Get supplier - either from request or from material default
         if supplier_id:
             try:
-                supplier = Supplier.objects.get(id=supplier_id)
-            except Supplier.DoesNotExist:
+                supplier = Vendor.objects.get(id=supplier_id)
+            except Vendor.DoesNotExist:
                 return Response(
                     {"error": f"Supplier with ID {supplier_id} not found"},
                     status=status.HTTP_404_NOT_FOUND
@@ -112,7 +117,7 @@ class MaterialViewSet(viewsets.ModelViewSet):
                         create_expense=True # Will be created when status → RECEIVED
                     )
                 except Exception as tx_err:
-                    print(f"Failed to create pending transaction: {tx_err}")
+                    logger.warning("Failed to create pending transaction: %s", tx_err)
 
                 return Response({
                     "success": True,
@@ -373,3 +378,18 @@ class WastageAlertViewSet(viewsets.ModelViewSet):
             'worst_material': worst_material,
             'materials_summary': materials_summary,
         })
+
+
+class WastageThresholdViewSet(viewsets.ModelViewSet):
+    """
+    CRUD for per-material wastage thresholds.
+    GET  /api/v1/wastage-thresholds/        — list all
+    POST /api/v1/wastage-thresholds/        — create
+    PATCH /api/v1/wastage-thresholds/{id}/  — update
+    DELETE /api/v1/wastage-thresholds/{id}/ — delete
+    """
+    serializer_class = WastageThresholdSerializer
+    http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
+
+    def get_queryset(self):
+        return WastageThreshold.objects.select_related('material').order_by('material__name')

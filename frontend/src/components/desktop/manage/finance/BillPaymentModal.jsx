@@ -17,12 +17,16 @@ const BillPaymentModal = ({ isOpen, onClose, bill, accounts = [] }) => {
 
     // Filter for Asset accounts (Bank/Cash)
     const assetAccounts = accounts.filter(a => a.account_type === 'ASSET' && a.is_active);
+    const balanceDue = parseFloat(bill?.balance_due ?? (bill?.total_amount - (bill?.amount_paid || 0)) ?? 0);
 
     useEffect(() => {
         if (bill) {
+            setError(null);
             setFormData(prev => ({
                 ...prev,
-                amount: bill.total_amount - (bill.amount_paid || 0),
+                amount: balanceDue > 0 ? balanceDue.toFixed(2) : '',
+                account: '',
+                reference_id: '',
             }));
         }
     }, [bill]);
@@ -37,6 +41,10 @@ const BillPaymentModal = ({ isOpen, onClose, bill, accounts = [] }) => {
         }
         if (Number(formData.amount) <= 0) {
             setError('Payment amount must be greater than zero.');
+            return;
+        }
+        if (Number(formData.amount) > balanceDue + 0.005) {
+            setError(`Amount cannot exceed the balance due (Rs. ${balanceDue.toLocaleString()}).`);
             return;
         }
 
@@ -72,7 +80,7 @@ const BillPaymentModal = ({ isOpen, onClose, bill, accounts = [] }) => {
                         </div>
                         <div className="text-right">
                             <div className="text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest mb-1">Balance Due</div>
-                            <div className="text-sm font-black text-rose-500 font-mono">Rs. {(bill.total_amount - (bill.amount_paid || 0)).toLocaleString()}</div>
+                            <div className="text-sm font-black text-rose-500 font-mono">Rs. {balanceDue.toLocaleString()}</div>
                         </div>
                     </div>
                 </div>
@@ -81,7 +89,7 @@ const BillPaymentModal = ({ isOpen, onClose, bill, accounts = [] }) => {
                     <div>
                         <label className="block text-xs font-bold text-[var(--t-text2)] uppercase tracking-wider mb-1">Payment Amount</label>
                         <input
-                            type="number" required min="0.01" step="0.01"
+                            type="number" required min="0.01" step="0.01" max={balanceDue}
                             value={formData.amount}
                             onChange={(e) => setFormData({...formData, amount: e.target.value})}
                             className="w-full bg-[var(--t-surface)] border border-[var(--t-border)] p-2.5 rounded-xl font-bold text-[var(--t-text)] font-mono text-green-600"

@@ -13,7 +13,7 @@ from apps.core.import_views import SqlImportView, RawDataPopulationView
 from apps.core.gallery_views import GalleryViewSet
 from apps.tasks.views import TaskViewSet, TaskUpdateViewSet, TaskMediaViewSet
 
-from apps.resources.views import ContractorViewSet, MaterialViewSet, DocumentViewSet, SupplierViewSet, MaterialTransactionViewSet, WastageAlertViewSet
+from apps.resources.views import ContractorViewSet, MaterialViewSet, DocumentViewSet, SupplierViewSet, MaterialTransactionViewSet, WastageAlertViewSet, WastageThresholdViewSet
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet)
@@ -33,6 +33,7 @@ router.register(r'material-transactions', MaterialTransactionViewSet)
 router.register(r'documents', DocumentViewSet)
 router.register(r'gallery', GalleryViewSet, basename='gallery')
 router.register(r'wastage-alerts', WastageAlertViewSet, basename='wastage-alerts')
+router.register(r'wastage-thresholds', WastageThresholdViewSet, basename='wastage-thresholds')
 router.register(r'user-guides', UserGuideViewSet)
 router.register(r'user-guide-steps', UserGuideStepViewSet)
 router.register(r'user-guide-faqs', UserGuideFAQViewSet)

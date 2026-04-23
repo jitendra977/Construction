@@ -1,14 +1,24 @@
 from rest_framework import serializers
-from .models import Contractor, Material, Document, Supplier, MaterialTransaction, WastageAlert, WastageThreshold
+from .models import Contractor, Material, Document, MaterialTransaction, WastageAlert, WastageThreshold
+from apps.accounting.models import Vendor
 
 class SupplierSerializer(serializers.ModelSerializer):
-    total_billed = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
-    total_paid = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
-    balance_due = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    total_billed = serializers.SerializerMethodField()
+    total_paid = serializers.SerializerMethodField()
+    balance_due = serializers.SerializerMethodField()
 
     class Meta:
-        model = Supplier
+        model = Vendor
         fields = '__all__'
+
+    def get_total_billed(self, obj):
+        return sum(exp.amount for exp in obj.expenses.all())
+
+    def get_total_paid(self, obj):
+        return sum(exp.total_paid for exp in obj.expenses.all())
+
+    def get_balance_due(self, obj):
+        return self.get_total_billed(obj) - self.get_total_paid(obj)
 
 class ContractorSerializer(serializers.ModelSerializer):
     total_amount = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)

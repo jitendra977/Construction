@@ -156,7 +156,7 @@ class User(AbstractUser):
     def get_profile_image_url(self):
         if self.profile_image:
             return self.profile_image.url
-        return f"https://ui-avatars.com/api/?name={self.username}&background=random&color=fff"
+        return '/static/images/default-avatar.png'
 
     # ----- PERMISSION CHECKERS -----
     def has_role(self, role_code):

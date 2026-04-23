@@ -289,7 +289,9 @@ export const financeService = {
     createBankTransfer: (data) => api.post('/finance/bank-transfers/', data),
 
     // Intelligence
-    getOverview: () => api.get('/finance/expenses/overview/'),
+    getOverview: (projectId = null) => api.get('/finance/expenses/overview/', { 
+        params: projectId ? { project_id: projectId } : {} 
+    }),
 };
 
 

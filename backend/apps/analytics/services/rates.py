@@ -9,7 +9,8 @@ from typing import List
 
 from django.db.models import Avg, Count
 
-from apps.resources.models import Material, MaterialTransaction, Supplier
+from apps.resources.models import Material, MaterialTransaction
+from apps.accounting.models import Vendor
 from apps.analytics.models import SupplierRateTrend
 
 

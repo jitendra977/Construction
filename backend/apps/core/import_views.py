@@ -5,9 +5,12 @@ All statements are wrapped in a single transaction — any error causes full rol
 Dangerous DDL statements are blocked by a deny-list check before execution.
 """
 
+import logging
 import re
 import importlib
 from django.db import connection, transaction
+
+logger = logging.getLogger(__name__)
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -253,7 +256,7 @@ class RawDataPopulationView(APIView):
         except Exception as e:
             import traceback
             error_details = traceback.format_exc()
-            print(f"CRITICAL POPULATION ERROR: {error_details}")
+            logger.critical("CRITICAL POPULATION ERROR: %s", error_details)
             return Response({
                 'success': False,
                 'message': f'Population failed critically. Error: {str(e)}',

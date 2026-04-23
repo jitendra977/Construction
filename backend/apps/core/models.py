@@ -28,25 +28,23 @@ class HouseProject(models.Model):
     @property
     def category_allocation_total(self):
         from apps.finance.models import BudgetCategory
-        return sum(cat.allocation for cat in BudgetCategory.objects.all())
+        return sum(cat.allocation for cat in BudgetCategory.objects.filter(project=self))
 
     @property
     def phase_allocation_total(self):
         from apps.core.models import ConstructionPhase
-        return sum(phase.estimated_budget for phase in ConstructionPhase.objects.all())
+        return sum(phase.estimated_budget for phase in ConstructionPhase.objects.filter(project=self))
 
     @property
     def budget_health(self):
-        from apps.finance.models import BudgetCategory, PhaseBudgetAllocation
+        from apps.finance.models import BudgetCategory, PhaseBudgetAllocation, Expense, ZERO
+        from decimal import Decimal
         cat_total = self.category_allocation_total
         phase_total = self.phase_allocation_total
         
         status = "HEALTHY"
         issues = []
         
-        # 1. Category vs Master Budget
-        if cat_total > self.total_budget:
-            status = "OVER_ALLOCATED"
         # 1. Category-level checks (Allocated vs Project Total)
         total_project_budget = self.total_budget
         if cat_total > total_project_budget:
@@ -58,7 +56,7 @@ class HouseProject(models.Model):
             status = "OVER_ALLOCATED"
 
         # 2. Sync Check (Category Total vs Phase Total)
-        if abs(cat_total - phase_total) > 0.01:
+        if abs(cat_total - phase_total) > Decimal("0.01"):
             issues.append({
                 "type": "SYNC_MISMATCH",
                 "message": f"Category total (Rs. {cat_total}) and Phase total (Rs. {phase_total}) are out of sync",
@@ -66,15 +64,14 @@ class HouseProject(models.Model):
             })
             if status == "HEALTHY": status = "WARNING"
 
-        # 3. Category Spending vs Allocation (Plan vs Actual - Cashflow Basis)
-        categories = BudgetCategory.objects.annotate(
+        # 3. Category Spending vs Allocation
+        categories = BudgetCategory.objects.filter(project=self).annotate(
             spent=models.Sum('expenses__amount', filter=models.Q(expenses__is_inventory_usage=False))
         )
         for cat in categories:
-            spent = cat.spent or 0
-            # Check if over-allocated to phases
-            dist_total = PhaseBudgetAllocation.objects.filter(category=cat).aggregate(total=models.Sum('amount'))['total'] or 0
-            if cat.allocation > dist_total + models.DecimalField(default=0).to_python(0.1): # Tiny buffer for floating point
+            spent = cat.spent or ZERO
+            dist_total = PhaseBudgetAllocation.objects.filter(category=cat).aggregate(total=models.Sum('amount'))['total'] or ZERO
+            if cat.allocation > dist_total + Decimal("0.1"):
                 issues.append({
                     "type": "UNASSIGNED_BUDGET",
                     "message": f"Category '{cat.name}' has unassigned budget of Rs. {cat.allocation - dist_total}",
@@ -82,7 +79,6 @@ class HouseProject(models.Model):
                 })
                 if status == "HEALTHY": status = "WARNING"
             
-            # Check if over-spent (Primary Budget Burn)
             if spent > cat.allocation:
                 issues.append({
                     "type": "OVER_SPENT_CAT",
@@ -91,14 +87,24 @@ class HouseProject(models.Model):
                 })
                 status = "OVER_SPENT"
 
-        # 4. Phase Spending vs Estimates (Plan vs Actual - Consumption Basis)
-        phases = ConstructionPhase.objects.annotate(spent=models.Sum('expenses__amount'))
+        # 4. Phase Spending vs Estimates
+        phases = ConstructionPhase.objects.filter(project=self).annotate(spent=models.Sum('expenses__amount'))
         for ph in phases:
-            spent = ph.spent or 0
-            ph_dist_total = PhaseBudgetAllocation.objects.filter(phase=ph).aggregate(total=models.Sum('amount'))['total'] or 0
+            spent = ph.spent or ZERO
+            ph_dist_total = PhaseBudgetAllocation.objects.filter(phase=ph).aggregate(total=models.Sum('amount'))['total'] or ZERO
             
-            # Check if over-allocated by categories
-            if ph_dist_total > ph.estimated_budget + models.DecimalField(default=0).to_python(0.1):
+            # Sync check with Accounting
+            from apps.accounting.models.budget import PhaseBudgetLine
+            pbl = PhaseBudgetLine.objects.filter(phase=ph).first()
+            if pbl and abs(pbl.budgeted_amount - ph.estimated_budget) > Decimal("0.01"):
+                issues.append({
+                    "type": "BUDGET_SYSTEMS_DESYNC",
+                    "message": f"Phase '{ph.name}' has out-of-sync budget values: Finance says {ph.estimated_budget}, Accounting says {pbl.budgeted_amount}",
+                    "data": {"phase_id": ph.id, "diff": float(abs(pbl.budgeted_amount - ph.estimated_budget))}
+                })
+                if status == "HEALTHY": status = "WARNING"
+
+            if ph_dist_total > ph.estimated_budget + Decimal("0.1"):
                 issues.append({
                     "type": "PHASE_OVERLOAD",
                     "message": f"Phase '{ph.name}' is over-allocated by categories (Rs. {ph_dist_total - ph.estimated_budget} over)",
@@ -106,7 +112,6 @@ class HouseProject(models.Model):
                 })
                 if status != "OVER_SPENT": status = "OVER_ALLOCATED"
             
-            # Check if over-spent
             if spent > ph.estimated_budget:
                 issues.append({
                     "type": "OVER_SPENT_PHASE",
@@ -116,13 +121,12 @@ class HouseProject(models.Model):
                 status = "OVER_SPENT"
 
         # 5. Granular Phase-Category Allocation Checks
-        allocations = PhaseBudgetAllocation.objects.select_related('category', 'phase').all()
-        from apps.finance.models import Expense
+        allocations = PhaseBudgetAllocation.objects.filter(category__project=self).select_related('category', 'phase')
         for alloc in allocations:
             alloc_spent = Expense.objects.filter(
                 category=alloc.category, 
                 phase=alloc.phase
-            ).aggregate(total=models.Sum('amount'))['total'] or 0
+            ).aggregate(total=models.Sum('amount'))['total'] or ZERO
             
             if alloc_spent > alloc.amount:
                 issues.append({
@@ -207,6 +211,10 @@ class Floor(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    project = models.ForeignKey(
+        'core.HouseProject', on_delete=models.CASCADE, related_name='floors',
+        null=True, blank=True
+    )
 
     class Meta:
         ordering = ['level']
@@ -231,10 +239,12 @@ class Room(models.Model):
     budget_allocation = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
 
     # 2D plan layout (all in cm, from building outer top-left corner)
-    width_cm = models.IntegerField(null=True, blank=True, help_text="Room interior width in cm")
-    depth_cm = models.IntegerField(null=True, blank=True, help_text="Room interior depth in cm")
-    pos_x    = models.IntegerField(null=True, blank=True, help_text="X position from building left (cm)")
-    pos_y    = models.IntegerField(null=True, blank=True, help_text="Y position from building top (cm)")
+    width_cm       = models.IntegerField(null=True, blank=True, help_text="Room interior width in cm")
+    depth_cm       = models.IntegerField(null=True, blank=True, help_text="Room interior depth in cm")
+    pos_x          = models.IntegerField(null=True, blank=True, help_text="X position from building left (cm)")
+    pos_y          = models.IntegerField(null=True, blank=True, help_text="Y position from building top (cm)")
+    polygon_points = models.JSONField(null=True, blank=True,
+                                      help_text="Custom polygon as [{x,y},...] in cm. Null = rectangular.")
 
     def __str__(self):
         return f"{self.name} ({self.floor.name})"
