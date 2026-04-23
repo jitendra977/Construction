@@ -7,8 +7,15 @@ class BankAccount(models.Model):
     """
     Physical Bank Account / Cash Drawer.
     Linked 1:1 to an ASSET account in the GL.
+    Scoped to a project if project is set.
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project = models.ForeignKey(
+        'core.HouseProject',
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name='bank_accounts'
+    )
     name = models.CharField(max_length=255)
     account_number = models.CharField(max_length=100, blank=True, null=True)
     gl_account = models.OneToOneField(Account, on_delete=models.PROTECT, related_name="bank_account")

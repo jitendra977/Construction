@@ -316,6 +316,14 @@ export const constructionService = {
         const response = await api.get('/tasks/');
         return response.data;
     },
+    getTasksByProject: async (projectId) => {
+        const response = await api.get('/tasks/', { params: { project: projectId } });
+        return response.data;
+    },
+    getTasksByPhase: async (phaseId) => {
+        const response = await api.get('/tasks/', { params: { phase: phaseId } });
+        return response.data;
+    },
     createTask: async (data) => {
         const response = await api.post('/tasks/', data);
         return response.data;
@@ -328,6 +336,19 @@ export const constructionService = {
         await api.delete(`/tasks/${id}/`);
     },
     reorderPhases: (order) => api.post('/phases/reorder/', { order }),
+
+    /**
+     * Force-recalculate all ConstructionPhase.estimated_budget and
+     * PhaseBudgetLine.budgeted_amount from current Task sums.
+     * Useful after bulk data imports or seed scripts.
+     *
+     * @param {number|null} projectId  – optional, limits to one project
+     */
+    recalculateBudgets: async (projectId = null) => {
+        const body = projectId ? { project_id: projectId } : {};
+        const response = await api.post('/tasks/recalculate_budgets/', body);
+        return response.data;
+    },
 
     // Task Media
     uploadTaskMedia: async (data) => {

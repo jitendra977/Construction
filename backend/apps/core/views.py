@@ -5,7 +5,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from .models import HouseProject, ConstructionPhase, Room, Floor, UserGuide, UserGuideStep, UserGuideFAQ, UserGuideProgress, EmailLog
 from .serializers import HouseProjectSerializer, ConstructionPhaseSerializer, RoomSerializer, FloorSerializer, UserGuideSerializer, UserGuideStepSerializer, UserGuideFAQSerializer, UserGuideProgressSerializer, EmailLogSerializer
-from apps.accounts.permissions import IsSystemAdmin
+from apps.accounts.permissions import IsSystemAdmin, CanManagePhases
 
 from apps.tasks.models import Task
 from apps.tasks.serializers import TaskSerializer
@@ -17,12 +17,21 @@ from apps.permits.models import PermitStep
 from apps.permits.serializers import PermitStepSerializer
 
 class HouseProjectViewSet(viewsets.ModelViewSet):
-    queryset = HouseProject.objects.all()
     serializer_class = HouseProjectSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        if getattr(user, 'is_system_admin', False):
+            return HouseProject.objects.all()
+        
+        if user.is_authenticated:
+            return user.assigned_projects.all()
+        return HouseProject.objects.none()
 
 class ConstructionPhaseViewSet(viewsets.ModelViewSet):
     queryset = ConstructionPhase.objects.all()
     serializer_class = ConstructionPhaseSerializer
+    permission_classes = [IsAuthenticated, CanManagePhases]
 
     @action(detail=False, methods=['post'])
     def reorder(self, request):
@@ -126,10 +135,12 @@ class DashboardDataView(APIView):
 class RoomViewSet(viewsets.ModelViewSet):
     queryset = Room.objects.all()
     serializer_class = RoomSerializer
+    permission_classes = [IsAuthenticated, CanManagePhases]
 
 class FloorViewSet(viewsets.ModelViewSet):
     queryset = Floor.objects.all()
     serializer_class = FloorSerializer
+    permission_classes = [IsAuthenticated, CanManagePhases]
 
 class UserGuideViewSet(viewsets.ModelViewSet):
     """

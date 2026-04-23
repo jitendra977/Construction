@@ -224,7 +224,7 @@ def generate_timelapse(timelapse, fps: Optional[int] = None):
     return timelapse
 
 
-def regenerate_for_scope(scope: str, *, room=None, floor=None, phase=None,
+def regenerate_for_scope(scope: str, *, project=None, room=None, floor=None, phase=None,
                          period_start=None, period_end=None, title: str = "",
                          user=None, auto_generated: bool = False):
     """Create a new Timelapse row and immediately render it."""
@@ -233,6 +233,7 @@ def regenerate_for_scope(scope: str, *, room=None, floor=None, phase=None,
     tl = Timelapse.objects.create(
         title=title or _default_title(scope, room, floor, phase, period_start, period_end),
         scope=scope,
+        project=project,
         room=room,
         floor=floor,
         phase=phase,

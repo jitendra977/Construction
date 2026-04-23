@@ -12,8 +12,10 @@ export const accountingService = {
     getJournalEntries: () => api.get('/accounting/journal-entries/'),
 
     // ── Treasury ──────────────────────────────────────────────────────────────
-    getBanks: () => api.get('/accounting/banks/'),
+    getBanks: (projectId) =>
+        api.get('/accounting/banks/' + (projectId ? '?project=' + projectId : '')),
     createBank: (data) => api.post('/accounting/banks/', data),
+    addBankBalance: (id, data) => api.post('/accounting/banks/' + id + '/add-balance/', data),
     getCapitalSources: () => api.get('/accounting/capital-sources/'),
     createCapitalSource: (data) => api.post('/accounting/capital-sources/', data),
     getTransfers: () => api.get('/accounting/transfers/'),

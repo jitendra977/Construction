@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Mail, Lock, Phone, Shield, Save } from 'lucide-react';
 import Modal from './Modal';
-import { accountsService } from '../../services/api';
+import { accountsService, dashboardService } from '../../services/api';
 
 const UserEditModal = ({ isOpen, onClose, user, onUserUpdated }) => {
     const [roles, setRoles] = useState([]);
@@ -13,14 +13,21 @@ const UserEditModal = ({ isOpen, onClose, user, onUserUpdated }) => {
         last_name: '',
         phone_number: '',
         role_id: '',
-        password: ''
+        password: '',
+        assigned_project_ids: []
     });
+
+    const [projects, setProjects] = useState([]);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const rolesRes = await accountsService.getRoles();
+                const [rolesRes, projectsRes] = await Promise.all([
+                    accountsService.getRoles(),
+                    dashboardService.getProjects().catch(() => ({data: []}))
+                ]);
                 setRoles(rolesRes.data);
+                setProjects(projectsRes.data);
             } catch (err) {
                 console.error("Failed to fetch roles", err);
             }
@@ -36,15 +43,21 @@ const UserEditModal = ({ isOpen, onClose, user, onUserUpdated }) => {
                     last_name: user.last_name || '',
                     phone_number: user.phone_number || '',
                     role_id: user.role?.id || '',
-                    password: '' // Keep empty unless changing
+                    password: '', // Keep empty unless changing
+                    assigned_project_ids: user.assigned_project_ids || (user.assigned_projects_data ? user.assigned_projects_data.map(p => p.id) : [])
                 });
             }
         }
     }, [isOpen, user]);
 
     const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        const { name, value, type } = e.target;
+        if (type === 'select-multiple') {
+            const values = Array.from(e.target.selectedOptions, option => option.value);
+            setFormData(prev => ({ ...prev, [name]: values }));
+        } else {
+            setFormData(prev => ({ ...prev, [name]: value }));
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -177,6 +190,24 @@ const UserEditModal = ({ isOpen, onClose, user, onUserUpdated }) => {
                             </select>
                         </div>
                     </div>
+                </div>
+
+                <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest ml-1">Assigned Projects</label>
+                    <div className="relative">
+                        <select
+                            name="assigned_project_ids"
+                            multiple
+                            value={formData.assigned_project_ids}
+                            onChange={handleChange}
+                            className="w-full px-3 py-2.5 bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-xl text-sm font-medium focus:ring-2 focus:ring-[var(--t-primary)]/20 focus:border-[var(--t-primary)] outline-none transition-all text-[var(--t-text)] min-h-[100px]"
+                        >
+                            {projects.map(p => (
+                                <option key={p.id} value={p.id}>{p.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <p className="text-[10px] text-[var(--t-text3)] ml-1">Hold Ctrl/Cmd to select multiple. Leave empty if user should have no project access.</p>
                 </div>
 
                 <div className="pt-4 flex gap-4">

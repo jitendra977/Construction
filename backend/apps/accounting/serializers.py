@@ -32,7 +32,7 @@ class BankAccountSerializer(serializers.ModelSerializer):
     balance = serializers.DecimalField(source='gl_account.balance', max_digits=15, decimal_places=2, read_only=True)
     class Meta:
         model = BankAccount
-        fields = ['id', 'name', 'account_number', 'gl_account', 'gl_account_name', 'balance', 'is_active']
+        fields = ['id', 'project', 'name', 'account_number', 'gl_account', 'gl_account_name', 'balance', 'is_active']
 
 class CapitalSourceSerializer(serializers.ModelSerializer):
     gl_account_name = serializers.CharField(source='gl_account.name', read_only=True)
@@ -114,6 +114,130 @@ class ContractorPaymentRequestSerializer(serializers.ModelSerializer):
         ]
 
 class RetentionReleaseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RetentionRelease
+        fields = ['id', 'payment_request', 'date', 'amount', 'notes', 'vendor_bill']
+
+# ─── BUDGET SERIALIZERS ────────────────────────────────────────────
+
+class PhaseBudgetLineSerializer(serializers.ModelSerializer):
+    phase_name = serializers.CharField(source='phase.name', read_only=True)
+    
+    class Meta:
+        model = PhaseBudgetLine
+        fields = ['id', 'project', 'phase', 'phase_name', 'budgeted_amount', 'created_at', 'updated_at']
+
+
+class BudgetRevisionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BudgetRevision
+        fields = ['id', 'budget_line', 'date', 'previous_amount', 'new_amount', 'reason', 'created_by']
+
+
+# ─── CONSTRUCTION SERIALIZERS ────────────────────────────────────────
+
+class ContractorPaymentRequestSerializer(serializers.ModelSerializer):
+    contractor_name = serializers.CharField(source='contractor.name', read_only=True)
+    phase_name = serializers.CharField(source='phase.name', read_only=True)
+    
+    class Meta:
+        model = ContractorPaymentRequest
+        fields = ['id', 'project', 'phase', 'phase_name', 'contractor', 'contractor_name', 'date_submitted', 'description', 'work_completion_percentage', 'claimed_amount', 'retention_amount', 'net_payable', 'status', 'approved_by', 'approved_date', 'vendor_bill']
+
+class RetentionReleaseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RetentionRelease
+        fields = ['id', 'payment_request', 'date', 'amount', 'notes', 'vendor_bill']
+
+# ─── BUDGET SERIALIZERS ────────────────────────────────────────────
+
+class PhaseBudgetLineSerializer(serializers.ModelSerializer):
+    phase_name = serializers.CharField(source='phase.name', read_only=True)
+    
+    class Meta:
+        model = PhaseBudgetLine
+        fields = ['id', 'project', 'phase', 'phase_name', 'budgeted_amount', 'created_at', 'updated_at']
+
+
+class BudgetRevisionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BudgetRevision
+        fields = ['id', 'budget_line', 'date', 'previous_amount', 'new_amount', 'reason', 'created_by']
+
+
+# ─── CONSTRUCTION SERIALIZERS ────────────────────────────────────────
+
+class ContractorPaymentRequestSerializer(serializers.ModelSerializer):
+    contractor_name = serializers.CharField(source='contractor.name', read_only=True)
+    phase_name = serializers.CharField(source='phase.name', read_only=True)
+    
+    class Meta:
+        model = ContractorPaymentRequest
+        fields = ['id', 'project', 'phase', 'phase_name', 'contractor', 'contractor_name', 'date_submitted', 'description', 'work_completion_percentage', 'claimed_amount', 'retention_amount', 'net_payable', 'status', 'approved_by', 'approved_date', 'vendor_bill']
+
+class RetentionReleaseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RetentionRelease
+        fields = ['id', 'payment_request', 'date', 'amount', 'notes', 'vendor_bill']
+
+# ─── BUDGET SERIALIZERS ────────────────────────────────────────────
+
+class PhaseBudgetLineSerializer(serializers.ModelSerializer):
+    phase_name = serializers.CharField(source='phase.name', read_only=True)
+    
+    class Meta:
+        model = PhaseBudgetLine
+        fields = ['id', 'project', 'phase', 'phase_name', 'budgeted_amount', 'created_at', 'updated_at']
+
+
+class BudgetRevisionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BudgetRevision
+        fields = ['id', 'budget_line', 'date', 'previous_amount', 'new_amount', 'reason', 'created_by']
+
+
+# ─── CONSTRUCTION SERIALIZERS ────────────────────────────────────────
+
+class ContractorPaymentRequestSerializer(serializers.ModelSerializer):
+    contractor_name = serializers.CharField(source='contractor.name', read_only=True)
+    phase_name = serializers.CharField(source='phase.name', read_only=True)
+    
+    class Meta:
+        model = ContractorPaymentRequest
+        fields = ['id', 'project', 'phase', 'phase_name', 'contractor', 'contractor_name', 'date_submitted', 'description', 'work_completion_percentage', 'claimed_amount', 'retention_amount', 'net_payable', 'status', 'approved_by', 'approved_date', 'vendor_bill']
+
+class RetentionReleaseSerializer(serializers.ModelSerializer):  
+    class Meta:
+        model = RetentionRelease
+        fields = ['id', 'payment_request', 'date', 'amount', 'notes', 'vendor_bill']
+
+# ─── BUDGET SERIALIZERS ────────────────────────────────────────────
+
+class PhaseBudgetLineSerializer(serializers.ModelSerializer):
+    phase_name = serializers.CharField(source='phase.name', read_only=True)
+    
+    class Meta:
+        model = PhaseBudgetLine
+        fields = ['id', 'project', 'phase', 'phase_name', 'budgeted_amount', 'created_at', 'updated_at']
+
+
+class BudgetRevisionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BudgetRevision
+        fields = ['id', 'budget_line', 'date', 'previous_amount', 'new_amount', 'reason', 'created_by']
+
+
+# ─── CONSTRUCTION SERIALIZERS ────────────────────────────────────────
+
+class ContractorPaymentRequestSerializer(serializers.ModelSerializer):
+    contractor_name = serializers.CharField(source='contractor.name', read_only=True)
+    phase_name = serializers.CharField(source='phase.name', read_only=True)
+    
+    class Meta:
+        model = ContractorPaymentRequest
+        fields = ['id', 'project', 'phase', 'phase_name', 'contractor', 'contractor_name', 'date_submitted', 'description', 'work_completion_percentage', 'claimed_amount', 'retention_amount', 'net_payable', 'status', 'approved_by', 'approved_date', 'vendor_bill']
+
+class RetentionReleaseSerializer(serializers.ModelSerializer):              
     class Meta:
         model = RetentionRelease
         fields = ['id', 'payment_request', 'date', 'amount', 'notes', 'vendor_bill']

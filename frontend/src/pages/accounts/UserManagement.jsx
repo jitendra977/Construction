@@ -172,6 +172,7 @@ const UserManagement = () => {
                                 <tr className="bg-[var(--t-surface2)] border-b border-[var(--t-border)]">
                                     <th className="px-6 py-4 text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest">User Details</th>
                                     <th className="px-6 py-4 text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest">Role & Permissions</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest">Projects</th>
                                     <th className="px-6 py-4 text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest">Status</th>
                                     <th className="px-6 py-4 text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest">Joined Date</th>
                                     <th className="px-6 py-4 text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest text-right">Settings</th>
@@ -203,6 +204,21 @@ const UserManagement = () => {
                                             <span className={`px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg border shadow-sm ${getRoleBadgeStyle(user.role?.code)}`}>
                                                 {user.role?.name || 'Unassigned'}
                                             </span>
+                                        </td>
+                                        <td className="px-6 py-5">
+                                            {user.is_system_admin ? (
+                                                <span className="text-[10px] font-black uppercase text-purple-600 bg-purple-500/10 px-2.5 py-1 rounded-lg">All Projects (Admin)</span>
+                                            ) : user.assigned_projects_data && user.assigned_projects_data.length > 0 ? (
+                                                <div className="flex flex-wrap gap-1">
+                                                    {user.assigned_projects_data.map(p => (
+                                                        <span key={p.id} className="text-[10px] font-bold text-[var(--t-text2)] bg-[var(--t-surface2)] px-2 py-0.5 rounded-md border border-[var(--t-border)]">
+                                                            {p.name.length > 15 ? p.name.substring(0, 15) + '...' : p.name}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <span className="text-[10px] font-bold text-red-500/80">No Access</span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-5">
                                             <span className={`px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg border shadow-sm ${user.is_active ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-red-500/10 text-red-600 border-red-500/20'}`}>

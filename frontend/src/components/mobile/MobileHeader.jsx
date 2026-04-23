@@ -29,12 +29,7 @@ const MobileHeader = ({ project, stats, onLogout, onShowGuide, onShowConfig }) =
                 </button>
                 <div className="flex items-center gap-2">
                     <ThemeToggle />
-                    <button
-                        onClick={onShowGuide}
-                        className="w-9 h-9 bg-[var(--t-surface2)] rounded text-[var(--t-text2)] border border-[var(--t-border)] active:bg-[var(--t-surface3)] transition-all flex items-center justify-center group relative hover:border-[var(--t-primary)] hover:text-[var(--t-primary)]"
-                    >
-                        <span className="text-sm">📒</span>
-                    </button>
+
                     <Link
                         to="/dashboard/mobile/profile"
                         className="w-9 h-9 bg-[var(--t-surface2)] rounded text-[var(--t-text2)] border border-[var(--t-border)] active:bg-[var(--t-surface3)] transition-all flex items-center justify-center overflow-hidden hover:border-[var(--t-primary)]"

@@ -13,8 +13,8 @@ WeeklyDigest   — auto-generated homeowner-facing progress report anchored
 from django.db import models
 from django.conf import settings
 
+from apps.core.models import HouseProject, Room, Floor, ConstructionPhase
 from apps.tasks.models import TaskMedia
-from apps.core.models import Room, Floor, ConstructionPhase
 
 
 class PhotoAnalysis(models.Model):
@@ -130,6 +130,15 @@ class Timelapse(models.Model):
     title = models.CharField(max_length=200)
     scope = models.CharField(max_length=10, choices=SCOPE_CHOICES)
 
+    # ── Project scope ────────────────────────────────────────────────────────
+    project = models.ForeignKey(
+        HouseProject,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="timelapses",
+        help_text="Which project this timelapse belongs to",
+    )
     room = models.ForeignKey(
         Room, on_delete=models.SET_NULL, null=True, blank=True, related_name="timelapses"
     )
@@ -198,6 +207,13 @@ class WeeklyDigest(models.Model):
     week_start = models.DateField()  # Monday
     week_end = models.DateField()  # Sunday
 
+    project = models.ForeignKey(
+        HouseProject,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="weekly_digests",
+    )
     summary = models.TextField(blank=True, help_text="Human-readable summary")
     metrics = models.JSONField(default=dict, blank=True)
     alerts = models.JSONField(default=list, blank=True)

@@ -103,7 +103,22 @@ export const ConstructionProvider = ({ children }) => {
             ]);
             setDashboardData(data);
             setFinanceOverview(overview.data);
-            setProjects(projectList.data?.results ?? projectList.data ?? []);
+            const projectsList = projectList.data?.results ?? projectList.data ?? [];
+            setProjects(projectsList);
+            
+            // Validate activeProjectId
+            if (resolvedProjectId && projectsList.length > 0) {
+                const hasAccess = projectsList.some(p => p.id.toString() === resolvedProjectId.toString());
+                if (!hasAccess) {
+                    console.warn(`User does not have access to project ${resolvedProjectId}, switching to available project.`);
+                    setActiveProjectId(projectsList[0].id);
+                    localStorage.setItem('active-project-id', projectsList[0].id);
+                    // Next cycle will pick this up
+                }
+            } else if (!resolvedProjectId && projectsList.length > 0) {
+                setActiveProjectId(projectsList[0].id);
+                localStorage.setItem('active-project-id', projectsList[0].id);
+            }
         } catch (error) {
             console.error("Failed to load dashboard data", error);
         } finally {

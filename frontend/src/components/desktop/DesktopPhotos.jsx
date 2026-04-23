@@ -231,6 +231,32 @@ const DesktopPhotos = () => {
                             ))}
                         </div>
                     )}
+                    {/* ── Help Note ── */}
+                    <div className="mt-12 p-6 rounded-[2rem] bg-blue-50/50 border border-blue-100">
+                        <h3 className="text-lg font-black text-blue-900 mb-3 flex items-center gap-2">
+                            <span>💡</span> फोटो ग्यालरी भनेको के हो र कसरी प्रयोग गर्ने? (What is Photo Gallery?)
+                        </h3>
+                        <div className="text-sm font-medium text-blue-800/80 space-y-4 leading-relaxed mb-6 pb-6 border-b border-blue-200/50">
+                            <p>
+                                फोटो ग्यालरीमा तपाईंको प्रोजेक्टसँग सम्बन्धित सबै फोटोहरू, भिडियोहरू र डकुमेन्टहरू (ब्लुप्रिन्ट, पर्मिट) सुरक्षित राखिएको हुन्छ। यसले गर्दा तपाईंलाई आवश्यक परेको बेला सजिलै सबै डकुमेन्ट एकै ठाउँमा भेटाउन सकिन्छ।
+                            </p>
+                        </div>
+
+                        <h3 className="text-lg font-black text-blue-900 mb-3 flex items-center gap-2">
+                            <span>🛠️</span> प्रयोग गर्ने तरिका (How to use)
+                        </h3>
+                        <div className="text-sm font-medium text-blue-800/80 space-y-3 leading-relaxed">
+                            <p>
+                                <strong className="text-blue-900">१. हेर्नको लागि (View):</strong> माथि रहेको मेनु (Timeline, Phases, Blueprints, Permits) छानेर आफूलाई चाहिएको फोटो वा डकुमेन्ट हेर्न सक्नुहुन्छ।
+                            </p>
+                            <p>
+                                <strong className="text-blue-900">२. डाउनलोड गर्न (Download):</strong> कुनै पनि फोटो वा डकुमेन्टमा क्लिक गरेर त्यहाँ दिइएको 'Download' बटन थिची आफ्नो डिभाइसमा सेभ गर्न सक्नुहुन्छ।
+                            </p>
+                            <p>
+                                <strong className="text-blue-900">३. नयाँ फोटो हाल्न (Upload):</strong> नयाँ फोटो हाल्नको लागि 'Manage' ट्याबको 'Tasks' वा 'Phases' मा गएर अपलोड गर्नुहोस्। ती फोटोहरू यहाँ आफैं देखिनेछन्।
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
 

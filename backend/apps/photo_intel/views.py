@@ -6,7 +6,7 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.core.models import ConstructionPhase, Floor, Room
+from apps.core.models import HouseProject, ConstructionPhase, Floor, Room
 
 from .models import PhotoAnalysis, Timelapse, WeeklyDigest
 from .serializers import (
@@ -97,6 +97,8 @@ class TimelapseViewSet(viewsets.ModelViewSet):
             qs = qs.filter(floor_id=p["floor"])
         if p.get("phase"):
             qs = qs.filter(phase_id=p["phase"])
+        if p.get("project"):
+            qs = qs.filter(project_id=p["project"])
         if p.get("status"):
             qs = qs.filter(status=p["status"])
         return qs
@@ -108,16 +110,22 @@ class TimelapseViewSet(viewsets.ModelViewSet):
         ser.is_valid(raise_exception=True)
         data = ser.validated_data
 
-        room = floor = phase = None
+        project = room = floor = phase = None
+        if data.get("project"):
+            project = get_object_or_404(HouseProject, pk=data["project"])
         if data.get("room"):
             room = get_object_or_404(Room, pk=data["room"])
+            if not project: project = room.project
         if data.get("floor"):
             floor = get_object_or_404(Floor, pk=data["floor"])
+            if not project: project = floor.project
         if data.get("phase"):
             phase = get_object_or_404(ConstructionPhase, pk=data["phase"])
+            if not project: project = phase.project
 
         tl = regenerate_for_scope(
             scope=data["scope"],
+            project=project,
             room=room,
             floor=floor,
             phase=phase,

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { constructionService } from '../../../services/api';
+import { authService } from '../../../services/auth';
 import Modal from '../../common/Modal';
 import PhaseDetailModal from './PhaseDetailModal';
 import TaskPreviewModal from './TaskPreviewModal';
@@ -219,6 +220,7 @@ const SortableRow = ({ phase, tasks = [], onEdit, onDelete, isExpanded, onToggle
     const completedTasks = tasks.filter(t => t.status === 'COMPLETED').length;
     const totalTasks = tasks.length;
     const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+    const canManagePhases = authService.hasPermission('can_manage_phases');
 
     return (
         <>
@@ -302,15 +304,17 @@ const SortableRow = ({ phase, tasks = [], onEdit, onDelete, isExpanded, onToggle
                         >
                             {isExpanded ? 'Hide' : 'Tasks'}
                         </button>
-                        <button
-                            onClick={e => { e.stopPropagation(); onDelete(phase.id); }}
-                            className="p-1.5 rounded-lg text-[var(--t-danger)] hover:bg-[var(--t-danger)]/10 transition-all"
-                            title="Delete phase"
-                        >
-                            <svg className="w-[15px] h-[15px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                        </button>
+                        {canManagePhases && (
+                            <button
+                                onClick={e => { e.stopPropagation(); onDelete(phase.id); }}
+                                className="p-1.5 rounded-lg text-[var(--t-danger)] hover:bg-[var(--t-danger)]/10 transition-all"
+                                title="Delete phase"
+                            >
+                                <svg className="w-[15px] h-[15px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        )}
                     </div>
                 </td>
             </tr>
@@ -327,18 +331,20 @@ const SortableRow = ({ phase, tasks = [], onEdit, onDelete, isExpanded, onToggle
                                         Tasks · {phase.name}
                                     </span>
                                 </div>
-                                <button
-                                    onClick={() => onAddTask(phase.id)}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border border-dashed transition-all hover:opacity-80"
-                                    style={{
-                                        background: `color-mix(in srgb, var(--t-primary) 8%, transparent)`,
-                                        color: 'var(--t-primary)',
-                                        borderColor: `color-mix(in srgb, var(--t-primary) 40%, transparent)`,
-                                        fontFamily: 'var(--f-mono)',
-                                    }}
-                                >
-                                    + New Task
-                                </button>
+                                {canManagePhases && (
+                                    <button
+                                        onClick={() => onAddTask(phase.id)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border border-dashed transition-all hover:opacity-80"
+                                        style={{
+                                            background: `color-mix(in srgb, var(--t-primary) 8%, transparent)`,
+                                            color: 'var(--t-primary)',
+                                            borderColor: `color-mix(in srgb, var(--t-primary) 40%, transparent)`,
+                                            fontFamily: 'var(--f-mono)',
+                                        }}
+                                    >
+                                        + New Task
+                                    </button>
+                                )}
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
@@ -393,6 +399,7 @@ const PhasesTab = ({ searchQuery = '' }) => {
     const [editingItem, setEditingItem] = useState(null);
     const [formData, setFormData] = useState({});
     const [loading, setLoading] = useState(false);
+    const canManagePhases = authService.hasPermission('can_manage_phases');
 
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [selectedPhase, setSelectedPhase] = useState(null);
@@ -500,18 +507,20 @@ const PhasesTab = ({ searchQuery = '' }) => {
                 <p className="text-[13px] text-[var(--t-text2)] leading-relaxed">
                     Manage project schedule by phases and track structural units.
                 </p>
-                <button
-                    onClick={() => handleOpenModal()}
-                    className="shrink-0 px-5 py-2.5 rounded-xl hover:opacity-90 text-[11px] font-black uppercase tracking-widest transition-all shadow-md"
-                    style={{
-                        background: 'linear-gradient(135deg, var(--t-primary), var(--t-primary2))',
-                        color: 'var(--t-bg)',
-                        fontFamily: 'var(--f-mono)',
-                        boxShadow: '0 4px 14px color-mix(in srgb, var(--t-primary) 30%, transparent)',
-                    }}
-                >
-                    + Add Phase
-                </button>
+                {canManagePhases && (
+                    <button
+                        onClick={() => handleOpenModal()}
+                        className="shrink-0 px-5 py-2.5 rounded-xl hover:opacity-90 text-[11px] font-black uppercase tracking-widest transition-all shadow-md"
+                        style={{
+                            background: 'linear-gradient(135deg, var(--t-primary), var(--t-primary2))',
+                            color: 'var(--t-bg)',
+                            fontFamily: 'var(--f-mono)',
+                            boxShadow: '0 4px 14px color-mix(in srgb, var(--t-primary) 30%, transparent)',
+                        }}
+                    >
+                        + Add Phase
+                    </button>
+                )}
             </div>
 
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>

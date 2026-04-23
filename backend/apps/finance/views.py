@@ -25,7 +25,8 @@ from django.db.models import Sum, Q, Count, F, DecimalField, Value
 from django.db.models.functions import Coalesce
 from django.http import HttpResponse
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import viewsets, filters, status as drf_status
+from rest_framework import viewsets, filters, status as drf_status, permissions
+from apps.accounts.permissions import CanManageFinances
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -72,6 +73,7 @@ from .services import BillService, TransferService, FundingService, FinanceServi
 class AccountViewSet(viewsets.ModelViewSet):
     queryset = Account.objects.all().order_by("code")
     serializer_class = AccountSerializer
+    permission_classes = [permissions.IsAuthenticated, CanManageFinances]
     filterset_fields = ["account_type", "is_active"]
     search_fields = ["name", "code"]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
@@ -80,6 +82,7 @@ class AccountViewSet(viewsets.ModelViewSet):
 class JournalEntryViewSet(viewsets.ModelViewSet):
     queryset = JournalEntry.objects.all().prefetch_related("lines", "lines__account").order_by("-date", "-id")
     serializer_class = JournalEntrySerializer
+    permission_classes = [permissions.IsAuthenticated, CanManageFinances]
     filterset_fields = ["source"]
 
 
@@ -90,6 +93,7 @@ class JournalEntryViewSet(viewsets.ModelViewSet):
 class PurchaseOrderViewSet(viewsets.ModelViewSet):
     queryset = PurchaseOrder.objects.all().order_by("-date")
     serializer_class = PurchaseOrderSerializer
+    permission_classes = [permissions.IsAuthenticated, CanManageFinances]
     filterset_fields = ["status", "supplier", "contractor"]
 
 
@@ -101,6 +105,7 @@ class BillViewSet(viewsets.ModelViewSet):
         .order_by("-date_issued", "-id")
     )
     serializer_class = BillSerializer
+    permission_classes = [permissions.IsAuthenticated, CanManageFinances]
     filterset_fields = ["status", "supplier", "contractor"]
 
     def perform_destroy(self, instance):
@@ -130,6 +135,7 @@ class BillViewSet(viewsets.ModelViewSet):
 class BillPaymentViewSet(viewsets.ModelViewSet):
     queryset = BillPayment.objects.all().select_related("account", "bill").order_by("-date", "-id")
     serializer_class = BillPaymentSerializer
+    permission_classes = [permissions.IsAuthenticated, CanManageFinances]
     filterset_fields = ["method", "account", "bill"]
 
     def create(self, request, *args, **kwargs):
@@ -163,6 +169,7 @@ class BillPaymentViewSet(viewsets.ModelViewSet):
 class BankTransferViewSet(viewsets.ModelViewSet):
     queryset = BankTransfer.objects.all().select_related("from_account", "to_account").order_by("-date", "-id")
     serializer_class = BankTransferSerializer
+    permission_classes = [permissions.IsAuthenticated, CanManageFinances]
     filterset_fields = ["from_account", "to_account"]
 
     def perform_destroy(self, instance):
@@ -176,11 +183,13 @@ class BankTransferViewSet(viewsets.ModelViewSet):
 class BudgetCategoryViewSet(viewsets.ModelViewSet):
     queryset = BudgetCategory.objects.all().order_by("name")
     serializer_class = BudgetCategorySerializer
+    permission_classes = [permissions.IsAuthenticated, CanManageFinances]
 
 
 class PhaseBudgetAllocationViewSet(viewsets.ModelViewSet):
     queryset = PhaseBudgetAllocation.objects.all()
     serializer_class = PhaseBudgetAllocationSerializer
+    permission_classes = [permissions.IsAuthenticated, CanManageFinances]
 
 
 # -----------------------------------------------------------------------------
@@ -190,6 +199,7 @@ class PhaseBudgetAllocationViewSet(viewsets.ModelViewSet):
 class FundingSourceViewSet(viewsets.ModelViewSet):
     queryset = FundingSource.objects.all().prefetch_related("transactions").order_by("-received_date")
     serializer_class = FundingSourceSerializer
+    permission_classes = [permissions.IsAuthenticated, CanManageFinances]
 
     @action(detail=True, methods=["post"], url_path="recalculate")
     def recalculate(self, request, pk=None):
@@ -207,6 +217,7 @@ class FundingSourceViewSet(viewsets.ModelViewSet):
 class FundingTransactionViewSet(viewsets.ModelViewSet):
     queryset = FundingTransaction.objects.all().order_by("-date", "-id")
     serializer_class = FundingTransactionSerializer
+    permission_classes = [permissions.IsAuthenticated, CanManageFinances]
 
 
 # -----------------------------------------------------------------------------
@@ -221,6 +232,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         .order_by("-date")
     )
     serializer_class = ExpenseSerializer
+    permission_classes = [permissions.IsAuthenticated, CanManageFinances]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_class = ExpenseFilter
     search_fields = ["title", "paid_to", "category__name", "phase__name"]
@@ -349,6 +361,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
 class PaymentViewSet(viewsets.ModelViewSet):
     queryset = Payment.objects.all().select_related("expense", "funding_source").order_by("-date", "-id")
     serializer_class = PaymentSerializer
+    permission_classes = [permissions.IsAuthenticated, CanManageFinances]
 
     def perform_create(self, serializer):
         data = serializer.validated_data

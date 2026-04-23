@@ -122,6 +122,7 @@ class User(AbstractUser):
     
     # ----- ROLE SYSTEM -----
     role = models.ForeignKey(Role, on_delete=models.SET_NULL, null=True, blank=True, related_name='users')
+    assigned_projects = models.ManyToManyField('core.HouseProject', blank=True, related_name='assigned_users', help_text="Projects this user is allowed to access")
 
     # ----- EMAIL VERIFICATION -----
     is_verified = models.BooleanField(default=False)

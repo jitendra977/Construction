@@ -72,6 +72,7 @@ class TimelapseCreateSerializer(serializers.Serializer):
     Input for the `POST /photo-intel/timelapses/generate/` action.
     """
     scope = serializers.ChoiceField(choices=[c[0] for c in Timelapse.SCOPE_CHOICES])
+    project = serializers.IntegerField(required=False, allow_null=True)
     room = serializers.IntegerField(required=False, allow_null=True)
     floor = serializers.IntegerField(required=False, allow_null=True)
     phase = serializers.IntegerField(required=False, allow_null=True)
@@ -81,6 +82,8 @@ class TimelapseCreateSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         scope = attrs["scope"]
+        if scope == "PROJECT" and not attrs.get("project"):
+            raise serializers.ValidationError("project is required for scope=PROJECT")
         if scope == "ROOM" and not attrs.get("room"):
             raise serializers.ValidationError("room is required for scope=ROOM")
         if scope == "FLOOR" and not attrs.get("floor"):

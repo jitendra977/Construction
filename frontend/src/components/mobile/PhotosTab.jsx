@@ -140,6 +140,25 @@ const PhotosTab = () => {
                             ))}
                         </div>
                     )}
+                    
+                    {/* ── Help Note ── */}
+                    <div className="mt-8 p-5 rounded-xl bg-[var(--t-surface2)] border border-[var(--t-border)]">
+                        <h3 className="text-[12px] font-black text-[var(--t-text)] mb-2 flex items-center gap-2">
+                            <span>💡</span> फोटो ग्यालरी भनेको के हो?
+                        </h3>
+                        <p className="text-[10px] text-[var(--t-text2)] leading-relaxed mb-4 pb-4 border-b border-[var(--t-border)]">
+                            यसमा प्रोजेक्टसँग सम्बन्धित सबै फोटोहरू, भिडियोहरू र डकुमेन्टहरू (ब्लुप्रिन्ट, पर्मिट) सुरक्षित राखिएको हुन्छ।
+                        </p>
+
+                        <h3 className="text-[12px] font-black text-[var(--t-text)] mb-2 flex items-center gap-2">
+                            <span>🛠️</span> प्रयोग गर्ने तरिका
+                        </h3>
+                        <div className="text-[10px] text-[var(--t-text2)] space-y-2 leading-relaxed">
+                            <p><strong className="text-[var(--t-text)]">१. हेर्न (View):</strong> माथिको मेनुबाट छानेर हेर्नुहोस्।</p>
+                            <p><strong className="text-[var(--t-text)]">२. डाउनलोड गर्न (Download):</strong> फोटोमा क्लिक गरेर सेभ गर्नुहोस्।</p>
+                            <p><strong className="text-[var(--t-text)]">३. नयाँ हाल्न (Upload):</strong> Tasks वा Phases मा गएर अपलोड गर्नुहोस्।</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 

@@ -88,30 +88,13 @@ class ReportService:
 
     @staticmethod
     def phase_cost_summary(project_id):
-        """Returns actual spend per phase for a project."""
+        """Returns actual spend per phase for a project.
+        
+        Uses same 3-layer aggregation as BudgetService.get_variance():
+        Layer 1: Phase-tagged VendorBills
+        Layer 2: Unphased VendorBills distributed proportionally by budget weight
+        Layer 3: Legacy finance.Expense records
+        """
         from ..models.budget import PhaseBudgetLine
-        
-        # Get budget lines for this project which includes the phase link
-        budgets = PhaseBudgetLine.objects.filter(project_id=project_id).select_related('phase').order_by('phase__order')
-        
-        bills_by_phase = (
-            VendorBill.objects.filter(project_id=project_id)
-            .values('phase_id')
-            .annotate(total=Sum('amount'))
-        )
-        spend_map = {b['phase_id']: float(b['total'] or 0) for b in bills_by_phase}
-        
-        result = []
-        for b in budgets:
-            spent = spend_map.get(b.phase_id, 0.0)
-            budgeted = float(b.budgeted_amount)
-            result.append({
-                'phase_id': b.phase_id,
-                'phase_name': b.phase.name,
-                'budgeted': budgeted,
-                'spent': spent,
-                'variance': budgeted - spent,
-                'percent_used': round((spent / budgeted * 100) if budgeted > 0 else 0, 1),
-            })
-        
-        return result
+        from .budget import BudgetService
+        return BudgetService.get_variance(project_id)

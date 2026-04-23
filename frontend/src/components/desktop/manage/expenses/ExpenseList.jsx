@@ -1,5 +1,6 @@
 import React from 'react';
 import { getMediaUrl } from '../../../../services/api';
+import { authService } from '../../../../services/auth';
 
 const ExpenseList = ({
     expenses,
@@ -17,6 +18,8 @@ const ExpenseList = ({
     sortConfig,
     setSortConfig
 }) => {
+    const canManageFinances = authService.hasPermission('can_manage_finances');
+
     const handleSort = (key) => {
         setSortConfig(prev => ({
             key,
@@ -126,8 +129,8 @@ const ExpenseList = ({
                                 <td className="px-8 py-5">
                                     <div className="flex flex-col gap-1.5">
                                         <div 
-                                            onClick={() => Number(e.balance_due) > 0 && handleOpenPaymentModal(e)}
-                                            className={`inline-flex items-center px-2.5 py-1 rounded-[1px] text-[9px] font-['DM_Mono',monospace] uppercase tracking-widest border transition-all cursor-pointer hover:brightness-110 ${ss.badge}`}
+                                            onClick={() => canManageFinances && Number(e.balance_due) > 0 && handleOpenPaymentModal(e)}
+                                            className={`inline-flex items-center px-2.5 py-1 rounded-[1px] text-[9px] font-['DM_Mono',monospace] uppercase tracking-widest border transition-all hover:brightness-110 ${ss.badge} ${canManageFinances && Number(e.balance_due) > 0 ? 'cursor-pointer' : 'cursor-default'}`}
                                         >
                                             <div className={`w-1.5 h-1.5 rounded-full mr-2 ${ss.dot}`} />
                                             {e.status}
@@ -179,7 +182,7 @@ const ExpenseList = ({
                                 </td>
                                 <td className="px-8 py-5 text-right">
                                     <div className="flex justify-end items-center gap-2">
-                                        {Number(e.balance_due) > 0 && (
+                                        {canManageFinances && Number(e.balance_due) > 0 && (
                                             <button
                                                 onClick={() => handleOpenPaymentModal(e)}
                                                 className="px-3 py-1.5 bg-[var(--t-primary)] text-white text-[9px] font-['DM_Mono',monospace] uppercase tracking-widest rounded-[1px] hover:opacity-90 transition-all shadow-lg shadow-[var(--t-primary)]/10"
@@ -187,14 +190,18 @@ const ExpenseList = ({
                                                 Pay Due
                                             </button>
                                         )}
-                                        <button onClick={() => handleOpenModal(e)}
-                                            className="p-2 text-[var(--t-text3)] hover:text-[var(--t-primary)] hover:bg-[var(--t-surface2)] rounded transition-all">
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-5M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>
-                                        </button>
-                                        <button onClick={() => handleDelete(e.id)}
-                                            className="p-2 text-[var(--t-text3)] hover:text-[var(--t-danger)] hover:bg-[var(--t-danger)]/5 rounded transition-all">
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                        </button>
+                                        {canManageFinances && (
+                                            <>
+                                                <button onClick={() => handleOpenModal(e)}
+                                                    className="p-2 text-[var(--t-text3)] hover:text-[var(--t-primary)] hover:bg-[var(--t-surface2)] rounded transition-all">
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-5M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>
+                                                </button>
+                                                <button onClick={() => handleDelete(e.id)}
+                                                    className="p-2 text-[var(--t-text3)] hover:text-[var(--t-danger)] hover:bg-[var(--t-danger)]/5 rounded transition-all">
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                </button>
+                                            </>
+                                        )}
                                     </div>
                                 </td>
                             </tr>

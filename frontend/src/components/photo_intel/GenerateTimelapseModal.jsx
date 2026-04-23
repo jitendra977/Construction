@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { X, Loader2 } from 'lucide-react';
-import { photoIntelService, dashboardService } from '../../services/api';
+import { X, Loader2, Plus, RefreshCw } from 'lucide-react';
+import { photoIntelService } from '../../services/api';
+import { useConstruction } from '../../context/ConstructionContext';
 
 /**
  * Modal: pick scope + date range, POST /photo-intel/timelapses/generate/.
@@ -8,6 +9,7 @@ import { photoIntelService, dashboardService } from '../../services/api';
  */
 const GenerateTimelapseModal = ({ onClose, onGenerated }) => {
     const [scope, setScope] = useState('PROJECT');
+    const { activeProjectId, dashboardData } = useConstruction();
     const [rooms, setRooms] = useState([]);
     const [floors, setFloors] = useState([]);
     const [phases, setPhases] = useState([]);
@@ -23,21 +25,10 @@ const GenerateTimelapseModal = ({ onClose, onGenerated }) => {
     const [error, setError] = useState('');
 
     useEffect(() => {
-        (async () => {
-            try {
-                const [r, f, p] = await Promise.all([
-                    dashboardService.getRooms(),
-                    dashboardService.getFloors(),
-                    dashboardService.getPhases(),
-                ]);
-                setRooms(normalize(r.data));
-                setFloors(normalize(f.data));
-                setPhases(normalize(p.data));
-            } catch (e) {
-                console.error(e);
-            }
-        })();
-    }, []);
+        setRooms(normalize(dashboardData.rooms));
+        setFloors(normalize(dashboardData.floors));
+        setPhases(normalize(dashboardData.phases));
+    }, [dashboardData]);
 
     const onField = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -48,6 +39,7 @@ const GenerateTimelapseModal = ({ onClose, onGenerated }) => {
         try {
             const payload = {
                 scope,
+                project: Number(activeProjectId),
                 period_start: form.period_start,
                 period_end: form.period_end,
                 title: form.title || undefined,
@@ -65,91 +57,136 @@ const GenerateTimelapseModal = ({ onClose, onGenerated }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-[#0d1117]/80 backdrop-blur-md animate-in fade-in duration-300" onClick={onClose} />
+            
             <form
                 onSubmit={submit}
-                className="bg-white rounded-2xl shadow-xl w-full max-w-md p-5 space-y-3"
+                className="relative bg-[var(--t-surface)] rounded-[2.5rem] shadow-2xl w-full max-w-xl overflow-hidden animate-in zoom-in-95 duration-500 border border-[var(--t-border)]"
             >
-                <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-bold">Generate Timelapse</h3>
-                    <button type="button" onClick={onClose}>
-                        <X className="w-5 h-5 text-gray-500" />
-                    </button>
+                {/* ── Modal Header ── */}
+                <div className="px-8 py-8 border-b border-[var(--t-border)] bg-gradient-to-r from-blue-600/5 to-transparent">
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                            <h3 className="text-2xl font-black text-[var(--t-text)] tracking-tight">Generate New Sequence</h3>
+                            <p className="text-[var(--t-text3)] text-sm font-medium">Create a custom timelapse from your site data.</p>
+                        </div>
+                        <button 
+                            type="button" 
+                            onClick={onClose}
+                            className="w-10 h-10 rounded-xl bg-[var(--t-surface2)] border border-[var(--t-border)] flex items-center justify-center hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
                 </div>
 
-                <label className="block text-sm">
-                    <span className="font-medium">Scope</span>
-                    <select
-                        value={scope}
-                        onChange={(e) => setScope(e.target.value)}
-                        className="mt-1 w-full border rounded px-2 py-1.5"
-                    >
-                        <option value="PROJECT">Whole Project</option>
-                        <option value="FLOOR">Floor</option>
-                        <option value="ROOM">Room</option>
-                        <option value="PHASE">Phase</option>
-                    </select>
-                </label>
+                <div className="p-8 space-y-8 max-h-[70vh] overflow-y-auto scrollbar-none">
+                    {/* ── Scope Selection ── */}
+                    <div className="space-y-4">
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--t-text3)]">Project Scope</label>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            {[
+                                { id: 'PROJECT', label: 'Global', icon: '🏗️' },
+                                { id: 'PHASE', label: 'Phase', icon: '📅' },
+                                { id: 'FLOOR', label: 'Floor', icon: '🏢' },
+                                { id: 'ROOM', label: 'Room', icon: '🚪' },
+                            ].map((s) => (
+                                <button
+                                    key={s.id}
+                                    type="button"
+                                    onClick={() => setScope(s.id)}
+                                    className={`flex flex-col items-center justify-center gap-3 p-4 rounded-2xl border transition-all ${
+                                        scope === s.id
+                                            ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20 scale-105'
+                                            : 'bg-[var(--t-surface2)] border-[var(--t-border)] text-[var(--t-text3)] hover:border-blue-400'
+                                    }`}
+                                >
+                                    <span className="text-2xl">{s.icon}</span>
+                                    <span className="text-[10px] font-black uppercase tracking-wider">{s.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
 
-                {scope === 'ROOM' && (
-                    <Picker label="Room" value={form.room} onChange={onField('room')} options={rooms} />
-                )}
-                {scope === 'FLOOR' && (
-                    <Picker label="Floor" value={form.floor} onChange={onField('floor')} options={floors} />
-                )}
-                {scope === 'PHASE' && (
-                    <Picker label="Phase" value={form.phase} onChange={onField('phase')} options={phases} />
-                )}
+                    {/* ── Specific Selectors ── */}
+                    <div className="space-y-6">
+                        {scope === 'ROOM' && (
+                            <Picker label="Select Specific Room" value={form.room} onChange={onField('room')} options={rooms} />
+                        )}
+                        {scope === 'FLOOR' && (
+                            <Picker label="Select Specific Floor" value={form.floor} onChange={onField('floor')} options={floors} />
+                        )}
+                        {scope === 'PHASE' && (
+                            <Picker label="Select Construction Phase" value={form.phase} onChange={onField('phase')} options={phases} />
+                        )}
 
-                <div className="grid grid-cols-2 gap-2">
-                    <label className="text-sm">
-                        <span className="font-medium">From</span>
-                        <input
-                            type="date"
-                            value={form.period_start}
-                            onChange={onField('period_start')}
-                            className="mt-1 w-full border rounded px-2 py-1.5"
-                        />
-                    </label>
-                    <label className="text-sm">
-                        <span className="font-medium">To</span>
-                        <input
-                            type="date"
-                            value={form.period_end}
-                            onChange={onField('period_end')}
-                            className="mt-1 w-full border rounded px-2 py-1.5"
-                        />
-                    </label>
+                        <div className="grid grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--t-text3)]">From Date</label>
+                                <input
+                                    type="date"
+                                    value={form.period_start}
+                                    onChange={onField('period_start')}
+                                    className="w-full bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--t-text3)]">To Date</label>
+                                <input
+                                    type="date"
+                                    value={form.period_end}
+                                    onChange={onField('period_end')}
+                                    className="w-full bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--t-text3)]">Sequence Title (Optional)</label>
+                            <input
+                                type="text"
+                                value={form.title}
+                                onChange={onField('title')}
+                                placeholder="e.g. Ground Floor Foundation Recap"
+                                className="w-full bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+                            />
+                        </div>
+                    </div>
+
+                    {error && (
+                        <div className="p-4 rounded-2xl bg-red-50 border border-red-100 flex items-center gap-3 text-red-600 animate-in slide-in-from-top-2">
+                            <Loader2 className="w-4 h-4" />
+                            <p className="text-[11px] font-bold uppercase tracking-wider">{error}</p>
+                        </div>
+                    )}
                 </div>
 
-                <label className="block text-sm">
-                    <span className="font-medium">Title (optional)</span>
-                    <input
-                        type="text"
-                        value={form.title}
-                        onChange={onField('title')}
-                        placeholder="e.g. First floor — April recap"
-                        className="mt-1 w-full border rounded px-2 py-1.5"
-                    />
-                </label>
-
-                {error && <div className="text-xs text-red-600">{error}</div>}
-
-                <div className="flex gap-2 pt-2">
+                {/* ── Modal Footer ── */}
+                <div className="p-8 border-t border-[var(--t-border)] flex gap-4 bg-[var(--t-surface2)]/30">
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex-1 py-2 border rounded-lg hover:bg-gray-50 text-sm"
+                        className="flex-1 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--t-text3)] hover:text-[var(--t-text)] transition-colors"
                     >
-                        Cancel
+                        Dismiss
                     </button>
                     <button
                         type="submit"
                         disabled={busy}
-                        className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm inline-flex items-center justify-center gap-1 disabled:opacity-60"
+                        className="flex-[2] py-4 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-500/25 hover:bg-blue-700 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
                     >
-                        {busy && <Loader2 className="w-4 h-4 animate-spin" />}
-                        Generate
+                        {busy ? (
+                            <>
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                                Processing...
+                            </>
+                        ) : (
+                            <>
+                                <Plus className="w-4 h-4" />
+                                Generate Sequence
+                            </>
+                        )}
                     </button>
                 </div>
             </form>
@@ -158,15 +195,19 @@ const GenerateTimelapseModal = ({ onClose, onGenerated }) => {
 };
 
 const Picker = ({ label, value, onChange, options }) => (
-    <label className="block text-sm">
-        <span className="font-medium">{label}</span>
-        <select value={value} onChange={onChange} className="mt-1 w-full border rounded px-2 py-1.5">
-            <option value="">— Select —</option>
+    <div className="space-y-2">
+        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--t-text3)]">{label}</label>
+        <select 
+            value={value} 
+            onChange={onChange} 
+            className="w-full bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 outline-none transition-all appearance-none cursor-pointer"
+        >
+            <option value="">— Choose Item —</option>
             {options.map((o) => (
                 <option key={o.id} value={o.id}>{o.name}</option>
             ))}
         </select>
-    </label>
+    </div>
 );
 
 function todayStr() { return new Date().toISOString().slice(0, 10); }
