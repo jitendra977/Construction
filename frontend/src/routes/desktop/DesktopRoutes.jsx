@@ -15,7 +15,13 @@ import UserGuidePage from '../../pages/desktop/UserGuidePage';
 import TimelapsePage from '../../pages/TimelapsePage';
 import AnalyticsPage from '../../pages/AnalyticsPage';
 
+// Finance Module (self-contained)
+import FinanceRoutes from '../../modules/finance';
+import { useConstruction } from '../../context/ConstructionContext';
+
 const DesktopRoutes = () => {
+    const { activeProjectId } = useConstruction();
+
     return (
         <Routes>
             <Route index element={<Navigate to="home" replace />} />
@@ -31,6 +37,8 @@ const DesktopRoutes = () => {
             <Route path="guides" element={<UserGuidePage />} />
             <Route path="timelapse" element={<TimelapsePage />} />
             <Route path="analytics" element={<AnalyticsPage />} />
+            {/* Finance Module */}
+            <Route path="finance/*" element={<FinanceRoutes projectId={activeProjectId} />} />
             {/* Catch-all to home */}
             <Route path="*" element={<Navigate to="/dashboard/desktop/home" replace />} />
         </Routes>

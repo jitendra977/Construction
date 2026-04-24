@@ -53,6 +53,9 @@ urlpatterns = [
     path('api/v1/photo-intel/', include('apps.photo_intel.urls')),
     path('api/v1/analytics/', include('apps.analytics.urls')),
     path('api/v1/assistant/', include('apps.assistant.urls')),
+
+    # ── Finance Module (clean separate implementation) ──────────────────────
+    path('api/v1/fin/', include('apps.fin.urls')),
 ]
 
 # Serve media files in development
