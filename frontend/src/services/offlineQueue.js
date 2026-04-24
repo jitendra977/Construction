@@ -49,7 +49,15 @@ async function tx(mode, fn) {
         });
     } catch {
         // Fallback to localStorage
-        const list = JSON.parse(localStorage.getItem(LS_KEY) || '[]');
+        const raw = localStorage.getItem(LS_KEY);
+        let list = [];
+        if (raw && raw !== "undefined") {
+            try {
+                list = JSON.parse(raw);
+            } catch (e) {
+                list = [];
+            }
+        }
         return fn({ list });
     }
 }

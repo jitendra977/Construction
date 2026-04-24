@@ -35,7 +35,13 @@ export const ConstructionProvider = ({ children }) => {
             setTypography(user.typography_settings);
         } else {
             const saved = localStorage.getItem('mero-ghar-typography-v2');
-            if (saved) setTypography(JSON.parse(saved));
+            if (saved && saved !== "undefined") {
+                try {
+                    setTypography(JSON.parse(saved));
+                } catch (e) {
+                    console.error("Failed to parse typography settings", e);
+                }
+            }
         }
     }, [user?.id]); // Only run when user changes (login/logout)
 
