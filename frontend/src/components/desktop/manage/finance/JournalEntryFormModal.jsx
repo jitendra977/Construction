@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../../../common/Modal';
-import { financeService } from '../../../../services/api';
+import { accountingService } from '../../../../services/api';
 import { useConstruction } from '../../../../context/ConstructionContext';
 
 const JournalEntryFormModal = ({ isOpen, onClose, accounts = [] }) => {
@@ -62,7 +62,7 @@ const JournalEntryFormModal = ({ isOpen, onClose, accounts = [] }) => {
                 ...formData,
                 lines: lines.map(l => ({ ...l, amount: Number(l.amount) }))
             };
-            await financeService.createJournalEntry(dataToSubmit);
+            await accountingService.createJournalEntry(dataToSubmit);
             refreshData();
             onClose();
             setFormData({

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { financeService } from '../../../../services/api';
+import { accountingService } from '../../../../services/api';
 import AccountFormModal from './AccountFormModal';
 import BankTransferModal from './BankTransferModal';
 import { useConstruction } from '../../../../context/ConstructionContext';
@@ -169,7 +169,7 @@ const AccountsTab = ({ searchQuery }) => {
     const fetchAccounts = async () => {
         setLoading(true);
         try {
-            const res = await financeService.getAccounts();
+            const res = await accountingService.getAccounts();
             setAccounts(res.data);
         } catch (err) {
             console.error('Error fetching accounts', err);

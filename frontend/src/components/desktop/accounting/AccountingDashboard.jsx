@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useConstruction } from '../../../context/ConstructionContext';
-import { accountingService } from '../../../services/accountingService';
+import { accountingService } from '../../../services/api';
 import TreasuryTab from './TreasuryTab';
 import PayablesTab from './PayablesTab';
 import LedgerTab from './LedgerTab';

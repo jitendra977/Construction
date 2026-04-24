@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { accountingService } from '../../../services/accountingService';
+import { accountingService, constructionService } from '../../../services/api';
 
 const fmt = (v) => 'NPR ' + Number(v || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
 const statusColor = (s) => ({
@@ -14,13 +14,14 @@ const lbl = 'block text-xs font-bold text-[var(--t-text2)] mb-1';
 
 const EMPTY_BILL = { vendor: '', invoice_number: '', date: '', due_date: '', description: '', amount: '', expense_account: '', phase: '' };
 const EMPTY_PAY = { bill: '', bank_account: '', amount: '', reference: '', date: '' };
-const EMPTY_REQ = { phase_name: '', contractor_name: '', claimed_amount: '', description: '', work_completion_percentage: '' };
+const EMPTY_REQ = { phase: '', contractor: '', claimed_amount: '', description: '', work_completion_percentage: '' };
 
 const PayablesTab = ({ projectId, section }) => {
     const [vendors, setVendors] = useState([]);
     const [bills, setBills] = useState([]);
     const [requests, setRequests] = useState([]);
     const [banks, setBanks] = useState([]);
+    const [phases, setPhases] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [billFilter, setBillFilter] = useState('ALL');
@@ -63,16 +64,18 @@ const PayablesTab = ({ projectId, section }) => {
         setLoading(true);
         setError(null);
         try {
-            const [vRes, bRes, prRes, bkRes] = await Promise.all([
+            const [vRes, bRes, prRes, bkRes, phRes] = await Promise.all([
                 accountingService.getVendors(),
                 accountingService.getBills(projectId),
                 accountingService.getPaymentRequests(projectId),
-                accountingService.getBanks(),
+                accountingService.getBanks(projectId),
+                constructionService.getPhases(),
             ]);
             setVendors(Array.isArray(vRes.data) ? vRes.data : []);
             setBills(Array.isArray(bRes.data) ? bRes.data : []);
             setRequests(Array.isArray(prRes.data) ? prRes.data : []);
             setBanks(Array.isArray(bkRes.data) ? bkRes.data : []);
+            setPhases(Array.isArray(phRes) ? phRes : []);
         } catch (err) {
             setError('Failed to load payables data.');
             console.error(err);
@@ -89,6 +92,26 @@ const PayablesTab = ({ projectId, section }) => {
             loadData();
         } catch (err) {
             alert('Approval failed: ' + (err.response?.data?.error || err.message));
+        }
+    };
+
+    const handleSaveReq = async (e) => {
+        e.preventDefault();
+        setSaving(true);
+        try {
+            await accountingService.createPaymentRequest({ 
+                ...reqForm, 
+                claimed_amount: Number(reqForm.claimed_amount),
+                work_completion_percentage: Number(reqForm.work_completion_percentage),
+                project: projectId 
+            });
+            setShowReqForm(false);
+            setReqForm(EMPTY_REQ);
+            loadData();
+        } catch (err) {
+            alert('Failed to save request: ' + (err.response?.data?.error || err.message));
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -111,7 +134,7 @@ const PayablesTab = ({ projectId, section }) => {
         e.preventDefault();
         setSaving(true);
         try {
-            await accountingService.createPayment({ ...payForm, amount: Number(payForm.amount), bill: Number(showPayForm), bank_account: Number(payForm.bank_account) });
+            await accountingService.createPayment({ ...payForm, amount: Number(payForm.amount), bill: showPayForm, bank_account: payForm.bank_account });
             setShowPayForm(null);
             setPayForm(EMPTY_PAY);
             loadData();
@@ -150,16 +173,28 @@ const PayablesTab = ({ projectId, section }) => {
                     </div>
 
                     {showReqForm && (
-                        <form className="bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-xl p-5 mb-5 space-y-4">
+                        <form onSubmit={handleSaveReq} className="bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-xl p-5 mb-5 space-y-4">
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                <div><label className={lbl}>{labels.phase}</label><input className={inp} value={reqForm.phase_name} onChange={e => setReqForm(f => ({...f, phase_name: e.target.value}))} /></div>
-                                <div><label className={lbl}>{labels.contractor}</label><input className={inp} value={reqForm.contractor_name} onChange={e => setReqForm(f => ({...f, contractor_name: e.target.value}))} /></div>
-                                <div><label className={lbl}>{labels.claimed}</label><input type="number" className={inp} value={reqForm.claimed_amount} onChange={e => setReqForm(f => ({...f, claimed_amount: e.target.value}))} /></div>
-                                <div><label className={lbl}>Completion %</label><input type="number" className={inp} value={reqForm.work_completion_percentage} onChange={e => setReqForm(f => ({...f, work_completion_percentage: e.target.value}))} /></div>
-                                <div className="sm:col-span-2"><label className={lbl}>Description</label><input className={inp} value={reqForm.description} onChange={e => setReqForm(f => ({...f, description: e.target.value}))} /></div>
+                                <div>
+                                    <label className={lbl}>{labels.phase}</label>
+                                    <select className={inp} value={reqForm.phase} onChange={e => setReqForm(f => ({...f, phase: e.target.value}))} required>
+                                        <option value="">Select Phase…</option>
+                                        {phases.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className={lbl}>{labels.contractor}</label>
+                                    <select className={inp} value={reqForm.contractor} onChange={e => setReqForm(f => ({...f, contractor: e.target.value}))} required>
+                                        <option value="">Select Contractor…</option>
+                                        {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                                    </select>
+                                </div>
+                                <div><label className={lbl}>{labels.claimed}</label><input type="number" className={inp} value={reqForm.claimed_amount} onChange={e => setReqForm(f => ({...f, claimed_amount: e.target.value}))} required /></div>
+                                <div><label className={lbl}>Completion %</label><input type="number" className={inp} value={reqForm.work_completion_percentage} onChange={e => setReqForm(f => ({...f, work_completion_percentage: e.target.value}))} required /></div>
+                                <div className="sm:col-span-2"><label className={lbl}>Description</label><input className={inp} value={reqForm.description} onChange={e => setReqForm(f => ({...f, description: e.target.value}))} required /></div>
                             </div>
                             <div className="flex gap-3 pt-2">
-                                <button type="submit" className="px-5 py-2 bg-[#ea580c] text-white text-sm font-bold rounded-xl">{labels.save}</button>
+                                <button type="submit" disabled={saving} className="px-5 py-2 bg-[#ea580c] text-white text-sm font-bold rounded-xl disabled:opacity-50">{saving ? 'Saving…' : labels.save}</button>
                                 <button type="button" onClick={() => setShowReqForm(false)} className="px-5 py-2 bg-[var(--t-surface)] border border-[var(--t-border)] text-[var(--t-text)] text-sm font-bold rounded-xl">{labels.cancel}</button>
                             </div>
                         </form>
@@ -201,6 +236,35 @@ const PayablesTab = ({ projectId, section }) => {
                             </table>
                         </div>
                     )}
+
+                    {/* ── Help Note ── */}
+                    <div className="mt-8 p-6 rounded-[2rem] bg-orange-50/50 border border-orange-100 animate-in fade-in slide-in-from-bottom-8">
+                        <h3 className="text-lg font-black text-orange-900 mb-3 flex items-center gap-2" style={{ fontFamily: 'var(--f-body)' }}>
+                            <span>💡</span> ठेकेदार माइलस्टोन (Contractor Milestones) भनेको के हो र किन प्रयोग गर्ने? (Why use Contractor Milestones?)
+                        </h3>
+                        <div className="text-sm font-medium text-orange-800/80 space-y-4 leading-relaxed mb-6 pb-6 border-b border-orange-200/50" style={{ fontFamily: 'var(--f-body)' }}>
+                            <p>
+                                ठेकेदार माइलस्टोन (Contractor Milestones) भनेको निर्माणको कुनै निश्चित चरण (Phase) वा कार्य सकिएपछि ठेकेदारले भुक्तानीको लागि गर्ने दाबी वा अनुरोध हो।
+                            </p>
+                            <ul className="list-disc list-inside space-y-2 ml-2">
+                                <li><strong className="text-orange-900">भुक्तानी व्यवस्थापन (Payment Management):</strong> काम सकिएपछि ठेकेदारलाई कति रकम दिनुपर्ने हो भनेर सजिलै हिसाब राख्न।</li>
+                                <li><strong className="text-orange-900">रिटेन्सन (Retention Tracking):</strong> कामको ग्यारेन्टी स्वरुप काटिएको रकम (Retention Money) को रेकर्ड सुरक्षित गर्न।</li>
+                                <li><strong className="text-orange-900">पारदर्शिता (Transparency):</strong> कुन ठेकेदारलाई कुन कामको लागि कति पैसा दिइयो भनेर स्पष्ट विवरण राख्न।</li>
+                            </ul>
+                        </div>
+
+                        <h3 className="text-lg font-black text-orange-900 mb-3 flex items-center gap-2" style={{ fontFamily: 'var(--f-body)' }}>
+                            <span>🛠️</span> प्रयोग गर्ने तरिका (How to use)
+                        </h3>
+                        <div className="text-sm font-medium text-orange-800/80 space-y-3 leading-relaxed" style={{ fontFamily: 'var(--f-body)' }}>
+                            <p>
+                                <strong className="text-orange-900">१. अनुरोध थप्ने:</strong> माथि रहेको "+ Add Request" (अनुरोध थप्नुहोस्) बटनमा थिचेर ठेकेदारले माग गरेको रकम र सकिएको कामको विवरण भर्नुहोस्।
+                            </p>
+                            <p>
+                                <strong className="text-orange-900">२. प्रमाणित गर्ने:</strong> काम र रकम सही छ भने "Approve" (स्वीकृत) बटनमा थिचेर भुक्तानीको लागि अगाडि बढाउनुहोस्।
+                            </p>
+                        </div>
+                    </div>
                 </section>
             )}
 

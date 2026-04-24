@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Modal from '../../../common/Modal';
-import { financeService } from '../../../../services/api';
+import { accountingService } from '../../../../services/api';
 import { useConstruction } from '../../../../context/ConstructionContext';
 
 const AccountFormModal = ({ isOpen, onClose, account = null }) => {
@@ -35,9 +35,9 @@ const AccountFormModal = ({ isOpen, onClose, account = null }) => {
         setLoading(true);
         try {
             if (account) {
-                await financeService.updateAccount(account.id, formData);
+                await accountingService.updateAccount(account.id, formData);
             } else {
-                await financeService.createAccount(formData);
+                await accountingService.createAccount(formData);
             }
             refreshData();
             onClose();

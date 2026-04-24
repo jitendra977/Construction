@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { accountingService } from '../../../services/accountingService';
+import { accountingService } from '../../../services/api';
 
 const JournalEntryModal = ({ accounts, isOpen, onClose, onSuccess }) => {
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);

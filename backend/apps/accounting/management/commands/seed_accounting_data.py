@@ -24,7 +24,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from apps.accounting.models.ledger import Account, AccountType
-from apps.accounting.models.treasury import BankAccount, CapitalSource, CapitalSourceType
+from apps.accounting.models.treasury import CapitalSource, CapitalSourceType
 from apps.accounting.models.payables import Vendor, VendorBill, BillPayment, PurchaseOrder
 from apps.accounting.models.budget import PhaseBudgetLine
 from apps.accounting.models.construction import ContractorPaymentRequest
@@ -56,7 +56,6 @@ class Command(BaseCommand):
             PhaseBudgetLine.objects.all().delete()
             CashTransfer = None  # avoid circular import issue
             CapitalSource.objects.all().delete()
-            BankAccount.objects.all().delete()
             Account.objects.all().delete()
             Vendor.objects.all().delete()
 
@@ -145,28 +144,26 @@ class Command(BaseCommand):
         ]
         for name, acct_num, gl_code in banks:
             gl_acc = ga(gl_code)
-            bank, created = BankAccount.objects.get_or_create(
-                name=name,
-                defaults={'account_number': acct_num, 'gl_account': gl_acc}
-            )
-            self.stdout.write(f"  {'✅' if created else '  '} {name}")
+            gl_acc.bank_name = name if acct_num else ""
+            gl_acc.account_number = acct_num or ""
+            gl_acc.save()
+            self.stdout.write(f"  ✅ {name}")
 
             # Seed an opening balance journal entry for demo
-            if created:
-                initial = {"Nabil Bank - Current Account": 3000000, "Global IME Bank - Savings": 1500000, "Site Petty Cash": 50000}.get(name, 0)
-                if initial:
-                    try:
-                        LedgerService.post_entry(
-                            date=date(2026, 5, 1),
-                            description=f"Opening Balance — {name}",
-                            source_document=f"OB-{gl_code}",
-                            lines=[
-                                {"account_id": gl_acc.id, "entry_type": "DEBIT", "amount": Decimal(str(initial))},
-                                {"account_id": ga("3000").id, "entry_type": "CREDIT", "amount": Decimal(str(initial))},
-                            ]
-                        )
-                    except Exception:
-                        pass
+            initial = {"Nabil Bank - Current Account": 3000000, "Global IME Bank - Savings": 1500000, "Site Petty Cash": 50000}.get(name, 0)
+            if initial and not gl_acc.journal_entries.exists():
+                try:
+                    LedgerService.post_entry(
+                        date=date(2026, 5, 1),
+                        description=f"Opening Balance — {name}",
+                        source_document=f"OB-{gl_code}",
+                        lines=[
+                            {"account_id": gl_acc.id, "entry_type": "DEBIT", "amount": Decimal(str(initial))},
+                            {"account_id": ga("3000").id, "entry_type": "CREDIT", "amount": Decimal(str(initial))},
+                        ]
+                    )
+                except Exception:
+                    pass
 
     def _seed_capital(self):
         self.stdout.write("\n💰 Seeding Capital Sources...")
@@ -265,7 +262,7 @@ class Command(BaseCommand):
         footing_phase = ConstructionPhase.objects.filter(project=project, name__icontains='Footing').first()
         dpc_phase     = ConstructionPhase.objects.filter(project=project, name__icontains='DPC').first()
 
-        nabil = BankAccount.objects.filter(name__icontains='Nabil').first()
+        nabil = Account.objects.filter(code='1010').first()
 
         bills_data = [
             # (vendor, invoice_no, date, due_date, desc, amount, phase, expense_code)

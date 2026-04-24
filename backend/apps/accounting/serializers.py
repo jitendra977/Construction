@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models.ledger import Account, JournalEntry, JournalLine
-from .models.treasury import BankAccount, CapitalSource, CashTransfer
+from .models.treasury import CapitalSource, CashTransfer
 from .models.payables import Vendor, PurchaseOrder, VendorBill, BillPayment
 from .models.budget import PhaseBudgetLine, BudgetRevision
 from .models.construction import ContractorPaymentRequest, RetentionRelease
@@ -11,7 +11,12 @@ class AccountSerializer(serializers.ModelSerializer):
     balance = serializers.DecimalField(max_digits=15, decimal_places=2, read_only=True)
     class Meta:
         model = Account
-        fields = ['id', 'code', 'name', 'account_type', 'is_active', 'balance', 'created_at', 'updated_at']
+        fields = [
+            'id', 'code', 'name', 'account_type', 'is_active', 'balance',
+            'project', 'bank_name', 'account_number', 'account_holder_name',
+            'is_bank', 'is_loan', 'interest_rate', 'loan_tenure_months',
+            'emi_amount', 'total_loan_limit', 'created_at', 'updated_at'
+        ]
 
 class JournalLineSerializer(serializers.ModelSerializer):
     account_name = serializers.CharField(source='account.name', read_only=True)
@@ -26,13 +31,6 @@ class JournalEntrySerializer(serializers.ModelSerializer):
         fields = ['id', 'date', 'description', 'source_document', 'created_by', 'created_at', 'lines']
 
 # ─── TREASURY ─────────────────────────────────────────────────────────────────
-
-class BankAccountSerializer(serializers.ModelSerializer):
-    gl_account_name = serializers.CharField(source='gl_account.name', read_only=True)
-    balance = serializers.DecimalField(source='gl_account.balance', max_digits=15, decimal_places=2, read_only=True)
-    class Meta:
-        model = BankAccount
-        fields = ['id', 'project', 'name', 'account_number', 'gl_account', 'gl_account_name', 'balance', 'is_active']
 
 class CapitalSourceSerializer(serializers.ModelSerializer):
     gl_account_name = serializers.CharField(source='gl_account.name', read_only=True)
@@ -117,5 +115,3 @@ class RetentionReleaseSerializer(serializers.ModelSerializer):
     class Meta:
         model = RetentionRelease
         fields = ['id', 'payment_request', 'date', 'amount', 'notes', 'vendor_bill']
-
-

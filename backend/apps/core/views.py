@@ -9,14 +9,14 @@ from apps.accounts.permissions import IsSystemAdmin, CanManagePhases
 
 from apps.tasks.models import Task
 from apps.tasks.serializers import TaskSerializer
-from apps.finance.models import Expense, BudgetCategory, FundingSource, PhaseBudgetAllocation, Account, Bill, PurchaseOrder
-from apps.finance.serializers import ExpenseSerializer, BudgetCategorySerializer, FundingSourceSerializer, PhaseBudgetAllocationSerializer, AccountSerializer, BillSerializer, PurchaseOrderSerializer
 from apps.resources.models import Material, Contractor, MaterialTransaction, Document
-from apps.accounting.models import Vendor
+from apps.accounting.models.payables import Vendor
 from apps.resources.serializers import MaterialSerializer, ContractorSerializer, SupplierSerializer, MaterialTransactionSerializer, DocumentSerializer
 from apps.permits.models import PermitStep
 from apps.permits.serializers import PermitStepSerializer
 
+from apps.finance.models import Expense, BudgetCategory, FundingSource, PhaseBudgetAllocation, Account
+from apps.finance.serializers import ExpenseSerializer, BudgetCategorySerializer, FundingSourceSerializer, PhaseBudgetAllocationSerializer, AccountSerializer
 class HouseProjectViewSet(viewsets.ModelViewSet):
     serializer_class = HouseProjectSerializer
 

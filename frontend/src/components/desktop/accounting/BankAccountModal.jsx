@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { accountingService } from '../../../services/accountingService';
+import { accountingService } from '../../../services/api';
 
 const BankAccountModal = ({ bank, projectId, isOpen, onClose, onSuccess }) => {
     const [name, setName] = useState('');

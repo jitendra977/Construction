@@ -4,7 +4,7 @@ from decimal import Decimal
 from django.db import models
 from django.db.models import Sum
 from .ledger import Account
-from .treasury import BankAccount
+
 
 ZERO = Decimal("0.00")
 
@@ -114,7 +114,7 @@ class BillPayment(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     bill = models.ForeignKey(VendorBill, on_delete=models.PROTECT, related_name="payments")
     date = models.DateField()
-    bank_account = models.ForeignKey(BankAccount, on_delete=models.PROTECT, related_name="payments_made")
+    bank_account = models.ForeignKey(Account, on_delete=models.PROTECT, related_name="payments_made")
     amount = models.DecimalField(max_digits=15, decimal_places=2)
     reference = models.CharField(max_length=255, blank=True, null=True, help_text="Cheque/transfer no.")
     notes = models.CharField(max_length=500, blank=True)

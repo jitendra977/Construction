@@ -22,6 +22,21 @@ class Account(models.Model):
     code = models.CharField(max_length=20, unique=True)
     name = models.CharField(max_length=255)
     account_type = models.CharField(max_length=20, choices=AccountType.choices)
+    project = models.ForeignKey(
+        'core.HouseProject', 
+        on_delete=models.SET_NULL, 
+        null=True, blank=True, 
+        related_name='gl_accounts'
+    )
+    bank_name = models.CharField(max_length=100, blank=True, null=True)
+    account_number = models.CharField(max_length=100, blank=True, null=True)
+    account_holder_name = models.CharField(max_length=255, blank=True, null=True)
+    is_bank = models.BooleanField(default=False, help_text="If true, this account will appear in Treasury/Bank views")
+    is_loan = models.BooleanField(default=False, help_text="If true, this account will appear in Loan/Liability views")
+    interest_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="Annual interest rate for loans")
+    loan_tenure_months = models.IntegerField(null=True, blank=True, help_text="Total duration of loan in months")
+    emi_amount = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True, help_text="Monthly EMI amount")
+    total_loan_limit = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True, help_text="Total approved loan amount (Credit Limit)")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

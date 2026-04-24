@@ -1,8 +1,9 @@
+from  apps.core.models import ConstructionPhase , HouseProject
 import uuid
 from decimal import Decimal
 from django.db import models
 from django.conf import settings
-from apps.core.models import HouseProject, ConstructionPhase
+
 from .payables import Vendor
 
 class ContractorPaymentRequest(models.Model):
@@ -36,6 +37,9 @@ class ContractorPaymentRequest(models.Model):
     
     # Linked to the actual bill that gets generated when approved
     vendor_bill = models.OneToOneField('accounting.VendorBill', on_delete=models.SET_NULL, null=True, blank=True)
+    
+    # Linked to finance module's bill payment
+    finance_bill_payment = models.OneToOneField('finance.BillPayment', on_delete=models.SET_NULL, null=True, blank=True, related_name='contractor_payment_request')
 
     def __str__(self):
         return f"Payment Request from {self.contractor} for {self.phase.name}"

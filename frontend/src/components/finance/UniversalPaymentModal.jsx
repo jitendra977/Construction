@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { dashboardService } from '../../services/api';
 import Modal from '../common/Modal';
 import { useConstruction } from '../../context/ConstructionContext';
+import FundingSourceSelect from '../common/FundingSourceSelect';
 
 /**
  * UniversalPaymentModal
@@ -92,14 +93,22 @@ const UniversalPaymentModal = ({
             }
 
             // 3. Create Payment with FormData
+            // Decode the funding source raw value (e.g. "FUND::3", "BANK::2", "ACCOUNT::5")
+            const rawSource = paymentFormData.funding_source || '';
+            const [srcType, srcId] = rawSource.split('::');
+            
             const formData = new FormData();
             formData.append('expense', targetExpenseId);
-            formData.append('funding_source', paymentFormData.funding_source);
+            // Only pass funding_source if it's an actual FundingSource (FUND type)
+            if (srcType === 'FUND' && srcId) formData.append('funding_source', srcId);
             formData.append('amount', parseFloat(paymentFormData.amount));
             formData.append('date', paymentFormData.date);
             formData.append('method', paymentFormData.method);
             formData.append('reference_id', paymentFormData.reference_id);
             formData.append('notes', paymentFormData.notes);
+            // Attach source metadata as notes suffix for Bank/GL types
+            if (srcType === 'BANK' && srcId) formData.set('notes', `[Bank Acct ID:${srcId}] ` + paymentFormData.notes);
+            if (srcType === 'ACCOUNT' && srcId) formData.set('notes', `[GL Acct ID:${srcId}] ` + paymentFormData.notes);
             formData.append('send_receipt', paymentFormData.send_receipt);
             if (paymentFormData.proof_photo) {
                 formData.append('proof_photo', paymentFormData.proof_photo);
@@ -191,20 +200,12 @@ const UniversalPaymentModal = ({
 
                     <div className="bg-[var(--t-surface2)] p-5 rounded-2xl border border-[var(--t-border)] mt-4">
                         <label className="block text-[10px] font-black text-[var(--t-text3)] uppercase tracking-[0.2em] mb-3 ml-1">Funding Source</label>
-                        <select
+                        <FundingSourceSelect
                             value={paymentFormData.funding_source}
-                            onChange={e => setPaymentFormData({ ...paymentFormData, funding_source: e.target.value })}
-                            className="w-full rounded-xl border-[var(--t-border)] shadow-sm focus:ring-2 focus:ring-[var(--t-primary)] p-3 border outline-none appearance-none bg-[var(--t-surface)] font-black text-[var(--t-text)]"
+                            onChange={meta => setPaymentFormData({ ...paymentFormData, funding_source: meta.raw })}
+                            payAmount={paymentFormData.amount}
                             required
-                        >
-                            <option value="">Select Account / Funding Source</option>
-                            {dashboardData.funding?.filter(f => parseFloat(paymentFormData.amount || 0) <= parseFloat(f.current_balance || 0)).map(f => (
-                                <option key={f.id} value={f.id}>
-                                    {f.source_type === 'LOAN' ? '🏦 Karja: ' : f.source_type === 'OWN_MONEY' ? '💰 Bachat: ' : '🤝 Saapathi: '}
-                                    {f.name} (Avl: Rs. {f.current_balance?.toLocaleString()})
-                                </option>
-                            ))}
-                        </select>
+                        />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">

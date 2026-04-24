@@ -16,13 +16,13 @@ class TreasuryService:
         lines = [
             # Debit the destination bank
             {
-                "account_id": transfer.to_bank.gl_account_id,
+                "account_id": transfer.to_bank_id,
                 "entry_type": EntryType.DEBIT,
                 "amount": transfer.amount
             },
             # Credit the source bank
             {
-                "account_id": transfer.from_bank.gl_account_id,
+                "account_id": transfer.from_bank_id,
                 "entry_type": EntryType.CREDIT,
                 "amount": transfer.amount
             }

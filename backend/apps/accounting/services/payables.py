@@ -66,7 +66,7 @@ class PayableService:
                 "amount": payment.amount
             },
             {
-                "account_id": payment.bank_account.gl_account_id,
+                "account_id": payment.bank_account_id,
                 "entry_type": EntryType.CREDIT,
                 "amount": payment.amount
             }

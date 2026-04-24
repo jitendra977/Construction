@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { financeService } from '../../../../services/api';
+import { accountingService } from '../../../../services/api';
 import JournalEntryFormModal from './JournalEntryFormModal';
 
 /* Source label map — plain English */
@@ -28,8 +28,8 @@ const LedgerTab = ({ searchQuery }) => {
         const fetchAll = async () => {
             try {
                 const [entriesRes, accountsRes] = await Promise.all([
-                    financeService.getJournalEntries(),
-                    financeService.getAccounts()
+                    accountingService.getJournalEntries(),
+                    accountingService.getAccounts()
                 ]);
                 setEntries(entriesRes.data);
                 setAccounts(accountsRes.data);

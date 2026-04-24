@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
-import { dashboardService, constructionService, permitService, financeService } from '../services/api';
+import { dashboardService, constructionService, permitService, accountingService } from '../services/api';
 import { authService } from '../services/auth';
 
 // Create Context
@@ -98,7 +98,7 @@ export const ConstructionProvider = ({ children }) => {
             if (!silent) setLoading(true);
             const [data, overview, projectList] = await Promise.all([
                 dashboardService.getDashboardData(resolvedProjectId),
-                financeService.getOverview(resolvedProjectId),
+                accountingService.getSummary(resolvedProjectId),
                 dashboardService.getProjects(),
             ]);
             setDashboardData(data);
@@ -191,7 +191,7 @@ export const ConstructionProvider = ({ children }) => {
         const phaseProgress = totalPhases > 0 ? Math.round((completedPhases / totalPhases) * 100) : 0;
 
         // Cashflow Total (Purcheses only)
-        const totalSpent = expenses.filter(e => !e.is_inventory_usage).reduce((acc, exp) => acc + Number(exp.amount), 0);
+        const totalSpent = financeOverview ? Number(financeOverview.payables?.total_billed || 0) : expenses.filter(e => !e.is_inventory_usage).reduce((acc, exp) => acc + Number(exp.amount), 0);
 
         const daysElapsed = project ? Math.floor((new Date() - new Date(project.start_date)) / (1000 * 60 * 60 * 24)) : 0;
         
@@ -237,10 +237,10 @@ export const ConstructionProvider = ({ children }) => {
         const budgetPercent = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
 
         // Priority: Use GL (General Ledger) data if available for accurate cash position
-        const glAssets = financeOverview ? Number(financeOverview.account_balances?.ASSET || 0) : null;
-        const glLiabilities = financeOverview ? Number(financeOverview.account_balances?.LIABILITY || 0) : null;
-        const glAccountsPayable = financeOverview ? Number(financeOverview.total_accounts_payable || 0) : null;
-        const glExpenses = financeOverview ? Number(financeOverview.total_spent || 0) : null;
+        const glAssets = financeOverview ? Number(financeOverview.cash?.total_cash || 0) : null;
+        const glLiabilities = financeOverview ? Number(financeOverview.payables?.total_due || 0) : null;
+        const glAccountsPayable = financeOverview ? Number(financeOverview.payables?.total_due || 0) : null;
+        const glExpenses = financeOverview ? Number(financeOverview.payables?.total_billed || 0) : null;
 
         // Available Cash: prefer GL asset balance; fallback to legacy funding calc
         const availableCash = glAssets !== null ? glAssets : Math.max(0, totalFunded - totalSpent);

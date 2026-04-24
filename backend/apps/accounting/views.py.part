@@ -1,0 +1,101 @@
+    @action(detail=True, methods=['post'], url_path='add-balance')
+    def add_balance(self, request, pk=None):
+        account = self.get_object()
+        amount = request.data.get('amount')
+        reference = request.data.get('reference', '')
+
+        if not amount:
+            return Response({'error': 'Amount is required'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            amount = Decimal(str(amount))
+            if amount <= 0:
+                raise ValueError
+        except (ValueError, Exception):
+            return Response({'error': 'Invalid amount'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Find or create "Opening Balance Equity" account safely
+        try:
+            equity_acc = Account.objects.get(name="Opening Balance Equity")
+        except Account.DoesNotExist:
+            existing_codes = set(
+                Account.objects.filter(code__regex=r'^3\d+$').values_list('code', flat=True)
+            )
+            new_code = next(str(c) for c in range(3000, 4000) if str(c) not in existing_codes)
+            equity_acc = Account.objects.create(
+                name="Opening Balance Equity",
+                code=new_code,
+                account_type=AccountType.EQUITY
+            )
+
+        # Determine entry types based on account normal balance
+        if account.account_type in (AccountType.ASSET, AccountType.EXPENSE):
+            acc_entry = EntryType.DEBIT
+            opp_entry = EntryType.CREDIT
+        else:
+            acc_entry = EntryType.CREDIT
+            opp_entry = EntryType.DEBIT
+
+        lines = [
+            {"account_id": account.id, "entry_type": acc_entry,  "amount": amount,
+             "project_id": account.project_id},
+            {"account_id": equity_acc.id, "entry_type": opp_entry, "amount": amount,
+             "project_id": account.project_id},
+        ]
+
+        try:
+            with transaction.atomic():
+                je = LedgerService.post_entry(
+                    date=date.today(),
+                    description=f"Deposit/Opening Balance for {account.name}: {reference}",
+                    source_document=f"DEP-{str(account.id)[:8]}",
+                    lines=lines
+                )
+                je.created_by = request.user
+                je.save(update_fields=['created_by'])
+            return Response({'status': 'success', 'message': 'Balance added successfully'})
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'], url_path='pay-emi')
+    def pay_emi(self, request, pk=None):
+        loan_acc = self.get_object()
+        if not loan_acc.is_loan:
+            return Response({'error': 'Not a loan account'}, status=status.HTTP_400_BAD_REQUEST)
+
+        bank_id = request.data.get('bank_id')
+        emi_amount = Decimal(str(request.data.get('amount', loan_acc.emi_amount or 0)))
+        interest_amt = Decimal(str(request.data.get('interest_amount', 0)))
+        principal_amt = emi_amount - interest_amt
+        ref = request.data.get('reference', '')
+
+        if not bank_id:
+            return Response({'error': 'Bank account (source) is required'}, status=400)
+        
+        # Ensure Interest Expense account exists
+        interest_acc, _ = Account.objects.get_or_create(
+            name="Interest Expense",
+            defaults={'code': '5801', 'account_type': AccountType.EXPENSE}
+        )
+
+        lines = [
+            # 1. Credit Bank (Total EMI out)
+            {"account_id": bank_id, "entry_type": EntryType.CREDIT, "amount": emi_amount, "project_id": loan_acc.project_id},
+            # 2. Debit Loan (Principal reduction)
+            {"account_id": loan_acc.id, "entry_type": EntryType.DEBIT, "amount": principal_amt, "project_id": loan_acc.project_id},
+            # 3. Debit Interest Expense
+            {"account_id": interest_acc.id, "entry_type": EntryType.DEBIT, "amount": interest_amt, "project_id": loan_acc.project_id},
+        ]
+
+        try:
+            with transaction.atomic():
+                je = LedgerService.post_entry(
+                    date=date.today(),
+                    description=f"EMI Payment for {loan_acc.name}: {ref} (Int: {interest_amt}, Prin: {principal_amt})",
+                    source_document=f"EMI-{str(loan_acc.id)[:8]}",
+                    lines=lines
+                )
+                je.created_by = request.user
+                je.save(update_fields=['created_by'])
+            return Response({'status': 'success', 'message': 'EMI payment recorded'})
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)

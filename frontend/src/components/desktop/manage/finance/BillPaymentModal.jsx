@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../../../common/Modal';
-import { financeService } from '../../../../services/api';
+import { accountingService } from '../../../../services/api';
 import { useConstruction } from '../../../../context/ConstructionContext';
 
 const BillPaymentModal = ({ isOpen, onClose, bill, accounts = [] }) => {
@@ -55,7 +55,7 @@ const BillPaymentModal = ({ isOpen, onClose, bill, accounts = [] }) => {
                 ...formData,
                 amount: Number(formData.amount)
             };
-            await financeService.createBillPayment(dataToSubmit);
+            await accountingService.createPayment(dataToSubmit);
             refreshData();
             onClose();
         } catch (err) {

@@ -725,6 +725,38 @@ const PhasesTab = ({ searchQuery = '' }) => {
                 onCancel={closeConfirm}
                 type={confirmConfig.type || 'warning'}
             />
+
+            {/* ── Help Note ── */}
+            <div className="mt-12 p-6 rounded-[2rem] bg-blue-50/50 border border-blue-100 animate-in fade-in slide-in-from-bottom-8">
+                <h3 className="text-lg font-black text-blue-900 mb-3 flex items-center gap-2" style={{ fontFamily: 'var(--f-body)' }}>
+                    <span>💡</span> निर्माण चरण (Phases/Milestones) भनेको के हो र किन प्रयोग गर्ने? (Why use Phases/Milestones?)
+                </h3>
+                <div className="text-sm font-medium text-blue-800/80 space-y-4 leading-relaxed mb-6 pb-6 border-b border-blue-200/50" style={{ fontFamily: 'var(--f-body)' }}>
+                    <p>
+                        निर्माण चरण (Phases/Milestones) भनेको घर बनाउने समग्र कामलाई सजिलो बनाउन छुट्याइएका मुख्य खण्डहरू हुन् (जस्तै: जग खन्ने, पिलर उठाउने, ढलान गर्ने)। यसले कुन काम कहिले सुरु र सकिन्छ भनेर प्रष्ट देखाउँछ।
+                    </p>
+                    <ul className="list-disc list-inside space-y-2 ml-2">
+                        <li><strong className="text-blue-900">प्रगति ट्र्याक गर्न (Track Progress):</strong> कुन काम सकियो र कुन बाँकी छ भनेर सजिलै हेर्न सकिन्छ।</li>
+                        <li><strong className="text-blue-900">बजेट व्यवस्थापन (Budget Management):</strong> प्रत्येक चरणको लागि छुट्ट्याइएको अनुमानित बजेट र वास्तविक खर्चको तुलना गर्न।</li>
+                        <li><strong className="text-blue-900">योजना बनाउन (Planning):</strong> कामलाई समयमै र व्यवस्थित तरिकाले सकाउन।</li>
+                    </ul>
+                </div>
+
+                <h3 className="text-lg font-black text-blue-900 mb-3 flex items-center gap-2" style={{ fontFamily: 'var(--f-body)' }}>
+                    <span>🛠️</span> प्रयोग गर्ने तरिका (How to use)
+                </h3>
+                <div className="text-sm font-medium text-blue-800/80 space-y-3 leading-relaxed" style={{ fontFamily: 'var(--f-body)' }}>
+                    <p>
+                        <strong className="text-blue-900">१. चरण थप्ने:</strong> माथि रहेको "+ Add Phase" बटनमा थिचेर नयाँ निर्माण चरण (जस्तै: Foundation) थप्नुहोस्।
+                    </p>
+                    <p>
+                        <strong className="text-blue-900">२. कार्यहरू (Tasks) तोक्ने:</strong> प्रत्येक चरणको "Manage Tasks" मा गएर आवश्यक कामहरू (जस्तै: रड बाँध्ने, सिमेन्ट हाल्ने) थप्नुहोस्।
+                    </p>
+                    <p>
+                        <strong className="text-blue-900">३. प्रगति अपडेट गर्ने:</strong> काम सकिँदै जाँदा चरण र कार्यको Status (जस्तै: In Progress बाट Completed) परिवर्तन गर्नुहोस्।
+                    </p>
+                </div>
+            </div>
         </div>
     );
 };

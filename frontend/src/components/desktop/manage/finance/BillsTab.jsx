@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { financeService } from '../../../../services/api';
+import { accountingService } from '../../../../services/api';
 import { useConstruction } from '../../../../context/ConstructionContext';
 import BillFormModal from './BillFormModal';
 import BillPaymentModal from './BillPaymentModal';
@@ -140,8 +140,8 @@ const BillsTab = ({ searchQuery }) => {
     const fetchBills = async () => {
         try {
             const [billsRes, accountsRes] = await Promise.all([
-                financeService.getBills(),
-                financeService.getAccounts()
+                accountingService.getBills(),
+                accountingService.getAccounts()
             ]);
             setBills(billsRes.data);
             setAccounts(accountsRes.data);

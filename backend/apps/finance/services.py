@@ -449,9 +449,10 @@ class FinanceService:
     @transaction.atomic
     def update_payment(payment: Payment, **kwargs):
         # Reverse any existing funding-transaction(s), apply updates, re-post.
-        for tx in payment.funding_transactions.all():
+        # reverse_transaction already deletes the tx — iterate over a list snapshot
+        # so the queryset iterator doesn't drop rows mid-delete.
+        for tx in list(payment.funding_transactions.all()):
             FundingService.reverse_transaction(tx)
-            tx.delete()
 
         for field, value in kwargs.items():
             setattr(payment, field, value)
@@ -476,9 +477,8 @@ class FinanceService:
     @staticmethod
     @transaction.atomic
     def delete_payment(payment: Payment):
-        for tx in payment.funding_transactions.all():
+        for tx in list(payment.funding_transactions.all()):
             FundingService.reverse_transaction(tx)
-            tx.delete()
 
         expense = payment.expense
         payment.delete()

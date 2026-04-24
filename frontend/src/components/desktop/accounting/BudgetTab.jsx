@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { accountingService } from '../../../services/accountingService';
+import { accountingService } from '../../../services/api';
 
 const fmt = (v) => 'NPR ' + Number(v || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
 

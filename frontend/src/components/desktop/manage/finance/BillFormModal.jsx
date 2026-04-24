@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Modal from '../../../common/Modal';
-import { financeService } from '../../../../services/api';
+import { accountingService } from '../../../../services/api';
 import { useConstruction } from '../../../../context/ConstructionContext';
 
 const BillFormModal = ({ isOpen, onClose, suppliers = [], contractors = [] }) => {
@@ -37,7 +37,7 @@ const BillFormModal = ({ isOpen, onClose, suppliers = [], contractors = [] }) =>
             }
             delete dataToSubmit.vendor_type;
 
-            await financeService.createBill(dataToSubmit);
+            await accountingService.createBill(dataToSubmit);
             refreshData();
             onClose();
             setFormData({

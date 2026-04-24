@@ -3,16 +3,17 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     AccountViewSet, JournalEntryViewSet,
-    BankAccountViewSet, CapitalSourceViewSet, CashTransferViewSet,
+    CapitalSourceViewSet, CashTransferViewSet,
     VendorViewSet, PurchaseOrderViewSet, VendorBillViewSet, BillPaymentViewSet,
-    PhaseBudgetViewSet, ContractorPaymentRequestViewSet, RetentionReleaseViewSet,
+    PhaseBudgetViewSet, BudgetRevisionViewSet,
+    ContractorPaymentRequestViewSet, RetentionReleaseViewSet,
     ReportsAPIView, SummaryAPIView,
 )
 
 router = DefaultRouter()
-router.register(r'accounts', AccountViewSet)
+router.register(r'accounts', AccountViewSet, basename='account')
 router.register(r'journal-entries', JournalEntryViewSet, basename='journal-entry')
-router.register(r'banks', BankAccountViewSet, basename='bank')
+
 router.register(r'capital-sources', CapitalSourceViewSet)
 router.register(r'transfers', CashTransferViewSet, basename='transfer')
 router.register(r'vendors', VendorViewSet)
@@ -20,6 +21,7 @@ router.register(r'purchase-orders', PurchaseOrderViewSet, basename='purchase-ord
 router.register(r'bills', VendorBillViewSet, basename='bill')
 router.register(r'payments', BillPaymentViewSet, basename='payment')
 router.register(r'phase-budgets', PhaseBudgetViewSet, basename='phase-budget')
+router.register(r'budget-revisions', BudgetRevisionViewSet, basename='budget-revision')
 router.register(r'payment-requests', ContractorPaymentRequestViewSet, basename='payment-request')
 router.register(r'retention-releases', RetentionReleaseViewSet)
 

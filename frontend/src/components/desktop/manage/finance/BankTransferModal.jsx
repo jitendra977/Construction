@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import Modal from '../../../common/Modal';
-import { financeService } from '../../../../services/api';
+import { accountingService } from '../../../../services/api';
 import { useConstruction } from '../../../../context/ConstructionContext';
 
 const BankTransferModal = ({ isOpen, onClose, accounts = [] }) => {
     const { refreshData } = useConstruction();
     const [formData, setFormData] = useState({
-        from_account: '',
-        to_account: '',
+        from_bank: '',
+        to_bank: '',
         amount: '',
         date: new Date().toISOString().split('T')[0],
-        reference_id: '',
+        reference: '',
         notes: ''
     });
     const [loading, setLoading] = useState(false);
@@ -21,12 +21,12 @@ const BankTransferModal = ({ isOpen, onClose, accounts = [] }) => {
         e.preventDefault();
         setLoading(true);
         try {
-            await financeService.createBankTransfer(formData);
+            await accountingService.createTransfer(formData);
             refreshData();
             onClose();
             setFormData({
-                from_account: '', to_account: '', amount: '',
-                date: new Date().toISOString().split('T')[0], reference_id: '', notes: ''
+                from_bank: '', to_bank: '', amount: '',
+                date: new Date().toISOString().split('T')[0], reference: '', notes: ''
             });
         } catch (err) {
             alert('Failed to process transfer. ' + (err.response?.data?.error || err.message));
@@ -43,14 +43,14 @@ const BankTransferModal = ({ isOpen, onClose, accounts = [] }) => {
                         <label className="block text-xs font-bold text-[var(--t-text2)] uppercase tracking-wider mb-1">From Account (Debit)</label>
                         <select
                             required
-                            value={formData.from_account}
-                            onChange={(e) => setFormData({...formData, from_account: e.target.value})}
+                            value={formData.from_bank}
+                            onChange={(e) => setFormData({...formData, from_bank: e.target.value})}
                             className="w-full bg-[var(--t-surface)] border border-[var(--t-border)] p-2.5 rounded-xl font-bold text-[var(--t-text)]"
                         >
                             <option value="">Select Origin...</option>
                             {assetAccounts.map(a => (
-                                <option key={a.id} value={a.id} disabled={a.id.toString() === formData.to_account}>
-                                    {a.name} (Bal: Rs. {parseFloat(a.current_balance||0).toLocaleString()})
+                                <option key={a.id} value={a.id} disabled={a.id.toString() === formData.to_bank}>
+                                    {a.name} (Bal: Rs. {parseFloat(a.balance||0).toLocaleString()})
                                 </option>
                             ))}
                         </select>
@@ -59,13 +59,13 @@ const BankTransferModal = ({ isOpen, onClose, accounts = [] }) => {
                         <label className="block text-xs font-bold text-[var(--t-text2)] uppercase tracking-wider mb-1">To Account (Credit)</label>
                         <select
                             required
-                            value={formData.to_account}
-                            onChange={(e) => setFormData({...formData, to_account: e.target.value})}
+                            value={formData.to_bank}
+                            onChange={(e) => setFormData({...formData, to_bank: e.target.value})}
                             className="w-full bg-[var(--t-surface)] border border-[var(--t-border)] p-2.5 rounded-xl font-bold text-[var(--t-text)]"
                         >
                             <option value="">Select Destination...</option>
                             {assetAccounts.map(a => (
-                                <option key={a.id} value={a.id} disabled={a.id.toString() === formData.from_account}>
+                                <option key={a.id} value={a.id} disabled={a.id.toString() === formData.from_bank}>
                                     {a.name}
                                 </option>
                             ))}
@@ -101,8 +101,8 @@ const BankTransferModal = ({ isOpen, onClose, accounts = [] }) => {
                     <label className="block text-xs font-bold text-[var(--t-text2)] uppercase tracking-wider mb-1">Reference ID (Cheque / Trx #)</label>
                     <input
                         type="text"
-                        value={formData.reference_id}
-                        onChange={(e) => setFormData({...formData, reference_id: e.target.value})}
+                        value={formData.reference}
+                        onChange={(e) => setFormData({...formData, reference: e.target.value})}
                         className="w-full bg-[var(--t-surface)] border border-[var(--t-border)] p-2.5 rounded-xl font-medium text-[var(--t-text)]"
                         placeholder="TRX-100293"
                     />

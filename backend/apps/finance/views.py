@@ -138,9 +138,10 @@ class BillViewSet(viewsets.ModelViewSet):
         {account, amount, date, method, reference_id?}."""
         bill = self.get_object()
         try:
+            account = Account.objects.get(Q(project=bill.project) | Q(project__isnull=True), pk=request.data["account"])
             payment = BillService.pay_bill(
                 bill,
-                account=Account.objects.get(pk=request.data["account"], project=bill.project),
+                account=account,
                 amount=request.data["amount"],
                 date=request.data["date"],
                 method=request.data.get("method", "CASH"),
@@ -163,7 +164,7 @@ class BillPaymentViewSet(viewsets.ModelViewSet):
         """Override so we always go through the service (updates bill + posts JE)."""
         try:
             bill = Bill.objects.get(pk=request.data["bill"])
-            account = Account.objects.get(pk=request.data["account"], project=bill.project)
+            account = Account.objects.get(Q(project=bill.project) | Q(project__isnull=True), pk=request.data["account"])
             payment = BillService.pay_bill(
                 bill,
                 account=account,
