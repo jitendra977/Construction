@@ -5,13 +5,14 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTimeline } from '../../context/TimelineContext';
 import { useConstruction } from '../../../../context/ConstructionContext';
+import ManagementTabs from '../../../../components/desktop/manage/ManagementTabs';
 import ExportButton from '../shared/ExportButton';
 
 const VIEWS = [
-    { key: 'gantt',    label: '📊 Gantt',    title: 'Gantt Timeline' },
-    { key: 'calendar', label: '📅 Calendar',  title: 'Calendar View' },
-    { key: 'list',     label: '📋 List',      title: 'Task List' },
-    { key: 'kanban',   label: '🗂️ Kanban',   title: 'Kanban Board' },
+    { key: 'gantt', label: '📊 Gantt', title: 'Gantt Timeline' },
+    { key: 'calendar', label: '📅 Calendar', title: 'Calendar View' },
+    { key: 'list', label: '📋 List', title: 'Task List' },
+    { key: 'kanban', label: '🗂️ Kanban', title: 'Kanban Board' },
 ];
 
 const STATUS_OPTS = ['ALL', 'PENDING', 'IN_PROGRESS', 'BLOCKED', 'COMPLETED', 'HALTED'];
@@ -33,7 +34,7 @@ export default function TimelineLayout({ children }) {
     const projectList = Array.isArray(projects) ? projects : [];
     const activeProject = projectList.find(p => p.id === activeProjectId);
 
-    const cpCount    = criticalPathIds.length;
+    const cpCount = criticalPathIds.length;
     const overdueCount = filteredTasks.filter(t => {
         if (!t.due_date || t.status === 'COMPLETED') return false;
         return new Date(t.due_date) < new Date();
@@ -41,6 +42,7 @@ export default function TimelineLayout({ children }) {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--t-bg)' }}>
+            <ManagementTabs />
             {/* ── Top bar ─────────────────────────────────────────────── */}
             <div style={{
                 padding: '10px 16px',
@@ -195,7 +197,7 @@ export default function TimelineLayout({ children }) {
             </div>
 
             {/* ── Main content ────────────────────────────────────────── */}
-            <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+            <div style={{ flex: 1, overflow: 'hidden', position: 'relative', paddingBottom: '96px' }}>
                 {loading ? (
                     <div style={{
                         position: 'absolute', inset: 0, display: 'flex',

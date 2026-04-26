@@ -8,7 +8,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useConstruction } from '../../context/ConstructionContext';
-import PhasesTab from './manage/PhasesTab';
+import ManagementTabs from './manage/ManagementTabs';
 
 /* ─── ModuleCard ─────────────────────────────────────────────────────────── */
 function ModuleCard({ icon, title, subtitle, color, stats, actions, path, badge }) {
@@ -101,16 +101,16 @@ function ModuleCard({ icon, title, subtitle, color, stats, actions, path, badge 
 
 /* ─── SystemStatusBar ────────────────────────────────────────────────────── */
 function SystemStatusBar({ phases, tasks, expenses, materials, permits }) {
-    const overdueT  = tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'COMPLETED').length;
-    const lowStock  = materials.filter(m => m.quantity_in_stock <= (m.minimum_stock || 5)).length;
-    const pendingP  = permits.filter(p => p.status === 'PENDING' || p.status === 'IN_PROGRESS').length;
-    const blockedT  = tasks.filter(t => t.status === 'BLOCKED').length;
+    const overdueT = tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'COMPLETED').length;
+    const lowStock = materials.filter(m => m.quantity_in_stock <= (m.minimum_stock || 5)).length;
+    const pendingP = permits.filter(p => p.status === 'PENDING' || p.status === 'IN_PROGRESS').length;
+    const blockedT = tasks.filter(t => t.status === 'BLOCKED').length;
 
     const items = [
-        { label: 'Overdue Tasks',    value: overdueT, color: overdueT  > 0 ? '#ef4444' : '#10b981', icon: overdueT  > 0 ? '⚠' : '✓' },
-        { label: 'Blocked Tasks',    value: blockedT, color: blockedT  > 0 ? '#f59e0b' : '#10b981', icon: blockedT  > 0 ? '🚫' : '✓' },
-        { label: 'Low Stock Items',  value: lowStock,  color: lowStock  > 0 ? '#f97316' : '#10b981', icon: lowStock  > 0 ? '📦' : '✓' },
-        { label: 'Pending Permits',  value: pendingP,  color: pendingP  > 0 ? '#3b82f6' : '#10b981', icon: pendingP  > 0 ? '📜' : '✓' },
+        { label: 'Overdue Tasks', value: overdueT, color: overdueT > 0 ? '#ef4444' : '#10b981', icon: overdueT > 0 ? '⚠' : '✓' },
+        { label: 'Blocked Tasks', value: blockedT, color: blockedT > 0 ? '#f59e0b' : '#10b981', icon: blockedT > 0 ? '🚫' : '✓' },
+        { label: 'Low Stock Items', value: lowStock, color: lowStock > 0 ? '#f97316' : '#10b981', icon: lowStock > 0 ? '📦' : '✓' },
+        { label: 'Pending Permits', value: pendingP, color: pendingP > 0 ? '#3b82f6' : '#10b981', icon: pendingP > 0 ? '📜' : '✓' },
     ];
 
     const hasAlerts = overdueT + blockedT + lowStock + pendingP > 0;
@@ -157,33 +157,31 @@ function SystemStatusBar({ phases, tasks, expenses, materials, permits }) {
 const DesktopManage = () => {
     const navigate = useNavigate();
     const { dashboardData, activeProjectId, projects } = useConstruction();
-    const [search, setSearch] = useState('');
-    const [showTasks, setShowTasks] = useState(true);
 
     const projectList = Array.isArray(projects) ? projects : [];
     const activeProject = projectList.find(p => p.id === activeProjectId);
 
-    const phases      = dashboardData.phases      || [];
-    const tasks       = dashboardData.tasks        || [];
-    const expenses    = dashboardData.expenses     || [];
-    const materials   = dashboardData.materials    || [];
-    const contractors = dashboardData.contractors  || [];
-    const suppliers   = dashboardData.suppliers    || [];
-    const permits     = dashboardData.permits      || [];
-    const floors      = dashboardData.floors       || [];
-    const rooms       = dashboardData.rooms        || [];
+    const phases = dashboardData.phases || [];
+    const tasks = dashboardData.tasks || [];
+    const expenses = dashboardData.expenses || [];
+    const materials = dashboardData.materials || [];
+    const contractors = dashboardData.contractors || [];
+    const suppliers = dashboardData.suppliers || [];
+    const permits = dashboardData.permits || [];
+    const floors = dashboardData.floors || [];
+    const rooms = dashboardData.rooms || [];
 
     /* ── Derived stats ── */
     const stats = useMemo(() => {
-        const phaseDone   = phases.filter(p => p.status === 'COMPLETED').length;
+        const phaseDone = phases.filter(p => p.status === 'COMPLETED').length;
         const phaseActive = phases.filter(p => p.status === 'IN_PROGRESS').length;
-        const taskDone    = tasks.filter(t => t.status === 'COMPLETED').length;
-        const taskActive  = tasks.filter(t => t.status === 'IN_PROGRESS').length;
+        const taskDone = tasks.filter(t => t.status === 'COMPLETED').length;
+        const taskActive = tasks.filter(t => t.status === 'IN_PROGRESS').length;
         const taskOverdue = tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'COMPLETED').length;
-        const totalSpent  = expenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+        const totalSpent = expenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
         const totalBudget = activeProject ? parseFloat(activeProject.total_budget || 0) : 0;
-        const lowStock    = materials.filter(m => m.quantity_in_stock <= (m.minimum_stock || 5)).length;
-        const roomDone    = rooms.filter(r => r.status === 'COMPLETED').length;
+        const lowStock = materials.filter(m => m.quantity_in_stock <= (m.minimum_stock || 5)).length;
+        const roomDone = rooms.filter(r => r.status === 'COMPLETED').length;
         return {
             phaseDone, phaseActive,
             taskDone, taskActive, taskOverdue,
@@ -308,6 +306,7 @@ const DesktopManage = () => {
             minHeight: '100vh', background: 'var(--t-bg)',
             padding: '0 0 48px',
         }}>
+            <ManagementTabs />
             {/* ── Header ────────────────────────────────────────────── */}
             <div style={{
                 padding: '24px 28px 20px',
@@ -383,88 +382,38 @@ const DesktopManage = () => {
                     </div>
                 </div>
 
-                {/* ── Phase & Task manager ─────────────────────────── */}
-                <div>
-                    <div style={{
-                        display: 'flex', alignItems: 'center',
-                        justifyContent: 'space-between', marginBottom: 14,
-                    }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <h2 style={{
-                                margin: 0, fontSize: 12, fontWeight: 800,
-                                color: 'var(--t-text3)', textTransform: 'uppercase',
-                                letterSpacing: '0.12em',
-                            }}>
-                                📋 Phase &amp; Task Manager
-                            </h2>
-                            <span style={{
-                                fontSize: 10, padding: '2px 8px', borderRadius: 6, fontWeight: 700,
-                                background: 'rgba(249,115,22,0.08)', color: '#f97316',
-                                border: '1px solid rgba(249,115,22,0.2)',
-                            }}>
-                                {tasks.length} tasks · {phases.length} phases
-                            </span>
-                        </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            {/* Search */}
-                            <div style={{ position: 'relative' }}>
-                                <input
-                                    value={search}
-                                    onChange={e => setSearch(e.target.value)}
-                                    placeholder="🔍 Search phases & tasks…"
-                                    style={{
-                                        padding: '6px 12px 6px 10px', borderRadius: 8, fontSize: 12,
-                                        border: '1px solid var(--t-border)',
-                                        background: 'var(--t-surface)',
-                                        color: 'var(--t-text)', outline: 'none', width: 220,
-                                    }}
-                                />
-                                {search && (
-                                    <button
-                                        onClick={() => setSearch('')}
-                                        style={{
-                                            position: 'absolute', right: 8, top: '50%',
-                                            transform: 'translateY(-50%)',
-                                            background: 'none', border: 'none', cursor: 'pointer',
-                                            fontSize: 12, color: 'var(--t-text3)',
-                                        }}
-                                    >✕</button>
-                                )}
-                            </div>
-
-                            <button
-                                onClick={() => setShowTasks(v => !v)}
-                                style={{
-                                    padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700,
-                                    border: '1px solid var(--t-border)', background: 'var(--t-surface2)',
-                                    color: 'var(--t-text)', cursor: 'pointer',
-                                }}
-                            >
-                                {showTasks ? '▲ Hide' : '▼ Show'}
-                            </button>
-
-                            <button
-                                onClick={() => navigate('/dashboard/desktop/timeline')}
-                                style={{
-                                    padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700,
-                                    border: '1px solid #3b82f6', background: 'rgba(59,130,246,0.08)',
-                                    color: '#3b82f6', cursor: 'pointer',
-                                }}
-                            >
-                                📅 Open in Timeline
-                            </button>
+                {/* ── Quick-link to Phases page ─────────────────────── */}
+                <div
+                    onClick={() => navigate('/dashboard/desktop/phases')}
+                    style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '14px 18px', borderRadius: 14, cursor: 'pointer',
+                        background: 'rgba(249,115,22,0.06)',
+                        border: '1px dashed rgba(249,115,22,0.3)',
+                        transition: 'background 0.15s',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(249,115,22,0.1)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(249,115,22,0.06)'}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{
+                            width: 34, height: 34, borderRadius: 9,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 18, background: 'rgba(249,115,22,0.12)',
+                            border: '1px solid rgba(249,115,22,0.25)', flexShrink: 0,
+                        }}>📋</div>
+                        <div>
+                            <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: 'var(--t-text)' }}>
+                                Phase &amp; Task Manager
+                            </p>
+                            <p style={{ margin: 0, fontSize: 10, color: 'var(--t-text3)', fontWeight: 600 }}>
+                                {tasks.length} task{tasks.length !== 1 ? 's' : ''} · {phases.length} phase{phases.length !== 1 ? 's' : ''}
+                            </p>
                         </div>
                     </div>
-
-                    {showTasks && (
-                        <div style={{
-                            background: 'var(--t-surface)', borderRadius: 14,
-                            border: '1px solid var(--t-border)', padding: '16px 18px',
-                        }}>
-                            <PhasesTab searchQuery={search} />
-                        </div>
-                    )}
+                    <span style={{ fontSize: 11, fontWeight: 800, color: '#f97316', opacity: 0.7 }}>
+                        Open →
+                    </span>
                 </div>
             </div>
         </div>

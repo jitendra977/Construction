@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { dashboardService, getMediaUrl } from '../../services/api';
 import { useConstruction } from '../../context/ConstructionContext';
+import ManagementTabs from './manage/ManagementTabs';
 
 const DesktopPhotos = () => {
     const { stats, budgetStats } = useConstruction();
@@ -52,6 +53,7 @@ const DesktopPhotos = () => {
 
     return (
         <div className="min-h-screen bg-[var(--t-bg)] font-sans flex flex-col">
+            <ManagementTabs />
             {/* Themed Header */}
             <div className="bg-[var(--t-surface)] border-b border-[var(--t-border)] shadow-xl pb-16 pt-8 px-6 shrink-0 relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-5">
