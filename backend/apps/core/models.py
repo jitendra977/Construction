@@ -232,11 +232,83 @@ class Room(models.Model):
         ('COMPLETED', 'Sakiya'),
     ]
 
-    name = models.CharField(max_length=100, help_text="e.g., Puja Kotha, Bhansa, Baithak")
-    floor = models.ForeignKey(Floor, on_delete=models.CASCADE, related_name='rooms')
-    area_sqft = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='NOT_STARTED')
+    ROOM_TYPE_CHOICES = [
+        ('BEDROOM',   'Bedroom / सुत्ने कोठा'),
+        ('KITCHEN',   'Kitchen / भान्सा'),
+        ('BATHROOM',  'Bathroom / शौचालय'),
+        ('LIVING',    'Living Room / बैठककोठा'),
+        ('DINING',    'Dining Room / खाने कोठा'),
+        ('OFFICE',    'Office / कार्यालय'),
+        ('STORE',     'Store / भण्डार'),
+        ('STAIRCASE', 'Staircase / सिँढी'),
+        ('TERRACE',   'Terrace / छत'),
+        ('BALCONY',   'Balcony / बरन्डा'),
+        ('PUJA',      'Puja Room / पूजाकोठा'),
+        ('GARAGE',    'Garage / गाडी राख्ने'),
+        ('LAUNDRY',   'Laundry / धुलाईकोठा'),
+        ('HALL',      'Hall / हल'),
+        ('OTHER',     'Other / अन्य'),
+    ]
+
+    FLOOR_FINISH_CHOICES = [
+        ('TILE',    'Tile / टाइल'),
+        ('MARBLE',  'Marble / मार्बल'),
+        ('GRANITE', 'Granite / ग्रेनाइट'),
+        ('WOOD',    'Wood / काठ'),
+        ('CEMENT',  'Cement / सिमेन्ट'),
+        ('STONE',   'Stone / ढुङ्गा'),
+        ('OTHER',   'Other / अन्य'),
+    ]
+
+    WALL_FINISH_CHOICES = [
+        ('PAINT',   'Paint / रङ'),
+        ('PLASTER', 'Plaster / लिपाइ'),
+        ('TILE',    'Tile / टाइल'),
+        ('STONE',   'Stone / ढुङ्गा'),
+        ('OTHER',   'Other / अन्य'),
+    ]
+
+    name              = models.CharField(max_length=100, help_text="e.g., Puja Kotha, Bhansa, Baithak")
+    floor             = models.ForeignKey(Floor, on_delete=models.CASCADE, related_name='rooms')
+    room_type         = models.CharField(max_length=20, choices=ROOM_TYPE_CHOICES, default='OTHER', blank=True)
+    area_sqft         = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    status            = models.CharField(max_length=20, choices=STATUS_CHOICES, default='NOT_STARTED')
     budget_allocation = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+
+    PRIORITY_CHOICES = [
+        ('HIGH',   'High / उच्च'),
+        ('MEDIUM', 'Medium / मध्यम'),
+        ('LOW',    'Low / कम'),
+    ]
+
+    # Physical properties
+    ceiling_height_cm = models.IntegerField(null=True, blank=True, default=315,
+                                            help_text="Ceiling height in cm (315 cm = ~10.3 ft)")
+    floor_finish      = models.CharField(max_length=20, choices=FLOOR_FINISH_CHOICES, blank=True, default='')
+    wall_finish       = models.CharField(max_length=20, choices=WALL_FINISH_CHOICES,  blank=True, default='')
+    color_scheme      = models.CharField(max_length=100, blank=True, default='',
+                                         help_text="Wall paint color name or code e.g. 'Off-White #F5F5F5'")
+    window_count      = models.PositiveSmallIntegerField(default=0, help_text="Number of windows")
+    door_count        = models.PositiveSmallIntegerField(default=1, help_text="Number of doors")
+
+    # Electrical & MEP points
+    electrical_points = models.PositiveSmallIntegerField(default=0,
+                                                         help_text="Switch/socket outlet points")
+    light_points      = models.PositiveSmallIntegerField(default=0,
+                                                         help_text="Light fixture / batten points")
+    fan_points        = models.PositiveSmallIntegerField(default=0,
+                                                         help_text="Ceiling fan provision points")
+    ac_provision      = models.BooleanField(default=False,
+                                            help_text="AC outdoor unit provision (conduit + bracket)")
+    plumbing_points   = models.PositiveSmallIntegerField(default=0,
+                                                         help_text="Water supply + drain connection points")
+
+    # Scheduling
+    priority          = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='MEDIUM', blank=True)
+    completion_date   = models.DateField(null=True, blank=True,
+                                         help_text="Actual or target completion date")
+
+    notes             = models.TextField(blank=True, default='', help_text="Additional remarks / टिप्पणी")
 
     # 2D plan layout (all in cm, from building outer top-left corner)
     width_cm       = models.IntegerField(null=True, blank=True, help_text="Room interior width in cm")
@@ -381,3 +453,40 @@ class EmailLog(models.Model):
 
     def __str__(self):
         return f"[{self.email_type}] {self.subject} → {self.recipient_email} ({self.status})"
+
+
+class ProjectMember(models.Model):
+    """
+    Team member with a project-specific role.
+    Complements the User.assigned_projects M2M with a role & join timestamp.
+    """
+    ROLE_CHOICES = [
+        ('OWNER',       'Owner / मालिक'),
+        ('MANAGER',     'Project Manager / परियोजना प्रबन्धक'),
+        ('ENGINEER',    'Engineer / इन्जिनियर'),
+        ('SUPERVISOR',  'Supervisor / सुपरभाइजर'),
+        ('CONTRACTOR',  'Contractor / ठेकेदार'),
+        ('VIEWER',      'Viewer / दर्शक'),
+    ]
+
+    project = models.ForeignKey(
+        'core.HouseProject', on_delete=models.CASCADE,
+        related_name='members',
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='project_memberships',
+    )
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='VIEWER')
+    note = models.CharField(max_length=200, blank=True, default='',
+                            help_text="Short note e.g. 'Lead civil engineer'")
+    joined_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('project', 'user')
+        ordering = ['role', 'joined_at']
+        verbose_name = 'Project Member'
+        verbose_name_plural = 'Project Members'
+
+    def __str__(self):
+        return f"{self.user.username} → {self.project.name} ({self.role})"

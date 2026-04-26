@@ -1,238 +1,472 @@
-import React, { useState, useEffect } from 'react';
+/**
+ * DesktopManage — System Management Hub
+ *
+ * A clean control-panel page. The top shows health cards for every module
+ * with live stats and a direct link into that module. Below the cards sits
+ * the inline Phase & Task manager — the most common day-to-day work area.
+ */
+import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useConstruction } from '../../context/ConstructionContext';
 import PhasesTab from './manage/PhasesTab';
-import FloorsTab from './manage/FloorsTab';
-import CategoriesTab from './manage/CategoriesTab';
-import ExpensesTab from './manage/ExpensesTab';
-import ContractorsTab from './manage/ContractorsTab';
-import SuppliersTab from './manage/SuppliersTab';
-import MaterialsTab from './manage/MaterialsTab';
-import StockTab from './manage/StockTab';
 
-import AccountsTab from './manage/finance/AccountsTab';
-import LedgerTab from './manage/finance/LedgerTab';
-import BillsTab from './manage/finance/BillsTab';
-import AnalysisTab from './manage/finance/AnalysisTab';
-import AccountingDashboard from './accounting/AccountingDashboard';
+/* ─── ModuleCard ─────────────────────────────────────────────────────────── */
+function ModuleCard({ icon, title, subtitle, color, stats, actions, path, badge }) {
+    const navigate = useNavigate();
+    return (
+        <div style={{
+            borderRadius: 14, border: '1px solid var(--t-border)',
+            background: 'var(--t-surface)', overflow: 'hidden',
+            display: 'flex', flexDirection: 'column',
+            transition: 'box-shadow 0.15s, transform 0.15s',
+        }}
+            className="hover:shadow-md hover:-translate-y-0.5"
+        >
+            {/* Card header */}
+            <div style={{
+                padding: '14px 16px 12px',
+                borderBottom: '1px solid var(--t-border)',
+                background: `${color}08`,
+                display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8,
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{
+                        width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: `${color}18`, fontSize: 18,
+                        border: `1px solid ${color}30`,
+                    }}>
+                        {icon}
+                    </div>
+                    <div>
+                        <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: 'var(--t-text)' }}>{title}</p>
+                        <p style={{ margin: 0, fontSize: 10, color: 'var(--t-text3)', fontWeight: 600 }}>{subtitle}</p>
+                    </div>
+                </div>
+                {badge && (
+                    <span style={{
+                        fontSize: 9, padding: '2px 7px', borderRadius: 6, fontWeight: 900,
+                        background: badge.bg || '#ef444418', color: badge.color || '#ef4444',
+                        border: `1px solid ${badge.color || '#ef4444'}30`,
+                        flexShrink: 0, whiteSpace: 'nowrap',
+                    }}>
+                        {badge.label}
+                    </span>
+                )}
+            </div>
 
-const DesktopManage = () => {
-    const { dashboardData, setActiveHelpKey } = useConstruction();
-    const [activeSection, setActiveSection] = useState('structure');
-    const [activeTab, setActiveTab] = useState('phases');
-    const [searchQuery, setSearchQuery] = useState('');
-    const [resolveMetadata, setResolveMetadata] = useState(null);
+            {/* Stats */}
+            <div style={{
+                display: 'grid', gridTemplateColumns: `repeat(${Math.min(stats.length, 3)}, 1fr)`,
+                gap: 0, flex: 1,
+            }}>
+                {stats.map((s, i) => (
+                    <div key={i} style={{
+                        padding: '10px 14px',
+                        borderRight: i < stats.length - 1 ? '1px solid var(--t-border)' : 'none',
+                        borderBottom: '1px solid var(--t-border)',
+                    }}>
+                        <p style={{ margin: 0, fontSize: 18, fontWeight: 900, color: s.color || color }}>{s.value}</p>
+                        <p style={{ margin: '1px 0 0', fontSize: 9, fontWeight: 700, color: 'var(--t-text3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{s.label}</p>
+                    </div>
+                ))}
+            </div>
 
-    useEffect(() => {
-        setActiveHelpKey(activeTab);
-    }, [activeTab, setActiveHelpKey]);
+            {/* Actions footer */}
+            <div style={{
+                padding: '10px 12px', display: 'flex', gap: 6, alignItems: 'center',
+            }}>
+                {actions.map((a, i) => (
+                    <button key={i} onClick={() => navigate(a.path)} style={{
+                        padding: '5px 12px', borderRadius: 7, fontSize: 11, fontWeight: 700,
+                        background: a.primary ? color : 'var(--t-surface2)',
+                        color: a.primary ? '#fff' : 'var(--t-text)',
+                        border: `1px solid ${a.primary ? color : 'var(--t-border)'}`,
+                        cursor: 'pointer', whiteSpace: 'nowrap',
+                    }}>
+                        {a.label}
+                    </button>
+                ))}
+                <div style={{ flex: 1 }} />
+                <button onClick={() => navigate(path)} style={{
+                    padding: '5px 12px', borderRadius: 7, fontSize: 11, fontWeight: 800,
+                    background: 'transparent', color, border: `1px solid ${color}40`, cursor: 'pointer',
+                }}>
+                    Open →
+                </button>
+            </div>
+        </div>
+    );
+}
 
-    const sections = [
-        {
-            id: 'structure',
-            label: 'Structure',
-            labelNe: 'संरचना',
-            description: 'Phases, Floors & Logic',
-            icon: '🏗️',
-            accent: 'var(--t-primary)',
-            bgGlow: 'rgba(59, 130, 246, 0.1)',
-            tabs: [
-                { id: 'phases', label: 'Schedule', labelNe: 'कार्यतालिका' },
-                { id: 'floors', label: 'Structure', labelNe: 'संरचना' },
-            ]
-        },
-        {
-            id: 'finance',
-            label: 'Finance',
-            labelNe: 'आर्थिक',
-            description: 'Banking & Budgeting',
-            icon: '💰',
-            accent: '#10b981', // Emerald
-            bgGlow: 'rgba(16, 185, 129, 0.1)',
-            tabs: [
-                { id: 'accounting', label: 'Accounting Portal', labelNe: 'लेखा प्रणाली' },
-            ]
-        },
-        {
-            id: 'resources',
-            label: 'Resources',
-            labelNe: 'श्रोत/साधन',
-            description: 'Vendors, Materials & Stock',
-            icon: '🏢',
-            accent: '#f59e0b', // Amber
-            bgGlow: 'rgba(245, 158, 11, 0.1)',
-            tabs: [
-                { id: 'suppliers', label: 'Suppliers', labelNe: 'सप्लायर्स' },
-                { id: 'contractors', label: 'Contractors', labelNe: 'ठेकेदार' },
-                { id: 'materials', label: 'Materials', labelNe: 'सामग्री' },
-                { id: 'stock', label: 'Stock', labelNe: 'मौज्दात' },
-            ]
-        }
+/* ─── SystemStatusBar ────────────────────────────────────────────────────── */
+function SystemStatusBar({ phases, tasks, expenses, materials, permits }) {
+    const overdueT  = tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'COMPLETED').length;
+    const lowStock  = materials.filter(m => m.quantity_in_stock <= (m.minimum_stock || 5)).length;
+    const pendingP  = permits.filter(p => p.status === 'PENDING' || p.status === 'IN_PROGRESS').length;
+    const blockedT  = tasks.filter(t => t.status === 'BLOCKED').length;
+
+    const items = [
+        { label: 'Overdue Tasks',    value: overdueT, color: overdueT  > 0 ? '#ef4444' : '#10b981', icon: overdueT  > 0 ? '⚠' : '✓' },
+        { label: 'Blocked Tasks',    value: blockedT, color: blockedT  > 0 ? '#f59e0b' : '#10b981', icon: blockedT  > 0 ? '🚫' : '✓' },
+        { label: 'Low Stock Items',  value: lowStock,  color: lowStock  > 0 ? '#f97316' : '#10b981', icon: lowStock  > 0 ? '📦' : '✓' },
+        { label: 'Pending Permits',  value: pendingP,  color: pendingP  > 0 ? '#3b82f6' : '#10b981', icon: pendingP  > 0 ? '📜' : '✓' },
     ];
 
-    const currentSection = sections.find(s => s.id === activeSection);
-    const tabs = currentSection.tabs;
-
-    const handleSectionChange = (sectionId) => {
-        setActiveSection(sectionId);
-        const section = sections.find(s => s.id === sectionId);
-        setActiveTab(section.tabs[0].id);
-        setSearchQuery('');
-    };
-
-    const handleResolve = (type, data) => {
-        if (type === 'UNASSIGNED_BUDGET') {
-            setActiveSection('finance'); setActiveTab('categories');
-            setResolveMetadata({ highlightId: data.category_id, expand: true });
-        } else if (['SYNC_MISMATCH', 'OVER_ALLOCATED_CAT'].includes(type)) {
-            setActiveSection('finance'); setActiveTab('categories');
-        } else if (['PHASE_OVERLOAD', 'OVER_ALLOCATED_PHASE'].includes(type)) {
-            setActiveSection('structure'); setActiveTab('phases');
-        }
-    };
+    const hasAlerts = overdueT + blockedT + lowStock + pendingP > 0;
 
     return (
-        <div className="min-h-screen bg-[var(--t-bg)] flex flex-col font-sans transition-all duration-500">
-            {/* Header — matched to Dashboard proportions */}
-            <div className="relative pt-8 pb-16 px-6 overflow-hidden border-b border-[var(--t-border)] bg-[var(--t-surface)]">
-                <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-[var(--t-primary)]/5 blur-[100px] -mr-48 -mt-48 rounded-full pointer-events-none" />
-                <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-emerald-500/5 blur-[80px] -ml-32 -mb-32 rounded-full pointer-events-none" />
+        <div style={{
+            display: 'flex', alignItems: 'center', gap: 0,
+            borderRadius: 10, overflow: 'hidden',
+            border: '1px solid var(--t-border)',
+            background: 'var(--t-surface)',
+            marginBottom: 20,
+        }}>
+            <div style={{
+                padding: '10px 16px', borderRight: '1px solid var(--t-border)',
+                display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0,
+            }}>
+                <div style={{
+                    width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                    background: hasAlerts ? '#f59e0b' : '#10b981',
+                    boxShadow: `0 0 6px ${hasAlerts ? '#f59e0b' : '#10b981'}`,
+                }} />
+                <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--t-text)', whiteSpace: 'nowrap' }}>
+                    System Status
+                </span>
+            </div>
+            {items.map((item, i) => (
+                <div key={item.label} style={{
+                    flex: 1, padding: '10px 14px', textAlign: 'center',
+                    borderRight: i < items.length - 1 ? '1px solid var(--t-border)' : 'none',
+                }}>
+                    <div style={{ fontSize: 14, fontWeight: 900, color: item.color }}>
+                        {item.icon} {item.value}
+                    </div>
+                    <div style={{ fontSize: 9, color: 'var(--t-text3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 1 }}>
+                        {item.label}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
 
-                <div className="max-w-7xl mx-auto relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-                    <div className="space-y-1.5">
-                        <div className="flex items-center gap-3 mb-1">
-                            <span className="px-2.5 py-0.5 bg-[var(--t-primary)]/10 text-[var(--t-primary)] rounded-full text-[10px] font-black uppercase tracking-widest border border-[var(--t-primary)]/20">Intelligence Center</span>
-                            <span className="relative flex h-2.5 w-2.5">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--t-primary2)] opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[var(--t-primary2)]"></span>
+/* ─── DesktopManage (hub) ────────────────────────────────────────────────── */
+const DesktopManage = () => {
+    const navigate = useNavigate();
+    const { dashboardData, activeProjectId, projects } = useConstruction();
+    const [search, setSearch] = useState('');
+    const [showTasks, setShowTasks] = useState(true);
+
+    const projectList = Array.isArray(projects) ? projects : [];
+    const activeProject = projectList.find(p => p.id === activeProjectId);
+
+    const phases      = dashboardData.phases      || [];
+    const tasks       = dashboardData.tasks        || [];
+    const expenses    = dashboardData.expenses     || [];
+    const materials   = dashboardData.materials    || [];
+    const contractors = dashboardData.contractors  || [];
+    const suppliers   = dashboardData.suppliers    || [];
+    const permits     = dashboardData.permits      || [];
+    const floors      = dashboardData.floors       || [];
+    const rooms       = dashboardData.rooms        || [];
+
+    /* ── Derived stats ── */
+    const stats = useMemo(() => {
+        const phaseDone   = phases.filter(p => p.status === 'COMPLETED').length;
+        const phaseActive = phases.filter(p => p.status === 'IN_PROGRESS').length;
+        const taskDone    = tasks.filter(t => t.status === 'COMPLETED').length;
+        const taskActive  = tasks.filter(t => t.status === 'IN_PROGRESS').length;
+        const taskOverdue = tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'COMPLETED').length;
+        const totalSpent  = expenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+        const totalBudget = activeProject ? parseFloat(activeProject.total_budget || 0) : 0;
+        const lowStock    = materials.filter(m => m.quantity_in_stock <= (m.minimum_stock || 5)).length;
+        const roomDone    = rooms.filter(r => r.status === 'COMPLETED').length;
+        return {
+            phaseDone, phaseActive,
+            taskDone, taskActive, taskOverdue,
+            totalSpent, totalBudget,
+            lowStock, roomDone,
+        };
+    }, [phases, tasks, expenses, materials, activeProject, rooms]);
+
+    /* ── Module cards config ── */
+    const modules = [
+        {
+            icon: '📅', title: 'Timeline', subtitle: 'Gantt · Calendar · Kanban',
+            color: '#3b82f6', path: '/dashboard/desktop/timeline',
+            badge: stats.taskOverdue > 0 ? { label: `${stats.taskOverdue} overdue`, color: '#ef4444', bg: '#ef444414' } : null,
+            stats: [
+                { label: 'Phases', value: `${stats.phaseDone}/${phases.length}`, color: '#f97316' },
+                { label: 'Tasks Done', value: `${stats.taskDone}/${tasks.length}`, color: '#10b981' },
+                { label: 'Active', value: stats.taskActive, color: '#3b82f6' },
+            ],
+            actions: [
+                { label: '📊 Gantt', path: '/dashboard/desktop/timeline' },
+                { label: '🗂️ Kanban', path: '/dashboard/desktop/timeline' },
+            ],
+        },
+        {
+            icon: '💰', title: 'Finance', subtitle: 'Budget · Expenses · Ledger',
+            color: '#10b981', path: '/dashboard/desktop/finance',
+            badge: stats.totalBudget > 0 && stats.totalSpent / stats.totalBudget > 0.9
+                ? { label: '>90% budget used', color: '#ef4444', bg: '#ef444414' } : null,
+            stats: [
+                { label: 'Budget (Rs.)', value: stats.totalBudget > 0 ? `${(stats.totalBudget / 1000).toFixed(0)}K` : '—', color: '#f97316' },
+                { label: 'Spent (Rs.)', value: stats.totalSpent > 0 ? `${(stats.totalSpent / 1000).toFixed(0)}K` : '—', color: '#ef4444' },
+                { label: 'Used', value: stats.totalBudget > 0 ? `${Math.round(stats.totalSpent / stats.totalBudget * 100)}%` : '—', color: '#10b981' },
+            ],
+            actions: [
+                { label: '💸 Expenses', path: '/dashboard/desktop/finance' },
+                { label: '📒 Ledger', path: '/dashboard/desktop/finance' },
+            ],
+        },
+        {
+            icon: '🧱', title: 'Resources', subtitle: 'Materials · Contractors · Stock',
+            color: '#f97316', path: '/dashboard/desktop/resource',
+            badge: stats.lowStock > 0 ? { label: `${stats.lowStock} low stock`, color: '#f97316', bg: '#f9731614' } : null,
+            stats: [
+                { label: 'Materials', value: materials.length, color: '#f97316' },
+                { label: 'Contractors', value: contractors.length, color: '#8b5cf6' },
+                { label: 'Suppliers', value: suppliers.length, color: '#3b82f6' },
+            ],
+            actions: [
+                { label: '📦 Materials', path: '/dashboard/desktop/resource' },
+                { label: '👷 Contractors', path: '/dashboard/desktop/resource' },
+            ],
+        },
+        {
+            icon: '🏛️', title: 'Structure', subtitle: 'Floors · Rooms · Layout',
+            color: '#8b5cf6', path: '/dashboard/desktop/structure',
+            stats: [
+                { label: 'Floors', value: floors.length, color: '#8b5cf6' },
+                { label: 'Rooms', value: rooms.length, color: '#3b82f6' },
+                { label: 'Done', value: `${stats.roomDone}/${rooms.length}`, color: '#10b981' },
+            ],
+            actions: [
+                { label: '🗺️ Floor Plan', path: '/dashboard/desktop/structure' },
+            ],
+        },
+        {
+            icon: '📜', title: 'Permits', subtitle: 'Municipal · Approvals',
+            color: '#06b6d4', path: '/dashboard/desktop/permits',
+            badge: permits.filter(p => p.status === 'PENDING').length > 0
+                ? { label: `${permits.filter(p => p.status === 'PENDING').length} pending`, color: '#06b6d4', bg: '#06b6d414' } : null,
+            stats: [
+                { label: 'Total', value: permits.length, color: '#06b6d4' },
+                { label: 'Approved', value: permits.filter(p => p.status === 'APPROVED').length, color: '#10b981' },
+                { label: 'Pending', value: permits.filter(p => p.status === 'PENDING').length, color: '#f59e0b' },
+            ],
+            actions: [
+                { label: '📋 View All', path: '/dashboard/desktop/permits' },
+            ],
+        },
+        {
+            icon: '📈', title: 'Analytics', subtitle: 'Reports · Charts · Insights',
+            color: '#f59e0b', path: '/dashboard/desktop/analytics',
+            stats: [
+                { label: 'Budget Used', value: stats.totalBudget > 0 ? `${Math.round(stats.totalSpent / stats.totalBudget * 100)}%` : '—', color: '#f59e0b' },
+                { label: 'Phase Progress', value: phases.length > 0 ? `${Math.round(stats.phaseDone / phases.length * 100)}%` : '—', color: '#10b981' },
+                { label: 'Tasks Done', value: tasks.length > 0 ? `${Math.round(stats.taskDone / tasks.length * 100)}%` : '—', color: '#3b82f6' },
+            ],
+            actions: [
+                { label: '📊 Open Reports', path: '/dashboard/desktop/analytics' },
+            ],
+        },
+        {
+            icon: '📸', title: 'Gallery', subtitle: 'Photos · Timelapse · Docs',
+            color: '#ec4899', path: '/dashboard/desktop/photos',
+            stats: [
+                { label: 'Gallery', value: '—', color: '#ec4899' },
+                { label: 'Timelapse', value: '—', color: '#8b5cf6' },
+                { label: 'Imports', value: '—', color: '#06b6d4' },
+            ],
+            actions: [
+                { label: '📷 Photos', path: '/dashboard/desktop/photos' },
+                { label: '🎞️ Timelapse', path: '/dashboard/desktop/timelapse' },
+            ],
+        },
+        {
+            icon: '⚙️', title: 'Settings', subtitle: 'Users · Import · Guides',
+            color: '#6b7280', path: '/dashboard/desktop/guides',
+            stats: [
+                { label: 'Projects', value: projectList.length, color: '#f97316' },
+                { label: 'Active', value: activeProject ? 1 : 0, color: '#10b981' },
+                { label: 'Guides', value: (dashboardData.userGuides || []).length, color: '#6b7280' },
+            ],
+            actions: [
+                { label: '📥 Import', path: '/dashboard/desktop/import' },
+                { label: '📚 Guides', path: '/dashboard/desktop/guides' },
+            ],
+        },
+    ];
+
+    return (
+        <div style={{
+            minHeight: '100vh', background: 'var(--t-bg)',
+            padding: '0 0 48px',
+        }}>
+            {/* ── Header ────────────────────────────────────────────── */}
+            <div style={{
+                padding: '24px 28px 20px',
+                background: 'var(--t-surface)',
+                borderBottom: '1px solid var(--t-border)',
+                display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+                flexWrap: 'wrap', gap: 12,
+            }}>
+                <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                        <span style={{ fontSize: 22 }}>🛠️</span>
+                        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: 'var(--t-text)' }}>
+                            Management Hub
+                        </h1>
+                        {activeProject && (
+                            <span style={{
+                                fontSize: 11, padding: '2px 10px', borderRadius: 20, fontWeight: 700,
+                                background: 'rgba(249,115,22,0.1)', color: '#f97316',
+                                border: '1px solid rgba(249,115,22,0.2)',
+                            }}>
+                                ● {activeProject.name}
+                            </span>
+                        )}
+                    </div>
+                    <p style={{ margin: 0, fontSize: 12, color: 'var(--t-text3)' }}>
+                        Central control panel — navigate to any module or manage tasks directly below.
+                    </p>
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <button onClick={() => navigate('/dashboard/desktop/home')} style={{
+                        padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                        border: '1px solid var(--t-border)', background: 'var(--t-surface2)',
+                        color: 'var(--t-text)', cursor: 'pointer',
+                    }}>
+                        🏠 Dashboard
+                    </button>
+                    <button onClick={() => navigate('/dashboard/desktop/projects')} style={{
+                        padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                        border: '1px solid #f97316', background: '#f97316',
+                        color: '#fff', cursor: 'pointer',
+                    }}>
+                        🗂️ Projects
+                    </button>
+                </div>
+            </div>
+
+            <div style={{ padding: '20px 28px' }}>
+                {/* ── System status bar ─────────────────────────────── */}
+                <SystemStatusBar
+                    phases={phases} tasks={tasks} expenses={expenses}
+                    materials={materials} permits={permits}
+                />
+
+                {/* ── Module cards grid ─────────────────────────────── */}
+                <div style={{ marginBottom: 6 }}>
+                    <h2 style={{
+                        margin: '0 0 14px', fontSize: 12, fontWeight: 800,
+                        color: 'var(--t-text3)', textTransform: 'uppercase',
+                        letterSpacing: '0.12em',
+                    }}>
+                        📦 Modules
+                    </h2>
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                        gap: 12,
+                        marginBottom: 28,
+                    }}>
+                        {modules.map(m => (
+                            <ModuleCard key={m.title} {...m} />
+                        ))}
+                    </div>
+                </div>
+
+                {/* ── Phase & Task manager ─────────────────────────── */}
+                <div>
+                    <div style={{
+                        display: 'flex', alignItems: 'center',
+                        justifyContent: 'space-between', marginBottom: 14,
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <h2 style={{
+                                margin: 0, fontSize: 12, fontWeight: 800,
+                                color: 'var(--t-text3)', textTransform: 'uppercase',
+                                letterSpacing: '0.12em',
+                            }}>
+                                📋 Phase &amp; Task Manager
+                            </h2>
+                            <span style={{
+                                fontSize: 10, padding: '2px 8px', borderRadius: 6, fontWeight: 700,
+                                background: 'rgba(249,115,22,0.08)', color: '#f97316',
+                                border: '1px solid rgba(249,115,22,0.2)',
+                            }}>
+                                {tasks.length} tasks · {phases.length} phases
                             </span>
                         </div>
-                        <h1 className="text-3xl font-black tracking-tight" style={{ color: 'var(--t-text)' }}>
-                            Project <span className="opacity-40">Intelligence</span>
-                        </h1>
-                        <p className="text-[var(--t-text2)] font-medium text-sm max-w-lg leading-relaxed opacity-80">
-                            Configure construction architecture, streamline funding, and manage resources.
-                        </p>
-                    </div>
 
-                    {/* Search */}
-                    <div className="relative w-full md:w-[320px] group transition-all">
-                        <div className="relative bg-[var(--t-bg)]/40 backdrop-blur-sm border border-[var(--t-border)] rounded-xl flex items-center group-focus-within:border-[var(--t-primary)] transition-all px-3 py-2 gap-2">
-                            <span className="text-[var(--t-text3)] opacity-60 text-sm">🔍</span>
-                            <input
-                                type="text"
-                                placeholder={`Search ${tabs.find(t => t.id === activeTab)?.label}...`}
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="flex-1 bg-transparent text-sm font-bold outline-none placeholder-[var(--t-text3)]/50"
-                                style={{ color: 'var(--t-text)' }}
-                            />
-                            {searchQuery && (
-                                <button onClick={() => setSearchQuery('')} className="text-xs opacity-40 hover:opacity-100 text-[var(--t-text3)]">✕</button>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Section Cards — compact, matched to Dashboard card sizes */}
-            <div className="max-w-7xl mx-auto px-6 -mt-6 relative z-20 w-full">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {sections.map(section => (
-                        <button
-                            key={section.id}
-                            onClick={() => handleSectionChange(section.id)}
-                            className={`relative group bg-[var(--t-surface)] border border-[var(--t-border)] p-4 rounded-2xl transition-all hover:shadow-lg overflow-hidden text-left ${activeSection === section.id
-                                ? 'shadow-md border-[var(--t-primary)] ring-1 ring-[var(--t-primary)]/20'
-                                : 'opacity-80 hover:opacity-100 hover:-translate-y-0.5'}`}
-                        >
-                            {activeSection === section.id && (
-                                <div className="absolute inset-0 transition-opacity pointer-events-none" style={{ background: `radial-gradient(circle at top right, ${section.bgGlow}, transparent)` }} />
-                            )}
-
-                            <div className="relative z-10 flex items-center gap-4">
-                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl shadow-sm shrink-0 transition-transform group-hover:scale-105 ${activeSection === section.id ? 'bg-[var(--t-primary)] text-white shadow-md shadow-[var(--t-primary)]/20' : 'bg-[var(--t-bg)]'}`}>
-                                    {section.icon}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                        <h3 className="text-sm font-black tracking-tight truncate" style={{ color: activeSection === section.id ? 'var(--t-text)' : 'var(--t-text2)' }}>{section.label}</h3>
-                                        <span className="text-[9px] font-black opacity-30 uppercase tracking-tight">{section.labelNe}</span>
-                                    </div>
-                                    <p className="text-[10px] font-bold uppercase tracking-wide opacity-40 mt-0.5">{section.description}</p>
-                                </div>
-                                {activeSection === section.id && (
-                                    <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: section.accent, boxShadow: `0 0 6px ${section.accent}` }} />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            {/* Search */}
+                            <div style={{ position: 'relative' }}>
+                                <input
+                                    value={search}
+                                    onChange={e => setSearch(e.target.value)}
+                                    placeholder="🔍 Search phases & tasks…"
+                                    style={{
+                                        padding: '6px 12px 6px 10px', borderRadius: 8, fontSize: 12,
+                                        border: '1px solid var(--t-border)',
+                                        background: 'var(--t-surface)',
+                                        color: 'var(--t-text)', outline: 'none', width: 220,
+                                    }}
+                                />
+                                {search && (
+                                    <button
+                                        onClick={() => setSearch('')}
+                                        style={{
+                                            position: 'absolute', right: 8, top: '50%',
+                                            transform: 'translateY(-50%)',
+                                            background: 'none', border: 'none', cursor: 'pointer',
+                                            fontSize: 12, color: 'var(--t-text3)',
+                                        }}
+                                    >✕</button>
                                 )}
                             </div>
-                        </button>
-                    ))}
-                </div>
-            </div>
 
-            {/* Workspace Area */}
-            <div className="max-w-7xl mx-auto px-6 mt-6 w-full pb-12">
-                <div className="bg-[var(--t-surface)] rounded-2xl border border-[var(--t-border)] shadow-sm overflow-hidden flex flex-col min-h-[600px]">
-                    {/* Tab Bar — hidden when section has only one tab */}
-                    <div className={`border-b border-[var(--t-border)] bg-[var(--t-surface2)]/30 backdrop-blur sticky top-0 z-30 ${tabs.length <= 1 ? 'hidden' : ''}`}>
-                        <div className="flex overflow-x-auto no-scrollbar px-4">
-                            {tabs.map((tab) => (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => setActiveTab(tab.id)}
-                                    className={`group relative px-6 py-4 text-xs font-black uppercase tracking-[0.15em] transition-all duration-300 whitespace-nowrap flex flex-col items-center gap-1.5 ${activeTab === tab.id
-                                        ? 'text-[var(--t-primary)]'
-                                        : 'text-[var(--t-text3)] hover:text-[var(--t-text)] opacity-60 hover:opacity-100'
-                                    }`}
-                                    style={{ fontFamily: 'var(--f-mono)' }}
-                                >
-                                    <span>{tab.label}</span>
-                                    <span className="text-[10px] opacity-40 lowercase font-bold tracking-normal">{tab.labelNe}</span>
+                            <button
+                                onClick={() => setShowTasks(v => !v)}
+                                style={{
+                                    padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                                    border: '1px solid var(--t-border)', background: 'var(--t-surface2)',
+                                    color: 'var(--t-text)', cursor: 'pointer',
+                                }}
+                            >
+                                {showTasks ? '▲ Hide' : '▼ Show'}
+                            </button>
 
-                                    {activeTab === tab.id && (
-                                        <div className="absolute inset-x-4 bottom-0 h-0.5 bg-[var(--t-primary)] rounded-t-full shadow-[0_0_8px_var(--t-primary)]" />
-                                    )}
-                                    <div className={`absolute inset-0 transition-colors rounded-t-lg ${activeTab === tab.id ? 'bg-[var(--t-primary)]/5' : 'group-hover:bg-black/2'}`} />
-                                </button>
-                            ))}
+                            <button
+                                onClick={() => navigate('/dashboard/desktop/timeline')}
+                                style={{
+                                    padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                                    border: '1px solid #3b82f6', background: 'rgba(59,130,246,0.08)',
+                                    color: '#3b82f6', cursor: 'pointer',
+                                }}
+                            >
+                                📅 Open in Timeline
+                            </button>
                         </div>
                     </div>
 
-                    {/* Tab Content */}
-                    <div className="p-6 flex-1 relative overflow-hidden">
-                        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 h-full">
-                            {/* Structure Section Tabs */}
-                            {activeSection === 'structure' && (
-                                <>
-                                    {activeTab === 'phases' && <PhasesTab searchQuery={searchQuery} />}
-                                    {activeTab === 'floors' && <FloorsTab searchQuery={searchQuery} />}
-                                </>
-                            )}
-
-                            {/* Finance Section Tabs */}
-                            {activeSection === 'finance' && (
-                                <>
-                                    {activeTab === 'accounting' && <AccountingDashboard />}
-                                </>
-                            )}
-
-                            {/* Resources Section Tabs */}
-                            {activeSection === 'resources' && (
-                                <>
-                                    {activeTab === 'suppliers' && <SuppliersTab searchQuery={searchQuery} />}
-                                    {activeTab === 'contractors' && <ContractorsTab searchQuery={searchQuery} />}
-                                    {activeTab === 'materials' && <MaterialsTab searchQuery={searchQuery} />}
-                                    {activeTab === 'stock' && <StockTab searchQuery={searchQuery} />}
-                                </>
-                            )}
+                    {showTasks && (
+                        <div style={{
+                            background: 'var(--t-surface)', borderRadius: 14,
+                            border: '1px solid var(--t-border)', padding: '16px 18px',
+                        }}>
+                            <PhasesTab searchQuery={search} />
                         </div>
-                    </div>
+                    )}
                 </div>
             </div>
-
-            <style>{`
-                .no-scrollbar::-webkit-scrollbar { display: none; }
-                .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-            `}</style>
         </div>
     );
 };

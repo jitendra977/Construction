@@ -3,8 +3,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from .models import HouseProject, ConstructionPhase, Room, Floor, UserGuide, UserGuideStep, UserGuideFAQ, UserGuideProgress, EmailLog
-from .serializers import HouseProjectSerializer, ConstructionPhaseSerializer, RoomSerializer, FloorSerializer, UserGuideSerializer, UserGuideStepSerializer, UserGuideFAQSerializer, UserGuideProgressSerializer, EmailLogSerializer
+from .models import HouseProject, ConstructionPhase, Room, Floor, UserGuide, UserGuideStep, UserGuideFAQ, UserGuideProgress, EmailLog, ProjectMember
+from .serializers import HouseProjectSerializer, ConstructionPhaseSerializer, RoomSerializer, FloorSerializer, UserGuideSerializer, UserGuideStepSerializer, UserGuideFAQSerializer, UserGuideProgressSerializer, EmailLogSerializer, ProjectMemberSerializer
 from apps.accounts.permissions import IsSystemAdmin, CanManagePhases
 
 from apps.tasks.models import Task
@@ -19,15 +19,121 @@ from apps.finance.models import Expense, BudgetCategory, FundingSource, PhaseBud
 from apps.finance.serializers import ExpenseSerializer, BudgetCategorySerializer, FundingSourceSerializer, PhaseBudgetAllocationSerializer, AccountSerializer
 class HouseProjectViewSet(viewsets.ModelViewSet):
     serializer_class = HouseProjectSerializer
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        user = self.request.user
-        if getattr(user, 'is_system_admin', False):
-            return HouseProject.objects.all()
-        
-        if user.is_authenticated:
-            return user.assigned_projects.all()
-        return HouseProject.objects.none()
+        """
+        Return all projects for any authenticated user.
+        The assigned_projects M2M is used for per-user access control on
+        other viewsets, but the Project Manager gateway must show every project
+        the system owns so the user can manage, activate, and switch between them.
+        """
+        if not self.request.user.is_authenticated:
+            return HouseProject.objects.none()
+        return HouseProject.objects.prefetch_related('members', 'phases', 'floors').all()
+
+    @action(detail=True, methods=['get'], url_path='stats')
+    def stats(self, request, pk=None):
+        """
+        Aggregated stats for a single project across all modules:
+        Structure, Finance, Resources, Phases.
+        """
+        from django.db.models import Sum, Count, Q
+        project = self.get_object()
+
+        # ── Structure ──────────────────────────────────────────────────────
+        floors      = project.floors.prefetch_related('rooms').all()
+        all_rooms   = Room.objects.filter(floor__project=project)
+        room_total  = all_rooms.count()
+        room_done   = all_rooms.filter(status='COMPLETED').count()
+        room_pct    = round(room_done / room_total * 100, 1) if room_total else 0
+
+        # ── Phases ────────────────────────────────────────────────────────
+        phases          = project.phases.all()
+        phase_total     = phases.count()
+        phase_done      = phases.filter(status='COMPLETED').count()
+        phase_progress  = phases.filter(status='IN_PROGRESS').count()
+        phase_pct       = round(phase_done / phase_total * 100, 1) if phase_total else 0
+
+        # ── Finance ───────────────────────────────────────────────────────
+        total_spent = 0
+        try:
+            from apps.finance.models import Expense
+            total_spent = float(
+                Expense.objects.filter(project=project).aggregate(total=Sum('amount'))['total'] or 0
+            )
+        except Exception:
+            pass
+
+        total_budget = float(project.total_budget or 0)
+        budget_used_pct = round(total_spent / total_budget * 100, 1) if total_budget else 0
+        budget_remaining = total_budget - total_spent
+
+        # ── Resources ─────────────────────────────────────────────────────
+        material_count    = 0
+        contractor_count  = 0
+        try:
+            from apps.resources.models import Material, Contractor
+            material_count   = Material.objects.filter(project=project).count()
+            contractor_count = Contractor.objects.filter(project=project).count()
+        except Exception:
+            pass
+
+        # ── Team ──────────────────────────────────────────────────────────
+        member_count = project.members.count()
+
+        return Response({
+            'structure': {
+                'floors':       floors.count(),
+                'rooms':        room_total,
+                'rooms_done':   room_done,
+                'room_pct':     room_pct,
+            },
+            'phases': {
+                'total':        phase_total,
+                'completed':    phase_done,
+                'in_progress':  phase_progress,
+                'pct':          phase_pct,
+            },
+            'finance': {
+                'budget':           total_budget,
+                'spent':            total_spent,
+                'remaining':        budget_remaining,
+                'used_pct':         budget_used_pct,
+            },
+            'resources': {
+                'materials':    material_count,
+                'contractors':  contractor_count,
+            },
+            'team': {
+                'members':      member_count,
+            },
+        })
+
+
+class ProjectMemberViewSet(viewsets.ModelViewSet):
+    serializer_class   = ProjectMemberSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = ProjectMember.objects.select_related('user', 'project').all()
+        pid = self.request.query_params.get('project')
+        if pid:
+            qs = qs.filter(project_id=pid)
+        return qs
+
+    def perform_create(self, serializer):
+        member = serializer.save()
+        # Also add to the User.assigned_projects M2M so existing auth logic works
+        member.user.assigned_projects.add(member.project)
+
+    def perform_destroy(self, instance):
+        user    = instance.user
+        project = instance.project
+        instance.delete()
+        # If no other membership, remove from assigned_projects too
+        if not ProjectMember.objects.filter(user=user, project=project).exists():
+            user.assigned_projects.remove(project)
 
 class ConstructionPhaseViewSet(viewsets.ModelViewSet):
     queryset = ConstructionPhase.objects.all()
@@ -155,14 +261,29 @@ class DashboardDataView(APIView):
         })
 
 class RoomViewSet(viewsets.ModelViewSet):
-    queryset = Room.objects.all()
     serializer_class = RoomSerializer
     permission_classes = [IsAuthenticated, CanManagePhases]
 
+    def get_queryset(self):
+        qs = Room.objects.select_related('floor').order_by('floor__level', 'name')
+        floor_id = self.request.query_params.get('floor')
+        pid = self.request.query_params.get('project')
+        if floor_id:
+            qs = qs.filter(floor_id=floor_id)
+        if pid:
+            qs = qs.filter(floor__project_id=pid)
+        return qs
+
 class FloorViewSet(viewsets.ModelViewSet):
-    queryset = Floor.objects.all()
     serializer_class = FloorSerializer
     permission_classes = [IsAuthenticated, CanManagePhases]
+
+    def get_queryset(self):
+        qs = Floor.objects.prefetch_related('rooms').order_by('level')
+        pid = self.request.query_params.get('project')
+        if pid:
+            qs = qs.filter(project_id=pid)
+        return qs
 
 class UserGuideViewSet(viewsets.ModelViewSet):
     """

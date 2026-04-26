@@ -26,18 +26,25 @@ function DesktopDashboard() {
     }
 
     const navItems = [
-        { id: 'home', icon: '🏠', label: 'Dashboard (ड्यासबोर्ड)' },
-        { id: 'analytics', icon: '📈', label: 'Analytics (विश्लेषण)' },
-        { id: 'estimator', icon: '🧮', label: 'Estimator (इस्टिमेटर)' },
-        { id: 'permits', icon: '📜', label: 'Permits (नक्सा पास)' },
-        { id: 'manage', icon: '🛠️', label: 'Manage (व्यवस्थापन)' },
-        { id: 'photos', icon: '📸', label: 'Gallery (फोटो ग्यालरी)' },
+        // Projects
+        { id: 'projects',  icon: '🗂️', label: 'Projects (परियोजनाहरू)' },
+        // Overview
+        { id: 'home',      icon: '🏠',  label: 'Dashboard (ड्यासबोर्ड)' },
+        { id: 'analytics', icon: '📈',  label: 'Analytics (विश्लेषण)' },
+        { id: 'estimator', icon: '🧮',  label: 'Estimator (इस्टिमेटर)' },
+        // Construction
+        { id: 'permits',   icon: '📜',  label: 'Permits (नक्सा पास)' },
+        { id: 'manage',    icon: '🛠️', label: 'Manage (व्यवस्थापन)' },
+        { id: 'timeline',  icon: '📅',  label: 'Timeline (समयरेखा)' },
+        { id: 'finance',   icon: '💰',  label: 'Finance (वित्त)' },
+        { id: 'resource',  icon: '🧱',  label: 'Resource (स्रोत)' },
+        { id: 'structure', icon: '🏛️', label: 'Structure (संरचना)' },
+        { id: 'photos',    icon: '📸',  label: 'Gallery (फोटो ग्यालरी)' },
         { id: 'timelapse', icon: '🎞️', label: 'Timelapse (टाइमल्याप्स)' },
-        { id: 'guides', icon: '📚', label: 'User Guide (मद्दत निर्देशिका)' },
-        { id: 'import', icon: '📥', label: 'Import Data (डाटा आयात)' },
-        ...(user?.is_system_admin ? [
-            { id: 'users', icon: '👥', label: 'Users (प्रयोगकर्ता)' },
-        ] : []),
+        // Settings / Account
+        { id: 'accounts',  icon: '👤',  label: 'Accounts (खाता)' },
+        { id: 'guides',    icon: '📚',  label: 'User Guide (मद्दत निर्देशिका)' },
+        { id: 'import',    icon: '📥',  label: 'Import Data (डाटा आयात)' },
     ];
 
     return (

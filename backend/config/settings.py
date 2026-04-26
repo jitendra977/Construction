@@ -56,6 +56,9 @@ INSTALLED_APPS = [
 
     # ── Finance Module (clean separate implementation) ──────────────────────
     'apps.fin',
+
+    # ── Resource Module ──────────────────────────────────────────────────────
+    'apps.resource',
 ]
 
 # ─── Photo Intelligence (HCMS-2) ──────────────────────────────────────

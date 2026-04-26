@@ -8,7 +8,8 @@ from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 
 from apps.accounts.views import UserViewSet, RoleViewSet, ActivityLogViewSet
-from apps.core.views import HouseProjectViewSet, ConstructionPhaseViewSet, RoomViewSet, FloorViewSet, UserGuideViewSet, UserGuideStepViewSet, UserGuideFAQViewSet, EmailLogViewSet, DashboardDataView
+from apps.accounts.urls import accounts_urlpatterns
+from apps.core.views import HouseProjectViewSet, ConstructionPhaseViewSet, RoomViewSet, FloorViewSet, UserGuideViewSet, UserGuideStepViewSet, UserGuideFAQViewSet, EmailLogViewSet, DashboardDataView, ProjectMemberViewSet
 from apps.core.import_views import SqlImportView, RawDataPopulationView
 from apps.core.gallery_views import GalleryViewSet
 from apps.tasks.views import TaskViewSet, TaskUpdateViewSet, TaskMediaViewSet
@@ -21,8 +22,8 @@ router.register(r'roles', RoleViewSet)
 router.register(r'activity-logs', ActivityLogViewSet)
 router.register(r'projects', HouseProjectViewSet, basename='project')
 router.register(r'phases', ConstructionPhaseViewSet)
-router.register(r'floors', FloorViewSet)
-router.register(r'rooms', RoomViewSet)
+router.register(r'floors', FloorViewSet, basename='floor')
+router.register(r'rooms', RoomViewSet, basename='room')
 router.register(r'tasks', TaskViewSet)
 router.register(r'updates', TaskUpdateViewSet)
 router.register(r'task-media', TaskMediaViewSet)
@@ -38,10 +39,12 @@ router.register(r'user-guides', UserGuideViewSet)
 router.register(r'user-guide-steps', UserGuideStepViewSet)
 router.register(r'user-guide-faqs', UserGuideFAQViewSet)
 router.register(r'email-logs', EmailLogViewSet)
+router.register(r'project-members', ProjectMemberViewSet, basename='project-member')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/v1/auth/', include('apps.accounts.urls')), # Auth endpoints
+    path('api/v1/auth/', include('apps.accounts.urls')),      # Auth endpoints (legacy)
+    path('api/v1/accounts/', include(accounts_urlpatterns)),  # Accounts module
     path('api/v1/dashboard/combined/', DashboardDataView.as_view(), name='dashboard-combined'),
     path('api/v1/import/sql/', SqlImportView.as_view(), name='sql-import'),
     path('api/v1/import/populate-raw-data/', RawDataPopulationView.as_view(), name='populate-raw-data'),
@@ -56,6 +59,9 @@ urlpatterns = [
 
     # ── Finance Module (clean separate implementation) ──────────────────────
     path('api/v1/fin/', include('apps.fin.urls')),
+
+    # ── Resource Module ──────────────────────────────────────────────────────
+    path('api/v1/resource/', include('apps.resource.urls')),
 ]
 
 # Serve media files in development

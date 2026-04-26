@@ -6,6 +6,8 @@ User = get_user_model()
 
 
 class RoleSerializer(serializers.ModelSerializer):
+    user_count = serializers.IntegerField(read_only=True, default=0)
+
     class Meta:
         model = Role
         fields = '__all__'
@@ -34,9 +36,9 @@ class UserSerializer(serializers.ModelSerializer):
             'role', 'role_id', 'is_verified', 'is_system_admin',
             'contractor_profile', 'password', 'is_superuser',
             'assigned_projects', 'assigned_project_ids', 'assigned_projects_data',
-            'is_active', 'date_joined'
+            'is_active', 'date_joined', 'frontend_last_login',
         )
-        read_only_fields = ('id', 'is_verified', 'is_system_admin', 'is_superuser', 'assigned_projects', 'date_joined')
+        read_only_fields = ('id', 'is_verified', 'is_system_admin', 'is_superuser', 'assigned_projects', 'date_joined', 'frontend_last_login')
 
     def get_assigned_projects_data(self, obj):
         return [{'id': p.id, 'name': p.name} for p in obj.assigned_projects.all()]

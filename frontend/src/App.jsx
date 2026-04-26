@@ -21,6 +21,12 @@ const LoadingFallback = () => (
   </div>
 );
 
+// Routes that exist on mobile — only convert to mobile if the segment is known
+const MOBILE_ROUTES = new Set([
+  'home', 'manage', 'budget', 'estimator', 'permits',
+  'photos', 'profile', 'activity-logs', 'import', 'timelapse', 'analytics',
+]);
+
 // Helper component to handle responsive redirection
 const ResponsiveRedirector = ({ children }) => {
   const location = useLocation();
@@ -33,13 +39,20 @@ const ResponsiveRedirector = ({ children }) => {
       if (mobile !== isMobile) {
         setIsMobile(mobile);
 
-        // If currently in dashboard, synchronize paths
         if (location.pathname.startsWith('/dashboard')) {
           const currentPath = location.pathname;
           let targetPath = '';
 
           if (mobile && currentPath.includes('/dashboard/desktop')) {
-            targetPath = currentPath.replace('/dashboard/desktop', '/dashboard/mobile');
+            // Only convert if the first path segment after /desktop/ is a known mobile route
+            const afterDesktop = currentPath.replace('/dashboard/desktop/', '');
+            const firstSegment = afterDesktop.split('/')[0];
+            if (MOBILE_ROUTES.has(firstSegment)) {
+              targetPath = currentPath.replace('/dashboard/desktop', '/dashboard/mobile');
+            } else {
+              // Desktop-only page (projects, finance, structure, etc.) → fallback to mobile home
+              targetPath = '/dashboard/mobile/home';
+            }
           } else if (!mobile && currentPath.includes('/dashboard/mobile')) {
             targetPath = currentPath.replace('/dashboard/mobile', '/dashboard/desktop');
           }

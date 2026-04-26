@@ -9,6 +9,7 @@ const NAV = [
   { to: 'ledger',    icon: '📒', label: 'Ledger' },
   { to: 'bills',     icon: '🧾', label: 'Bills' },
   { to: 'budget',    icon: '🎯', label: 'Budget' },
+  { to: 'help',      icon: '📖', label: 'सहायता' },
 ];
 
 export default function FinanceSidebar() {

@@ -61,6 +61,62 @@ export default function HelpPage() {
         </p>
       </div>
 
+      {/* How to Access */}
+      <Section icon="🚀" title="वित्त मोड्युल कसरी खोल्ने?" subtitle="पहुँच मार्गदर्शन — How to Access">
+        <p>वित्त मोड्युल खोल्न तलका दुई तरिकामध्ये कुनै एक प्रयोग गर्नुहोस्:</p>
+
+        {/* Method 1 — Sidebar */}
+        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+          <p className="text-[10px] font-black text-blue-600 uppercase mb-3">तरिका १ — Sidebar बाट</p>
+          <ol className="text-xs text-blue-700 space-y-2 list-decimal list-inside">
+            <li>बायाँतिरको मुख्य Sidebar मा हेर्नुहोस्</li>
+            <li><strong>💰 Finance</strong> लिङ्कमा क्लिक गर्नुहोस्</li>
+            <li>Finance मोड्युल सिधै खुल्छ — Dashboard देखिन्छ</li>
+          </ol>
+        </div>
+
+        {/* Method 2 — URL */}
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+          <p className="text-[10px] font-black text-gray-600 uppercase mb-3">तरिका २ — URL सिधै टाइप गरेर</p>
+          <div className="space-y-1.5">
+            {[
+              { path: '/dashboard/desktop/finance',           label: 'Dashboard (मुख्य पृष्ठ)' },
+              { path: '/dashboard/desktop/finance/banking',   label: 'Banking' },
+              { path: '/dashboard/desktop/finance/loans',     label: 'Loans' },
+              { path: '/dashboard/desktop/finance/transfers', label: 'Transfers' },
+              { path: '/dashboard/desktop/finance/ledger',    label: 'Ledger' },
+              { path: '/dashboard/desktop/finance/bills',     label: 'Bills' },
+              { path: '/dashboard/desktop/finance/budget',    label: 'Budget' },
+              { path: '/dashboard/desktop/finance/help',      label: 'सहायता (यही पृष्ठ)' },
+            ].map(({ path, label }) => (
+              <div key={path} className="flex items-center justify-between bg-white border border-gray-100 rounded-lg px-3 py-2">
+                <span className="text-[10px] font-mono text-gray-500">{path}</span>
+                <span className="text-[10px] font-bold text-gray-700 ml-4 whitespace-nowrap">{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Prerequisite */}
+        <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4">
+          <p className="text-[10px] font-black text-yellow-700 uppercase mb-2">⚠️ पहिले गर्नु पर्ने काम</p>
+          <ul className="text-xs text-yellow-700 space-y-1.5">
+            <li className="flex items-start gap-2">
+              <span className="font-black mt-0.5">১.</span>
+              <span>Login गर्नुहोस् — बिना Login वित्त मोड्युल खुल्दैन (JWT token चाहिन्छ)</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="font-black mt-0.5">२.</span>
+              <span>परियोजना (Project) छान्नुहोस् — कुनै परियोजना नछानी डेटा देखिँदैन</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="font-black mt-0.5">३.</span>
+              <span>Backend चलिरहेको हुनुपर्छ — <span className="font-mono">python manage.py runserver</span> र <span className="font-mono">migrate</span> भएको हुनुपर्छ</span>
+            </li>
+          </ul>
+        </div>
+      </Section>
+
       {/* Overview */}
       <Section icon="💰" title="वित्त मोड्युल भनेको के हो?" subtitle="परिचय">
         <p>

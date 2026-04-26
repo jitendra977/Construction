@@ -2,21 +2,24 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
 // Desktop Components
-import DesktopHome from '../../components/desktop/DesktopHome';
-import DesktopPhotos from '../../components/desktop/DesktopPhotos';
-import DesktopManage from '../../components/desktop/DesktopManage';
-import EstimatorHub from '../../pages/estimator/EstimatorHub';
-import PermitPage from '../../pages/permits/PermitPage';
-import Profile from '../../pages/Profile';
-import ActivityLogs from '../../pages/accounts/ActivityLogs';
-import UserManagement from '../../pages/accounts/UserManagement';
-import DataImportPage from '../../pages/DataImportPage';
-import UserGuidePage from '../../pages/desktop/UserGuidePage';
-import TimelapsePage from '../../pages/TimelapsePage';
-import AnalyticsPage from '../../pages/AnalyticsPage';
+import DesktopHome     from '../../components/desktop/DesktopHome';
+import DesktopPhotos   from '../../components/desktop/DesktopPhotos';
+import DesktopManage   from '../../components/desktop/DesktopManage';
+import EstimatorHub    from '../../pages/estimator/EstimatorHub';
+import PermitPage      from '../../pages/permits/PermitPage';
+import DataImportPage  from '../../pages/DataImportPage';
+import UserGuidePage   from '../../pages/desktop/UserGuidePage';
+import TimelapsePage   from '../../pages/TimelapsePage';
+import AnalyticsPage   from '../../pages/AnalyticsPage';
 
-// Finance Module (self-contained)
-import FinanceRoutes from '../../modules/finance';
+// Self-contained modules
+import FinanceRoutes   from '../../modules/finance';
+import ResourceRoutes  from '../../modules/resource';
+import StructureRoutes from '../../modules/structure';
+import ProjectsRoutes  from '../../modules/projects';
+import TimelineRoutes  from '../../modules/timeline';
+import AccountsRoutes  from '../../modules/accounts';
+
 import { useConstruction } from '../../context/ConstructionContext';
 
 const DesktopRoutes = () => {
@@ -24,23 +27,37 @@ const DesktopRoutes = () => {
 
     return (
         <Routes>
-            <Route index element={<Navigate to="home" replace />} />
-            <Route path="home" element={<DesktopHome />} />
-            <Route path="estimator" element={<EstimatorHub />} />
-            <Route path="permits" element={<PermitPage />} />
-            <Route path="manage" element={<DesktopManage />} />
-            <Route path="photos" element={<DesktopPhotos />} />
-            <Route path="profile" element={<Profile />} />
-            <Route path="activity-logs" element={<ActivityLogs />} />
-            <Route path="users" element={<UserManagement />} />
-            <Route path="import" element={<DataImportPage />} />
-            <Route path="guides" element={<UserGuidePage />} />
-            <Route path="timelapse" element={<TimelapsePage />} />
-            <Route path="analytics" element={<AnalyticsPage />} />
-            {/* Finance Module */}
-            <Route path="finance/*" element={<FinanceRoutes projectId={activeProjectId} />} />
-            {/* Catch-all to home */}
-            <Route path="*" element={<Navigate to="/dashboard/desktop/home" replace />} />
+            {/* Default → Projects gateway */}
+            <Route index element={<Navigate to="projects" replace />} />
+
+            {/* Stand-alone pages */}
+            <Route path="home"       element={<DesktopHome />}    />
+            <Route path="estimator"  element={<EstimatorHub />}   />
+            <Route path="permits"    element={<PermitPage />}     />
+            <Route path="manage"     element={<DesktopManage />}  />
+            <Route path="photos"     element={<DesktopPhotos />}  />
+            <Route path="import"     element={<DataImportPage />} />
+            <Route path="guides"     element={<UserGuidePage />}  />
+            <Route path="timelapse"  element={<TimelapsePage />}  />
+            <Route path="analytics"  element={<AnalyticsPage />}  />
+
+            {/* Self-contained modules */}
+            <Route path="projects/*"  element={<ProjectsRoutes />} />
+            <Route path="finance/*"   element={<FinanceRoutes   projectId={activeProjectId} />} />
+            <Route path="resource/*"  element={<ResourceRoutes  projectId={activeProjectId} />} />
+            <Route path="structure/*" element={<StructureRoutes projectId={activeProjectId} />} />
+            <Route path="timeline/*"  element={<TimelineRoutes />} />
+
+            {/* Accounts module — users, roles, profile, activity */}
+            <Route path="accounts/*"  element={<AccountsRoutes />} />
+
+            {/* Legacy redirects for old scattered account routes */}
+            <Route path="profile"       element={<Navigate to="/dashboard/desktop/accounts/profile"  replace />} />
+            <Route path="users"         element={<Navigate to="/dashboard/desktop/accounts/users"    replace />} />
+            <Route path="activity-logs" element={<Navigate to="/dashboard/desktop/accounts/activity" replace />} />
+
+            {/* Catch-all */}
+            <Route path="*" element={<Navigate to="/dashboard/desktop/projects" replace />} />
         </Routes>
     );
 };

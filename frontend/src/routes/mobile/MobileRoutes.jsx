@@ -29,8 +29,8 @@ const MobileRoutes = () => {
             <Route path="import" element={<DataImportPage />} />
             <Route path="timelapse" element={<TimelapsePage />} />
             <Route path="analytics" element={<AnalyticsPage />} />
-            {/* Catch-all to home */}
-            <Route path="*" element={<Navigate to="home" replace />} />
+            {/* Catch-all — absolute path to prevent stacking loop */}
+            <Route path="*" element={<Navigate to="/dashboard/mobile/home" replace />} />
         </Routes>
     );
 };

@@ -13,6 +13,7 @@
  *   /finance/ledger          → LedgerPage        (GL accounts + journal)
  *   /finance/bills           → BillsPage         (vendor bills + payments)
  *   /finance/budget          → BudgetPage        (budget categories + allocations)
+ *   /finance/help            → HelpPage          (Nepali help — how/why/when/who)
  */
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
@@ -27,6 +28,7 @@ import TransfersPage      from '../pages/TransfersPage';
 import LedgerPage         from '../pages/LedgerPage';
 import BillsPage          from '../pages/BillsPage';
 import BudgetPage         from '../pages/BudgetPage';
+import HelpPage           from '../pages/HelpPage';
 
 export default function FinanceRoutes({ projectId }) {
   return (
@@ -40,7 +42,8 @@ export default function FinanceRoutes({ projectId }) {
           <Route path="ledger"        element={<LedgerPage />} />
           <Route path="bills"         element={<BillsPage />} />
           <Route path="budget"        element={<BudgetPage />} />
-          <Route path="*"             element={<Navigate to="" replace />} />
+          <Route path="help"          element={<HelpPage />} />
+          <Route path="*"             element={<Navigate to="/dashboard/desktop/finance" replace />} />
         </Routes>
       </FinanceLayout>
     </FinanceProvider>
