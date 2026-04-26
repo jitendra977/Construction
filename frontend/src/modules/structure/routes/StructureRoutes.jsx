@@ -34,7 +34,7 @@ export default function StructureRoutes({ projectId }) {
                     <Route path="rooms"         element={<RoomsPage />} />
                     <Route path="progress"      element={<ProgressPage />} />
                     <Route path="help"          element={<HelpPage />} />
-                    <Route path="*"             element={<Navigate to="/dashboard/desktop/structure" replace />} />
+                    <Route path="*"             element={<Navigate to="" replace />} />
                 </Routes>
             </StructureLayout>
         </StructureProvider>

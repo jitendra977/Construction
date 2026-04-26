@@ -1,17 +1,18 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { usePlatformBase } from '../../../../shared/utils/platformNav';
 
-const BASE = '/dashboard/desktop/structure';
-
-const TABS = [
-    { to: BASE,                    icon: '🏗️',  label: 'Overview',   end: true },
-    { to: `${BASE}/floorplan`,     icon: '🗺️',  label: 'Floor Plan' },
-    { to: `${BASE}/rooms`,         icon: '🚪',  label: 'Rooms' },
-    { to: `${BASE}/progress`,      icon: '📊',  label: 'Progress' },
-    { to: `${BASE}/help`,          icon: '📖',  label: 'सहायता' },
-];
 
 export default function StructureTopNav() {
+    const base = usePlatformBase();
+    const BASE = `${base}/structure`;
+    const TABS = [
+        { to: BASE,                          icon: '🏗️', label: 'Overview',   end: true },
+        { to: `${base}/structure/floorplan`, icon: '🗺️', label: 'Floor Plan' },
+        { to: `${base}/structure/rooms`,     icon: '🚪', label: 'Rooms'      },
+        { to: `${base}/structure/progress`,  icon: '📊', label: 'Progress'   },
+        { to: `${base}/structure/help`,      icon: '📖', label: 'सहायता'    },
+    ];
     return (
         <div
             className="flex items-center gap-1 px-4 py-2 overflow-x-auto shrink-0"

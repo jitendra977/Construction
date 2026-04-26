@@ -356,7 +356,7 @@ class UserGuide(models.Model):
 
 class UserGuideStep(models.Model):
     """
-    Individual steps for a guide.
+    Individual steps for a guide — any authenticated user can add.
     """
     PLACEMENT_CHOICES = [
         ('top', 'Top'),
@@ -369,35 +369,90 @@ class UserGuideStep(models.Model):
     guide = models.ForeignKey(UserGuide, on_delete=models.CASCADE, related_name='steps')
     order = models.PositiveIntegerField(default=0)
     text_en = models.TextField()
-    text_ne = models.TextField()
-    
+    text_ne = models.TextField(blank=True)
+
     # Interactive Tour Specifics
-    target_element = models.CharField(max_length=255, blank=True, help_text="CSS selector for the element to highlight (e.g., '#add-btn').")
-    media = models.FileField(upload_to='guides/steps/', null=True, blank=True, help_text="Image or GIF to show in the step.")
-    placement = models.CharField(max_length=20, choices=PLACEMENT_CHOICES, blank=True, help_text="Tooltip placement for tour libraries.")
+    target_element = models.CharField(max_length=255, blank=True)
+    media = models.FileField(upload_to='guides/steps/', null=True, blank=True)
+    placement = models.CharField(max_length=20, choices=PLACEMENT_CHOICES, blank=True)
+
+    # Contributor tracking
+    added_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='guide_steps_added'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['order']
+        ordering = ['order', 'created_at']
 
     def __str__(self):
         return f"{self.guide.key} Step {self.order}"
 
+
 class UserGuideFAQ(models.Model):
     """
-    Frequently asked questions for a guide.
+    Frequently asked questions — any authenticated user can add.
     """
     guide = models.ForeignKey(UserGuide, on_delete=models.CASCADE, related_name='faqs')
     question_en = models.TextField()
-    question_ne = models.TextField()
+    question_ne = models.TextField(blank=True)
     answer_en = models.TextField()
-    answer_ne = models.TextField()
+    answer_ne = models.TextField(blank=True)
     order = models.PositiveIntegerField(default=0)
 
+    # Contributor tracking
+    added_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='guide_faqs_added'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
     class Meta:
-        ordering = ['order']
+        ordering = ['order', 'created_at']
 
     def __str__(self):
         return f"{self.guide.key} FAQ: {self.question_en[:30]}"
+
+
+class UserGuideSection(models.Model):
+    """
+    Flexible custom section (Tips, Warnings, Notes, or any custom label)
+    that any authenticated user can contribute to a module guide.
+    """
+    SECTION_TYPES = [
+        ('tip',     '💡 Tip'),
+        ('warning', '⚠️ Warning'),
+        ('note',    '📝 Note'),
+        ('trick',   '🎯 Pro Trick'),
+        ('custom',  '📌 Custom'),
+    ]
+
+    guide        = models.ForeignKey(UserGuide, on_delete=models.CASCADE, related_name='sections')
+    section_type = models.CharField(max_length=20, choices=SECTION_TYPES, default='note')
+    title_en     = models.CharField(max_length=200)
+    title_ne     = models.CharField(max_length=200, blank=True)
+    content_en   = models.TextField()
+    content_ne   = models.TextField(blank=True)
+    order        = models.PositiveIntegerField(default=0)
+
+    # Contributor tracking
+    added_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='guide_sections_added'
+    )
+    is_approved  = models.BooleanField(default=True, help_text="Admins can hide contributed sections.")
+    created_at   = models.DateTimeField(auto_now_add=True)
+    updated_at   = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order', 'created_at']
+        verbose_name = "Guide Section"
+        verbose_name_plural = "Guide Sections"
+
+    def __str__(self):
+        return f"{self.guide.key} — {self.get_section_type_display()}: {self.title_en[:40]}"
+
 
 class UserGuideProgress(models.Model):
     """

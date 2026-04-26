@@ -43,6 +43,7 @@ const Badge = ({ color, label }) => {
 };
 
 export default function HelpPage() {
+    const base = usePlatformBase();
   return (
     <div className="space-y-6 pb-10">
 
@@ -80,14 +81,14 @@ export default function HelpPage() {
           <p className="text-[10px] font-black text-gray-600 uppercase mb-3">तरिका २ — URL सिधै टाइप गरेर</p>
           <div className="space-y-1.5">
             {[
-              { path: '/dashboard/desktop/finance',           label: 'Dashboard (मुख्य पृष्ठ)' },
-              { path: '/dashboard/desktop/finance/banking',   label: 'Banking' },
-              { path: '/dashboard/desktop/finance/loans',     label: 'Loans' },
-              { path: '/dashboard/desktop/finance/transfers', label: 'Transfers' },
-              { path: '/dashboard/desktop/finance/ledger',    label: 'Ledger' },
-              { path: '/dashboard/desktop/finance/bills',     label: 'Bills' },
-              { path: '/dashboard/desktop/finance/budget',    label: 'Budget' },
-              { path: '/dashboard/desktop/finance/help',      label: 'सहायता (यही पृष्ठ)' },
+              { path: `${base}/finance`,           label: 'Dashboard (मुख्य पृष्ठ)' },
+              { path: `${base}/finance/banking`,   label: 'Banking' },
+              { path: `${base}/finance/loans`,     label: 'Loans' },
+              { path: `${base}/finance/transfers`, label: 'Transfers' },
+              { path: `${base}/finance/ledger`,    label: 'Ledger' },
+              { path: `${base}/finance/bills`,     label: 'Bills' },
+              { path: `${base}/finance/budget`,    label: 'Budget' },
+              { path: `${base}/finance/help`,      label: 'सहायता (यही पृष्ठ)' },
             ].map(({ path, label }) => (
               <div key={path} className="flex items-center justify-between bg-white border border-gray-100 rounded-lg px-3 py-2">
                 <span className="text-[10px] font-mono text-gray-500">{path}</span>

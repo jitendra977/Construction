@@ -31,7 +31,7 @@ export default function AccountsRoutes() {
                     <Route path="users"     element={<UsersPage />}         />
                     <Route path="roles"     element={<RolesPage />}         />
                     <Route path="activity"  element={<ActivityPage />}      />
-                    <Route path="*"         element={<Navigate to="/dashboard/desktop/accounts" replace />} />
+                    <Route path="*"         element={<Navigate to="" replace />} />
                 </Routes>
             </AccountsLayout>
         </AccountsProvider>

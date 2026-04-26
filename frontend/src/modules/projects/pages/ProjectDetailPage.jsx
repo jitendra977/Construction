@@ -4,6 +4,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
+import { usePlatformBase } from '../../../shared/utils/platformNav';
 import api from '../services/projectsApi';
 import { useConstruction } from '../../../context/ConstructionContext';
 
@@ -38,6 +39,7 @@ const ProgressBar = ({ value, max, color = '#f97316', label }) => {
 export default function ProjectDetailPage() {
     const { project }  = useOutletContext() || {};
     const navigate     = useNavigate();
+    const base    = usePlatformBase();
     const { activeProjectId } = useConstruction();
     const [stats, setStats]   = useState(null);
     const [loadingStats, setLS] = useState(false);
@@ -59,7 +61,7 @@ export default function ProjectDetailPage() {
             <p className="text-base font-semibold" style={{ color: 'var(--t-text3)' }}>
                 No project selected. Go back to Projects and pick one.
             </p>
-            <button onClick={() => navigate('/dashboard/desktop/projects')}
+            <button onClick={() => navigate(`${base}/projects`)}
                 className="mt-4 px-5 py-2.5 rounded-xl text-sm font-bold text-white"
                 style={{ background: '#f97316' }}>
                 ← Back to Projects
@@ -89,12 +91,12 @@ export default function ProjectDetailPage() {
                         </div>
                     </div>
                     <div className="flex gap-2">
-                        <button onClick={() => navigate(`/dashboard/desktop/projects/${id}/settings`)}
+                        <button onClick={() => navigate(`${base}/projects/${id}/settings`)}
                             className="px-4 py-2 rounded-lg text-xs font-semibold"
                             style={{ background: 'var(--t-bg)', color: 'var(--t-text3)', border: '1px solid var(--t-border)' }}>
                             ⚙️ Settings
                         </button>
-                        <button onClick={() => navigate(`/dashboard/desktop/projects/${id}/team`)}
+                        <button onClick={() => navigate(`${base}/projects/${id}/team`)}
                             className="px-4 py-2 rounded-lg text-xs font-semibold"
                             style={{ background: 'var(--t-bg)', color: 'var(--t-text3)', border: '1px solid var(--t-border)' }}>
                             👥 Team
@@ -173,7 +175,7 @@ export default function ProjectDetailPage() {
                             <StatCard icon="🤝" label="Contractors" value={s.resources.contractors} color="#3b82f6" />
                             <StatCard icon="👥" label="Team Members" value={s.team.members}         color="#8b5cf6" />
                             <div
-                                onClick={() => navigate('/dashboard/desktop/resource')}
+                                onClick={() => navigate(`${base}/resource`)}
                                 className="rounded-xl p-4 cursor-pointer flex flex-col gap-1 hover:opacity-80 transition-opacity"
                                 style={{ background: 'rgba(249,115,22,0.08)', border: '1px dashed #f97316' }}>
                                 <p className="text-2xl">🧱</p>
@@ -190,15 +192,15 @@ export default function ProjectDetailPage() {
                     style={{ color: 'var(--t-text3)' }}>⚡ Quick Links</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {[
-                        { icon: '📅', label: 'Timeline',   path: '/dashboard/desktop/timeline'   },
-                        { icon: '🏛️', label: 'Structure',  path: '/dashboard/desktop/structure'  },
-                        { icon: '💰', label: 'Finance',    path: '/dashboard/desktop/finance'    },
-                        { icon: '🧱', label: 'Resources',  path: '/dashboard/desktop/resource'   },
-                        { icon: '📜', label: 'Permits',    path: '/dashboard/desktop/permits'    },
-                        { icon: '📸', label: 'Gallery',    path: '/dashboard/desktop/photos'     },
-                        { icon: '📈', label: 'Analytics',  path: '/dashboard/desktop/analytics'  },
-                        { icon: '🛠️', label: 'Manage',    path: '/dashboard/desktop/manage'     },
-                        { icon: '🧮', label: 'Estimator',  path: '/dashboard/desktop/estimator'  },
+                        { icon: '📅', label: 'Timeline',   path: `${base}/timeline`   },
+                        { icon: '🏛️', label: 'Structure',  path: `${base}/structure`  },
+                        { icon: '💰', label: 'Finance',    path: `${base}/finance`    },
+                        { icon: '🧱', label: 'Resources',  path: `${base}/resource`   },
+                        { icon: '📜', label: 'Permits',    path: `${base}/permits`    },
+                        { icon: '📸', label: 'Gallery',    path: `${base}/photos`     },
+                        { icon: '📈', label: 'Analytics',  path: `${base}/analytics`  },
+                        { icon: '🛠️', label: 'Manage',    path: `${base}/manage`     },
+                        { icon: '🧮', label: 'Estimator',  path: `${base}/estimator`  },
                     ].map(({ icon, label, path }) => (
                         <button key={path} onClick={() => navigate(path)}
                             className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:shadow-md"

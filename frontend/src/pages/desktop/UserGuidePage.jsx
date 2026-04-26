@@ -1,504 +1,868 @@
-import React, { useState, useMemo, useEffect } from 'react';
+/**
+ * UserGuidePage — full wiki-style knowledge base.
+ *
+ * Layout:
+ *   Left sidebar  → all module guide cards, auto-populated from backend
+ *   Right panel   → selected guide: description, steps, FAQ accordion,
+ *                   user-contributed sections
+ *
+ * Permissions:
+ *   Any authenticated user  → can read everything, add steps / FAQs / sections
+ *   Admin                   → can also edit guide metadata, delete any content
+ */
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { useConstruction } from '../../context/ConstructionContext';
-import { dashboardService, getMediaUrl } from '../../services/api';
+import { dashboardService } from '../../services/api';
 import ConfirmModal from '../../components/common/ConfirmModal';
 
-const UserGuidePage = () => {
-    const { dashboardData, user, language, refreshData } = useConstruction();
-    const guides = dashboardData?.userGuides || [];
-    const isNe = language === 'ne';
-    const isAdmin = user?.is_system_admin;
+// ── Section-type config ───────────────────────────────────────────────────────
+const SECTION_TYPES = [
+    { value: 'tip',     label: '💡 Tip',       color: '#10b981', bg: '#10b98112' },
+    { value: 'warning', label: '⚠️ Warning',   color: '#f59e0b', bg: '#f59e0b12' },
+    { value: 'note',    label: '📝 Note',       color: '#6366f1', bg: '#6366f112' },
+    { value: 'trick',   label: '🎯 Pro Trick',  color: '#ec4899', bg: '#ec489912' },
+    { value: 'custom',  label: '📌 Custom',     color: '#64748b', bg: '#64748b12' },
+];
+const sectionTypeMeta = (type) =>
+    SECTION_TYPES.find(t => t.value === type) || SECTION_TYPES[2];
 
-    const [searchQuery, setSearchQuery] = useState('');
-    const [selectedGuideId, setSelectedGuideId] = useState(null);
-    const [isManageMode, setIsManageMode] = useState(false);
-    
-    // Unified Documentation State
-    const [isEditingDetail, setIsEditingDetail] = useState(false);
-    const [isCreateMode, setIsCreateMode] = useState(false);
-    const [formLanguage, setFormLanguage] = useState(language || 'en');
-    const [localGuideData, setLocalGuideData] = useState(null);
-    const [isSaving, setIsSaving] = useState(false);
+// ── Small utilities ───────────────────────────────────────────────────────────
+function Avatar({ name, size = 28 }) {
+    const initials = (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    const colors   = ['#6366f1','#f97316','#10b981','#ec4899','#3b82f6','#8b5cf6'];
+    const bg       = colors[(initials.charCodeAt(0) || 0) % colors.length];
+    return (
+        <span style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: size, height: size, borderRadius: '50%',
+            background: bg, color: '#fff', fontSize: size * 0.38,
+            fontWeight: 900, flexShrink: 0, letterSpacing: '-0.5px',
+        }}>{initials}</span>
+    );
+}
 
-    // Confirmation Modal System
-    const [confirmConfig, setConfirmConfig] = useState({ isOpen: false });
-    const showConfirm = (config) => setConfirmConfig({ ...config, isOpen: true });
-    const closeConfirm = () => setConfirmConfig({ ...confirmConfig, isOpen: false });
+function Tag({ children, color }) {
+    return (
+        <span style={{
+            fontSize: 9, fontWeight: 900, textTransform: 'uppercase',
+            letterSpacing: '0.12em', padding: '2px 8px', borderRadius: 999,
+            background: color + '18', color, border: `1px solid ${color}30`,
+        }}>{children}</span>
+    );
+}
 
-    // Derive active guide from live data
-    const selectedGuide = useMemo(() => {
-        return guides.find(g => g.id === selectedGuideId);
-    }, [guides, selectedGuideId]);
+// ── Inline add-form for steps ─────────────────────────────────────────────────
+function AddStepForm({ guideId, onSaved, onCancel, language }) {
+    const [text, setText] = useState('');
+    const [saving, setSaving] = useState(false);
 
-    // Initialize local guide data when a guide is selected or create mode toggled
-    useEffect(() => {
-        if (isCreateMode) {
-            setLocalGuideData({
-                title_en: '', title_ne: '',
-                description_en: '', description_ne: '',
-                icon: 'ℹ️', type: 'modal', key: '',
-                is_active: true, order: guides.length,
-                steps: [], faqs: []
-            });
-        } else if (selectedGuide) {
-            setLocalGuideData({
-                ...selectedGuide,
-                steps: [...(selectedGuide.steps || [])].sort((a, b) => a.order - b.order),
-                faqs: [...(selectedGuide.faqs || [])].sort((a, b) => a.order - b.order)
-            });
-        } else {
-            setLocalGuideData(null);
-            setIsEditingDetail(false);
-        }
-    }, [selectedGuide, isCreateMode, guides.length]);
-
-    const filteredGuides = useMemo(() => {
-        return guides.filter(g => 
-            (isAdmin || g.is_active) && 
-            (g.title_en.toLowerCase().includes(searchQuery.toLowerCase()) || 
-             g.title_ne.includes(searchQuery))
-        );
-    }, [guides, searchQuery, isAdmin]);
-
-    const handleDeleteGuide = (id) => {
-        showConfirm({
-            title: "Delete Guide?",
-            message: "This will permanently remove the guide, all its steps, and FAQ data. This action cannot be undone.",
-            confirmText: "Yes, Delete Everything",
-            type: "danger",
-            onConfirm: async () => {
-                try {
-                    await dashboardService.deleteUserGuide(id);
-                    refreshData();
-                    if (selectedGuideId === id) setSelectedGuideId(null);
-                    closeConfirm();
-                } catch (error) {
-                    alert("Error deleting guide.");
-                    closeConfirm();
-                }
-            }
-        });
-    };
-
-    const handleToggleStatus = async (guide) => {
+    const save = async () => {
+        if (!text.trim()) return;
+        setSaving(true);
         try {
-            await dashboardService.updateUserGuide(guide.id, { is_active: !guide.is_active });
-            refreshData();
-        } catch (error) {
-            alert("Failed to toggle status.");
-        }
-    };
-
-    const handleReorder = async (guide, direction) => {
-        const currentIndex = guides.findIndex(g => g.id === guide.id);
-        const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-        if (targetIndex < 0 || targetIndex >= guides.length) return;
-        const targetGuide = guides[targetIndex];
-        try {
-            await Promise.all([
-                dashboardService.updateUserGuide(guide.id, { order: targetGuide.order }),
-                dashboardService.updateUserGuide(targetGuide.id, { order: guide.order })
-            ]);
-            refreshData();
-        } catch (error) {
-            console.error("Reorder failed:", error);
-        }
-    };
-
-    // Unified Saving Logic for both Create and Update
-    const handleSaveAllChanges = async () => {
-        if (!localGuideData) return;
-        if (isCreateMode && !localGuideData.key) return alert("Unique Key is required.");
-        
-        setIsSaving(true);
-        try {
-            let guideId = localGuideData.id;
-
-            // 1. Create or Update Guide Metadata
-            if (isCreateMode) {
-                const response = await dashboardService.createUserGuide(localGuideData);
-                guideId = response.data.id;
-            } else {
-                await dashboardService.updateUserGuide(guideId, {
-                    title_en: localGuideData.title_en,
-                    title_ne: localGuideData.title_ne,
-                    description_en: localGuideData.description_en,
-                    description_ne: localGuideData.description_ne,
-                    icon: localGuideData.icon,
-                    is_active: localGuideData.is_active,
-                    type: localGuideData.type,
-                    key: localGuideData.key,
-                    video_url: localGuideData.video_url
-                });
-            }
-
-            // 2. Save Steps & FAQs
-            const stepUpdates = localGuideData.steps.map(step => {
-                if (step.id) return dashboardService.updateGuideStep(step.id, step);
-                return dashboardService.createGuideStep({ ...step, guide: guideId });
+            await dashboardService.createGuideStep({
+                guide:   guideId,
+                text_en: language === 'en' ? text : '',
+                text_ne: language === 'ne' ? text : '',
+                order:   999,
             });
-
-            const faqUpdates = localGuideData.faqs.map(faq => {
-                if (faq.id) return dashboardService.updateGuideFaq(faq.id, faq);
-                return dashboardService.createGuideFaq({ ...faq, guide: guideId });
-            });
-
-            await Promise.all([...stepUpdates, ...faqUpdates]);
-            
-            await refreshData();
-            setIsEditingDetail(false);
-            setIsCreateMode(false);
-            setSelectedGuideId(null);
-            alert(`Successfully ${isCreateMode ? 'created' : 'saved'} documentation!`);
-        } catch (error) {
-            console.error("Save failed:", error);
-            alert("Failed to save. Please check your data.");
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    // Local Field Switcher
-    const getLF = (field) => {
-        const key = formLanguage === 'en' ? `${field}_en` : `${field}_ne`;
-        return localGuideData[key] || '';
-    };
-
-    const updateLF = (field, val) => {
-        const key = formLanguage === 'en' ? `${field}_en` : `${field}_ne`;
-        setLocalGuideData({ ...localGuideData, [key]: val });
-    };
-
-    const handleAddLocalStep = () => {
-        const newStep = {
-            order: localGuideData.steps.length,
-            text_en: 'New Step Instruction', text_ne: 'नयाँ चरण निर्देशिका',
-            target_element: '', placement: 'bottom'
-        };
-        setLocalGuideData({ ...localGuideData, steps: [...localGuideData.steps, newStep] });
-    };
-
-    const handleAddLocalFaq = () => {
-        const newFaq = {
-            order: localGuideData.faqs.length,
-            question_en: 'New Question', question_ne: 'नयाँ प्रश्न',
-            answer_en: 'Answer here', answer_ne: 'उत्तर यहाँ'
-        };
-        setLocalGuideData({ ...localGuideData, faqs: [...localGuideData.faqs, newFaq] });
+            onSaved();
+        } catch { alert('Failed to save step.'); }
+        finally   { setSaving(false); }
     };
 
     return (
-        <div className="p-8 space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700 max-w-7xl mx-auto min-h-screen pb-32">
-            {/* Header & Controls */}
-            <div className="flex flex-col gap-8">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-[var(--t-surface)] p-8 rounded-[3rem] border border-[var(--t-border)] shadow-2xl relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--t-primary)]/5 blur-[80px] -mr-32 -mt-32 pointer-events-none" />
-                    
-                    <div className="relative z-10 flex items-center gap-6">
-                        <div className="w-16 h-16 rounded-2xl bg-[var(--t-primary)]/10 flex items-center justify-center text-4xl shadow-inner border border-[var(--t-primary)]/20">
-                            {isManageMode ? '⚙️' : '📚'}
-                        </div>
-                        <div>
-                            <h1 className="text-4xl font-black tracking-tight" style={{ color: 'var(--t-text)' }}>
-                                {isManageMode ? (isNe ? 'व्यवस्थापन' : 'Management') : (isNe ? 'मद्दत' : 'User')} <span style={{ color: 'var(--t-primary)' }}>{isManageMode ? (isNe ? 'ड्यासबोर्ड' : 'Dashboard') : (isNe ? 'निर्देशिका' : 'Guide')}</span>
-                            </h1>
-                            <p className="text-[var(--t-text3)] font-bold mt-1 uppercase tracking-[0.2em] text-xs">
-                                {isManageMode ? 'Documentation Control' : (isNe ? 'सिकाउने थलो' : 'Knowledge Base')}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-4 w-full md:w-auto relative z-10">
-                        {isAdmin && (
-                            <div className="flex bg-black/10 p-1.5 rounded-2xl border border-[var(--t-border)] shadow-inner">
-                                <button onClick={() => setIsManageMode(false)} className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${!isManageMode ? 'bg-[var(--t-surface)] text-[var(--t-primary)] shadow-lg' : 'opacity-40'}`}>Library</button>
-                                <button onClick={() => setIsManageMode(true)} className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${isManageMode ? 'bg-[var(--t-surface)] text-[var(--t-primary)] shadow-lg' : 'opacity-40'}`}>Manage</button>
-                            </div>
-                        )}
-                        <div className="relative flex-1 md:w-64">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 opacity-40">🔍</span>
-                            <input 
-                                type="text" placeholder={isNe ? "खोज्नुहोस्..." : "Search..."}
-                                value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full bg-black/10 border border-[var(--t-border)] pl-12 pr-4 py-3 rounded-2xl font-bold"
-                            />
-                        </div>
-                        {isAdmin && (
-                            <button 
-                                onClick={() => { setIsCreateMode(true); setIsEditingDetail(true); }}
-                                className="p-3 bg-[var(--t-primary)] text-white rounded-2xl shadow-lg hover:scale-105 transition-all text-xl"
-                            >+</button>
-                        )}
-                    </div>
-                </div>
+        <div className="rounded-2xl p-4 space-y-3"
+            style={{ background: 'var(--t-primary)08', border: '1.5px dashed var(--t-primary)40' }}>
+            <textarea
+                autoFocus rows={2}
+                value={text} onChange={e => setText(e.target.value)}
+                placeholder={language === 'en' ? 'Describe the step…' : 'चरण विवरण…'}
+                className="w-full bg-transparent text-sm font-medium resize-none outline-none"
+                style={{ color: 'var(--t-text)' }}
+            />
+            <div className="flex gap-2 justify-end">
+                <button onClick={onCancel} className="px-3 py-1.5 rounded-xl text-xs font-black"
+                    style={{ background: 'var(--t-surface2)', color: 'var(--t-text3)' }}>Cancel</button>
+                <button onClick={save} disabled={saving || !text.trim()}
+                    className="px-4 py-1.5 rounded-xl text-xs font-black disabled:opacity-40"
+                    style={{ background: 'var(--t-primary)', color: '#fff' }}>
+                    {saving ? 'Saving…' : 'Add Step'}
+                </button>
             </div>
+        </div>
+    );
+}
 
-            {/* Content Area */}
-            {isManageMode && isAdmin ? (
-                <div className="bg-[var(--t-surface)] rounded-[3rem] border border-[var(--t-border)] shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-500">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead className="bg-black/5 text-[10px] font-black uppercase tracking-widest opacity-40">
-                                <tr>
-                                    <th className="p-6">Order</th>
-                                    <th className="p-6">Guide Name</th>
-                                    <th className="p-6">Key</th>
-                                    <th className="p-6">Status</th>
-                                    <th className="p-6 text-center">Data</th>
-                                    <th className="p-6 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-[var(--t-border)]">
-                                {guides.map((guide, idx) => (
-                                    <tr key={guide.id} className="hover:bg-black/5 transition-colors group">
-                                        <td className="p-6">
-                                            <div className="flex flex-col items-center">
-                                                <button onClick={() => handleReorder(guide, 'up')} className="opacity-40 hover:opacity-100">▲</button>
-                                                <span className="text-xs font-black opacity-20">{idx+1}</span>
-                                                <button onClick={() => handleReorder(guide, 'down')} className="opacity-40 hover:opacity-100">▼</button>
-                                            </div>
-                                        </td>
-                                        <td className="p-6 font-black text-sm flex items-center gap-4">
-                                            <span className="text-3xl">{guide.icon}</span>
-                                            {isNe ? guide.title_ne : guide.title_en}
-                                        </td>
-                                        <td className="p-6"><code className="text-[10px] bg-black/10 px-2 py-1 rounded font-bold opacity-60">{guide.key}</code></td>
-                                        <td className="p-6">
-                                            <button 
-                                                onClick={() => handleToggleStatus(guide)}
-                                                className={`px-3 py-1 rounded-full text-[9px] font-black uppercase border ${guide.is_active ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}
-                                            >{guide.is_active ? 'Public' : 'Draft'}</button>
-                                        </td>
-                                        <td className="p-6 text-center text-[10px] font-black opacity-40 uppercase">
-                                            {guide.steps?.length || 0} Steps • {guide.faqs?.length || 0} FAQs
-                                        </td>
-                                        <td className="p-6 text-right space-x-2">
-                                            <button onClick={() => { setSelectedGuideId(guide.id); setIsEditingDetail(true); }} className="p-2.5 bg-black/10 rounded-xl hover:bg-[var(--t-primary)] hover:text-white transition-all">✏️</button>
-                                            <button onClick={() => handleDeleteGuide(guide.id)} className="p-2.5 bg-red-500/5 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all">🗑️</button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+// ── Inline add-form for FAQs ──────────────────────────────────────────────────
+function AddFaqForm({ guideId, onSaved, onCancel, language }) {
+    const [q, setQ] = useState('');
+    const [a, setA] = useState('');
+    const [saving, setSaving] = useState(false);
+
+    const save = async () => {
+        if (!q.trim() || !a.trim()) return;
+        setSaving(true);
+        try {
+            await dashboardService.createGuideFaq({
+                guide:       guideId,
+                question_en: language === 'en' ? q : '',
+                question_ne: language === 'ne' ? q : '',
+                answer_en:   language === 'en' ? a : '',
+                answer_ne:   language === 'ne' ? a : '',
+                order:       999,
+            });
+            onSaved();
+        } catch { alert('Failed to save FAQ.'); }
+        finally   { setSaving(false); }
+    };
+
+    return (
+        <div className="rounded-2xl p-4 space-y-3"
+            style={{ background: 'var(--t-primary)08', border: '1.5px dashed var(--t-primary)40' }}>
+            <input value={q} onChange={e => setQ(e.target.value)}
+                placeholder={language === 'en' ? 'Question…' : 'प्रश्न…'}
+                className="w-full bg-transparent text-sm font-bold outline-none border-b pb-2"
+                style={{ borderColor: 'var(--t-border)', color: 'var(--t-text)' }}
+            />
+            <textarea rows={2} value={a} onChange={e => setA(e.target.value)}
+                placeholder={language === 'en' ? 'Answer…' : 'उत्तर…'}
+                className="w-full bg-transparent text-sm font-medium resize-none outline-none"
+                style={{ color: 'var(--t-text)' }}
+            />
+            <div className="flex gap-2 justify-end">
+                <button onClick={onCancel} className="px-3 py-1.5 rounded-xl text-xs font-black"
+                    style={{ background: 'var(--t-surface2)', color: 'var(--t-text3)' }}>Cancel</button>
+                <button onClick={save} disabled={saving || !q.trim() || !a.trim()}
+                    className="px-4 py-1.5 rounded-xl text-xs font-black disabled:opacity-40"
+                    style={{ background: 'var(--t-primary)', color: '#fff' }}>
+                    {saving ? 'Saving…' : 'Add FAQ'}
+                </button>
+            </div>
+        </div>
+    );
+}
+
+// ── Inline add-form for sections ─────────────────────────────────────────────
+function AddSectionForm({ guideId, onSaved, onCancel, language }) {
+    const [type,    setType]    = useState('note');
+    const [title,   setTitle]   = useState('');
+    const [content, setContent] = useState('');
+    const [saving,  setSaving]  = useState(false);
+
+    const save = async () => {
+        if (!title.trim() || !content.trim()) return;
+        setSaving(true);
+        try {
+            await dashboardService.createGuideSection({
+                guide:        guideId,
+                section_type: type,
+                title_en:     language === 'en' ? title : '',
+                title_ne:     language === 'ne' ? title : '',
+                content_en:   language === 'en' ? content : '',
+                content_ne:   language === 'ne' ? content : '',
+                order:        999,
+            });
+            onSaved();
+        } catch { alert('Failed to save section.'); }
+        finally   { setSaving(false); }
+    };
+
+    const meta = sectionTypeMeta(type);
+
+    return (
+        <div className="rounded-2xl p-4 space-y-3"
+            style={{ background: meta.bg, border: `1.5px dashed ${meta.color}50` }}>
+            <div className="flex flex-wrap gap-2">
+                {SECTION_TYPES.map(t => (
+                    <button key={t.value} onClick={() => setType(t.value)}
+                        className="px-3 py-1 rounded-xl text-[10px] font-black transition-all"
+                        style={{
+                            background: type === t.value ? t.color : 'var(--t-surface)',
+                            color:      type === t.value ? '#fff' : 'var(--t-text3)',
+                            border:     `1px solid ${type === t.value ? t.color : 'var(--t-border)'}`,
+                        }}>
+                        {t.label}
+                    </button>
+                ))}
+            </div>
+            <input value={title} onChange={e => setTitle(e.target.value)}
+                placeholder={language === 'en' ? 'Section title…' : 'शीर्षक…'}
+                className="w-full bg-transparent text-sm font-bold outline-none border-b pb-2"
+                style={{ borderColor: `${meta.color}40`, color: 'var(--t-text)' }}
+            />
+            <textarea rows={3} value={content} onChange={e => setContent(e.target.value)}
+                placeholder={language === 'en' ? 'Content…' : 'सामग्री…'}
+                className="w-full bg-transparent text-sm font-medium resize-none outline-none"
+                style={{ color: 'var(--t-text)' }}
+            />
+            <div className="flex gap-2 justify-end">
+                <button onClick={onCancel} className="px-3 py-1.5 rounded-xl text-xs font-black"
+                    style={{ background: 'var(--t-surface2)', color: 'var(--t-text3)' }}>Cancel</button>
+                <button onClick={save} disabled={saving || !title.trim() || !content.trim()}
+                    className="px-4 py-1.5 rounded-xl text-xs font-black disabled:opacity-40"
+                    style={{ background: meta.color, color: '#fff' }}>
+                    {saving ? 'Saving…' : 'Add Section'}
+                </button>
+            </div>
+        </div>
+    );
+}
+
+// ── FAQ Accordion item ────────────────────────────────────────────────────────
+function FaqItem({ faq, isAdmin, isAuthor, lang, onDelete }) {
+    const [open, setOpen] = useState(false);
+    const q = lang === 'ne' && faq.question_ne ? faq.question_ne : faq.question_en;
+    const a = lang === 'ne' && faq.answer_ne   ? faq.answer_ne   : faq.answer_en;
+
+    return (
+        <div className="rounded-2xl overflow-hidden transition-all"
+            style={{ border: '1px solid var(--t-border)', background: open ? 'var(--t-surface)' : 'transparent' }}>
+            <button className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left"
+                onClick={() => setOpen(!open)}>
+                <span className="text-sm font-bold flex-1" style={{ color: 'var(--t-text)' }}>{q}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                    {faq.added_by_name && (
+                        <span className="text-[9px] font-bold opacity-40 hidden sm:block">{faq.added_by_name}</span>
+                    )}
+                    <span className="text-base transition-transform inline-block"
+                        style={{ transform: open ? 'rotate(180deg)' : '' }}>⌄</span>
                 </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {filteredGuides.map((guide) => (
-                        <div 
-                            key={guide.id} onClick={() => setSelectedGuideId(guide.id)}
-                            className="group bg-[var(--t-surface)] border border-[var(--t-border)] rounded-[2.5rem] p-8 hover:-translate-y-2 hover:shadow-2xl hover:border-[var(--t-primary)]/40 transition-all cursor-pointer"
-                        >
-                            <div className="w-16 h-16 rounded-[1.5rem] bg-black/10 flex items-center justify-center text-3xl mb-6 shadow-inner group-hover:scale-110 transition-transform">
-                                {guide.icon}
-                            </div>
-                            <h3 className="text-xl font-black group-hover:text-[var(--t-primary)] transition-colors">{isNe ? guide.title_ne : guide.title_en}</h3>
-                            <p className="text-[var(--t-text2)] text-sm line-clamp-2 font-medium mt-3">{isNe ? guide.description_ne : guide.description_en}</p>
-                        </div>
-                    ))}
+            </button>
+            {open && (
+                <div className="px-5 pb-5">
+                    <p className="text-sm leading-relaxed" style={{ color: 'var(--t-text2)' }}>{a}</p>
+                    {(isAdmin || isAuthor) && (
+                        <button onClick={() => onDelete(faq.id)}
+                            className="mt-3 text-[10px] font-black uppercase text-red-400 hover:text-red-500">
+                            🗑 Delete
+                        </button>
+                    )}
                 </div>
             )}
+        </div>
+    );
+}
 
-            {/* Unified Side Drawer (Add & Detail/Edit) */}
-            {localGuideData && (
-                <div className="fixed inset-0 z-[100] flex justify-end animate-in fade-in duration-300">
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { 
-                        if(!isEditingDetail) { setIsCreateMode(false); setSelectedGuideId(null); }
-                        else {
-                            showConfirm({
-                                title: "Discard Changes?",
-                                message: "You have unsaved changes in this documentation. Are you sure you want to exit without saving?",
-                                confirmText: "Yes, Discard",
-                                onConfirm: () => { setIsCreateMode(false); setSelectedGuideId(null); closeConfirm(); },
-                                onCancel: closeConfirm
-                            });
-                        }
-                    }} />
-                    <div className="relative w-full max-w-2xl h-full bg-[var(--t-surface)] shadow-2xl border-l border-[var(--t-border)] flex flex-col animate-slide-in-right overflow-hidden">
-                        
-                        {/* Drawer Header */}
-                        <div className="p-8 border-b border-[var(--t-border)] flex items-center justify-between bg-[var(--t-bg)]/50 backdrop-blur relative z-10">
-                            <div className="flex items-center gap-6 flex-1">
-                                <input 
-                                    value={localGuideData.icon} onChange={(e) => setLocalGuideData({ ...localGuideData, icon: e.target.value })}
-                                    className="text-4xl w-16 h-16 bg-black/10 border border-[var(--t-border)] rounded-2xl text-center"
-                                />
+// ── Section card ──────────────────────────────────────────────────────────────
+function SectionCard({ sec, isAdmin, isAuthor, lang, onDelete }) {
+    const meta  = sectionTypeMeta(sec.section_type);
+    const title = lang === 'ne' && sec.title_ne   ? sec.title_ne   : sec.title_en;
+    const body  = lang === 'ne' && sec.content_ne ? sec.content_ne : sec.content_en;
+
+    return (
+        <div className="rounded-2xl p-5 relative group"
+            style={{ background: meta.bg, border: `1.5px solid ${meta.color}30` }}>
+            <div className="flex items-start justify-between gap-3 mb-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                    <Tag color={meta.color}>{meta.label}</Tag>
+                    <span className="text-sm font-black" style={{ color: meta.color }}>{title}</span>
+                </div>
+                {(isAdmin || isAuthor) && (
+                    <button onClick={() => onDelete(sec.id)}
+                        className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-500 text-sm transition-opacity shrink-0">✕</button>
+                )}
+            </div>
+            <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: 'var(--t-text2)' }}>{body}</p>
+            {sec.added_by_name && (
+                <div className="flex items-center gap-1.5 mt-3">
+                    <Avatar name={sec.added_by_name} size={18} />
+                    <span className="text-[9px] font-bold opacity-40">{sec.added_by_name}</span>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ── Admin metadata editor (guide title / description / icon) ─────────────────
+function GuideMetaEditor({ guide, onClose, onSaved }) {
+    const [form, setForm] = useState({
+        icon:           guide.icon,
+        title_en:       guide.title_en,
+        title_ne:       guide.title_ne,
+        description_en: guide.description_en,
+        description_ne: guide.description_ne,
+        video_url:      guide.video_url || '',
+        is_active:      guide.is_active,
+    });
+    const [saving, setSaving] = useState(false);
+
+    const save = async () => {
+        setSaving(true);
+        try {
+            await dashboardService.updateUserGuide(guide.id, form);
+            onSaved();
+        } catch { alert('Save failed.'); }
+        finally   { setSaving(false); }
+    };
+
+    const F = (label, key, multiline = false) => (
+        <div>
+            <label className="text-[10px] font-black uppercase tracking-widest opacity-40 block mb-1">{label}</label>
+            {multiline
+                ? <textarea rows={3} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })}
+                    className="w-full text-sm bg-black/5 border border-[var(--t-border)] rounded-xl p-3 resize-none font-medium" />
+                : <input value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })}
+                    className="w-full text-sm bg-black/5 border border-[var(--t-border)] rounded-xl p-3 font-medium" />
+            }
+        </div>
+    );
+
+    return (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)' }}>
+            <div className="w-full max-w-lg rounded-[2rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+                style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)' }}>
+                <div className="flex items-center justify-between p-6 border-b" style={{ borderColor: 'var(--t-border)' }}>
+                    <h2 className="text-lg font-black" style={{ color: 'var(--t-text)' }}>Edit Guide Metadata</h2>
+                    <button onClick={onClose} className="w-8 h-8 rounded-xl hover:bg-black/10 text-lg transition-colors">✕</button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                    <div className="flex gap-3">
+                        <div className="w-24">
+                            <label className="text-[10px] font-black uppercase tracking-widest opacity-40 block mb-1">Icon</label>
+                            <input value={form.icon} onChange={e => setForm({ ...form, icon: e.target.value })}
+                                className="w-full text-2xl text-center bg-black/5 border border-[var(--t-border)] rounded-xl p-3" />
+                        </div>
+                        <div className="flex-1">{F('Title (EN)', 'title_en')}</div>
+                    </div>
+                    {F('Title (NE)', 'title_ne')}
+                    {F('Description (EN)', 'description_en', true)}
+                    {F('Description (NE)', 'description_ne', true)}
+                    {F('Video URL', 'video_url')}
+                    <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={form.is_active}
+                            onChange={e => setForm({ ...form, is_active: e.target.checked })}
+                            className="w-4 h-4 accent-[var(--t-primary)]" />
+                        <span className="text-xs font-black uppercase tracking-widest">Publicly Active</span>
+                    </label>
+                </div>
+                <div className="p-6 border-t flex justify-end gap-3" style={{ borderColor: 'var(--t-border)' }}>
+                    <button onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-black"
+                        style={{ background: 'var(--t-surface2)', color: 'var(--t-text3)' }}>Cancel</button>
+                    <button onClick={save} disabled={saving}
+                        className="px-6 py-2 rounded-xl text-xs font-black disabled:opacity-50"
+                        style={{ background: 'var(--t-primary)', color: '#fff' }}>
+                        {saving ? 'Saving…' : 'Save Changes'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
+export default function UserGuidePage() {
+    const { dashboardData, user, language, refreshData } = useConstruction();
+    const rawGuides = dashboardData?.userGuides || [];
+    const isAdmin   = !!user?.is_system_admin;
+    const lang      = language || 'en';
+
+    // State
+    const [search,        setSearch]        = useState('');
+    const [selectedKey,   setSelectedKey]   = useState(null);
+    const [addingStep,    setAddingStep]     = useState(false);
+    const [addingFaq,     setAddingFaq]      = useState(false);
+    const [addingSection, setAddingSection]  = useState(false);
+    const [editingMeta,   setEditingMeta]    = useState(false);
+    const [formLang,      setFormLang]       = useState(lang);
+    const [confirm,       setConfirm]        = useState({ open: false });
+    const contentRef = useRef(null);
+
+    // Guides list (admins see inactive too)
+    const guides = useMemo(() =>
+        rawGuides.filter(g => {
+            if (!isAdmin && !g.is_active) return false;
+            const q = search.toLowerCase();
+            return (g.title_en.toLowerCase().includes(q) || (g.title_ne || '').includes(q));
+        }),
+        [rawGuides, isAdmin, search]
+    );
+
+    const selected = useMemo(() => rawGuides.find(g => g.key === selectedKey), [rawGuides, selectedKey]);
+
+    const selectGuide = useCallback((key) => {
+        setSelectedKey(key);
+        setAddingStep(false);
+        setAddingFaq(false);
+        setAddingSection(false);
+        setEditingMeta(false);
+        if (contentRef.current) contentRef.current.scrollTop = 0;
+    }, []);
+
+    const afterContribute = () => {
+        refreshData();
+        setAddingStep(false);
+        setAddingFaq(false);
+        setAddingSection(false);
+    };
+
+    // Delete helpers
+    const askDelete = (title, onConfirm) =>
+        setConfirm({ open: true, title, message: 'This cannot be undone.', confirmText: 'Delete', type: 'danger', onConfirm });
+
+    const deleteStep = (id) => askDelete('Delete Step?', async () => {
+        await dashboardService.deleteGuideStep(id);
+        refreshData(); setConfirm({ open: false });
+    });
+    const deleteFaq = (id) => askDelete('Delete FAQ?', async () => {
+        await dashboardService.deleteGuideFaq(id);
+        refreshData(); setConfirm({ open: false });
+    });
+    const deleteSection = (id) => askDelete('Delete Section?', async () => {
+        await dashboardService.deleteGuideSection(id);
+        refreshData(); setConfirm({ open: false });
+    });
+
+    // Display text helper
+    const T = (en, ne) => (formLang === 'ne' && ne) ? ne : en;
+
+    // Canonical module order for sidebar
+    const MODULE_ORDER = [
+        'home_dashboard','projects_module','finance_module','resource_module',
+        'structure_module','timeline_module','accounts_module',
+        'analytics_page','estimator_page','permits_page','photos_timelapse','data_import',
+    ];
+    const sortedGuides = [...guides].sort((a, b) => {
+        const ai = MODULE_ORDER.indexOf(a.key); const bi = MODULE_ORDER.indexOf(b.key);
+        if (ai !== -1 && bi !== -1) return ai - bi;
+        if (ai !== -1) return -1; if (bi !== -1) return 1;
+        return a.order - b.order;
+    });
+
+    return (
+        <div className="flex" style={{ minHeight: '100vh', background: 'var(--t-bg)' }}>
+
+            {/* ── LEFT SIDEBAR ──────────────────────────────────────────── */}
+            <aside className="hidden md:flex flex-col shrink-0 border-r overflow-hidden"
+                style={{
+                    width: 272,
+                    borderColor: 'var(--t-border)',
+                    background: 'var(--t-surface)',
+                    position: 'sticky', top: 0, height: '100vh',
+                }}>
+
+                {/* Sidebar header */}
+                <div className="p-5 border-b shrink-0" style={{ borderColor: 'var(--t-border)' }}>
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
+                            style={{ background: 'var(--t-primary)15' }}>📚</div>
+                        <div>
+                            <p className="text-base font-black" style={{ color: 'var(--t-text)' }}>User Guide</p>
+                            <p className="text-[9px] font-bold uppercase tracking-[0.18em]"
+                                style={{ color: 'var(--t-primary)' }}>Knowledge Base</p>
+                        </div>
+                    </div>
+                    <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm opacity-30">🔍</span>
+                        <input
+                            value={search} onChange={e => setSearch(e.target.value)}
+                            placeholder="Search guides…"
+                            className="w-full text-xs font-medium pl-9 pr-3 py-2.5 rounded-xl outline-none"
+                            style={{ background: 'var(--t-bg)', border: '1px solid var(--t-border)', color: 'var(--t-text)' }}
+                        />
+                    </div>
+                </div>
+
+                {/* Guide list */}
+                <div className="flex-1 overflow-y-auto py-3 px-3 space-y-1">
+                    {sortedGuides.length === 0 && (
+                        <div className="text-center py-12 opacity-30">
+                            <p className="text-3xl mb-2">🔍</p>
+                            <p className="text-xs font-bold">No guides found</p>
+                        </div>
+                    )}
+                    {sortedGuides.map(g => {
+                        const isActive = g.key === selectedKey;
+                        const title    = T(g.title_en, g.title_ne);
+                        return (
+                            <button key={g.key} onClick={() => selectGuide(g.key)}
+                                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all"
+                                style={{
+                                    background: isActive ? 'var(--t-primary)15' : 'transparent',
+                                    border:     isActive ? '1px solid var(--t-primary)30' : '1px solid transparent',
+                                }}>
+                                <span className="text-2xl shrink-0">{g.icon}</span>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-black truncate"
+                                        style={{ color: isActive ? 'var(--t-primary)' : 'var(--t-text)' }}>{title}</p>
+                                    <p className="text-[9px] font-bold uppercase tracking-wider mt-0.5"
+                                        style={{ color: 'var(--t-text3)' }}>
+                                        {g.steps?.length || 0} steps · {g.faqs?.length || 0} FAQs
+                                        {!g.is_active && <span className="ml-1 text-amber-500">· Draft</span>}
+                                    </p>
+                                </div>
+                                {isActive && <span style={{ color: 'var(--t-primary)', fontSize: 10 }}>▶</span>}
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {/* Footer */}
+                <div className="p-4 border-t shrink-0" style={{ borderColor: 'var(--t-border)' }}>
+                    <p className="text-[9px] font-bold uppercase tracking-widest opacity-30 text-center">
+                        {sortedGuides.length} guide{sortedGuides.length !== 1 ? 's' : ''} available
+                    </p>
+                </div>
+            </aside>
+
+            {/* ── MAIN CONTENT ─────────────────────────────────────────── */}
+            <div ref={contentRef} className="flex-1 overflow-y-auto" style={{ paddingBottom: 96 }}>
+
+                {/* No guide selected — landing / grid view */}
+                {!selected && (
+                    <div className="p-8 max-w-5xl mx-auto">
+                        {/* Hero */}
+                        <div className="rounded-[2.5rem] p-10 mb-10 relative overflow-hidden"
+                            style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)' }}>
+                            <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full opacity-5"
+                                style={{ background: 'var(--t-primary)' }} />
+                            <div className="relative z-10">
+                                <p className="text-6xl mb-4">📚</p>
+                                <h1 className="text-4xl font-black mb-3" style={{ color: 'var(--t-text)' }}>
+                                    User Guide &amp; <span style={{ color: 'var(--t-primary)' }}>Knowledge Base</span>
+                                </h1>
+                                <p className="text-base font-medium max-w-2xl" style={{ color: 'var(--t-text2)' }}>
+                                    Step-by-step guides for every HCMS module. Select a module from the sidebar
+                                    or click any card below — then add your own tips, FAQs, and notes.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Mobile search (visible only on small screens) */}
+                        <div className="md:hidden mb-6 relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 opacity-30">🔍</span>
+                            <input value={search} onChange={e => setSearch(e.target.value)}
+                                placeholder="Search guides…"
+                                className="w-full pl-9 pr-3 py-3 rounded-2xl text-sm font-medium outline-none"
+                                style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)', color: 'var(--t-text)' }}
+                            />
+                        </div>
+
+                        {/* Guide grid */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                            {sortedGuides.map(g => (
+                                <button key={g.key} onClick={() => selectGuide(g.key)}
+                                    className="group text-left p-6 rounded-[1.75rem] transition-all hover:-translate-y-1 hover:shadow-xl"
+                                    style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)' }}>
+                                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl mb-4 transition-transform group-hover:scale-110"
+                                        style={{ background: 'var(--t-primary)10' }}>
+                                        {g.icon}
+                                    </div>
+                                    <h3 className="text-base font-black mb-1 group-hover:text-[var(--t-primary)] transition-colors"
+                                        style={{ color: 'var(--t-text)' }}>
+                                        {T(g.title_en, g.title_ne)}
+                                    </h3>
+                                    <p className="text-xs font-medium line-clamp-2 mb-4"
+                                        style={{ color: 'var(--t-text3)' }}>
+                                        {T(g.description_en, g.description_ne)}
+                                    </p>
+                                    <div className="flex gap-2 flex-wrap">
+                                        <Tag color="var(--t-primary)">{g.steps?.length || 0} Steps</Tag>
+                                        <Tag color="#10b981">{g.faqs?.length || 0} FAQs</Tag>
+                                        {(g.sections?.length > 0) && (
+                                            <Tag color="#8b5cf6">{g.sections.length} Notes</Tag>
+                                        )}
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* ── GUIDE DETAIL VIEW ─────────────────────────────────── */}
+                {selected && (
+                    <div className="max-w-3xl mx-auto p-6 space-y-10">
+
+                        {/* Top bar: back + language + admin edit */}
+                        <div className="flex items-center justify-between flex-wrap gap-3">
+                            <button onClick={() => setSelectedKey(null)}
+                                className="flex items-center gap-2 text-xs font-black uppercase tracking-widest transition-opacity hover:opacity-100 opacity-60"
+                                style={{ color: 'var(--t-text)' }}>
+                                ← All Guides
+                            </button>
+                            <div className="flex items-center gap-3">
+                                <div className="flex bg-black/10 p-1 rounded-xl border" style={{ borderColor: 'var(--t-border)' }}>
+                                    {['en','ne'].map(l => (
+                                        <button key={l} onClick={() => setFormLang(l)}
+                                            className="px-3 py-1 rounded-lg text-[10px] font-black uppercase transition-all"
+                                            style={{
+                                                background: formLang === l ? 'var(--t-surface)' : 'transparent',
+                                                color:      formLang === l ? 'var(--t-primary)' : 'var(--t-text3)',
+                                                boxShadow:  formLang === l ? '0 1px 4px rgba(0,0,0,.15)' : 'none',
+                                            }}>{l === 'en' ? 'EN' : 'ने'}</button>
+                                    ))}
+                                </div>
+                                {isAdmin && (
+                                    <button onClick={() => setEditingMeta(true)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all"
+                                        style={{ background: 'var(--t-surface2)', color: 'var(--t-text3)', border: '1px solid var(--t-border)' }}>
+                                        ⚙️ Edit Guide
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Guide header card */}
+                        <div className="rounded-[2rem] p-8 relative overflow-hidden"
+                            style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)' }}>
+                            <div className="absolute -bottom-10 -right-10 text-[120px] opacity-[0.04] select-none pointer-events-none">
+                                {selected.icon}
+                            </div>
+                            <div className="relative z-10 flex items-start gap-5">
+                                <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shrink-0"
+                                    style={{ background: 'var(--t-primary)15' }}>{selected.icon}</div>
                                 <div className="flex-1">
-                                    <input 
-                                        value={getLF('title')} onChange={(e) => updateLF('title', e.target.value)}
-                                        className="text-2xl font-black bg-black/10 border border-[var(--t-border)] p-2 rounded-lg w-full"
-                                        placeholder={formLanguage === 'en' ? "Title (EN)" : "शीर्षक (नेपाली)"}
-                                    />
-                                    <div className="flex gap-2 mt-2">
-                                        <div className="flex bg-black/10 p-1 rounded-xl border border-[var(--t-border)]">
-                                            <button onClick={() => setFormLanguage('en')} className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase transition-all ${formLanguage === 'en' ? 'bg-[var(--t-surface)] text-[var(--t-primary)] shadow-sm' : 'opacity-40'}`}>EN</button>
-                                            <button onClick={() => setFormLanguage('ne')} className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase transition-all ${formLanguage === 'ne' ? 'bg-[var(--t-surface)] text-[var(--t-primary)] shadow-sm' : 'opacity-40'}`}>ने</button>
-                                        </div>
+                                    <div className="flex items-center gap-3 flex-wrap mb-2">
+                                        <h1 className="text-2xl font-black" style={{ color: 'var(--t-text)' }}>
+                                            {T(selected.title_en, selected.title_ne)}
+                                        </h1>
+                                        {!selected.is_active && <Tag color="#f59e0b">Draft</Tag>}
+                                    </div>
+                                    <p className="text-sm leading-relaxed font-medium" style={{ color: 'var(--t-text2)' }}>
+                                        {T(selected.description_en, selected.description_ne)}
+                                    </p>
+                                    {selected.video_url && (
+                                        <a href={selected.video_url} target="_blank" rel="noreferrer"
+                                            className="inline-flex items-center gap-1.5 mt-4 text-xs font-black"
+                                            style={{ color: 'var(--t-primary)' }}>
+                                            ▶ Watch Video Tutorial
+                                        </a>
+                                    )}
+                                    <div className="flex gap-3 mt-4 flex-wrap">
+                                        <Tag color="var(--t-primary)">{selected.steps?.length || 0} Steps</Tag>
+                                        <Tag color="#10b981">{selected.faqs?.length || 0} FAQs</Tag>
+                                        {(selected.sections?.length > 0) && (
+                                            <Tag color="#8b5cf6">{selected.sections.length} Community Notes</Tag>
+                                        )}
                                     </div>
                                 </div>
                             </div>
-                            <button onClick={() => { setIsCreateMode(false); setSelectedGuideId(null); }} className="w-10 h-10 rounded-xl hover:bg-black/10 text-xl font-light ml-4 transition-colors">✕</button>
                         </div>
 
-                        {/* Drawer Body */}
-                        <div className="flex-1 overflow-y-auto p-12 space-y-12">
-                            {isCreateMode && (
-                                <section className="p-6 bg-[var(--t-primary)]/5 rounded-3xl border-2 border-dashed border-[var(--t-primary)]/20">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-[var(--t-primary)] block mb-2">Unique System Identity (Required)</label>
-                                    <input 
-                                        value={localGuideData.key} onChange={(e) => setLocalGuideData({...localGuideData, key: e.target.value.toLowerCase().replace(/\s/g, '_')})}
-                                        placeholder="e.g. homescreen_tour"
-                                        className="w-full bg-[var(--t-surface)] p-3 rounded-xl border border-[var(--t-border)] font-black text-sm"
-                                    />
-                                </section>
+                        {/* ── STEPS ───────────────────────────────────────── */}
+                        <section>
+                            <div className="flex items-center justify-between mb-5">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-xl flex items-center justify-center text-base"
+                                        style={{ background: 'var(--t-primary)15' }}>📋</div>
+                                    <h2 className="text-base font-black uppercase tracking-wide" style={{ color: 'var(--t-text)' }}>
+                                        Step-by-Step Guide
+                                    </h2>
+                                </div>
+                                <button onClick={() => { setAddingStep(true); setAddingFaq(false); setAddingSection(false); }}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase"
+                                    style={{ background: 'var(--t-primary)15', color: 'var(--t-primary)', border: '1px solid var(--t-primary)30' }}>
+                                    + Add Step
+                                </button>
+                            </div>
+
+                            {(selected.steps?.length === 0 && !addingStep) && (
+                                <div className="text-center py-10 rounded-2xl"
+                                    style={{ border: '1.5px dashed var(--t-border)', opacity: 0.5 }}>
+                                    <p className="text-3xl mb-2">📭</p>
+                                    <p className="text-xs font-bold">No steps yet — be the first to add one!</p>
+                                </div>
                             )}
 
-                            <section>
-                                <label className="text-[10px] font-black uppercase tracking-widest opacity-30 mb-2 block">{formLanguage === 'en' ? 'Core Description' : 'मुख्य विवरण'}</label>
-                                <textarea 
-                                    value={getLF('description')} onChange={(e) => updateLF('description', e.target.value)}
-                                    className="w-full bg-black/5 border border-[var(--t-border)] p-5 rounded-2xl text-lg font-medium italic min-h-[120px]"
-                                    placeholder={formLanguage === 'en' ? "Tell users what this guide covers..." : "यस निर्देशिकाको बारेमा लेख्नुहोस्..."}
-                                />
-                            </section>
-
-                            <section className="space-y-6">
-                                <div className="flex justify-between items-center border-b border-[var(--t-border)] pb-4">
-                                    <h3 className="text-xs font-black uppercase tracking-widest opacity-40">Documentation Steps</h3>
-                                    <button onClick={handleAddLocalStep} className="text-[10px] font-black uppercase text-[var(--t-primary)] px-3 py-1.5 bg-[var(--t-primary)]/10 rounded-lg">+ Add Step</button>
-                                </div>
-                                <div className="space-y-6">
-                                    {localGuideData.steps.map((step, idx) => (
-                                        <div key={idx} className="flex gap-6 group relative p-4 hover:bg-black/5 rounded-2xl transition-all">
-                                            <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-[var(--t-primary)] text-white shadow-lg flex items-center justify-center font-black">{idx + 1}</div>
-                                            <div className="flex-1 space-y-3">
-                                                <textarea 
-                                                    value={formLanguage === 'en' ? step.text_en : step.text_ne}
-                                                    onChange={(e) => {
-                                                        const newSteps = [...localGuideData.steps];
-                                                        newSteps[idx] = { ...step, [formLanguage === 'en' ? 'text_en' : 'text_ne']: e.target.value };
-                                                        setLocalGuideData({ ...localGuideData, steps: newSteps });
-                                                    }}
-                                                    className="w-full bg-transparent p-2 rounded-xl border border-[var(--t-border)] text-sm font-bold"
-                                                />
-                                                <div className="flex gap-2">
-                                                   <input placeholder="CSS Selector" value={step.target_element || ''} onChange={(e) => {
-                                                        const newSteps = [...localGuideData.steps];
-                                                        newSteps[idx] = { ...step, target_element: e.target.value };
-                                                        setLocalGuideData({ ...localGuideData, steps: newSteps });
-                                                   }} className="flex-1 bg-black/5 px-3 py-1.5 rounded-lg text-[9px] font-bold border border-[var(--t-border)]" />
-                                                   <select value={step.placement || 'bottom'} onChange={(e) => {
-                                                        const newSteps = [...localGuideData.steps];
-                                                        newSteps[idx] = { ...step, placement: e.target.value };
-                                                        setLocalGuideData({ ...localGuideData, steps: newSteps });
-                                                   }} className="bg-black/5 px-2 py-1.5 rounded-lg text-[9px] border border-[var(--t-border)]">
-                                                       <option value="top">Top</option>
-                                                       <option value="bottom">Bottom</option>
-                                                       <option value="left">Left</option>
-                                                       <option value="right">Right</option>
-                                                   </select>
+                            <div className="space-y-3">
+                                {(selected.steps || []).map((step, idx) => {
+                                    const text   = formLang === 'ne' && step.text_ne ? step.text_ne : step.text_en;
+                                    const canDel = isAdmin || step.added_by === user?.id;
+                                    const isLast = idx === (selected.steps?.length - 1);
+                                    return (
+                                        <div key={step.id} className="flex gap-4 group relative">
+                                            <div className="flex flex-col items-center shrink-0">
+                                                <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm"
+                                                    style={{ background: 'var(--t-primary)', color: '#fff' }}>{idx + 1}</div>
+                                                {!isLast && (
+                                                    <div className="w-px flex-1 my-1.5 min-h-[16px]"
+                                                        style={{ background: 'var(--t-border)' }} />
+                                                )}
+                                            </div>
+                                            <div className="flex-1 pb-3">
+                                                <p className="text-sm leading-relaxed font-medium pt-1.5"
+                                                    style={{ color: 'var(--t-text)' }}>{text}</p>
+                                                <div className="flex items-center gap-3 mt-1.5">
+                                                    {step.added_by_name && (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <Avatar name={step.added_by_name} size={16} />
+                                                            <span className="text-[9px] font-bold opacity-40">{step.added_by_name}</span>
+                                                        </div>
+                                                    )}
+                                                    {canDel && (
+                                                        <button onClick={() => deleteStep(step.id)}
+                                                            className="opacity-0 group-hover:opacity-100 text-[9px] font-black text-red-400 hover:text-red-500 transition-opacity uppercase tracking-widest">
+                                                            Delete
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
-                                            <button onClick={() => {
-                                                showConfirm({
-                                                    title: "Remove Step?",
-                                                    message: "Are you sure you want to remove this documentation step? You will need to re-add it manually if you change your mind.",
-                                                    confirmText: "Yes, Remove",
-                                                    onConfirm: () => {
-                                                        const newSteps = [...localGuideData.steps];
-                                                        newSteps.splice(idx, 1);
-                                                        setLocalGuideData({ ...localGuideData, steps: newSteps });
-                                                        closeConfirm();
-                                                    },
-                                                    onCancel: closeConfirm
-                                                });
-                                            }} className="opacity-0 group-hover:opacity-100 text-red-500 absolute top-2 right-2 p-2">✕</button>
                                         </div>
-                                    ))}
-                                </div>
-                            </section>
+                                    );
+                                })}
 
-                            <section className="space-y-6">
-                                <div className="flex justify-between items-center border-b border-[var(--t-border)] pb-4">
-                                    <h3 className="text-xs font-black uppercase tracking-widest opacity-40">Knowledge Base (FAQ)</h3>
-                                    <button onClick={handleAddLocalFaq} className="text-[10px] font-black uppercase text-[var(--t-primary)] px-3 py-1.5 bg-[var(--t-primary)]/10 rounded-lg">+ Add FAQ</button>
-                                </div>
-                                <div className="space-y-4">
-                                    {localGuideData.faqs.map((faq, idx) => (
-                                        <div key={idx} className="p-6 bg-black/5 rounded-3xl border border-[var(--t-border)] space-y-3 relative group">
-                                            <input 
-                                                value={formLanguage === 'en' ? faq.question_en : faq.question_ne}
-                                                onChange={(e) => {
-                                                    const newFaqs = [...localGuideData.faqs];
-                                                    newFaqs[idx] = { ...faq, [formLanguage === 'en' ? 'question_en' : 'question_ne']: e.target.value };
-                                                    setLocalGuideData({ ...localGuideData, faqs: newFaqs });
-                                                }}
-                                                className="w-full bg-transparent p-2 border-b border-[var(--t-border)] font-black text-sm"
-                                                placeholder="Question..."
-                                            />
-                                            <textarea 
-                                                value={formLanguage === 'en' ? faq.answer_en : faq.answer_ne}
-                                                onChange={(e) => {
-                                                    const newFaqs = [...localGuideData.faqs];
-                                                    newFaqs[idx] = { ...faq, [formLanguage === 'en' ? 'answer_en' : 'answer_ne']: e.target.value };
-                                                    setLocalGuideData({ ...localGuideData, faqs: newFaqs });
-                                                }}
-                                                className="w-full bg-transparent p-2 text-xs font-medium"
-                                                placeholder="Answer..."
-                                            />
-                                            <button onClick={() => {
-                                                showConfirm({
-                                                    title: "Delete FAQ Entry?",
-                                                    message: "Are you sure you want to remove this FAQ? This content will be lost unless you re-entry it.",
-                                                    confirmText: "Yes, Delete",
-                                                    onConfirm: () => {
-                                                        const newFaqs = [...localGuideData.faqs];
-                                                        newFaqs.splice(idx, 1);
-                                                        setLocalGuideData({ ...localGuideData, faqs: newFaqs });
-                                                        closeConfirm();
-                                                    },
-                                                    onCancel: closeConfirm
-                                                });
-                                            }} className="opacity-0 group-hover:opacity-100 text-red-500 absolute top-4 right-4">✕</button>
+                                {addingStep && (
+                                    <div className="flex gap-4">
+                                        <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shrink-0 opacity-30"
+                                            style={{ background: 'var(--t-primary)', color: '#fff' }}>
+                                            {(selected.steps?.length || 0) + 1}
                                         </div>
-                                    ))}
-                                </div>
-                            </section>
-                        </div>
+                                        <div className="flex-1">
+                                            <AddStepForm
+                                                guideId={selected.id} language={formLang}
+                                                onSaved={afterContribute} onCancel={() => setAddingStep(false)}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </section>
 
-                        {/* Drawer Footer */}
-                        <div className="p-8 bg-[var(--t-surface2)] border-t border-[var(--t-border)] flex justify-between items-center relative z-20">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" checked={localGuideData.is_active} onChange={(e) => setLocalGuideData({...localGuideData, is_active: e.target.checked})} className="w-4 h-4 rounded accent-[var(--t-primary)]" />
-                                <span className="text-[10px] font-black uppercase tracking-widest">Publically Active</span>
-                            </label>
-                            <button 
-                                onClick={handleSaveAllChanges} disabled={isSaving}
-                                className="px-10 py-4 bg-[var(--t-primary)] text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-2xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
-                            >
-                                {isSaving ? 'Processing...' : `Save Documentation ${formLanguage === 'en' ? '(EN)' : '(NE)'}`}
-                            </button>
-                        </div>
+                        {/* ── FAQs ────────────────────────────────────────── */}
+                        <section>
+                            <div className="flex items-center justify-between mb-5">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-xl flex items-center justify-center text-base"
+                                        style={{ background: '#10b98115' }}>❓</div>
+                                    <h2 className="text-base font-black uppercase tracking-wide" style={{ color: 'var(--t-text)' }}>
+                                        Frequently Asked Questions
+                                    </h2>
+                                </div>
+                                <button onClick={() => { setAddingFaq(true); setAddingStep(false); setAddingSection(false); }}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase"
+                                    style={{ background: '#10b98115', color: '#10b981', border: '1px solid #10b98130' }}>
+                                    + Add FAQ
+                                </button>
+                            </div>
+
+                            {(selected.faqs?.length === 0 && !addingFaq) && (
+                                <div className="text-center py-10 rounded-2xl"
+                                    style={{ border: '1.5px dashed var(--t-border)', opacity: 0.5 }}>
+                                    <p className="text-3xl mb-2">💬</p>
+                                    <p className="text-xs font-bold">No FAQs yet — add the first question!</p>
+                                </div>
+                            )}
+
+                            <div className="space-y-2">
+                                {(selected.faqs || []).map(faq => (
+                                    <FaqItem key={faq.id} faq={faq} lang={formLang}
+                                        isAdmin={isAdmin} isAuthor={faq.added_by === user?.id}
+                                        onDelete={deleteFaq}
+                                    />
+                                ))}
+                                {addingFaq && (
+                                    <AddFaqForm
+                                        guideId={selected.id} language={formLang}
+                                        onSaved={afterContribute} onCancel={() => setAddingFaq(false)}
+                                    />
+                                )}
+                            </div>
+                        </section>
+
+                        {/* ── COMMUNITY SECTIONS ──────────────────────────── */}
+                        <section>
+                            <div className="flex items-center justify-between mb-5">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-xl flex items-center justify-center text-base"
+                                        style={{ background: '#8b5cf615' }}>🌐</div>
+                                    <div>
+                                        <h2 className="text-base font-black uppercase tracking-wide" style={{ color: 'var(--t-text)' }}>
+                                            Tips, Warnings &amp; Notes
+                                        </h2>
+                                        <p className="text-[9px] font-bold uppercase tracking-widest opacity-40">Community contributions</p>
+                                    </div>
+                                </div>
+                                <button onClick={() => { setAddingSection(true); setAddingStep(false); setAddingFaq(false); }}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase"
+                                    style={{ background: '#8b5cf615', color: '#8b5cf6', border: '1px solid #8b5cf630' }}>
+                                    + Add Note
+                                </button>
+                            </div>
+
+                            {((selected.sections || []).filter(s => isAdmin || s.is_approved).length === 0 && !addingSection) && (
+                                <div className="text-center py-10 rounded-2xl"
+                                    style={{ border: '1.5px dashed var(--t-border)', opacity: 0.5 }}>
+                                    <p className="text-3xl mb-2">✍️</p>
+                                    <p className="text-xs font-bold">Share a tip, warning, or pro trick with your team!</p>
+                                </div>
+                            )}
+
+                            <div className="space-y-3">
+                                {(selected.sections || [])
+                                    .filter(s => isAdmin || s.is_approved)
+                                    .map(sec => (
+                                        <SectionCard key={sec.id} sec={sec} lang={formLang}
+                                            isAdmin={isAdmin} isAuthor={sec.added_by === user?.id}
+                                            onDelete={deleteSection}
+                                        />
+                                    ))
+                                }
+                                {addingSection && (
+                                    <AddSectionForm
+                                        guideId={selected.id} language={formLang}
+                                        onSaved={afterContribute} onCancel={() => setAddingSection(false)}
+                                    />
+                                )}
+                            </div>
+
+                            {/* Contribution prompt bar */}
+                            {!addingStep && !addingFaq && !addingSection && (
+                                <div className="mt-6 p-5 rounded-2xl flex items-center gap-4 flex-wrap"
+                                    style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)' }}>
+                                    <Avatar name={user?.username || 'You'} size={36} />
+                                    <div className="flex-1 min-w-[120px]">
+                                        <p className="text-xs font-black" style={{ color: 'var(--t-text)' }}>
+                                            Have something to add?
+                                        </p>
+                                        <p className="text-[10px] font-medium opacity-40">
+                                            Share knowledge to help your team.
+                                        </p>
+                                    </div>
+                                    <div className="flex gap-2 flex-wrap">
+                                        <button onClick={() => setAddingStep(true)}
+                                            className="px-3 py-1.5 rounded-xl text-[10px] font-black"
+                                            style={{ background: 'var(--t-primary)15', color: 'var(--t-primary)', border: '1px solid var(--t-primary)25' }}>
+                                            + Step
+                                        </button>
+                                        <button onClick={() => setAddingFaq(true)}
+                                            className="px-3 py-1.5 rounded-xl text-[10px] font-black"
+                                            style={{ background: '#10b98115', color: '#10b981', border: '1px solid #10b98125' }}>
+                                            + FAQ
+                                        </button>
+                                        <button onClick={() => setAddingSection(true)}
+                                            className="px-3 py-1.5 rounded-xl text-[10px] font-black"
+                                            style={{ background: '#8b5cf615', color: '#8b5cf6', border: '1px solid #8b5cf625' }}>
+                                            + Note
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </section>
+
                     </div>
-                </div>
+                )}
+            </div>
+
+            {/* ── Admin metadata editor modal ───────────────────────────── */}
+            {editingMeta && selected && (
+                <GuideMetaEditor
+                    guide={selected}
+                    onClose={() => setEditingMeta(false)}
+                    onSaved={() => { refreshData(); setEditingMeta(false); }}
+                />
             )}
 
-            <ConfirmModal 
-                isOpen={confirmConfig.isOpen}
-                title={confirmConfig.title}
-                message={confirmConfig.message}
-                confirmText={confirmConfig.confirmText}
-                onConfirm={confirmConfig.onConfirm}
-                onCancel={closeConfirm}
-                type={confirmConfig.type || 'warning'}
+            {/* ── Confirm modal ─────────────────────────────────────────── */}
+            <ConfirmModal
+                isOpen={confirm.open}
+                title={confirm.title}
+                message={confirm.message}
+                confirmText={confirm.confirmText}
+                type={confirm.type || 'danger'}
+                onConfirm={confirm.onConfirm}
+                onCancel={() => setConfirm({ open: false })}
             />
-
-            <style>{`
-                @keyframes slide-in-right { from { transform: translateX(100%); } to { transform: translateX(0); } }
-                .animate-slide-in-right { animation: slide-in-right 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
-            `}</style>
         </div>
     );
-};
-
-export default UserGuidePage;
+}

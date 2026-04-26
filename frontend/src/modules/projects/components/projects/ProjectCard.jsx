@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { usePlatformBase } from '../../../../shared/utils/platformNav';
 
 const fmt = (n) => n ? `NPR ${(+n).toLocaleString()}` : '—';
 
@@ -31,6 +32,7 @@ const MiniBar = ({ value, max, color = '#f97316' }) => {
 
 export default function ProjectCard({ project, isActive, onActivate }) {
     const navigate = useNavigate();
+    const base    = usePlatformBase();
 
     const phaseTotal = project.phase_count       || 0;
     const phaseDone  = project.completed_phase_count || 0;
@@ -149,7 +151,7 @@ export default function ProjectCard({ project, isActive, onActivate }) {
                     onClick={(e) => {
                         e.stopPropagation();
                         onActivate();
-                        navigate(`/dashboard/desktop/projects/${project.id}/overview`);
+                        navigate(`${base}/projects/${project.id}/overview`);
                     }}>
                     Open →
                 </button>

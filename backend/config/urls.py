@@ -9,7 +9,7 @@ from rest_framework.routers import DefaultRouter
 
 from apps.accounts.views import UserViewSet, RoleViewSet, ActivityLogViewSet
 from apps.accounts.urls import accounts_urlpatterns
-from apps.core.views import HouseProjectViewSet, ConstructionPhaseViewSet, RoomViewSet, FloorViewSet, UserGuideViewSet, UserGuideStepViewSet, UserGuideFAQViewSet, EmailLogViewSet, DashboardDataView, ProjectMemberViewSet
+from apps.core.views import HouseProjectViewSet, ConstructionPhaseViewSet, RoomViewSet, FloorViewSet, UserGuideViewSet, UserGuideStepViewSet, UserGuideFAQViewSet, UserGuideSectionViewSet, EmailLogViewSet, DashboardDataView, ProjectMemberViewSet
 from apps.core.import_views import SqlImportView, RawDataPopulationView
 from apps.core.gallery_views import GalleryViewSet
 from apps.tasks.views import TaskViewSet, TaskUpdateViewSet, TaskMediaViewSet
@@ -38,6 +38,7 @@ router.register(r'wastage-thresholds', WastageThresholdViewSet, basename='wastag
 router.register(r'user-guides', UserGuideViewSet)
 router.register(r'user-guide-steps', UserGuideStepViewSet)
 router.register(r'user-guide-faqs', UserGuideFAQViewSet)
+router.register(r'user-guide-sections', UserGuideSectionViewSet)
 router.register(r'email-logs', EmailLogViewSet)
 router.register(r'project-members', ProjectMemberViewSet, basename='project-member')
 

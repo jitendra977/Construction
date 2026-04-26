@@ -87,7 +87,7 @@ export default function ProjectSettingsPage() {
         try {
             await api.deleteProject(project.id);
             removeProjectLocal(project.id);
-            navigate('/dashboard/desktop/projects');
+            navigate(`${base}/projects`);
         } catch (e) { console.error(e); setDel(false); }
     };
 

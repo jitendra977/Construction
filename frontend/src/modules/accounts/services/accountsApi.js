@@ -2,43 +2,9 @@
  * accountsApi.js — Accounts Module API client
  * All requests go to /api/v1/accounts/ (and /api/v1/auth/ for auth actions)
  */
-import axios from 'axios';
+import createApiClient from '../../../services/createApiClient';
 
-const BASE = import.meta.env.VITE_API_URL || '/api/v1';
-
-const http = axios.create({ baseURL: BASE });
-
-// ── JWT injection ─────────────────────────────────────────────────────────────
-http.interceptors.request.use((config) => {
-    const token = localStorage.getItem('access_token');
-    if (token) config.headers.Authorization = `Bearer ${token}`;
-    return config;
-});
-
-// ── Token refresh on 401 ─────────────────────────────────────────────────────
-http.interceptors.response.use(
-    (res) => res,
-    async (err) => {
-        const original = err.config;
-        if (err.response?.status === 401 && !original._retry) {
-            original._retry = true;
-            const refresh = localStorage.getItem('refresh_token');
-            if (refresh) {
-                try {
-                    const { data } = await axios.post(`${BASE}/auth/token/refresh/`, { refresh });
-                    localStorage.setItem('access_token', data.access);
-                    original.headers.Authorization = `Bearer ${data.access}`;
-                    return http(original);
-                } catch {
-                    localStorage.removeItem('access_token');
-                    localStorage.removeItem('refresh_token');
-                    window.location.href = '/login';
-                }
-            }
-        }
-        return Promise.reject(err);
-    }
-);
+const http = createApiClient();
 
 // ── Stats ─────────────────────────────────────────────────────────────────────
 export const getStats            = ()         => http.get('/accounts/stats/');

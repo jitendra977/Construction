@@ -3,8 +3,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from .models import HouseProject, ConstructionPhase, Room, Floor, UserGuide, UserGuideStep, UserGuideFAQ, UserGuideProgress, EmailLog, ProjectMember
-from .serializers import HouseProjectSerializer, ConstructionPhaseSerializer, RoomSerializer, FloorSerializer, UserGuideSerializer, UserGuideStepSerializer, UserGuideFAQSerializer, UserGuideProgressSerializer, EmailLogSerializer, ProjectMemberSerializer
+from .models import HouseProject, ConstructionPhase, Room, Floor, UserGuide, UserGuideStep, UserGuideFAQ, UserGuideSection, UserGuideProgress, EmailLog, ProjectMember
+from .serializers import HouseProjectSerializer, ConstructionPhaseSerializer, RoomSerializer, FloorSerializer, UserGuideSerializer, UserGuideStepSerializer, UserGuideFAQSerializer, UserGuideSectionSerializer, UserGuideProgressSerializer, EmailLogSerializer, ProjectMemberSerializer
 from apps.accounts.permissions import IsSystemAdmin, CanManagePhases
 
 from apps.tasks.models import Task
@@ -207,9 +207,9 @@ class DashboardDataView(APIView):
 
         # Admins see all guides, regular users only active ones
         if getattr(request.user, 'is_system_admin', False):
-            user_guides = UserGuide.objects.all().prefetch_related('steps', 'faqs')
+            user_guides = UserGuide.objects.all().prefetch_related('steps', 'faqs', 'sections')
         else:
-            user_guides = UserGuide.objects.filter(is_active=True).prefetch_related('steps', 'faqs')
+            user_guides = UserGuide.objects.filter(is_active=True).prefetch_related('steps', 'faqs', 'sections')
         user_guide_progress = UserGuideProgress.objects.filter(user=request.user)
 
         # -----------------------------------------------------
@@ -287,10 +287,11 @@ class FloorViewSet(viewsets.ModelViewSet):
 
 class UserGuideViewSet(viewsets.ModelViewSet):
     """
-    API endpoint that allows user guides to be managed.
-    Admins can CRUD, while regular users can only read active ones.
+    Guide metadata CRUD.
+    - GET  (list/retrieve): any authenticated user
+    - POST/PUT/PATCH/DELETE: admins only
     """
-    queryset = UserGuide.objects.all().prefetch_related('steps', 'faqs')
+    queryset         = UserGuide.objects.all().prefetch_related('steps', 'faqs', 'sections')
     serializer_class = UserGuideSerializer
     permission_classes = [IsAuthenticated]
 
@@ -300,58 +301,127 @@ class UserGuideViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated()]
 
     def get_queryset(self):
-        user = self.request.user
-        queryset = UserGuide.objects.all().prefetch_related('steps', 'faqs')
-        
-        # Non-admins only see active guides
+        user    = self.request.user
+        queryset = UserGuide.objects.all().prefetch_related('steps', 'faqs', 'sections')
         if not getattr(user, 'is_system_admin', False):
             queryset = queryset.filter(is_active=True)
-            
         return queryset
 
     @action(detail=True, methods=['post'])
     def update_progress(self, request, pk=None):
-        """
-        Mark a specific user guide as completed or update the last step seen.
-        """
+        """Mark a guide as completed or update last step seen."""
         guide = self.get_object()
-        user = request.user
-        
+        user  = request.user
+
         if isinstance(request.data.get('is_completed'), str):
             is_completed = request.data.get('is_completed', 'false').lower() == 'true'
         else:
             is_completed = bool(request.data.get('is_completed', False))
-            
+
         try:
             last_step_seen = int(request.data.get('last_step_seen', 0))
         except (ValueError, TypeError):
             last_step_seen = 0
-        
+
         progress, created = UserGuideProgress.objects.get_or_create(
-            user=user, 
-            guide=guide,
+            user=user, guide=guide,
             defaults={'is_completed': is_completed, 'last_step_seen': last_step_seen}
         )
-        
         if not created:
-            if 'is_completed' in request.data:
-                progress.is_completed = is_completed
-            if 'last_step_seen' in request.data:
-                progress.last_step_seen = last_step_seen
+            if 'is_completed'   in request.data: progress.is_completed   = is_completed
+            if 'last_step_seen' in request.data: progress.last_step_seen = last_step_seen
             progress.save()
-            
+
         serializer = UserGuideProgressSerializer(progress)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+
 class UserGuideStepViewSet(viewsets.ModelViewSet):
-    queryset = UserGuideStep.objects.all()
+    """
+    Steps — any authenticated user can add; only admin or original author can edit/delete.
+    """
+    queryset         = UserGuideStep.objects.select_related('added_by')
     serializer_class = UserGuideStepSerializer
-    permission_classes = [IsAuthenticated, IsSystemAdmin]
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = UserGuideStep.objects.select_related('added_by')
+        guide_id = self.request.query_params.get('guide')
+        if guide_id:
+            qs = qs.filter(guide_id=guide_id)
+        return qs
+
+    def perform_create(self, serializer):
+        serializer.save(added_by=self.request.user)
+
+    def check_object_permissions(self, request, obj):
+        super().check_object_permissions(request, obj)
+        if request.method not in ('GET', 'HEAD', 'OPTIONS', 'POST'):
+            is_admin  = getattr(request.user, 'is_system_admin', False)
+            is_author = obj.added_by == request.user
+            if not (is_admin or is_author):
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("Only admins or the original contributor can modify this.")
+
 
 class UserGuideFAQViewSet(viewsets.ModelViewSet):
-    queryset = UserGuideFAQ.objects.all()
+    """
+    FAQs — any authenticated user can add; only admin or original author can edit/delete.
+    """
+    queryset         = UserGuideFAQ.objects.select_related('added_by')
     serializer_class = UserGuideFAQSerializer
-    permission_classes = [IsAuthenticated, IsSystemAdmin]
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = UserGuideFAQ.objects.select_related('added_by')
+        guide_id = self.request.query_params.get('guide')
+        if guide_id:
+            qs = qs.filter(guide_id=guide_id)
+        return qs
+
+    def perform_create(self, serializer):
+        serializer.save(added_by=self.request.user)
+
+    def check_object_permissions(self, request, obj):
+        super().check_object_permissions(request, obj)
+        if request.method not in ('GET', 'HEAD', 'OPTIONS', 'POST'):
+            is_admin  = getattr(request.user, 'is_system_admin', False)
+            is_author = obj.added_by == request.user
+            if not (is_admin or is_author):
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("Only admins or the original contributor can modify this.")
+
+
+class UserGuideSectionViewSet(viewsets.ModelViewSet):
+    """
+    Custom sections (Tips, Warnings, Notes, etc.) — any user can contribute.
+    Admins can approve/hide; only admin or author can edit/delete.
+    """
+    queryset         = UserGuideSection.objects.select_related('added_by')
+    serializer_class = UserGuideSectionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = UserGuideSection.objects.select_related('added_by')
+        guide_id = self.request.query_params.get('guide')
+        if guide_id:
+            qs = qs.filter(guide_id=guide_id)
+        # Non-admins only see approved sections
+        if not getattr(self.request.user, 'is_system_admin', False):
+            qs = qs.filter(is_approved=True)
+        return qs
+
+    def perform_create(self, serializer):
+        serializer.save(added_by=self.request.user)
+
+    def check_object_permissions(self, request, obj):
+        super().check_object_permissions(request, obj)
+        if request.method not in ('GET', 'HEAD', 'OPTIONS', 'POST'):
+            is_admin  = getattr(request.user, 'is_system_admin', False)
+            is_author = obj.added_by == request.user
+            if not (is_admin or is_author):
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("Only admins or the original contributor can modify this.")
 
 class EmailLogViewSet(viewsets.ReadOnlyModelViewSet):
     """

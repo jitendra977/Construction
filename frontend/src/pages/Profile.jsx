@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useConstruction } from '../context/ConstructionContext';
 import { User, Mail, Shield, Phone, MapPin, Info, Bell, Settings, Camera, Save, Activity, Type, RotateCcw, Edit2, Loader2, X } from 'lucide-react';
-import { getMediaUrl } from '../services/api';
+import { mediaUrl } from '../services/createApiClient';
 import { Link } from 'react-router-dom';
 import MobileLayout from '../components/mobile/MobileLayout';
 
@@ -25,7 +25,7 @@ const Profile = () => {
 
     if (!user) return null;
 
-    const avatarUrl = previewUrl || getMediaUrl(user.profile_image);
+    const avatarUrl = previewUrl || mediaUrl(user.profile_image);
     const roleName = user.role?.name || 'Admin';
 
     const handleInputChange = (e) => {

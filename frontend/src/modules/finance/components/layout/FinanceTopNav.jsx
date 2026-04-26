@@ -3,22 +3,23 @@
  * Uses ABSOLUTE paths to prevent route nesting bugs.
  */
 import { NavLink } from 'react-router-dom';
+import { usePlatformBase } from '../../../../shared/utils/platformNav';
 import { useFinance } from '../../context/FinanceContext';
 
-const BASE = '/dashboard/desktop/finance';
-
-const TABS = [
-  { to: BASE,                  icon: '📊', label: 'Dashboard',  end: true },
-  { to: `${BASE}/banking`,     icon: '🏦', label: 'Banking' },
-  { to: `${BASE}/loans`,       icon: '📋', label: 'Loans' },
-  { to: `${BASE}/transfers`,   icon: '🔄', label: 'Transfers' },
-  { to: `${BASE}/ledger`,      icon: '📒', label: 'Ledger' },
-  { to: `${BASE}/bills`,       icon: '🧾', label: 'Bills' },
-  { to: `${BASE}/budget`,      icon: '🎯', label: 'Budget' },
-  { to: `${BASE}/help`,        icon: '📖', label: 'सहायता' },
-];
 
 export default function FinanceTopNav() {
+    const base = usePlatformBase();
+    const BASE = `${base}/finance`;
+    const TABS = [
+        { to: BASE,                      icon: '📊', label: 'Dashboard',  end: true },
+        { to: `${base}/finance/banking`,   icon: '🏦', label: 'Banking'   },
+        { to: `${base}/finance/loans`,     icon: '📋', label: 'Loans'     },
+        { to: `${base}/finance/transfers`, icon: '🔄', label: 'Transfers' },
+        { to: `${base}/finance/ledger`,    icon: '📒', label: 'Ledger'    },
+        { to: `${base}/finance/bills`,     icon: '🧾', label: 'Bills'     },
+        { to: `${base}/finance/budget`,    icon: '🎯', label: 'Budget'    },
+        { to: `${base}/finance/help`,      icon: '📖', label: 'सहायता'   },
+    ];
   const { dashboard, loading } = useFinance();
   const totalCash = Number(dashboard?.banking?.total_cash || 0);
 

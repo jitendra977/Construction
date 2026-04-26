@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import HouseProject, ConstructionPhase, Room, Floor, UserGuide, UserGuideStep, UserGuideFAQ, UserGuideProgress, EmailLog, ProjectMember
+from .models import HouseProject, ConstructionPhase, Room, Floor, UserGuide, UserGuideStep, UserGuideFAQ, UserGuideSection, UserGuideProgress, EmailLog, ProjectMember
 
 # ── Project Member ─────────────────────────────────────────────────────────────
 class ProjectMemberSerializer(serializers.ModelSerializer):
@@ -84,25 +84,73 @@ class FloorSerializer(serializers.ModelSerializer):
 
 # ── User Guide ─────────────────────────────────────────────────────────────────
 class UserGuideStepSerializer(serializers.ModelSerializer):
+    added_by_name = serializers.SerializerMethodField()
+
+    def get_added_by_name(self, obj):
+        if obj.added_by:
+            return obj.added_by.get_full_name() or obj.added_by.username
+        return None
+
     class Meta:
         model  = UserGuideStep
-        fields = ['id', 'guide', 'order', 'text_en', 'text_ne', 'target_element', 'media', 'placement']
+        fields = [
+            'id', 'guide', 'order', 'text_en', 'text_ne',
+            'target_element', 'media', 'placement',
+            'added_by', 'added_by_name', 'created_at',
+        ]
+        read_only_fields = ['added_by', 'created_at']
+
 
 class UserGuideFAQSerializer(serializers.ModelSerializer):
+    added_by_name = serializers.SerializerMethodField()
+
+    def get_added_by_name(self, obj):
+        if obj.added_by:
+            return obj.added_by.get_full_name() or obj.added_by.username
+        return None
+
     class Meta:
         model  = UserGuideFAQ
-        fields = ['id', 'guide', 'question_en', 'question_ne', 'answer_en', 'answer_ne', 'order']
+        fields = [
+            'id', 'guide', 'question_en', 'question_ne',
+            'answer_en', 'answer_ne', 'order',
+            'added_by', 'added_by_name', 'created_at',
+        ]
+        read_only_fields = ['added_by', 'created_at']
+
+
+class UserGuideSectionSerializer(serializers.ModelSerializer):
+    added_by_name = serializers.SerializerMethodField()
+
+    def get_added_by_name(self, obj):
+        if obj.added_by:
+            return obj.added_by.get_full_name() or obj.added_by.username
+        return None
+
+    class Meta:
+        model  = UserGuideSection
+        fields = [
+            'id', 'guide', 'section_type', 'title_en', 'title_ne',
+            'content_en', 'content_ne', 'order', 'is_approved',
+            'added_by', 'added_by_name', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['added_by', 'created_at', 'updated_at']
+
 
 class UserGuideSerializer(serializers.ModelSerializer):
-    steps = UserGuideStepSerializer(many=True, read_only=True)
-    faqs  = UserGuideFAQSerializer(many=True, read_only=True)
+    steps    = UserGuideStepSerializer(many=True, read_only=True)
+    faqs     = UserGuideFAQSerializer(many=True, read_only=True)
+    sections = UserGuideSectionSerializer(many=True, read_only=True)
 
     class Meta:
         model  = UserGuide
         fields = [
             'id', 'key', 'is_active', 'type', 'icon', 'title_en', 'title_ne',
-            'description_en', 'description_ne', 'video_url', 'order', 'steps', 'faqs'
+            'description_en', 'description_ne', 'video_url', 'order',
+            'created_at', 'updated_at',
+            'steps', 'faqs', 'sections',
         ]
+
 
 class UserGuideProgressSerializer(serializers.ModelSerializer):
     class Meta:

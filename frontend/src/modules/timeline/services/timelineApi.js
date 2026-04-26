@@ -1,48 +1,47 @@
-import axios from 'axios';
+/**
+ * timelineApi.js — Timeline Module API client
+ * All requests go to /api/v1/ (phases + tasks endpoints)
+ */
+import createApiClient from '../../../services/createApiClient';
 
-const BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
-
-const auth = () => {
-    const t = localStorage.getItem('access_token');
-    return t ? { Authorization: `Bearer ${t}` } : {};
-};
+const http = createApiClient();
 
 const timelineApi = {
     /** All phases for a project, ordered */
     getPhases: (projectId) =>
-        axios.get(`${BASE}/phases/`, { headers: auth(), params: { project: projectId } }),
+        http.get('/phases/', { params: { project: projectId } }),
 
     /** All tasks for a project (with updates & media) */
     getTasks: (projectId) =>
-        axios.get(`${BASE}/tasks/`, { headers: auth(), params: { project: projectId } }),
+        http.get('/tasks/', { params: { project: projectId } }),
 
     /** Critical path computation */
     getCriticalPath: (projectId) =>
-        axios.get(`${BASE}/tasks/critical_path/`, { headers: auth(), params: { project: projectId } }),
+        http.get('/tasks/critical_path/', { params: { project: projectId } }),
 
     /** Task updates log */
     getTaskUpdates: (taskId) =>
-        axios.get(`${BASE}/task-updates/`, { headers: auth(), params: { task: taskId } }),
+        http.get('/task-updates/', { params: { task: taskId } }),
 
     /** Post a progress update */
     addUpdate: (taskId, note, progressPct) =>
-        axios.post(`${BASE}/tasks/${taskId}/add_update/`, { note, progress_percentage: progressPct }, { headers: auth() }),
+        http.post(`/tasks/${taskId}/add_update/`, { note, progress_percentage: progressPct }),
 
     /** Update a task (status, progress, dates, etc.) */
     updateTask: (taskId, data) =>
-        axios.patch(`${BASE}/tasks/${taskId}/`, data, { headers: auth() }),
+        http.patch(`/tasks/${taskId}/`, data),
 
     /** Update a phase */
     updatePhase: (phaseId, data) =>
-        axios.patch(`${BASE}/phases/${phaseId}/`, data, { headers: auth() }),
+        http.patch(`/phases/${phaseId}/`, data),
 
     /** Create a task */
     createTask: (data) =>
-        axios.post(`${BASE}/tasks/`, data, { headers: auth() }),
+        http.post('/tasks/', data),
 
     /** Delete a task */
     deleteTask: (taskId) =>
-        axios.delete(`${BASE}/tasks/${taskId}/`, { headers: auth() }),
+        http.delete(`/tasks/${taskId}/`),
 };
 
 export default timelineApi;

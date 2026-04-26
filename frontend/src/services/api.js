@@ -261,6 +261,11 @@ export const dashboardService = {
     createGuideFaq: (data) => api.post('/user-guide-faqs/', data),
     updateGuideFaq: (id, data) => api.patch(`/user-guide-faqs/${id}/`, data),
     deleteGuideFaq: (id) => api.delete(`/user-guide-faqs/${id}/`),
+
+    // Guide Sections (user-contributed tips, warnings, notes, etc.)
+    createGuideSection: (data) => api.post('/user-guide-sections/', data),
+    updateGuideSection: (id, data) => api.patch(`/user-guide-sections/${id}/`, data),
+    deleteGuideSection: (id) => api.delete(`/user-guide-sections/${id}/`),
 };
 
 export const accountingService = {
@@ -461,12 +466,13 @@ export const importService = {
 };
 
 export const accountsService = {
-    getActivityLogs: () => api.get('/activity-logs/'),
-    getUsers: () => api.get('/users/'),
-    createUser: (data) => api.post('/users/', data),
-    updateUser: (id, data) => api.patch(`/users/${id}/`, data),
-    deleteUser: (id) => api.delete(`/users/${id}/`),
-    getRoles: () => api.get('/roles/'),
+    // Updated to use the accounts module URL namespace (/accounts/*)
+    getActivityLogs: () => api.get('/accounts/activity-logs/'),
+    getUsers:        () => api.get('/accounts/users/'),
+    createUser:  (data)      => api.post('/accounts/users/', data),
+    updateUser:  (id, data)  => api.patch(`/accounts/users/${id}/`, data),
+    deleteUser:  (id)        => api.delete(`/accounts/users/${id}/`),
+    getRoles:    ()          => api.get('/accounts/roles/'),
 };
 
 /**

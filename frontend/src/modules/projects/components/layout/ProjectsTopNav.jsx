@@ -1,14 +1,14 @@
 import React from 'react';
-import { NavLink, useParams } from 'react-router-dom';
-
-const BASE = (id) => `/dashboard/desktop/projects/${id}`;
+import { NavLink } from 'react-router-dom';
+import { usePlatformBase } from '../../../../shared/utils/platformNav';
 
 export default function ProjectsTopNav({ projectId }) {
-    const id = projectId;
+    const id  = projectId;
+    const base = usePlatformBase();
     const tabs = [
-        { to: `${BASE(id)}/overview`,  label: '📊 Overview' },
-        { to: `${BASE(id)}/settings`,  label: '⚙️ Settings' },
-        { to: `${BASE(id)}/team`,      label: '👥 Team' },
+        { to: `${base}/projects/${id}/overview`,  label: '📊 Overview' },
+        { to: `${base}/projects/${id}/settings`,  label: '⚙️ Settings' },
+        { to: `${base}/projects/${id}/team`,      label: '👥 Team' },
     ];
 
     return (

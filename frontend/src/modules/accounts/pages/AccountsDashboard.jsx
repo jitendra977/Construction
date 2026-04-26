@@ -2,6 +2,7 @@
  * AccountsDashboard — KPI overview for the Accounts module.
  */
 import { useNavigate } from 'react-router-dom';
+import { usePlatformBase } from '../../../shared/utils/platformNav';
 import { useAccounts } from '../context/AccountsContext';
 import Avatar from '../components/shared/Avatar';
 import Badge from '../components/shared/Badge';
@@ -28,6 +29,8 @@ const fmt = (iso) => iso ? new Date(iso).toLocaleDateString('en-IN', { day: '2-d
 export default function AccountsDashboard() {
     const { stats, users, roles, loading } = useAccounts();
     const navigate = useNavigate();
+    const base    = usePlatformBase();
+    const AB      = `${base}/accounts`;
 
     if (loading) return (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200 }}>
@@ -57,7 +60,7 @@ export default function AccountsDashboard() {
                 <div style={{ borderRadius: 14, border: '1px solid var(--t-border)', background: 'var(--t-surface)', padding: 20 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                         <p style={{ margin: 0, fontSize: 12, fontWeight: 900, color: 'var(--t-text)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>🛡️ Users by Role</p>
-                        <button onClick={() => navigate('/dashboard/desktop/accounts/roles')}
+                        <button onClick={() => navigate(`${AB}/roles`)}
                             style={{ fontSize: 11, color: '#6366f1', fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer' }}>
                             Manage →
                         </button>
@@ -89,7 +92,7 @@ export default function AccountsDashboard() {
                 <div style={{ borderRadius: 14, border: '1px solid var(--t-border)', background: 'var(--t-surface)', padding: 20 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                         <p style={{ margin: 0, fontSize: 12, fontWeight: 900, color: 'var(--t-text)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>🆕 Recent Users</p>
-                        <button onClick={() => navigate('/dashboard/desktop/accounts/users')}
+                        <button onClick={() => navigate(`${AB}/users`)}
                             style={{ fontSize: 11, color: '#6366f1', fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer' }}>
                             All users →
                         </button>
@@ -122,11 +125,11 @@ export default function AccountsDashboard() {
                 <p style={{ margin: '0 0 14px', fontSize: 12, fontWeight: 900, color: 'var(--t-text)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>⚡ Quick Actions</p>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     {[
-                        { icon: '➕', label: 'Invite User',        path: '/dashboard/desktop/accounts/users',   q: '?invite=1' },
-                        { icon: '👤', label: 'Edit My Profile',    path: '/dashboard/desktop/accounts/profile'              },
-                        { icon: '🔑', label: 'Change Password',    path: '/dashboard/desktop/accounts/profile', q: '?tab=security' },
-                        { icon: '🛡️', label: 'Manage Roles',      path: '/dashboard/desktop/accounts/roles'                },
-                        { icon: '📋', label: 'View Activity Log',  path: '/dashboard/desktop/accounts/activity'             },
+                        { icon: '➕', label: 'Invite User',        path: `${AB}/users`,   q: '?invite=1' },
+                        { icon: '👤', label: 'Edit My Profile',    path: `${AB}/profile`              },
+                        { icon: '🔑', label: 'Change Password',    path: `${AB}/profile`, q: '?tab=security' },
+                        { icon: '🛡️', label: 'Manage Roles',      path: `${AB}/roles`                },
+                        { icon: '📋', label: 'View Activity Log',  path: `${AB}/activity`             },
                     ].map(({ icon, label, path, q = '' }) => (
                         <button key={label}
                             onClick={() => navigate(path + q)}

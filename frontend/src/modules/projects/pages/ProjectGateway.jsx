@@ -6,6 +6,7 @@
  */
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { usePlatformBase } from '../../../shared/utils/platformNav';
 import { useProjects }      from '../context/ProjectsContext';
 import { useConstruction }  from '../../../context/ConstructionContext';
 import ProjectCard           from '../components/projects/ProjectCard';
@@ -170,15 +171,15 @@ export default function ProjectGateway() {
                     style={{ background: 'var(--t-surface)', border: '2px solid #f97316' }}>
                     <span style={{ color: '#f97316' }}>✓ Active project set</span>
                     <span style={{ color: 'var(--t-text3)', fontSize: 12 }}>—</span>
-                    <button onClick={() => navigate('/dashboard/desktop/home')}
+                    <button onClick={() => navigate(`${base}/home`)}
                         className="text-sm font-bold" style={{ color: '#f97316' }}>
                         Go to Dashboard →
                     </button>
-                    <button onClick={() => navigate(`/dashboard/desktop/structure`)}
+                    <button onClick={() => navigate(`${base}/structure`)}
                         className="text-sm font-semibold" style={{ color: 'var(--t-text3)' }}>
                         Structure →
                     </button>
-                    <button onClick={() => navigate(`/dashboard/desktop/finance`)}
+                    <button onClick={() => navigate(`${base}/finance`)}
                         className="text-sm font-semibold" style={{ color: 'var(--t-text3)' }}>
                         Finance →
                     </button>

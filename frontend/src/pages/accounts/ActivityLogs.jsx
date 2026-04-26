@@ -5,7 +5,7 @@ import {
     ChevronRight, MapPin, Download, TrendingUp, 
     Users, Box, Clock, Shield, Database, ExternalLink
 } from 'lucide-react';
-import { accountsService } from '../../services/api';
+import { getActivityLogs } from '../../modules/accounts/services/accountsApi';
 import MobileLayout from '../../components/mobile/MobileLayout';
 
 /** Generate a local SVG data-URI avatar from initials — no external requests. */
@@ -41,7 +41,7 @@ const ActivityLogs = () => {
         setLoading(true);
         setError(null);
         try {
-            const response = await accountsService.getActivityLogs();
+            const response = await getActivityLogs();
             setLogs(response.data);
         } catch (err) {
             console.error('Failed to fetch activity logs', err);

@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import (
-    HouseProject, ConstructionPhase, Floor, Room, 
-    UserGuide, UserGuideStep, UserGuideFAQ, UserGuideProgress, EmailLog
+    HouseProject, ConstructionPhase, Floor, Room,
+    UserGuide, UserGuideStep, UserGuideFAQ, UserGuideSection, UserGuideProgress, EmailLog
 )
 
 @admin.register(HouseProject)
@@ -47,6 +47,13 @@ class UserGuideStepAdmin(admin.ModelAdmin):
 class UserGuideFAQAdmin(admin.ModelAdmin):
     list_display = ('guide', 'question_en', 'order')
     list_filter = ('guide',)
+
+@admin.register(UserGuideSection)
+class UserGuideSectionAdmin(admin.ModelAdmin):
+    list_display = ('guide', 'section_type', 'title_en', 'is_approved', 'added_by', 'created_at')
+    list_filter  = ('section_type', 'is_approved', 'guide')
+    search_fields = ('title_en', 'content_en')
+    list_editable = ('is_approved',)
 
 @admin.register(UserGuideProgress)
 class UserGuideProgressAdmin(admin.ModelAdmin):

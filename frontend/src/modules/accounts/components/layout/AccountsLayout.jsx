@@ -2,20 +2,22 @@
  * AccountsLayout — top nav bar for the Accounts module.
  */
 import { NavLink } from 'react-router-dom';
+import { usePlatformBase } from '../../../../shared/utils/platformNav';
 import { useAccounts } from '../../context/AccountsContext';
-
-const BASE = '/dashboard/desktop/accounts';
-
-const TABS = [
-    { to: BASE,                end: true, icon: '📊', label: 'Dashboard'  },
-    { to: `${BASE}/profile`,              icon: '👤', label: 'My Profile' },
-    { to: `${BASE}/users`,                icon: '👥', label: 'Users'      },
-    { to: `${BASE}/roles`,                icon: '🛡️', label: 'Roles'     },
-    { to: `${BASE}/activity`,             icon: '📋', label: 'Activity'   },
-];
 
 export default function AccountsLayout({ children }) {
     const { stats, loading } = useAccounts();
+    const base = usePlatformBase();
+    const BASE = `${base}/accounts`;
+
+    // TABS must be inside the component — BASE is a hook-derived value
+    const TABS = [
+        { to: BASE,                end: true, icon: '📊', label: 'Dashboard'  },
+        { to: `${BASE}/profile`,              icon: '👤', label: 'My Profile' },
+        { to: `${BASE}/users`,                icon: '👥', label: 'Users'      },
+        { to: `${BASE}/roles`,                icon: '🛡️', label: 'Roles'     },
+        { to: `${BASE}/activity`,             icon: '📋', label: 'Activity'   },
+    ];
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', background: 'var(--t-bg)' }}>
@@ -76,7 +78,7 @@ export default function AccountsLayout({ children }) {
             </div>
 
             {/* ── Page content ────────────────────────────────────────── */}
-            <main style={{ flex: 1, padding: 24 }}>
+            <main style={{ flex: 1, padding: 24, paddingBottom: 96 }}>
                 {children}
             </main>
         </div>

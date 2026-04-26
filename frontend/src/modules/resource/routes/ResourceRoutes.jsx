@@ -40,7 +40,7 @@ export default function ResourceRoutes({ projectId }) {
           <Route path="suppliers"     element={<SuppliersPage />} />
           <Route path="purchases"     element={<PurchasesPage />} />
           <Route path="help"          element={<HelpPage />} />
-          <Route path="*"             element={<Navigate to="/dashboard/desktop/resource" replace />} />
+          <Route path="*"             element={<Navigate to="" replace />} />
         </Routes>
       </ResourceLayout>
     </ResourceProvider>

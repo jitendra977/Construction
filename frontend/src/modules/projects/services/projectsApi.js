@@ -1,27 +1,28 @@
 /**
- * Projects API — wraps /api/v1/projects/ and /api/v1/project-members/
+ * projectsApi.js — Projects Module API client
+ * All requests go to /api/v1/projects/ and /api/v1/project-members/
  */
-import axios from 'axios';
+import createApiClient from '../../../services/createApiClient';
 
-const BASE = '/api/v1';
+const http = createApiClient();
 
-const api = {
+const projectsApi = {
     // ── Projects ─────────────────────────────────────────────────────────────
-    listProjects: ()              => axios.get(`${BASE}/projects/`),
-    getProject:   (id)            => axios.get(`${BASE}/projects/${id}/`),
-    createProject: (data)         => axios.post(`${BASE}/projects/`, data),
-    updateProject: (id, data)     => axios.patch(`${BASE}/projects/${id}/`, data),
-    deleteProject: (id)           => axios.delete(`${BASE}/projects/${id}/`),
-    getStats:      (id)           => axios.get(`${BASE}/projects/${id}/stats/`),
+    listProjects:  ()            => http.get('/projects/'),
+    getProject:    (id)          => http.get(`/projects/${id}/`),
+    createProject: (data)        => http.post('/projects/', data),
+    updateProject: (id, data)    => http.patch(`/projects/${id}/`, data),
+    deleteProject: (id)          => http.delete(`/projects/${id}/`),
+    getStats:      (id)          => http.get(`/projects/${id}/stats/`),
 
     // ── Members ───────────────────────────────────────────────────────────────
-    listMembers:  (projectId)     => axios.get(`${BASE}/project-members/?project=${projectId}`),
-    addMember:    (data)          => axios.post(`${BASE}/project-members/`, data),
-    updateMember: (id, data)      => axios.patch(`${BASE}/project-members/${id}/`, data),
-    removeMember: (id)            => axios.delete(`${BASE}/project-members/${id}/`),
+    listMembers:  (projectId)    => http.get('/project-members/', { params: { project: projectId } }),
+    addMember:    (data)         => http.post('/project-members/', data),
+    updateMember: (id, data)     => http.patch(`/project-members/${id}/`, data),
+    removeMember: (id)           => http.delete(`/project-members/${id}/`),
 
     // ── Users (for member picker) ─────────────────────────────────────────────
-    listUsers: ()                 => axios.get(`${BASE}/users/`),
+    listUsers: ()                => http.get('/users/'),
 };
 
-export default api;
+export default projectsApi;

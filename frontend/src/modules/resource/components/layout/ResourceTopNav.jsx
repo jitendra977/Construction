@@ -3,21 +3,22 @@
  * Uses ABSOLUTE paths to prevent route nesting bugs.
  */
 import { NavLink } from 'react-router-dom';
+import { usePlatformBase } from '../../../../shared/utils/platformNav';
 import { useResource } from '../../context/ResourceContext';
 
-const BASE = '/dashboard/desktop/resource';
-
-const TABS = [
-  { to: BASE,                  icon: '📊', label: 'Dashboard',       end: true },
-  { to: `${BASE}/materials`,   icon: '🧱', label: 'Materials' },
-  { to: `${BASE}/equipment`,   icon: '🚜', label: 'Equipment' },
-  { to: `${BASE}/labor`,       icon: '👷', label: 'Labor' },
-  { to: `${BASE}/suppliers`,   icon: '🏪', label: 'Suppliers' },
-  { to: `${BASE}/purchases`,   icon: '📦', label: 'Purchases' },
-  { to: `${BASE}/help`,        icon: '📖', label: 'सहायता' },
-];
 
 export default function ResourceTopNav() {
+    const base = usePlatformBase();
+    const BASE = `${base}/resource`;
+    const TABS = [
+        { to: BASE,                       icon: '📊', label: 'Dashboard',  end: true },
+        { to: `${base}/resource/materials`, icon: '🧱', label: 'Materials' },
+        { to: `${base}/resource/equipment`, icon: '🚜', label: 'Equipment' },
+        { to: `${base}/resource/labor`,     icon: '👷', label: 'Labor'     },
+        { to: `${base}/resource/suppliers`, icon: '🏪', label: 'Suppliers' },
+        { to: `${base}/resource/purchases`, icon: '📦', label: 'Purchases' },
+        { to: `${base}/resource/help`,      icon: '📖', label: 'सहायता'   },
+    ];
   const { materials, loading } = useResource();
   const totalMaterials = materials.length;
 

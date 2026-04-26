@@ -8,7 +8,7 @@ export default function ProjectsLayout({ projectId, project }) {
             {/* Sub-nav */}
             {projectId && <ProjectsTopNav projectId={projectId} />}
             {/* Page content */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto pb-28">
                 <Outlet context={{ project }} />
             </div>
         </div>

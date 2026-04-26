@@ -34,6 +34,7 @@ function DesktopDashboard() {
         { id: 'estimator', icon: '🧮',  label: 'Estimator (इस्टिमेटर)' },
         // Construction
         { id: 'permits',   icon: '📜',  label: 'Permits (नक्सा पास)' },
+        { id: 'phases',    icon: '📋',  label: 'Phases & Tasks (चरण र कार्य)' },
         { id: 'manage',    icon: '🛠️', label: 'Manage (व्यवस्थापन)' },
         { id: 'timeline',  icon: '📅',  label: 'Timeline (समयरेखा)' },
         { id: 'finance',   icon: '💰',  label: 'Finance (वित्त)' },

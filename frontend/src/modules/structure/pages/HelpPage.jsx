@@ -63,6 +63,7 @@ const SECTIONS = [
 ];
 
 export default function HelpPage() {
+    const base = usePlatformBase();
     const [open, setOpen] = useState({ overview: true });
     const toggle = (id) => setOpen(p => ({ ...p, [id]: !p[id] }));
 
@@ -125,11 +126,11 @@ export default function HelpPage() {
                     </thead>
                     <tbody style={{ color: 'var(--t-text)' }}>
                         {[
-                            ['Overview',    '/dashboard/desktop/structure',            'सारांश र तल्लाहरूको सूची'],
-                            ['Floor Plan',  '/dashboard/desktop/structure/floorplan',  '2D नक्सा editor'],
-                            ['Rooms',       '/dashboard/desktop/structure/rooms',       'कोठाहरूको list र edit'],
-                            ['Progress',    '/dashboard/desktop/structure/progress',    'निर्माण प्रगति report'],
-                            ['Help',        '/dashboard/desktop/structure/help',        'यो help page'],
+                            ['Overview',    `${base}/structure`,            'सारांश र तल्लाहरूको सूची'],
+                            ['Floor Plan',  `${base}/structure/floorplan`,  '2D नक्सा editor'],
+                            ['Rooms',       `${base}/structure/rooms`,       'कोठाहरूको list र edit'],
+                            ['Progress',    `${base}/structure/progress`,    'निर्माण प्रगति report'],
+                            ['Help',        `${base}/structure/help`,        'यो help page'],
                         ].map(([tab, url, desc]) => (
                             <tr key={tab} style={{ borderTop: '1px solid var(--t-border)' }}>
                                 <td className="py-1.5 font-medium">{tab}</td>

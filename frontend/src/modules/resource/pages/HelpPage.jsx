@@ -43,6 +43,7 @@ const Badge = ({ color, label }) => {
 };
 
 export default function HelpPage() {
+    const base = usePlatformBase();
   return (
     <div className="space-y-6 pb-10">
 
@@ -78,13 +79,13 @@ export default function HelpPage() {
           <p className="text-[10px] font-black text-gray-600 uppercase mb-3">तरिका २ — URL सिधै टाइप गरेर</p>
           <div className="space-y-1.5">
             {[
-              { path: '/dashboard/desktop/resource',             label: 'Dashboard (मुख्य पृष्ठ)' },
-              { path: '/dashboard/desktop/resource/materials',   label: 'Materials (सामग्री)' },
-              { path: '/dashboard/desktop/resource/equipment',   label: 'Equipment (उपकरण)' },
-              { path: '/dashboard/desktop/resource/labor',       label: 'Labor (श्रमिक)' },
-              { path: '/dashboard/desktop/resource/suppliers',   label: 'Suppliers (आपूर्तिकर्ता)' },
-              { path: '/dashboard/desktop/resource/purchases',   label: 'Purchases (खरिद आदेश)' },
-              { path: '/dashboard/desktop/resource/help',        label: 'सहायता (यही पृष्ठ)' },
+              { path: `${base}/resource`,             label: 'Dashboard (मुख्य पृष्ठ)' },
+              { path: `${base}/resource/materials`,   label: 'Materials (सामग्री)' },
+              { path: `${base}/resource/equipment`,   label: 'Equipment (उपकरण)' },
+              { path: `${base}/resource/labor`,       label: 'Labor (श्रमिक)' },
+              { path: `${base}/resource/suppliers`,   label: 'Suppliers (आपूर्तिकर्ता)' },
+              { path: `${base}/resource/purchases`,   label: 'Purchases (खरिद आदेश)' },
+              { path: `${base}/resource/help`,        label: 'सहायता (यही पृष्ठ)' },
             ].map(({ path, label }) => (
               <div key={path} className="flex items-center justify-between bg-white border border-gray-100 rounded-lg px-3 py-2">
                 <span className="text-[10px] font-mono text-gray-500">{path}</span>

@@ -43,7 +43,7 @@ export default function FinanceRoutes({ projectId }) {
           <Route path="bills"         element={<BillsPage />} />
           <Route path="budget"        element={<BudgetPage />} />
           <Route path="help"          element={<HelpPage />} />
-          <Route path="*"             element={<Navigate to="/dashboard/desktop/finance" replace />} />
+          <Route path="*"             element={<Navigate to="" replace />} />
         </Routes>
       </FinanceLayout>
     </FinanceProvider>

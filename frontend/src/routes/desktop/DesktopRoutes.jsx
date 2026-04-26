@@ -9,6 +9,7 @@ import EstimatorHub    from '../../pages/estimator/EstimatorHub';
 import PermitPage      from '../../pages/permits/PermitPage';
 import DataImportPage  from '../../pages/DataImportPage';
 import UserGuidePage   from '../../pages/desktop/UserGuidePage';
+import PhasesPage      from '../../pages/desktop/PhasesPage';
 import TimelapsePage   from '../../pages/TimelapsePage';
 import AnalyticsPage   from '../../pages/AnalyticsPage';
 
@@ -35,6 +36,7 @@ const DesktopRoutes = () => {
             <Route path="estimator"  element={<EstimatorHub />}   />
             <Route path="permits"    element={<PermitPage />}     />
             <Route path="manage"     element={<DesktopManage />}  />
+            <Route path="phases"     element={<PhasesPage />}     />
             <Route path="photos"     element={<DesktopPhotos />}  />
             <Route path="import"     element={<DataImportPage />} />
             <Route path="guides"     element={<UserGuidePage />}  />

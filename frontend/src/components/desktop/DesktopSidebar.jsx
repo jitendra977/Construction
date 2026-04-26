@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { getMediaUrl } from '../../services/api';
+import { mediaUrl } from '../../services/createApiClient';
 import { useConstruction } from '../../context/ConstructionContext';
 import ThemeToggle from '../common/ThemeToggle';
 import ProjectSwitcher from '../common/ProjectSwitcher';
@@ -24,7 +24,7 @@ const NAV_SECTIONS = [
         id:    'construction',
         label: 'Construction',
         icon:  '🏗️',
-        ids:   ['permits', 'manage', 'timeline', 'finance', 'resource', 'structure', 'photos', 'timelapse'],
+        ids:   ['permits', 'phases', 'manage', 'timeline', 'finance', 'resource', 'structure', 'photos', 'timelapse'],
         defaultOpen: true,
     },
     {
@@ -145,7 +145,17 @@ function NavSection({ section, items }) {
                             }}
                         >
                             <span className="text-base shrink-0">{item.icon}</span>
-                            <span className="truncate">{item.label}</span>
+                            <span className="flex-1 truncate">{item.label}</span>
+                            {item.badge && (
+                                <span style={{
+                                    fontSize: 8, fontWeight: 900, padding: '2px 6px',
+                                    borderRadius: 5, whiteSpace: 'nowrap', flexShrink: 0,
+                                    background: 'rgba(249,115,22,0.15)',
+                                    color: '#f97316',
+                                    border: '1px solid rgba(249,115,22,0.25)',
+                                    letterSpacing: '0.04em',
+                                }}>{item.badge}</span>
+                            )}
                         </NavLink>
                     ))}
                 </div>
@@ -156,7 +166,17 @@ function NavSection({ section, items }) {
 
 /* ── Main sidebar ─────────────────────────────────────────────────────────── */
 const DesktopSidebar = ({ user, onLogout, navItems }) => {
-    const { activeProjectId, projects } = useConstruction();
+    const { activeProjectId, projects, dashboardData } = useConstruction();
+
+    // Inject live stats badge into the phases nav item
+    const enrichedNavItems = navItems.map(item => {
+        if (item.id === 'phases' && dashboardData) {
+            const t = (dashboardData.tasks  || []).length;
+            const p = (dashboardData.phases || []).length;
+            return { ...item, badge: `${t}t · ${p}p` };
+        }
+        return item;
+    });
     const projectList   = Array.isArray(projects) ? projects : [];
     const activeProject = projectList.find(p => p.id === activeProjectId) || null;
 
@@ -220,7 +240,7 @@ const DesktopSidebar = ({ user, onLogout, navItems }) => {
             {/* ── Navigation ── */}
             <nav className="flex-1 px-3 py-3 space-y-1 overflow-y-auto">
                 {NAV_SECTIONS.map((section) => {
-                    const sectionItems = navItems.filter(item =>
+                    const sectionItems = enrichedNavItems.filter(item =>
                         section.ids.includes(item.id)
                     );
                     return (
@@ -249,7 +269,7 @@ const DesktopSidebar = ({ user, onLogout, navItems }) => {
                     >
                         {user?.profile_image ? (
                             <img
-                                src={getMediaUrl(user.profile_image)}
+                                src={mediaUrl(user.profile_image)}
                                 alt={user.username}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
