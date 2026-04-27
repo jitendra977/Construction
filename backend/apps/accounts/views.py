@@ -60,65 +60,14 @@ def log_activity(request, user, action, model_name,
 
 # ── Auth endpoints ────────────────────────────────────────────────────────────
 
-@api_view(['POST'])
+@api_view(['POST', 'GET'])
 @permission_classes([AllowAny])
 def login_view(request):
-    """JWT login — accepts email or username field."""
-    try:
-        serializer = LoginSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        password = serializer.validated_data['password']
-        email = (
-            serializer.validated_data.get('email')
-            or serializer.validated_data.get('username')
-        )
-
-        # DEBUG: try both username and email keywords
-        user = authenticate(request, username=email, password=password)
-        if user is None:
-            user = authenticate(request, email=email, password=password)
-
-        if user is None:
-            try:
-                candidate = User.objects.get(email=email)
-                if candidate.check_password(password):
-                    user = candidate if candidate.is_active else None
-            except User.DoesNotExist:
-                pass
-
-        if user is not None:
-            try:
-                user.update_frontend_last_login()
-            except Exception:
-                pass
-
-        if user is not None:
-            refresh = RefreshToken.for_user(user)
-            log_activity(request, user, 'LOGIN', 'User',
-                         object_id=user.id, object_repr=user.email,
-                         description='User logged in')
-            return Response({
-                'user': UserSerializer(user).data,
-                'access': str(refresh.access_token),
-                'refresh': str(refresh),
-            })
-        
-        return Response(
-            {'error': 'Invalid credentials — check your email and password.'},
-            status=status.HTTP_401_UNAUTHORIZED,
-        )
-    except Exception as e:
-        import traceback
-        return Response({
-            'error': str(e),
-            'traceback': traceback.format_exc(),
-            'debug_info': {
-                'email': email if 'email' in locals() else 'not_set',
-                'method': request.method,
-                'path': request.path
-            }
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return Response({
+        "status": "debug_active",
+        "method": request.method,
+        "message": "Minimal view reached"
+    })
 
 
 @api_view(['POST'])
