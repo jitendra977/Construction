@@ -3,10 +3,13 @@ Attendance Module Models
 ─────────────────────────
 AttendanceWorker  — a person (labour or staff) tracked per project
 DailyAttendance   — one attendance record per worker per day
+QRScanLog         — immutable log of every QR scan event
 """
 from decimal import Decimal
+import uuid
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 class AttendanceWorker(models.Model):
@@ -60,6 +63,15 @@ class AttendanceWorker(models.Model):
     is_active    = models.BooleanField(default=True)
     joined_date  = models.DateField(null=True, blank=True)
     notes        = models.TextField(blank=True)
+
+    # ── QR Attendance ──────────────────────────────────────────
+    # Unique token embedded in the worker's QR code.
+    # Never changes after creation — regenerating invalidates old printed badges.
+    qr_token     = models.UUIDField(
+        default=uuid.uuid4, unique=True, editable=False,
+        help_text="Unique token embedded in QR badge. Scan to mark check-in/out.",
+    )
+
     created_at   = models.DateTimeField(auto_now_add=True)
     updated_at   = models.DateTimeField(auto_now=True)
 
@@ -147,3 +159,38 @@ class DailyAttendance(models.Model):
         elif self.status == "HALF_DAY":
             return Decimal("0.5")
         return Decimal("0")
+
+
+class QRScanLog(models.Model):
+    """
+    Immutable log of every QR scan event.
+    Useful for audit trail and debugging.
+    """
+    SCAN_TYPE_CHOICES = [
+        ("CHECK_IN",  "Check In"),
+        ("CHECK_OUT", "Check Out"),
+        ("IGNORED",   "Ignored (already complete)"),
+    ]
+
+    worker      = models.ForeignKey(
+        AttendanceWorker, on_delete=models.CASCADE, related_name="qr_scan_logs",
+    )
+    attendance  = models.ForeignKey(
+        DailyAttendance, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="scan_logs",
+    )
+    scan_type   = models.CharField(max_length=10, choices=SCAN_TYPE_CHOICES)
+    scanned_at  = models.DateTimeField(default=timezone.now)
+    scanned_by  = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="qr_scans_performed",
+    )
+    ip_address  = models.GenericIPAddressField(null=True, blank=True)
+    user_agent  = models.TextField(blank=True)
+    note        = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        ordering = ["-scanned_at"]
+
+    def __str__(self):
+        return f"{self.worker.name} — {self.scan_type} at {self.scanned_at:%Y-%m-%d %H:%M}"

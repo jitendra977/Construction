@@ -24,7 +24,14 @@ const NAV_SECTIONS = [
         id:    'construction',
         label: 'Construction',
         icon:  '🏗️',
-        ids:   ['permits', 'phases', 'manage', 'timeline', 'finance', 'resource', 'structure', 'photos', 'timelapse', 'attendance'],
+        ids:   ['permits', 'phases', 'manage', 'timeline', 'finance', 'resource', 'structure', 'photos', 'timelapse'],
+        defaultOpen: true,
+    },
+    {
+        id:    'team',
+        label: 'Team & HR',
+        icon:  '👷',
+        ids:   ['attendance'],
         defaultOpen: true,
     },
     {

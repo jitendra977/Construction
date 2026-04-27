@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import AttendanceWorker, DailyAttendance
+from .models import AttendanceWorker, DailyAttendance, QRScanLog
 
 
 class AttendanceWorkerSerializer(serializers.ModelSerializer):
@@ -8,11 +8,10 @@ class AttendanceWorkerSerializer(serializers.ModelSerializer):
     effective_ot_rate   = serializers.DecimalField(
         source="effective_overtime_rate", max_digits=10, decimal_places=2, read_only=True
     )
-    # Project member info (read-only, shown when linked)
-    member_role         = serializers.CharField(source="project_member.role", read_only=True, default=None)
-    member_user_name    = serializers.SerializerMethodField()
-    member_user_email   = serializers.SerializerMethodField()
-    member_user_avatar  = serializers.SerializerMethodField()
+    member_role       = serializers.CharField(source="project_member.role", read_only=True, default=None)
+    member_user_name  = serializers.SerializerMethodField()
+    member_user_email = serializers.SerializerMethodField()
+    member_user_avatar= serializers.SerializerMethodField()
 
     class Meta:
         model  = AttendanceWorker
@@ -23,9 +22,10 @@ class AttendanceWorkerSerializer(serializers.ModelSerializer):
             "phone", "address", "linked_user", "project_member",
             "member_role", "member_user_name", "member_user_email", "member_user_avatar",
             "is_active", "joined_date", "notes",
+            "qr_token",
             "created_at", "updated_at",
         ]
-        read_only_fields = ["created_at", "updated_at"]
+        read_only_fields = ["qr_token", "created_at", "updated_at"]
 
     def get_member_user_name(self, obj):
         if obj.project_member and obj.project_member.user:
@@ -69,17 +69,29 @@ class DailyAttendanceSerializer(serializers.ModelSerializer):
             "notes", "recorded_by",
             "created_at", "updated_at",
         ]
-        read_only_fields = [
-            "daily_rate_snapshot", "overtime_rate_snapshot",
-            "created_at", "updated_at",
-        ]
+        read_only_fields = ["daily_rate_snapshot", "overtime_rate_snapshot", "created_at", "updated_at"]
 
 
 class BulkAttendanceSerializer(serializers.Serializer):
-    """For marking multiple workers' attendance for a single date."""
     project = serializers.IntegerField()
     date    = serializers.DateField()
-    records = serializers.ListField(
-        child=serializers.DictField(),
-        help_text="[{worker: id, status: 'PRESENT', overtime_hours: 0, notes: ''}]"
-    )
+    records = serializers.ListField(child=serializers.DictField())
+
+
+class QRScanLogSerializer(serializers.ModelSerializer):
+    worker_name   = serializers.CharField(source="worker.name", read_only=True)
+    scanned_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = QRScanLog
+        fields = [
+            "id", "worker", "worker_name", "attendance",
+            "scan_type", "scanned_at",
+            "scanned_by", "scanned_by_name",
+            "ip_address", "note",
+        ]
+
+    def get_scanned_by_name(self, obj):
+        if obj.scanned_by:
+            return obj.scanned_by.get_full_name() or obj.scanned_by.username
+        return "Kiosk / Anonymous"

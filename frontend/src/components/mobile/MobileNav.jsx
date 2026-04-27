@@ -41,6 +41,12 @@ const SECTIONS = [
             { id: 'permits',   icon: '📜', label: 'Permits'    },
             { id: 'structure', icon: '🏛️', label: 'Structure'  },
             { id: 'resource',  icon: '🧱', label: 'Resources'  },
+        ],
+    },
+    {
+        label: 'Team & HR',
+        color: '#f59e0b',
+        items: [
             { id: 'attendance', icon: '🕐', label: 'Attendance' },
         ],
     },
