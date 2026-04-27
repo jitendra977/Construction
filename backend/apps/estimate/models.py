@@ -10,6 +10,8 @@ EstimateItem    — individual line-item (material or labor) within a section
 """
 from __future__ import annotations
 
+from decimal import Decimal
+
 from django.conf import settings
 from django.db import models
 
@@ -188,7 +190,7 @@ class Estimate(models.Model):
         mat  = sum(s.material_subtotal for s in self.sections.all())
         lab  = sum(s.labor_subtotal    for s in self.sections.all())
         base = mat + lab
-        cont = base * (self.contingency_pct / 100)
+        cont = base * Decimal(str(self.contingency_pct)) / Decimal('100')
         self.material_total     = mat
         self.labor_total        = lab
         self.contingency_amount = cont
