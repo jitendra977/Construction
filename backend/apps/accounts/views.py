@@ -1,6 +1,5 @@
 import logging
 import uuid
-from django.views.decorators.csrf import csrf_exempt
 
 from rest_framework import status, generics, permissions, viewsets
 from rest_framework.decorators import api_view, permission_classes, action
@@ -60,14 +59,50 @@ def log_activity(request, user, action, model_name,
 
 # ── Auth endpoints ────────────────────────────────────────────────────────────
 
-@api_view(['POST', 'GET'])
+@api_view(['POST'])
 @permission_classes([AllowAny])
 def login_view(request):
-    return Response({
-        "status": "debug_active",
-        "method": request.method,
-        "message": "Minimal view reached"
-    })
+    """JWT login — accepts email or username field."""
+    serializer = LoginSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    password = serializer.validated_data['password']
+    email = (
+        serializer.validated_data.get('email')
+        or serializer.validated_data.get('username')
+    )
+
+    # Try both email and username keyword for backend compatibility
+    user = authenticate(request, username=email, password=password)
+    if user is None:
+        # Fallback: direct lookup for email-based custom backends
+        try:
+            candidate = User.objects.get(email=email)
+            if candidate.check_password(password):
+                user = candidate if candidate.is_active else None
+        except User.DoesNotExist:
+            pass
+
+    if user is not None:
+        try:
+            user.update_frontend_last_login()
+        except Exception:
+            pass
+
+        refresh = RefreshToken.for_user(user)
+        log_activity(request, user, 'LOGIN', 'User',
+                     object_id=user.id, object_repr=user.email,
+                     description='User logged in')
+        return Response({
+            'user': UserSerializer(user).data,
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+        })
+
+    return Response(
+        {'error': 'Invalid credentials — check your email and password.'},
+        status=status.HTTP_401_UNAUTHORIZED,
+    )
 
 
 @api_view(['POST'])

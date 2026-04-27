@@ -40,13 +40,7 @@ accounts_router.register(r'roles',         views.RoleViewSet,        basename='a
 accounts_router.register(r'activity-logs', views.ActivityLogViewSet, basename='accounts-activity')
 
 # ── Auth urls (legacy /api/v1/auth/ prefix) ───────────────────────────────────
-from django.http import HttpResponse
-
-def test_view(request):
-    return HttpResponse("Accounts module is alive!")
-
 urlpatterns = [
-    path('test/',          test_view,                   name='test-view'),
     path('login/',         views.login_view,            name='login'),
     path('logout/',        views.logout_view,            name='logout'),
     path('register/',      views.RegisterView.as_view(), name='register'),

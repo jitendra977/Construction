@@ -21,12 +21,9 @@ class UserSerializer(serializers.ModelSerializer):
     is_system_admin = serializers.BooleanField(read_only=True)
     contractor_profile = serializers.SerializerMethodField()
     password = serializers.CharField(write_only=True, required=False)
-    assigned_project_ids = serializers.PrimaryKeyRelatedField(
-        queryset=getattr(get_user_model(), 'assigned_projects').field.related_model.objects.all() if hasattr(get_user_model(), 'assigned_projects') else None, 
-        source='assigned_projects', many=True, write_only=True, required=False
-    )
+    assigned_project_ids = serializers.SerializerMethodField(read_only=True)
     assigned_projects_data = serializers.SerializerMethodField(read_only=True)
-    
+
     class Meta:
         model = User
         fields = (
@@ -39,6 +36,9 @@ class UserSerializer(serializers.ModelSerializer):
             'is_active', 'date_joined', 'frontend_last_login',
         )
         read_only_fields = ('id', 'is_verified', 'is_system_admin', 'is_superuser', 'assigned_projects', 'date_joined', 'frontend_last_login')
+
+    def get_assigned_project_ids(self, obj):
+        return list(obj.assigned_projects.values_list('id', flat=True))
 
     def get_assigned_projects_data(self, obj):
         return [{'id': p.id, 'name': p.name} for p in obj.assigned_projects.all()]
