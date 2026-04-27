@@ -4,7 +4,7 @@ export const authService = {
     // Login user
     login: async (username, password) => {
         try {
-            const response = await api.post('/auth/login/', {
+            const response = await api.post('auth/login/', {
                 username,
                 password,
             });
@@ -30,7 +30,7 @@ export const authService = {
         try {
             const refreshToken = localStorage.getItem('refresh_token');
             if (refreshToken) {
-                await api.post('/auth/logout/', {
+                await api.post('auth/logout/', {
                     refresh: refreshToken,
                 });
             }
@@ -47,7 +47,7 @@ export const authService = {
     // Register new user
     register: async (userData) => {
         try {
-            const response = await api.post('/auth/register/', userData);
+            const response = await api.post('auth/register/', userData);
             return { success: true, data: response.data };
         } catch (error) {
             return {
@@ -60,7 +60,7 @@ export const authService = {
     // Get current user profile
     getProfile: async () => {
         try {
-            const response = await api.get('/auth/profile/');
+            const response = await api.get('auth/profile/');
             return { success: true, user: response.data };
         } catch (error) {
             return {
@@ -91,8 +91,8 @@ export const authService = {
                 });
                 data = formData;
             }
-
-            const response = await api.patch('/auth/profile/', data, config);
+1
+            const response = await api.patch('auth/profile/', data, config);
 
             // Update stored user info
             localStorage.setItem('user', JSON.stringify(response.data));

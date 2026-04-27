@@ -52,6 +52,11 @@ class AttendanceWorker(models.Model):
         on_delete=models.SET_NULL, related_name="attendance_worker_profile",
         help_text="Link to system user account (for staff)",
     )
+    project_member = models.OneToOneField(
+        "core.ProjectMember", null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="attendance_worker",
+        help_text="Link to project team member (if this worker is also a team member)",
+    )
     is_active    = models.BooleanField(default=True)
     joined_date  = models.DateField(null=True, blank=True)
     notes        = models.TextField(blank=True)

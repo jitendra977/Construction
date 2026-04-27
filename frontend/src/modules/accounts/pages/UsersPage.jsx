@@ -166,7 +166,7 @@ function EditUserForm({ user, roles, onDone }) {
 
 /* ── Main page ──────────────────────────────────────────────────────────── */
 export default function UsersPage() {
-    const { users, roles, loading, refreshUsers, refreshStats } = useAccounts();
+    const { users, roles, loading, error, load, refreshUsers, refreshStats } = useAccounts();
     const [search, setSearch]     = useState('');
     const [roleFilter, setRoleFilter] = useState('ALL');
     const [statusFilter, setStatus]   = useState('ALL');
@@ -207,6 +207,19 @@ export default function UsersPage() {
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
 
             {/* ── Toolbar ─────────────────────────────────────────── */}
+            {error && (
+                <div style={{ marginBottom: 20, padding: '12px 16px', borderRadius: 12, background: '#ef444412', border: '1px solid #ef444430', color: '#ef4444', fontSize: 13, display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 18 }}>⚠️</span>
+                    <div style={{ flex: 1 }}>
+                        <p style={{ margin: 0, fontWeight: 900 }}>Failed to load users</p>
+                        <p style={{ margin: 0, fontSize: 11, opacity: 0.8 }}>{error}</p>
+                    </div>
+                    <button onClick={load} style={{ padding: '6px 12px', borderRadius: 8, background: '#ef4444', color: '#fff', border: 'none', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                        Retry
+                    </button>
+                </div>
+            )}
+
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
                 <input
                     placeholder="🔍 Search by name, email, username…"

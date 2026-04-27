@@ -8,6 +8,11 @@ class AttendanceWorkerSerializer(serializers.ModelSerializer):
     effective_ot_rate   = serializers.DecimalField(
         source="effective_overtime_rate", max_digits=10, decimal_places=2, read_only=True
     )
+    # Project member info (read-only, shown when linked)
+    member_role         = serializers.CharField(source="project_member.role", read_only=True, default=None)
+    member_user_name    = serializers.SerializerMethodField()
+    member_user_email   = serializers.SerializerMethodField()
+    member_user_avatar  = serializers.SerializerMethodField()
 
     class Meta:
         model  = AttendanceWorker
@@ -15,11 +20,34 @@ class AttendanceWorkerSerializer(serializers.ModelSerializer):
             "id", "project", "name", "trade", "trade_display",
             "worker_type", "worker_type_display",
             "daily_rate", "overtime_rate_per_hour", "effective_ot_rate",
-            "phone", "address", "linked_user",
+            "phone", "address", "linked_user", "project_member",
+            "member_role", "member_user_name", "member_user_email", "member_user_avatar",
             "is_active", "joined_date", "notes",
             "created_at", "updated_at",
         ]
         read_only_fields = ["created_at", "updated_at"]
+
+    def get_member_user_name(self, obj):
+        if obj.project_member and obj.project_member.user:
+            u = obj.project_member.user
+            return u.get_full_name() or u.username
+        return None
+
+    def get_member_user_email(self, obj):
+        if obj.project_member and obj.project_member.user:
+            return obj.project_member.user.email
+        return None
+
+    def get_member_user_avatar(self, obj):
+        if obj.project_member and obj.project_member.user:
+            try:
+                if obj.project_member.user.profile_image:
+                    request = self.context.get("request")
+                    if request:
+                        return request.build_absolute_uri(obj.project_member.user.profile_image.url)
+            except Exception:
+                pass
+        return None
 
 
 class DailyAttendanceSerializer(serializers.ModelSerializer):

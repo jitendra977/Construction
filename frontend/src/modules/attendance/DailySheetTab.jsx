@@ -104,6 +104,39 @@ export default function DailySheetTab({ projectId }) {
         </div>
     );
 
+    const copyPrevious = async () => {
+        const d = new Date(date);
+        d.setDate(d.getDate() - 1);
+        const prevDate = d.toISOString().split('T')[0];
+        
+        setLoading(true);
+        try {
+            const recs = await attendanceService.getRecords({ project: projectId, date: prevDate });
+            const list = Array.isArray(recs) ? recs : recs.results || [];
+            
+            if (list.length === 0) {
+                alert('No attendance found for ' + prevDate);
+                return;
+            }
+
+            const next = { ...sheet };
+            list.forEach(r => {
+                if (next[r.worker]) {
+                    next[r.worker] = {
+                        status: r.status,
+                        overtime_hours: r.overtime_hours || 0,
+                        notes: r.notes || '',
+                    };
+                }
+            });
+            setSheet(next);
+        } catch {
+            setError('Failed to copy from previous day.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div>
             {/* ── Header controls ── */}
@@ -128,6 +161,13 @@ export default function DailySheetTab({ projectId }) {
                             Mark All {statusMeta[s].label}
                         </button>
                     ))}
+                    <button onClick={copyPrevious} style={{
+                        padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                        border: '1px solid var(--t-border)',
+                        background: 'var(--t-surface)', color: 'var(--t-text3)', cursor: 'pointer',
+                    }}>
+                        📋 Copy Previous Day
+                    </button>
                 </div>
                 <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
                     {saved && <span style={{ fontSize: 12, color: '#10b981', fontWeight: 700 }}>✔ Saved</span>}

@@ -166,13 +166,24 @@ export const ConstructionProvider = ({ children }) => {
 
     // Initialize on mount
     useEffect(() => {
-        const currentUser = authService.getCurrentUser();
-        if (currentUser) {
-            setUser(currentUser);
-            fetchData();
-        } else {
-            setLoading(false);
-        }
+        const init = async () => {
+            if (authService.isAuthenticated()) {
+                // Try to load from localStorage first for instant UI
+                const cached = authService.getCurrentUser();
+                if (cached) setUser(cached);
+                
+                // Then fetch fresh data from server
+                const result = await authService.getProfile();
+                if (result.success) {
+                    setUser(result.user);
+                    localStorage.setItem('user', JSON.stringify(result.user));
+                }
+                fetchData();
+            } else {
+                setLoading(false);
+            }
+        };
+        init();
     }, [fetchData]);
 
     // Currency formatter

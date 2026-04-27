@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import attendanceService from '../../services/attendanceService';
+import { dashboardService } from '../../services/api';
 
 function thisMonth() {
     const d = new Date();
@@ -11,6 +12,11 @@ export default function PayrollTab({ projectId }) {
     const [summary, setSummary] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError]     = useState('');
+    const [showPostModal, setShowPostModal] = useState(false);
+    const [categories, setCategories] = useState([]);
+    const [fundingSources, setFundingSources] = useState([]);
+    const [postData, setPostData] = useState({ category: '', funding_source: '' });
+    const [posting, setPosting] = useState(false);
 
     const load = useCallback(async () => {
         if (!projectId) return;
@@ -23,6 +29,51 @@ export default function PayrollTab({ projectId }) {
     }, [projectId, month]);
 
     useEffect(() => { load(); }, [load]);
+
+    const openPostModal = async () => {
+        setPosting(true);
+        try {
+            const [cats, funds] = await Promise.all([
+                dashboardService.getBudgetCategories(),
+                dashboardService.getFundingSources()
+            ]);
+            setCategories(cats.data || []);
+            setFundingSources(funds.data || []);
+            
+            // Auto-select a 'Labour' or 'Wages' category if exists
+            const labourCat = (cats.data || []).find(c => 
+                c.name.toLowerCase().includes('labour') || c.name.toLowerCase().includes('wage')
+            );
+            setPostData({ 
+                category: labourCat ? labourCat.id : '', 
+                funding_source: funds.data?.[0]?.id || '' 
+            });
+            setShowPostModal(true);
+        } catch {
+            setError('Failed to load finance settings.');
+        } finally {
+            setPosting(false);
+        }
+    };
+
+    const doPostToFinance = async () => {
+        if (!postData.category) return alert('Please select a budget category.');
+        setPosting(true);
+        try {
+            await attendanceService.postToFinance({
+                project: projectId,
+                month: month,
+                category: postData.category,
+                funding_source: postData.funding_source || null
+            });
+            alert('Payroll posted to Finance successfully!');
+            setShowPostModal(false);
+        } catch (e) {
+            alert(e.response?.data?.error || 'Failed to post to finance.');
+        } finally {
+            setPosting(false);
+        }
+    };
 
     if (!projectId) return (
         <div style={{ padding: 40, textAlign: 'center', color: 'var(--t-text3)' }}>Select a project first.</div>
@@ -47,6 +98,35 @@ export default function PayrollTab({ projectId }) {
                     padding: '8px 16px', borderRadius: 10, fontSize: 13, fontWeight: 700,
                     border: '1px solid var(--t-border)', background: 'var(--t-bg)', color: 'var(--t-text)', cursor: 'pointer',
                 }}>🔄 Refresh</button>
+                <button 
+                    onClick={async () => {
+                        try {
+                            const blob = await attendanceService.exportCsv({ project: projectId, month: month });
+                            const url = window.URL.createObjectURL(new Blob([blob]));
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.setAttribute('download', `payroll_${month}.csv`);
+                            document.body.appendChild(link);
+                            link.click();
+                            link.remove();
+                        } catch (e) {
+                            alert('Export failed.');
+                        }
+                    }}
+                    disabled={workers.length === 0} 
+                    style={{
+                        padding: '8px 16px', borderRadius: 10, fontSize: 13, fontWeight: 700,
+                        border: '1px solid var(--t-border)', background: 'var(--t-bg)', color: 'var(--t-text)', cursor: 'pointer',
+                        opacity: workers.length === 0 ? 0.5 : 1,
+                    }}
+                >
+                    📥 Export CSV
+                </button>
+                <button onClick={openPostModal} disabled={workers.length === 0} style={{
+                    padding: '8px 16px', borderRadius: 10, fontSize: 13, fontWeight: 800,
+                    border: 'none', background: '#3b82f6', color: '#fff', cursor: 'pointer',
+                    opacity: workers.length === 0 ? 0.5 : 1, marginLeft: 'auto'
+                }}>💸 Post to Finance</button>
                 {error && <span style={{ fontSize: 12, color: '#ef4444' }}>{error}</span>}
             </div>
 
@@ -134,6 +214,50 @@ export default function PayrollTab({ projectId }) {
                         </div>
                     </div>
                 </>
+            )}
+
+            {/* Post to Finance Modal */}
+            {showPostModal && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+                    <div style={{ background: 'var(--t-surface)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 440, border: '1px solid var(--t-border)' }}>
+                        <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 800, color: 'var(--t-text)' }}>💸 Post Payroll as Expense</h3>
+                        <p style={{ fontSize: 13, color: 'var(--t-text3)', marginBottom: 20 }}>
+                            This will create a new Expense entry in the Finance module for <strong>NPR {Math.round(totals.total_wage_bill).toLocaleString()}</strong>.
+                        </p>
+                        
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                            <div>
+                                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text3)', textTransform: 'uppercase' }}>Budget Category *</label>
+                                <select 
+                                    value={postData.category} 
+                                    onChange={e => setPostData(p => ({ ...p, category: e.target.value }))}
+                                    style={{ width: '100%', marginTop: 4, padding: '10px 12px', borderRadius: 10, border: '1px solid var(--t-border)', background: 'var(--t-bg)', color: 'var(--t-text)', fontSize: 13 }}
+                                >
+                                    <option value="">-- Select Category --</option>
+                                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text3)', textTransform: 'uppercase' }}>Funding Source (Optional)</label>
+                                <select 
+                                    value={postData.funding_source} 
+                                    onChange={e => setPostData(p => ({ ...p, funding_source: e.target.value }))}
+                                    style={{ width: '100%', marginTop: 4, padding: '10px 12px', borderRadius: 10, border: '1px solid var(--t-border)', background: 'var(--t-bg)', color: 'var(--t-text)', fontSize: 13 }}
+                                >
+                                    <option value="">-- Select Source --</option>
+                                    {fundingSources.map(s => <option key={s.id} value={s.id}>{s.name} (Bal: NPR {Number(s.current_balance).toLocaleString()})</option>)}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
+                            <button onClick={() => setShowPostModal(false)} style={{ flex: 1, padding: '12px', borderRadius: 12, fontWeight: 700, border: '1px solid var(--t-border)', background: 'var(--t-bg)', color: 'var(--t-text)', cursor: 'pointer' }}>Cancel</button>
+                            <button onClick={doPostToFinance} disabled={posting || !postData.category} style={{ flex: 2, padding: '12px', borderRadius: 12, fontWeight: 800, background: '#10b981', color: '#fff', border: 'none', cursor: 'pointer', opacity: (posting || !postData.category) ? 0.7 : 1 }}>
+                                {posting ? 'Posting…' : 'Confirm & Post'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

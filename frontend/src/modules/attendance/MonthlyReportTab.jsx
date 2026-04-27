@@ -84,20 +84,68 @@ export default function MonthlyReportTab({ projectId }) {
                 </div>
             ) : view === 'table' ? (
                 <>
-                    {/* Totals banner */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginBottom: 20 }}>
-                        {[
-                            ['👷', 'Workers', summary.totals.total_workers, '#f97316'],
-                            ['📅', 'Days in Month', summary.totals.days_in_month, '#3b82f6'],
-                            ['💰', 'Total Wage Bill', `NPR ${Number(summary.totals.total_wage_bill).toLocaleString()}`, '#10b981'],
-                        ].map(([icon, label, val, color]) => (
-                            <div key={label} style={{ padding: '14px 16px', borderRadius: 12, background: 'var(--t-surface)', border: '1px solid var(--t-border)', textAlign: 'center' }}>
-                                <div style={{ fontSize: 20, marginBottom: 4 }}>{icon}</div>
-                                <div style={{ fontSize: 11, color: 'var(--t-text3)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 2 }}>{label}</div>
-                                <div style={{ fontSize: 18, fontWeight: 900, color }}>{val}</div>
+                        {/* Totals banner */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginBottom: 20 }}>
+                            {[
+                                ['👷', 'Workers', summary.totals.total_workers, '#f97316'],
+                                ['📅', 'Days in Month', summary.totals.days_in_month, '#3b82f6'],
+                                ['💰', 'Total Wage Bill', `NPR ${Number(summary.totals.total_wage_bill).toLocaleString()}`, '#10b981'],
+                            ].map(([icon, label, val, color]) => (
+                                <div key={label} style={{ padding: '14px 16px', borderRadius: 12, background: 'var(--t-surface)', border: '1px solid var(--t-border)', textAlign: 'center' }}>
+                                    <div style={{ fontSize: 20, marginBottom: 4 }}>{icon}</div>
+                                    <div style={{ fontSize: 11, color: 'var(--t-text3)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 2 }}>{label}</div>
+                                    <div style={{ fontSize: 18, fontWeight: 900, color }}>{val}</div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Status Distribution Chart */}
+                        <div style={{ background: 'var(--t-surface)', padding: 20, borderRadius: 16, border: '1px solid var(--t-border)', marginBottom: 24 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                                <h4 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: 'var(--t-text)' }}>📊 Monthly Attendance Distribution</h4>
+                                <span style={{ fontSize: 11, color: 'var(--t-text3)', fontWeight: 700 }}>{month} Overview</span>
                             </div>
-                        ))}
-                    </div>
+                            
+                            {(() => {
+                                const stats = summary.workers.reduce((acc, w) => {
+                                    acc.PRESENT += w.days_present;
+                                    acc.ABSENT += w.days_absent;
+                                    acc.HALF_DAY += w.days_half;
+                                    acc.LEAVE += w.days_leave;
+                                    acc.HOLIDAY += (summary.totals.days_in_month - (w.days_present + w.days_absent + w.days_half + w.days_leave));
+                                    return acc;
+                                }, { PRESENT: 0, ABSENT: 0, HALF_DAY: 0, LEAVE: 0, HOLIDAY: 0 });
+
+                                const total = Object.values(stats).reduce((a, b) => a + b, 0);
+
+                                return (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                        <div style={{ height: 28, display: 'flex', borderRadius: 14, overflow: 'hidden', background: 'var(--t-bg)' }}>
+                                            {Object.entries(stats).map(([st, val]) => {
+                                                const pct = (val / total) * 100;
+                                                if (pct <= 0) return null;
+                                                return (
+                                                    <div 
+                                                        key={st} 
+                                                        title={`${st}: ${val} days (${pct.toFixed(1)}%)`}
+                                                        style={{ width: `${pct}%`, background: STATUS_COLORS[st], transition: 'width 0.5s ease' }} 
+                                                    />
+                                                );
+                                            })}
+                                        </div>
+                                        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                                            {Object.entries(stats).map(([st, val]) => (
+                                                <div key={st} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_COLORS[st] }} />
+                                                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text)' }}>{st}</span>
+                                                    <span style={{ fontSize: 11, color: 'var(--t-text3)' }}>{val} days</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+                        </div>
 
                     {/* Worker summary table */}
                     <div style={{ overflowX: 'auto' }}>
