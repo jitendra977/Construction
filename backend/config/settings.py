@@ -21,8 +21,11 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,192.168.0.1
 SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=False, cast=bool)
 CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='http://localhost:8000,http://127.0.0.1:8000,http://localhost:8001,http://localhost:5174,http://192.168.0.112:8000', cast=Csv())
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-USE_X_FORWARDED_HOST = True
-USE_X_FORWARDED_PORT = True
+# NOTE: Do NOT set USE_X_FORWARDED_HOST = True with Nginx Proxy Manager.
+# NPM already sets `Host: <domain>` correctly on the proxied request.
+# Enabling USE_X_FORWARDED_HOST causes Django to read X-Forwarded-Host instead,
+# which NPM may send with a port suffix (e.g. api.domain.com:443) that won't
+# match ALLOWED_HOSTS → Django returns 400 Bad Request.
 
 # Application definition
 INSTALLED_APPS = [

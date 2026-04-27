@@ -204,7 +204,7 @@ This restores the previous Docker image tag stored in `.env` as `IMAGE_TAG_PREV`
 ## 🐛 Common Errors & Fixes (सामान्य त्रुटि)
 
 ### `Bad Request (400)` on admin or API
-**Cause:** New domain not in `ALLOWED_HOSTS` / `CSRF_TRUSTED_ORIGINS`  
+**Cause A:** New domain not in `ALLOWED_HOSTS` / `CSRF_TRUSTED_ORIGINS`  
 **Fix:**
 ```bash
 ssh nishanaweb@nishanaweb.cloud
@@ -212,6 +212,10 @@ nano /home/nishanaweb/project/Construction/backend/.env
 # Add domain to ALLOWED_HOSTS and CSRF_TRUSTED_ORIGINS
 docker compose -f docker-compose.prod.yml restart backend
 ```
+
+**Cause B (subtle):** `USE_X_FORWARDED_HOST = True` in `settings.py`  
+Nginx Proxy Manager already sets the `Host` header correctly to the proxied domain. If `USE_X_FORWARDED_HOST` is enabled, Django reads `X-Forwarded-Host` instead — NPM may include a port suffix (e.g. `api.construction.nishanaweb.cloud:443`) that doesn't match `ALLOWED_HOSTS`, causing 400 even when `ALLOWED_HOSTS` is correct.  
+**Fix:** Remove `USE_X_FORWARDED_HOST` and `USE_X_FORWARDED_PORT` from `settings.py` (already done — do NOT re-add them).
 
 ### `SyntaxError: invalid syntax` in migration (conflict markers)
 **Cause:** `git stash pop` re-applied a conflicted file over a clean pull  
