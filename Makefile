@@ -136,20 +136,39 @@ logs-frontend: ## Docker — tail frontend/nginx logs
 # ════════════════════════════════════════════════════════════
 #  🛠 DEV — LOCAL DEVELOPMENT
 # ════════════════════════════════════════════════════════════
+
+# ── No-Docker local runner (SQLite, hot reload) ─────────────
+.PHONY: local
+local: ## Dev — Local run backend + frontend (no Docker, SQLite)
+	@chmod +x scripts/run_local.sh && bash scripts/run_local.sh
+
+.PHONY: local-setup
+local-setup: ## Dev — First-time setup: create venv + install all deps
+	@chmod +x scripts/run_local.sh && bash scripts/run_local.sh --setup
+
+.PHONY: local-backend
+local-backend: ## Dev — Local backend only
+	@chmod +x scripts/run_local.sh && bash scripts/run_local.sh --backend
+
+.PHONY: local-frontend
+local-frontend: ## Dev — Local frontend only
+	@chmod +x scripts/run_local.sh && bash scripts/run_local.sh --frontend
+
+# ── Docker-based dev stack ───────────────────────────────────
 .PHONY: dev
-dev: ## Dev — start local dev stack (hot reload)
+dev: ## Dev — start Docker dev stack (hot reload)
 	docker compose -f $(COMPOSE_DEV) up
 
 .PHONY: dev-build
-dev-build: ## Dev — rebuild dev images then start
+dev-build: ## Dev — rebuild dev Docker images then start
 	docker compose -f $(COMPOSE_DEV) up --build
 
 .PHONY: dev-down
-dev-down: ## Dev — stop local dev stack
+dev-down: ## Dev — stop Docker dev stack
 	docker compose -f $(COMPOSE_DEV) down
 
 .PHONY: dev-logs
-dev-logs: ## Dev — tail dev stack logs
+dev-logs: ## Dev — tail Docker dev stack logs
 	docker compose -f $(COMPOSE_DEV) logs -f --tail=100
 
 # ════════════════════════════════════════════════════════════

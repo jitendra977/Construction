@@ -12,7 +12,7 @@ import ActivityLogs  from '../../pages/accounts/ActivityLogs';
 // ── Shared pages (same component, works on both desktop + mobile) ─────────────
 import EstimatorHub  from '../../pages/estimator/EstimatorHub';
 import PermitPage    from '../../pages/permits/PermitPage';
-import DataImportPage from '../../pages/DataImportPage';
+import DataTransferPage  from '../../pages/DataTransferPage';
 import TimelapsePage from '../../pages/TimelapsePage';
 import AnalyticsPage from '../../pages/AnalyticsPage';
 import UserGuidePage from '../../pages/desktop/UserGuidePage';
@@ -47,7 +47,7 @@ const MobileRoutes = () => {
             {/* ── Shared pages ───────────────────────────────────────────── */}
             <Route path="estimator"    element={<EstimatorHub />}    />
             <Route path="permits"      element={<PermitPage />}      />
-            <Route path="import"       element={<DataImportPage />}  />
+            <Route path="data-transfer"  element={<DataTransferPage />} />
             <Route path="timelapse"    element={<TimelapsePage />}   />
             <Route path="analytics"    element={<AnalyticsPage />}   />
             <Route path="guides"       element={<UserGuidePage />}   />

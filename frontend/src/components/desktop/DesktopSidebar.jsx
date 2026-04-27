@@ -31,7 +31,7 @@ const NAV_SECTIONS = [
         id:    'settings',
         label: 'Settings',
         icon:  '⚙️',
-        ids:   ['accounts', 'guides', 'import'],
+        ids:   ['accounts', 'guides', 'data-transfer'],
         defaultOpen: false,
     },
 ];

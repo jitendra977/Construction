@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat)",
+      "Bash(bash /tmp/audit.sh)",
+      "Bash(find /Volumes/Programming/FINAL-PROJECT/FULL-STACK/Construction/frontend -type f \\\\\\( -name \"*.jsx\" -o -name \"*.ts\" -o -name \"*.tsx\" \\\\\\) -exec grep -l \"api/v1/finance\\\\|api/v1/accounting\" {} \\\\;)",
+      "Bash(bun run *)",
+      "Bash(curl -s -o /tmp/curl.out -w \"status=%{http_code}\\\\n\" http://127.0.0.1:8001/api/v1/accounting/)",
+      "Read(//tmp/**)",
+      "Bash(curl -s -o /tmp/curl2.out -w \"status=%{http_code}\\\\n\" \"http://127.0.0.1:8001/api/v1/accounting/budget-revisions/\")",
+      "Bash(pkill -f \"manage.py runserver 8001\")"
+    ]
+  }
+}

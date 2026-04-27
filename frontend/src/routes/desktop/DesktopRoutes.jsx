@@ -7,7 +7,7 @@ import DesktopPhotos   from '../../components/desktop/DesktopPhotos';
 import DesktopManage   from '../../components/desktop/DesktopManage';
 import EstimatorHub    from '../../pages/estimator/EstimatorHub';
 import PermitPage      from '../../pages/permits/PermitPage';
-import DataImportPage  from '../../pages/DataImportPage';
+import DataTransferPage  from '../../pages/DataTransferPage';
 import UserGuidePage   from '../../pages/desktop/UserGuidePage';
 import PhasesPage      from '../../pages/desktop/PhasesPage';
 import TimelapsePage   from '../../pages/TimelapsePage';
@@ -38,7 +38,7 @@ const DesktopRoutes = () => {
             <Route path="manage"     element={<DesktopManage />}  />
             <Route path="phases"     element={<PhasesPage />}     />
             <Route path="photos"     element={<DesktopPhotos />}  />
-            <Route path="import"     element={<DataImportPage />} />
+            <Route path="data-transfer"  element={<DataTransferPage />}  />
             <Route path="guides"     element={<UserGuidePage />}  />
             <Route path="timelapse"  element={<TimelapsePage />}  />
             <Route path="analytics"  element={<AnalyticsPage />}  />

@@ -465,6 +465,28 @@ export const importService = {
     populateRawData: () => api.post('/import/populate-raw-data/'),
 };
 
+export const dataTransferService = {
+    /** List all projects available for export */
+    listProjects: () => api.get('/data-transfer/projects/'),
+
+    /** Get export stats (row counts per table) before downloading */
+    getExportStats: (projectId) => api.get(`/data-transfer/export/${projectId}/stats/`),
+
+    /** Download project as SQL file — returns blob */
+    exportProject: (projectId) =>
+        api.get(`/data-transfer/export/${projectId}/`, { responseType: 'blob' }),
+
+    /** Import a .sql file */
+    importSql: (sqlFile, onUploadProgress) => {
+        const formData = new FormData();
+        formData.append('sql_file', sqlFile);
+        return api.post('/data-transfer/import/', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            onUploadProgress,
+        });
+    },
+};
+
 export const accountsService = {
     // Updated to use the accounts module URL namespace (/accounts/*)
     getActivityLogs: () => api.get('/accounts/activity-logs/'),

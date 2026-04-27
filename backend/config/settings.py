@@ -63,6 +63,9 @@ INSTALLED_APPS = [
 
     # ── Resource Module ──────────────────────────────────────────────────────
     'apps.resource',
+
+    # ── Data Transfer (import / export) ──────────────────────────────────────
+    'apps.data_transfer',
 ]
 
 # ─── Photo Intelligence (HCMS-2) ──────────────────────────────────────

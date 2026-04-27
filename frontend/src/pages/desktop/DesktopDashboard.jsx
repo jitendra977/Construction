@@ -45,7 +45,7 @@ function DesktopDashboard() {
         // Settings / Account
         { id: 'accounts',  icon: '👤',  label: 'Accounts (खाता)' },
         { id: 'guides',    icon: '📚',  label: 'User Guide (मद्दत निर्देशिका)' },
-        { id: 'import',    icon: '📥',  label: 'Import Data (डाटा आयात)' },
+        { id: 'data-transfer',  icon: '🔄',  label: 'Data Transfer (डाटा स्थानान्तरण)' },
     ];
 
     return (

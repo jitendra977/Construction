@@ -23,7 +23,6 @@ def health_check(request):
 from apps.accounts.views import UserViewSet, RoleViewSet, ActivityLogViewSet
 from apps.accounts.urls import accounts_urlpatterns
 from apps.core.views import HouseProjectViewSet, ConstructionPhaseViewSet, RoomViewSet, FloorViewSet, UserGuideViewSet, UserGuideStepViewSet, UserGuideFAQViewSet, UserGuideSectionViewSet, EmailLogViewSet, DashboardDataView, ProjectMemberViewSet
-from apps.core.import_views import SqlImportView, RawDataPopulationView
 from apps.core.gallery_views import GalleryViewSet
 from apps.tasks.views import TaskViewSet, TaskUpdateViewSet, TaskMediaViewSet
 
@@ -61,8 +60,6 @@ urlpatterns = [
     path('api/v1/auth/', include('apps.accounts.urls')),      # Auth endpoints (legacy)
     path('api/v1/accounts/', include(accounts_urlpatterns)),  # Accounts module
     path('api/v1/dashboard/combined/', DashboardDataView.as_view(), name='dashboard-combined'),
-    path('api/v1/import/sql/', SqlImportView.as_view(), name='sql-import'),
-    path('api/v1/import/populate-raw-data/', RawDataPopulationView.as_view(), name='populate-raw-data'),
     path('api/v1/', include(router.urls)),       # Main API
     path('api/v1/finance/', include('apps.finance.urls')),
     path('api/v1/accounting/', include('apps.accounting.urls')),
@@ -77,6 +74,9 @@ urlpatterns = [
 
     # ── Resource Module ──────────────────────────────────────────────────────
     path('api/v1/resource/', include('apps.resource.urls')),
+
+    # ── Data Transfer (import / export) ──────────────────────────────────────
+    path('api/v1/data-transfer/', include('apps.data_transfer.urls')),
 ]
 
 # Serve media files in development
