@@ -6,6 +6,7 @@ import Dashboard       from '../../modules/dashboard';
 import DesktopPhotos   from '../../components/desktop/DesktopPhotos';
 import DesktopManage   from '../../components/desktop/DesktopManage';
 import EstimatorHub    from '../../pages/estimator/EstimatorHub';
+import AttendanceHub   from '../../modules/attendance/AttendanceHub';
 import PermitPage      from '../../pages/permits/PermitPage';
 import DataTransferPage  from '../../pages/DataTransferPage';
 import UserGuidePage   from '../../pages/desktop/UserGuidePage';
@@ -42,6 +43,7 @@ const DesktopRoutes = () => {
             <Route path="guides"     element={<UserGuidePage />}  />
             <Route path="timelapse"  element={<TimelapsePage />}  />
             <Route path="analytics"  element={<AnalyticsPage />}  />
+            <Route path="attendance" element={<AttendanceHub />}  />
 
             {/* Self-contained modules */}
             <Route path="projects/*"  element={<ProjectsRoutes />} />

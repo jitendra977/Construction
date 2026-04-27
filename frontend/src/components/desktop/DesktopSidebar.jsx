@@ -24,7 +24,7 @@ const NAV_SECTIONS = [
         id:    'construction',
         label: 'Construction',
         icon:  '🏗️',
-        ids:   ['permits', 'phases', 'manage', 'timeline', 'finance', 'resource', 'structure', 'photos', 'timelapse'],
+        ids:   ['permits', 'phases', 'manage', 'timeline', 'finance', 'resource', 'structure', 'photos', 'timelapse', 'attendance'],
         defaultOpen: true,
     },
     {

@@ -41,6 +41,7 @@ const SECTIONS = [
             { id: 'permits',   icon: '📜', label: 'Permits'    },
             { id: 'structure', icon: '🏛️', label: 'Structure'  },
             { id: 'resource',  icon: '🧱', label: 'Resources'  },
+            { id: 'attendance', icon: '🕐', label: 'Attendance' },
         ],
     },
     {

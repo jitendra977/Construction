@@ -80,6 +80,9 @@ urlpatterns = [
 
     # ── Advanced Estimator ────────────────────────────────────────────────────
     path('api/v1/estimate/', include('apps.estimate.urls')),
+
+    # ── Attendance ────────────────────────────────────────────────────────────
+    path('api/v1/attendance/', include('apps.attendance.urls')),
 ]
 
 # Serve media files in development

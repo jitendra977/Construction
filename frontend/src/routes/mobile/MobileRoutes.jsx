@@ -11,6 +11,7 @@ import ActivityLogs  from '../../pages/accounts/ActivityLogs';
 
 // ── Shared pages (same component, works on both desktop + mobile) ─────────────
 import EstimatorHub  from '../../pages/estimator/EstimatorHub';
+import AttendanceHub from '../../modules/attendance/AttendanceHub';
 import PermitPage    from '../../pages/permits/PermitPage';
 import DataTransferPage  from '../../pages/DataTransferPage';
 import TimelapsePage from '../../pages/TimelapsePage';
@@ -46,6 +47,7 @@ const MobileRoutes = () => {
 
             {/* ── Shared pages ───────────────────────────────────────────── */}
             <Route path="estimator"    element={<EstimatorHub />}    />
+            <Route path="attendance"   element={<AttendanceHub />}   />
             <Route path="permits"      element={<PermitPage />}      />
             <Route path="data-transfer"  element={<DataTransferPage />} />
             <Route path="timelapse"    element={<TimelapsePage />}   />

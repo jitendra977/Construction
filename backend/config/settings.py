@@ -72,6 +72,9 @@ INSTALLED_APPS = [
 
     # ── Advanced Estimator ────────────────────────────────────────────────────
     'apps.estimate',
+
+    # ── Attendance ────────────────────────────────────────────────────────────
+    'apps.attendance',
 ]
 
 # ─── Photo Intelligence (HCMS-2) ──────────────────────────────────────
