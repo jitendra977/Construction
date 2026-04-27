@@ -60,7 +60,6 @@ def log_activity(request, user, action, model_name,
 
 # ── Auth endpoints ────────────────────────────────────────────────────────────
 
-@csrf_exempt
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login_view(request):
@@ -74,7 +73,7 @@ def login_view(request):
         or serializer.validated_data.get('username')
     )
 
-    user = authenticate(request, username=email, password=password)
+    user = authenticate(request, email=email, password=password)
 
     if user is None:
         try:
