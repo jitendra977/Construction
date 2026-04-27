@@ -25,7 +25,7 @@ services:
     environment:
       POSTGRES_DB:       ${DB_NAME:-constructpro}
       POSTGRES_USER:     ${DB_USER:-constructpro}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-constructpro}
     volumes:
       - pg_data:/var/lib/postgresql/data
       - ./scripts/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -35,8 +35,8 @@ services:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-constructpro} -d ${DB_NAME:-constructpro}"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 20s
+      retries: 10
+      start_period: 30s
     deploy:
       resources:
         limits:
@@ -57,6 +57,7 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+      start_period: 10s
     deploy:
       resources:
         limits:
@@ -73,15 +74,16 @@ services:
     <<: [*restart, *logging]
     env_file: ./backend/.env
     environment:
-      DJANGO_ENV:          production
-      DB_HOST:             db
-      DB_PORT:             5432
-      REDIS_URL:           redis://:${REDIS_PASSWORD:-redispass}@redis:6379/0
+      DJANGO_ENV: production
+      DB_HOST:    db
+      DB_PORT:    5432
+      REDIS_URL:  redis://:${REDIS_PASSWORD:-redispass}@redis:6379/0
     volumes:
       - media_data:/app/media
       - static_data:/app/staticfiles
     networks:
       - internal
+      - app_network
     depends_on:
       db:
         condition: service_healthy
@@ -92,13 +94,13 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
     deploy:
       resources:
         limits:
           memory: 768m
 
-  # ── Celery Worker (background tasks) ───────────────────────
+  # ── Celery Worker ───────────────────────────────────────────
   celery:
     build:
       context: ./backend
@@ -126,7 +128,7 @@ services:
         limits:
           memory: 384m
 
-  # ── Celery Beat (scheduled tasks) ──────────────────────────
+  # ── Celery Beat ─────────────────────────────────────────────
   celery-beat:
     build:
       context: ./backend
@@ -183,7 +185,7 @@ networks:
     internal: true          # db/redis NOT reachable from outside
   app_network:
     external: true
-    name: app-network       # shared with Nginx Proxy Manager / Traefik
+    name: app-network       # shared with Nginx Proxy Manager
 
 # ── Volumes ──────────────────────────────────────────────────
 volumes:
