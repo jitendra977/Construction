@@ -57,10 +57,20 @@ Thumbs.db
 # Docker
 *.pid
 
-# Data Sync Dumps
+# Data Sync Dumps & Database files
 *.sqlite3
+*.sqlite3-journal
+*.sqlite3-wal
+*.sqlite3-shm
+*.sqlite3.bak*
+*.bak
+*.bak-*
+db.sqlite3*
 data_sync_*.json
 data_dump*.json
 backup_data*.json
 test_dump*.json
 docker-compose.dev.yml
+
+# Local settings overrides (may contain real secrets)
+backend/config/settings_local.py

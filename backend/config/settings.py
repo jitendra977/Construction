@@ -66,6 +66,9 @@ INSTALLED_APPS = [
 
     # ── Data Transfer (import / export) ──────────────────────────────────────
     'apps.data_transfer',
+
+    # ── Advanced Estimator ────────────────────────────────────────────────────
+    'apps.estimate',
 ]
 
 # ─── Photo Intelligence (HCMS-2) ──────────────────────────────────────

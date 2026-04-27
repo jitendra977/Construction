@@ -77,6 +77,9 @@ urlpatterns = [
 
     # ── Data Transfer (import / export) ──────────────────────────────────────
     path('api/v1/data-transfer/', include('apps.data_transfer.urls')),
+
+    # ── Advanced Estimator ────────────────────────────────────────────────────
+    path('api/v1/estimate/', include('apps.estimate.urls')),
 ]
 
 # Serve media files in development

@@ -23,16 +23,16 @@ services:
     container_name: construction_db
     <<: [*restart, *logging]
     environment:
-      POSTGRES_DB:       ${DB_NAME:-constructpro}
-      POSTGRES_USER:     ${DB_USER:-constructpro}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-constructpro}
+      POSTGRES_DB:       ${DB_NAME:?DB_NAME must be set in .env}
+      POSTGRES_USER:     ${DB_USER:?DB_USER must be set in .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}
     volumes:
       - pg_data:/var/lib/postgresql/data
       - ./scripts/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - internal
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-constructpro} -d ${DB_NAME:-constructpro}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -47,13 +47,13 @@ services:
     image: redis:7-alpine
     container_name: construction_redis
     <<: [*restart, *logging]
-    command: redis-server --requirepass ${REDIS_PASSWORD:-redispass} --maxmemory 128mb --maxmemory-policy allkeys-lru
+    command: redis-server --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD must be set in .env} --maxmemory 128mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
     networks:
       - internal
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redispass}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -77,7 +77,7 @@ services:
       DJANGO_ENV: production
       DB_HOST:    db
       DB_PORT:    5432
-      REDIS_URL:  redis://:${REDIS_PASSWORD:-redispass}@redis:6379/0
+      REDIS_URL:  redis://:${REDIS_PASSWORD}@redis:6379/0
     volumes:
       - media_data:/app/media
       - static_data:/app/staticfiles
@@ -115,7 +115,7 @@ services:
       DJANGO_ENV: production
       DB_HOST:    db
       DB_PORT:    5432
-      REDIS_URL:  redis://:${REDIS_PASSWORD:-redispass}@redis:6379/0
+      REDIS_URL:  redis://:${REDIS_PASSWORD}@redis:6379/0
     volumes:
       - media_data:/app/media
     networks:
@@ -149,7 +149,7 @@ services:
       DJANGO_ENV: production
       DB_HOST:    db
       DB_PORT:    5432
-      REDIS_URL:  redis://:${REDIS_PASSWORD:-redispass}@redis:6379/0
+      REDIS_URL:  redis://:${REDIS_PASSWORD}@redis:6379/0
     networks:
       - internal
     healthcheck:

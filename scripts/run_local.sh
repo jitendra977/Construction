@@ -17,6 +17,10 @@ FRONTEND_DIR="$ROOT/frontend"
 BACKEND_PORT=8000
 FRONTEND_PORT=5173
 
+# Admin credentials — override via env vars, never hardcode real passwords
+ADMIN_EMAIL="${LOCAL_ADMIN_EMAIL:-admin@gmail.com}"
+ADMIN_PASS="${LOCAL_ADMIN_PASS:-adminpass}"   # dev-only default; set LOCAL_ADMIN_PASS to override
+
 # ── Colours ──────────────────────────────────────────────────────────────────
 GREEN='\033[0;32m'; CYAN='\033[0;36m'; YELLOW='\033[1;33m'
 RED='\033[0;31m';   BOLD='\033[1m';    RESET='\033[0m'
@@ -94,21 +98,21 @@ if $RUN_BACKEND; then
     ok "Migrations applied"
 
     # 6. Seed admin user
-    info "Seeding admin user (admin / adminpass)..."
+    info "Seeding admin user ($ADMIN_EMAIL)..."
     python manage.py shell -c "
 from apps.accounts.models import User, Role
 for code, name in Role.ROLE_CODES:
     Role.objects.get_or_create(code=code, defaults={'name': name})
-email = 'admin@gmail.com'
+email = '$ADMIN_EMAIL'
 u, created = User.objects.get_or_create(email=email, defaults={'username': 'admin'})
-u.set_password('adminpass')
+u.set_password('$ADMIN_PASS')
 u.is_superuser = True
 u.is_staff = True
 role = Role.objects.filter(code=Role.SUPER_ADMIN).first()
 if role: u.role = role
 u.save()
 print('created' if created else 'updated')
-" 2>/dev/null && ok "Admin ready  (email: admin@gmail.com  password: adminpass)"
+" 2>/dev/null && ok "Admin ready  (email: $ADMIN_EMAIL  |  password: $ADMIN_PASS)"
 
     # 7. Start backend
     info "Starting Django on http://localhost:$BACKEND_PORT ..."
@@ -157,7 +161,7 @@ fi
 if $RUN_BACKEND; then
 echo -e "  📡 Backend   → ${CYAN}http://localhost:$BACKEND_PORT/api/v1${RESET}"
 echo -e "  🔑 Admin     → ${CYAN}http://localhost:$BACKEND_PORT/admin${RESET}"
-echo -e "  👤 Login     → admin@gmail.com / adminpass"
+echo -e "  👤 Login     → $ADMIN_EMAIL / $ADMIN_PASS"
 fi
 echo ""
 echo -e "  Press ${BOLD}Ctrl+C${RESET} to stop"
