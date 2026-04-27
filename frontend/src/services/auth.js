@@ -126,7 +126,7 @@ export const authService = {
     hasPermission: (permissionName) => {
         const user = authService.getCurrentUser();
         if (!user) return false;
-        if (user.is_system_admin) return true;
+        if (user.is_system_admin || user.is_superuser) return true;
         if (!user.role) return false;
         if (user.role.can_manage_all_systems) return true;
         return !!user.role[permissionName];

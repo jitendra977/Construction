@@ -22,7 +22,7 @@ export default function ProjectGateway() {
     const isMobile     = base.includes('mobile');
 
     const currentUser  = authService.getCurrentUser();
-    const isAdmin      = currentUser?.is_system_admin || currentUser?.role?.can_manage_all_systems;
+    const isAdmin      = currentUser?.is_system_admin || currentUser?.is_superuser || currentUser?.role?.can_manage_all_systems;
 
     const { projects: rawProjects, loading, error, removeProjectLocal } = useProjects();
     const projects     = Array.isArray(rawProjects) ? rawProjects : [];
