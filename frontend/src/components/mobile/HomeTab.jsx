@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useConstruction } from '../../context/ConstructionContext';
-import PhaseDetailModal from '../desktop/manage/PhaseDetailModal';
-import TaskPreviewModal from '../desktop/manage/TaskPreviewModal';
 import MobileLayout from './MobileLayout';
 import ThemeToggle from '../common/ThemeToggle';
 import { getMediaUrl } from '../../services/api';
@@ -477,6 +475,38 @@ const CSS = `
 .ht-coord-val { font-family: var(--f-disp); font-size: 20px; line-height: 1; color: var(--t-text); }
 .ht-coord-val em { font-style: normal; font-family: var(--f-mono); font-size: 9px; color: var(--t-primary); margin-left: 2px; }
 
+/* ALERT BANNER */
+.ht-alert {
+  margin: 0 16px 0;
+  padding: 10px 14px;
+  background: rgba(239,68,68,0.07);
+  border: 1px solid rgba(239,68,68,0.28);
+  border-radius: 8px;
+  display: flex; align-items: center; gap: 10px;
+}
+.ht-alert-icon { font-size: 18px; flex-shrink: 0; }
+.ht-alert-body { flex: 1; min-width: 0; }
+.ht-alert-title { font-family: var(--f-mono); font-size: 9px; font-weight: 700; color: #ef4444; letter-spacing: .12em; text-transform: uppercase; }
+.ht-alert-sub   { font-family: var(--f-body); font-size: 11px; color: var(--t-text3); margin-top: 2px; }
+.ht-alert-btn {
+  padding: 5px 11px; border-radius: 6px; font-size: 10px; font-weight: 800;
+  background: #ef4444; color: #fff; border: none; cursor: pointer; flex-shrink: 0;
+  font-family: var(--f-mono);
+}
+
+/* QUICK ACTIONS */
+.ht-quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.ht-qa {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 12px 4px; border-radius: 12px;
+  background: var(--t-surface); border: 1px solid var(--t-border);
+  cursor: pointer; transition: border-color .15s, background .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.ht-qa:active { background: var(--t-surface2); }
+.ht-qa-icon { font-size: 22px; }
+.ht-qa-lbl { font-family: var(--f-mono); font-size: 7.5px; color: var(--t-text3); letter-spacing: .1em; text-transform: uppercase; text-align: center; line-height: 1.3; }
+
 /* HOME HEADER */
 .ht-header {
   position: sticky;
@@ -630,8 +660,6 @@ const HomeTab = () => {
     const now = useClock();
 
     const [expandedPhases, setExpandedPhases] = useState(new Set());
-    const [detailPhase, setDetailPhase] = useState(null);
-    const [previewTask, setPreviewTask] = useState(null);
 
     /* auto-expand in-progress phases */
     useEffect(() => {
@@ -665,6 +693,13 @@ const HomeTab = () => {
 
     const completedAll = allTasks.filter(t => t.status === 'COMPLETED').length;
     const overallPct = allTasks.length > 0 ? Math.round((completedAll / allTasks.length) * 100) : 0;
+
+    const overdueTasks = allTasks.filter(t =>
+        t.due_date &&
+        Math.round((new Date(t.due_date) - new Date()) / 86400000) < 0 &&
+        t.status !== 'COMPLETED'
+    );
+    const blockedTasks = allTasks.filter(t => t.status === 'BLOCKED');
 
     const totalBudget = project.budget || 0;
     const usedBudget = budgetStats?.usedBudget || 0;
@@ -701,15 +736,6 @@ const HomeTab = () => {
     return (
         <MobileLayout>
             <style>{CSS}</style>
-
-            {detailPhase && (
-                <PhaseDetailModal
-                    isOpen={!!detailPhase}
-                    onClose={() => setDetailPhase(null)}
-                    phase={detailPhase}
-                    tasks={allTasks.filter(t => t.phase === detailPhase?.id)}
-                />
-            )}
 
             <div className="ht">
 
@@ -802,6 +828,51 @@ const HomeTab = () => {
                     <div className="ht-kpi">
                         <div className="ht-kpi-val amber">{phases.length}</div>
                         <div className="ht-kpi-lbl">Phases</div>
+                    </div>
+                </div>
+
+                {/* ── OVERDUE / BLOCKED ALERT ── */}
+                {(overdueTasks.length > 0 || blockedTasks.length > 0) && (
+                    <div style={{ padding: '12px 16px 0' }}>
+                        <div className="ht-alert">
+                            <span className="ht-alert-icon">⚠️</span>
+                            <div className="ht-alert-body">
+                                <div className="ht-alert-title">Attention Required</div>
+                                <div className="ht-alert-sub">
+                                    {overdueTasks.length > 0 && `${overdueTasks.length} overdue`}
+                                    {overdueTasks.length > 0 && blockedTasks.length > 0 && ' · '}
+                                    {blockedTasks.length > 0 && `${blockedTasks.length} blocked`}
+                                </div>
+                            </div>
+                            <button className="ht-alert-btn"
+                                onClick={() => navigate('/dashboard/mobile/phases')}>
+                                View
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* ── QUICK ACTIONS ── */}
+                <div className="ht-sec">
+                    <div className="ht-sec-head">
+                        <div className="ht-sec-label">Quick Access</div>
+                    </div>
+                    <div className="ht-quick">
+                        {[
+                            { icon: '📋', label: 'Phases', path: '/dashboard/mobile/phases'   },
+                            { icon: '💰', label: 'Finance', path: '/dashboard/mobile/finance'  },
+                            { icon: '📅', label: 'Timeline', path: '/dashboard/mobile/timeline'},
+                            { icon: '📈', label: 'Analytics', path: '/dashboard/mobile/analytics'},
+                            { icon: '🧱', label: 'Resources', path: '/dashboard/mobile/resource'},
+                            { icon: '📸', label: 'Gallery', path: '/dashboard/mobile/photos'   },
+                            { icon: '📜', label: 'Permits', path: '/dashboard/mobile/permits'  },
+                            { icon: '🛠️', label: 'Manage', path: '/dashboard/mobile/manage'   },
+                        ].map(a => (
+                            <button key={a.label} className="ht-qa" onClick={() => navigate(a.path)}>
+                                <span className="ht-qa-icon">{a.icon}</span>
+                                <span className="ht-qa-lbl">{a.label}</span>
+                            </button>
+                        ))}
                     </div>
                 </div>
 
@@ -904,7 +975,7 @@ const HomeTab = () => {
                                                         key={task.id}
                                                         className={`ht-task${isDone ? ' done' : ''}`}
                                                         style={{ animationDelay: `${ti * 30}ms` }}
-                                                        onClick={() => setPreviewTask(task)}
+                                                        onClick={() => navigate('/dashboard/mobile/phases')}
                                                     >
                                                         <div className="ht-task-chk" onClick={(e) => { e.stopPropagation(); handleTaskToggle(task); }}>
                                                             <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -948,9 +1019,9 @@ const HomeTab = () => {
                                             })}
                                             <button
                                                 className="ht-analytics-btn"
-                                                onClick={(e) => { e.stopPropagation(); setDetailPhase(phase); }}
+                                                onClick={(e) => { e.stopPropagation(); navigate('/dashboard/mobile/phases'); }}
                                             >
-                                                ↗ Analytics
+                                                ↗ View Phase Details
                                             </button>
                                         </div>
                                     )}
@@ -1057,13 +1128,6 @@ const HomeTab = () => {
                     </div>
                 </div>
 
-                {previewTask && (
-                    <TaskPreviewModal
-                        isOpen={!!previewTask}
-                        onClose={() => setPreviewTask(null)}
-                        task={previewTask}
-                    />
-                )}
 
             </div>
         </MobileLayout>

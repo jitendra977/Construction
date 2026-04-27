@@ -1,6 +1,7 @@
 from datetime import date
 from decimal import Decimal
 from rest_framework import viewsets, status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.decorators import action
@@ -27,6 +28,7 @@ from .services.ledger import LedgerService
 from .services.budget import BudgetService
 from .services.reports import ReportService
 from .services.construction import ConstructionService
+from apps.core.mixins import ProjectScopedMixin
 
 
 # ─── HELPERS ──────────────────────────────────────────────────────────────────
@@ -42,34 +44,49 @@ def _project_id(request):
     return None
 
 
+def _user_project_ids(user):
+    """Return the list of project IDs the user is a member of, or None for admins (sees all)."""
+    if not user.is_authenticated:
+        return []
+    if getattr(user, 'is_system_admin', False):
+        return None  # Admin: no restriction
+    from apps.core.models import ProjectMember
+    return list(ProjectMember.objects.filter(user=user).values_list('project_id', flat=True))
+
+
 # ─── LEDGER ──────────────────────────────────────────────────────────────────
 
 class AccountViewSet(viewsets.ModelViewSet):
     serializer_class = AccountSerializer
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         qs = Account.objects.all().order_by('code')
-        pid = _project_id(self.request)
-        
-        if pid:
-            # Stricter isolation: 
-            # 1. Accounts specifically for this project
-            # 2. Global accounts, BUT ONLY if they are NOT bank/cash accounts
-            # (Bank/Cash accounts should always be project-bound to avoid leakage)
+        user = self.request.user
+        pids = _user_project_ids(user)
+
+        if pids is not None:
+            # Non-admin: restrict to user's projects + global non-bank accounts
             qs = qs.filter(
-                Q(project_id=pid) | 
+                Q(project_id__in=pids) |
                 Q(project__isnull=True, is_bank=False)
             )
-        
-        # Apply query param filters
+
+        pid = _project_id(self.request)
+        if pid:
+            qs = qs.filter(
+                Q(project_id=pid) |
+                Q(project__isnull=True, is_bank=False)
+            )
+
         atype = self.request.query_params.get('account_type')
         if atype:
             qs = qs.filter(account_type=atype)
-        
+
         is_bank = self.request.query_params.get('is_bank')
         if is_bank:
             qs = qs.filter(is_bank=(is_bank.lower() == 'true'))
-            
+
         return qs
 
     def perform_create(self, serializer):
@@ -180,10 +197,17 @@ class AccountViewSet(viewsets.ModelViewSet):
 
 class JournalEntryViewSet(viewsets.ModelViewSet):
     serializer_class = JournalEntrySerializer
+    permission_classes = [IsAuthenticated]
     http_method_names = ['get', 'post', 'head', 'options']
 
     def get_queryset(self):
         qs = JournalEntry.objects.prefetch_related('lines').order_by('-date', '-created_at')
+        user = self.request.user
+        pids = _user_project_ids(user)
+        if pids is not None:
+            if not pids:
+                return qs.none()
+            qs = qs.filter(lines__project_id__in=pids).distinct()
         pid = _project_id(self.request)
         if pid:
             qs = qs.filter(lines__project_id=pid).distinct()
@@ -212,19 +236,29 @@ class JournalEntryViewSet(viewsets.ModelViewSet):
 
 # ─── TREASURY ─────────────────────────────────────────────────────────────────
 
-class CapitalSourceViewSet(viewsets.ModelViewSet):
+class CapitalSourceViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = CapitalSource.objects.select_related('gl_account').all()
     serializer_class = CapitalSourceSerializer
+    permission_classes = [IsAuthenticated]
+    project_field = 'gl_account__project'
 
 
 class CashTransferViewSet(viewsets.ModelViewSet):
     serializer_class = CashTransferSerializer
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         qs = CashTransfer.objects.select_related('from_bank', 'to_bank').order_by('-date')
+        user = self.request.user
+        pids = _user_project_ids(user)
+        if pids is not None:
+            if not pids:
+                return qs.none()
+            qs = qs.filter(
+                Q(from_bank__project_id__in=pids) | Q(to_bank__project_id__in=pids)
+            )
         pid = _project_id(self.request)
         if pid:
-            # Scoped to transfers involving project-linked accounts or specifically from this project
             qs = qs.filter(Q(from_bank__project_id=pid) | Q(to_bank__project_id=pid))
         return qs
 
@@ -237,26 +271,34 @@ class CashTransferViewSet(viewsets.ModelViewSet):
 # ─── PAYABLES ─────────────────────────────────────────────────────────────────
 
 class VendorViewSet(viewsets.ModelViewSet):
+    # Vendors are global (not project-scoped) — just require auth
     queryset = Vendor.objects.all()
     serializer_class = VendorSerializer
+    permission_classes = [IsAuthenticated]
 
 
-class PurchaseOrderViewSet(viewsets.ModelViewSet):
+class PurchaseOrderViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
+    queryset = PurchaseOrder.objects.select_related('vendor').all()
     serializer_class = PurchaseOrderSerializer
+    permission_classes = [IsAuthenticated]
+    project_field = 'project'
 
     def get_queryset(self):
-        qs = PurchaseOrder.objects.select_related('vendor').all()
+        qs = super().get_queryset()
         pid = _project_id(self.request)
         if pid:
             qs = qs.filter(project_id=pid)
         return qs
 
 
-class VendorBillViewSet(viewsets.ModelViewSet):
+class VendorBillViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
+    queryset = VendorBill.objects.select_related('vendor', 'expense_account', 'phase').all()
     serializer_class = VendorBillSerializer
+    permission_classes = [IsAuthenticated]
+    project_field = 'project'
 
     def get_queryset(self):
-        qs = VendorBill.objects.select_related('vendor', 'expense_account', 'phase').all()
+        qs = super().get_queryset()
         pid = _project_id(self.request)
         if pid:
             qs = qs.filter(project_id=pid)
@@ -267,11 +309,14 @@ class VendorBillViewSet(viewsets.ModelViewSet):
         PayableService.post_bill(bill)
 
 
-class BillPaymentViewSet(viewsets.ModelViewSet):
+class BillPaymentViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
+    queryset = BillPayment.objects.select_related('bill', 'bank_account').order_by('-date')
     serializer_class = BillPaymentSerializer
+    permission_classes = [IsAuthenticated]
+    project_field = 'bill__project'
 
     def get_queryset(self):
-        qs = BillPayment.objects.select_related('bill', 'bank_account').order_by('-date')
+        qs = super().get_queryset()
         pid = _project_id(self.request)
         if pid:
             qs = qs.filter(bill__project_id=pid)
@@ -284,11 +329,14 @@ class BillPaymentViewSet(viewsets.ModelViewSet):
 
 # ─── BUDGET ──────────────────────────────────────────────────────────────────
 
-class PhaseBudgetViewSet(viewsets.ModelViewSet):
+class PhaseBudgetViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
+    queryset = PhaseBudgetLine.objects.select_related('phase', 'project').all()
     serializer_class = PhaseBudgetLineSerializer
+    permission_classes = [IsAuthenticated]
+    project_field = 'project'
 
     def get_queryset(self):
-        qs = PhaseBudgetLine.objects.select_related('phase', 'project').all()
+        qs = super().get_queryset()
         pid = _project_id(self.request)
         if pid:
             qs = qs.filter(project_id=pid)
@@ -343,11 +391,14 @@ class PhaseBudgetViewSet(viewsets.ModelViewSet):
         return Response(data)
 
 
-class BudgetRevisionViewSet(viewsets.ReadOnlyModelViewSet):
+class BudgetRevisionViewSet(ProjectScopedMixin, viewsets.ReadOnlyModelViewSet):
+    queryset = BudgetRevision.objects.select_related('budget_line', 'created_by').order_by('-date')
     serializer_class = BudgetRevisionSerializer
+    permission_classes = [IsAuthenticated]
+    project_field = 'budget_line__project'
 
     def get_queryset(self):
-        qs = BudgetRevision.objects.select_related('budget_line', 'created_by').order_by('-date')
+        qs = super().get_queryset()
         budget_line = self.request.query_params.get('budget_line')
         if budget_line:
             qs = qs.filter(budget_line_id=budget_line)
@@ -356,13 +407,16 @@ class BudgetRevisionViewSet(viewsets.ReadOnlyModelViewSet):
 
 # ─── CONSTRUCTION ─────────────────────────────────────────────────────────────
 
-class ContractorPaymentRequestViewSet(viewsets.ModelViewSet):
+class ContractorPaymentRequestViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
+    queryset = ContractorPaymentRequest.objects.select_related(
+        'contractor', 'phase', 'project'
+    ).order_by('-date_submitted')
     serializer_class = ContractorPaymentRequestSerializer
+    permission_classes = [IsAuthenticated]
+    project_field = 'project'
 
     def get_queryset(self):
-        qs = ContractorPaymentRequest.objects.select_related(
-            'contractor', 'phase', 'project'
-        ).order_by('-date_submitted')
+        qs = super().get_queryset()
         pid = _project_id(self.request)
         if pid:
             qs = qs.filter(project_id=pid)
@@ -377,14 +431,18 @@ class ContractorPaymentRequestViewSet(viewsets.ModelViewSet):
             return Response({'error': str(e)}, status=400)
 
 
-class RetentionReleaseViewSet(viewsets.ModelViewSet):
+class RetentionReleaseViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = RetentionRelease.objects.all()
     serializer_class = RetentionReleaseSerializer
+    permission_classes = [IsAuthenticated]
+    project_field = 'payment_request__project'
 
 
 # ─── REPORTS ─────────────────────────────────────────────────────────────────
 
 class ReportsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
         report_type = request.query_params.get('type', 'balance_sheet')
         pid = _project_id(request)

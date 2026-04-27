@@ -6,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from .models import HouseProject, ConstructionPhase, Room, Floor, UserGuide, UserGuideStep, UserGuideFAQ, UserGuideSection, UserGuideProgress, EmailLog, ProjectMember
 from .serializers import HouseProjectSerializer, ConstructionPhaseSerializer, RoomSerializer, FloorSerializer, UserGuideSerializer, UserGuideStepSerializer, UserGuideFAQSerializer, UserGuideSectionSerializer, UserGuideProgressSerializer, EmailLogSerializer, ProjectMemberSerializer
 from apps.accounts.permissions import IsSystemAdmin, CanManagePhases
+from apps.core.mixins import ProjectScopedMixin
 
 from apps.tasks.models import Task
 from apps.tasks.serializers import TaskSerializer
@@ -23,14 +24,24 @@ class HouseProjectViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """
-        Return all projects for any authenticated user.
-        The assigned_projects M2M is used for per-user access control on
-        other viewsets, but the Project Manager gateway must show every project
-        the system owns so the user can manage, activate, and switch between them.
+        Access control:
+          • System admins → all projects.
+          • Everyone else → only projects where they are a ProjectMember.
+        Attempting to access a project you're not a member of returns 404
+        (the object is simply not in the queryset), which avoids leaking
+        whether a project exists at all.
         """
-        if not self.request.user.is_authenticated:
+        user = self.request.user
+        if not user.is_authenticated:
             return HouseProject.objects.none()
-        return HouseProject.objects.prefetch_related('members', 'phases', 'floors').all()
+
+        qs = HouseProject.objects.prefetch_related('members', 'phases', 'floors')
+
+        if getattr(user, 'is_system_admin', False):
+            return qs.all()
+
+        # Regular users: only their assigned projects (via ProjectMember)
+        return qs.filter(members__user=user).distinct()
 
     @action(detail=True, methods=['get'], url_path='stats')
     def stats(self, request, pk=None):
@@ -112,9 +123,37 @@ class HouseProjectViewSet(viewsets.ModelViewSet):
 
 
 class ProjectMemberViewSet(viewsets.ModelViewSet):
+    """
+    CRUD for project team members + granular permission management.
+
+    Permission rules
+    ────────────────
+    • GET (list / retrieve)  — any authenticated user
+    • POST / PATCH / DELETE  — SUPER_ADMIN  OR  project member with
+                               can_manage_members = True
+    • my-role                — returns the current user's membership record
+    • apply-role-defaults    — reset a member's permissions to their role defaults
+    """
     serializer_class   = ProjectMemberSerializer
     permission_classes = [IsAuthenticated]
 
+    # ── helpers ──────────────────────────────────────────────────────────────
+    def _can_manage(self, project_id):
+        """True if the current user may add / edit / remove members."""
+        user = self.request.user
+        if getattr(user, 'is_system_admin', False):
+            return True
+        try:
+            m = ProjectMember.objects.get(project_id=project_id, user=user)
+            return m.can_manage_members
+        except ProjectMember.DoesNotExist:
+            return False
+
+    def _deny(self, msg='You do not have permission to manage members for this project.'):
+        from rest_framework.response import Response
+        return Response({'detail': msg}, status=status.HTTP_403_FORBIDDEN)
+
+    # ── queryset ─────────────────────────────────────────────────────────────
     def get_queryset(self):
         qs = ProjectMember.objects.select_related('user', 'project').all()
         pid = self.request.query_params.get('project')
@@ -122,23 +161,88 @@ class ProjectMemberViewSet(viewsets.ModelViewSet):
             qs = qs.filter(project_id=pid)
         return qs
 
+    # ── write operations ─────────────────────────────────────────────────────
+    def create(self, request, *args, **kwargs):
+        project_id = request.data.get('project')
+        if not self._can_manage(project_id):
+            return self._deny()
+        return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         member = serializer.save()
-        # Also add to the User.assigned_projects M2M so existing auth logic works
+        # Seed permissions from role defaults
+        member.apply_role_defaults()
+        member.save(update_fields=member.permission_fields)
+        # Keep User.assigned_projects M2M in sync
         member.user.assigned_projects.add(member.project)
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if not self._can_manage(instance.project_id):
+            return self._deny()
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        # Users may always remove themselves; otherwise need manage_members
+        if instance.user != request.user and not self._can_manage(instance.project_id):
+            return self._deny()
+        return super().destroy(request, *args, **kwargs)
 
     def perform_destroy(self, instance):
         user    = instance.user
         project = instance.project
         instance.delete()
-        # If no other membership, remove from assigned_projects too
         if not ProjectMember.objects.filter(user=user, project=project).exists():
             user.assigned_projects.remove(project)
 
-class ConstructionPhaseViewSet(viewsets.ModelViewSet):
+    # ── extra actions ─────────────────────────────────────────────────────────
+    @action(detail=False, methods=['get'], url_path='my-role')
+    def my_role(self, request):
+        """
+        GET /api/v1/project-members/my-role/?project=<id>
+        Returns the current user's ProjectMember record for that project.
+        System admins get a synthetic full-access response.
+        """
+        project_id = request.query_params.get('project')
+        if not project_id:
+            return Response({'detail': 'project query param required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if getattr(request.user, 'is_system_admin', False):
+            return Response({
+                'id': None, 'role': 'SUPER_ADMIN', 'role_display': 'Super Admin',
+                'can_manage_members': True, 'can_manage_finances': True,
+                'can_view_finances': True, 'can_manage_phases': True,
+                'can_manage_structure': True, 'can_manage_resources': True,
+                'can_upload_media': True,
+            })
+
+        try:
+            m = ProjectMember.objects.select_related('user').get(
+                project_id=project_id, user=request.user)
+            return Response(ProjectMemberSerializer(m, context={'request': request}).data)
+        except ProjectMember.DoesNotExist:
+            return Response({'detail': 'Not a member of this project.'}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True, methods=['post'], url_path='apply-role-defaults')
+    def apply_role_defaults(self, request, pk=None):
+        """
+        POST /api/v1/project-members/<id>/apply-role-defaults/
+        Reset all permission flags to the defaults for this member's role.
+        Requires can_manage_members on the project.
+        """
+        instance = self.get_object()
+        if not self._can_manage(instance.project_id):
+            return self._deny()
+        instance.apply_role_defaults()
+        instance.save(update_fields=instance.permission_fields)
+        return Response(ProjectMemberSerializer(instance, context={'request': request}).data)
+
+class ConstructionPhaseViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = ConstructionPhase.objects.all()
     serializer_class = ConstructionPhaseSerializer
     permission_classes = [IsAuthenticated, CanManagePhases]
+    project_field = 'project'
 
     @action(detail=False, methods=['post'])
     def reorder(self, request):
@@ -162,12 +266,22 @@ class DashboardDataView(APIView):
         """
         Unified endpoint to fetch all dashboard data in a single request.
         Accepts optional ?project_id=<id> to load a specific project.
+        Non-admins are restricted to their assigned projects only.
         """
+        user = request.user
+        is_admin = getattr(user, 'is_system_admin', False)
+
+        # Build the base project queryset scoped to this user
+        if is_admin:
+            accessible_projects = HouseProject.objects.all()
+        else:
+            accessible_projects = HouseProject.objects.filter(members__user=user).distinct()
+
         project_id = request.query_params.get('project_id')
         if project_id:
-            project = HouseProject.objects.filter(pk=project_id).first()
+            project = accessible_projects.filter(pk=project_id).first()
         else:
-            project = HouseProject.objects.first()
+            project = accessible_projects.first()
 
         # Filter all data by project if project is set
         if project:
@@ -260,12 +374,14 @@ class DashboardDataView(APIView):
             'finance_summary': finance_summary,
         })
 
-class RoomViewSet(viewsets.ModelViewSet):
+class RoomViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
+    queryset = Room.objects.select_related('floor').order_by('floor__level', 'name')
     serializer_class = RoomSerializer
     permission_classes = [IsAuthenticated, CanManagePhases]
+    project_field = 'floor__project'
 
     def get_queryset(self):
-        qs = Room.objects.select_related('floor').order_by('floor__level', 'name')
+        qs = super().get_queryset()
         floor_id = self.request.query_params.get('floor')
         pid = self.request.query_params.get('project')
         if floor_id:
@@ -274,12 +390,14 @@ class RoomViewSet(viewsets.ModelViewSet):
             qs = qs.filter(floor__project_id=pid)
         return qs
 
-class FloorViewSet(viewsets.ModelViewSet):
+class FloorViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
+    queryset = Floor.objects.prefetch_related('rooms').order_by('level')
     serializer_class = FloorSerializer
     permission_classes = [IsAuthenticated, CanManagePhases]
+    project_field = 'project'
 
     def get_queryset(self):
-        qs = Floor.objects.prefetch_related('rooms').order_by('level')
+        qs = super().get_queryset()
         pid = self.request.query_params.get('project')
         if pid:
             qs = qs.filter(project_id=pid)

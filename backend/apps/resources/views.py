@@ -13,20 +13,22 @@ from .serializers import (
     SupplierSerializer, MaterialTransactionSerializer,
     WastageAlertSerializer, WastageThresholdSerializer
 )
+from apps.core.mixins import ProjectScopedMixin
 
 class SupplierViewSet(viewsets.ModelViewSet):
     queryset = Vendor.objects.all()
     serializer_class = SupplierSerializer
 
-class ContractorViewSet(viewsets.ModelViewSet):
+class ContractorViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = Contractor.objects.all()
     serializer_class = ContractorSerializer
+    project_field = 'project'
 
 
-
-class MaterialViewSet(viewsets.ModelViewSet):
+class MaterialViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = Material.objects.all()
     serializer_class = MaterialSerializer
+    project_field = 'project'
 
     @action(detail=True, methods=['post'])
     def recalculate_stock(self, request, pk=None):
@@ -193,9 +195,10 @@ class MaterialViewSet(viewsets.ModelViewSet):
             'threshold': WastageThresholdSerializer(threshold).data if threshold else None,
         })
 
-class MaterialTransactionViewSet(viewsets.ModelViewSet):
+class MaterialTransactionViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = MaterialTransaction.objects.all().order_by('-date', '-created_at')
     serializer_class = MaterialTransactionSerializer
+    project_field = 'material__project'
 
     def perform_create(self, serializer):
         from .services import ResourceService
@@ -262,29 +265,30 @@ class MaterialTransactionViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['material', 'transaction_type']
 
-class DocumentViewSet(viewsets.ModelViewSet):
+class DocumentViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = Document.objects.all()
     serializer_class = DocumentSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['document_type']
+    project_field = 'project'
 
 
-class WastageAlertViewSet(viewsets.ModelViewSet):
+class WastageAlertViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     """
     Exposes:
       GET  /api/v1/wastage-alerts/           — list open alerts (?severity=CRITICAL&is_resolved=false)
       GET  /api/v1/wastage-alerts/dashboard/ — aggregated wastage stats
       PATCH /api/v1/wastage-alerts/{id}/resolve/ — mark an alert as resolved
     """
+    queryset = WastageAlert.objects.select_related('material', 'threshold', 'transaction').order_by('-created_at')
     serializer_class = WastageAlertSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['severity', 'is_resolved', 'material']
     http_method_names = ['get', 'patch', 'head', 'options']
+    project_field = 'material__project'
 
     def get_queryset(self):
-        return WastageAlert.objects.select_related(
-            'material', 'threshold', 'transaction'
-        ).order_by('-created_at')
+        return super().get_queryset()
 
     @action(detail=True, methods=['patch'])
     def resolve(self, request, pk=None):
@@ -380,7 +384,7 @@ class WastageAlertViewSet(viewsets.ModelViewSet):
         })
 
 
-class WastageThresholdViewSet(viewsets.ModelViewSet):
+class WastageThresholdViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     """
     CRUD for per-material wastage thresholds.
     GET  /api/v1/wastage-thresholds/        — list all
@@ -388,8 +392,10 @@ class WastageThresholdViewSet(viewsets.ModelViewSet):
     PATCH /api/v1/wastage-thresholds/{id}/  — update
     DELETE /api/v1/wastage-thresholds/{id}/ — delete
     """
+    queryset = WastageThreshold.objects.select_related('material').order_by('material__name')
     serializer_class = WastageThresholdSerializer
     http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
+    project_field = 'material__project'
 
     def get_queryset(self):
-        return WastageThreshold.objects.select_related('material').order_by('material__name')
+        return super().get_queryset()

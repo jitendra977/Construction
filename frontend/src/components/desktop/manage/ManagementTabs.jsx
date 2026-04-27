@@ -1,22 +1,24 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { usePlatformBase } from '../../../shared/utils/platformNav';
 
 /**
  * ManagementTabs — Premium horizontal navigation for core construction modules.
- * This component provides quick access to all management-related pages.
+ * Auto-detects desktop vs mobile platform from the URL.
  */
 const ManagementTabs = () => {
     const location = useLocation();
-    
+    const base = usePlatformBase(); // '/dashboard/desktop' or '/dashboard/mobile'
+
     const tabs = [
-        { id: 'manage',    label: 'Overview',  icon: '🛠️', path: '/dashboard/desktop/manage' },
-        { id: 'phases',    label: 'Phases',    icon: '📋', path: '/dashboard/desktop/phases' },
-        { id: 'timeline',  label: 'Timeline',  icon: '📅', path: '/dashboard/desktop/timeline' },
-        { id: 'finance',   label: 'Finance',   icon: '💰', path: '/dashboard/desktop/finance' },
-        { id: 'resource',  label: 'Resource',  icon: '🧱', path: '/dashboard/desktop/resource' },
-        { id: 'structure', label: 'Structure', icon: '🏛️', path: '/dashboard/desktop/structure' },
-        { id: 'photos',    label: 'Photos',    icon: '📸', path: '/dashboard/desktop/photos' },
-        { id: 'timelapse', label: 'Timelapse', icon: '🎞️', path: '/dashboard/desktop/timelapse' },
+        { id: 'manage',    label: 'Overview',  icon: '🛠️', path: `${base}/manage` },
+        { id: 'phases',    label: 'Phases',    icon: '📋', path: `${base}/phases` },
+        { id: 'timeline',  label: 'Timeline',  icon: '📅', path: `${base}/timeline` },
+        { id: 'finance',   label: 'Finance',   icon: '💰', path: `${base}/finance` },
+        { id: 'resource',  label: 'Resource',  icon: '🧱', path: `${base}/resource` },
+        { id: 'structure', label: 'Structure', icon: '🏛️', path: `${base}/structure` },
+        { id: 'photos',    label: 'Photos',    icon: '📸', path: `${base}/photos` },
+        { id: 'timelapse', label: 'Timelapse', icon: '🎞️', path: `${base}/timelapse` },
     ];
 
     return (

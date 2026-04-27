@@ -30,6 +30,7 @@ from django.http import HttpResponse
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets, filters, status as drf_status, permissions
 from apps.accounts.permissions import CanManageFinances
+from apps.core.mixins import ProjectScopedMixin
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -73,34 +74,37 @@ from .services import BillService, TransferService, FundingService, FinanceServi
 # GL
 # -----------------------------------------------------------------------------
 
-class AccountViewSet(viewsets.ModelViewSet):
+class AccountViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = Account.objects.all().order_by("code")
     serializer_class = AccountSerializer
     permission_classes = [permissions.IsAuthenticated, CanManageFinances]
     filterset_fields = ["account_type", "is_active", "project"]
     search_fields = ["name", "code"]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    project_field = 'project'
 
 
-class JournalEntryViewSet(viewsets.ModelViewSet):
+class JournalEntryViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = JournalEntry.objects.all().prefetch_related("lines", "lines__account").order_by("-date", "-id")
     serializer_class = JournalEntrySerializer
     permission_classes = [permissions.IsAuthenticated, CanManageFinances]
     filterset_fields = ["source", "project"]
+    project_field = 'project'
 
 
 # -----------------------------------------------------------------------------
 # Accounts Payable
 # -----------------------------------------------------------------------------
 
-class PurchaseOrderViewSet(viewsets.ModelViewSet):
+class PurchaseOrderViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = PurchaseOrder.objects.all().order_by("-date")
     serializer_class = PurchaseOrderSerializer
     permission_classes = [permissions.IsAuthenticated, CanManageFinances]
     filterset_fields = ["status", "supplier", "contractor", "project"]
+    project_field = 'project'
 
 
-class BillViewSet(viewsets.ModelViewSet):
+class BillViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = (
         Bill.objects.all()
         .select_related("supplier", "contractor", "journal_entry")
@@ -110,6 +114,7 @@ class BillViewSet(viewsets.ModelViewSet):
     serializer_class = BillSerializer
     permission_classes = [permissions.IsAuthenticated, CanManageFinances]
     filterset_fields = ["status", "supplier", "contractor", "project"]
+    project_field = 'project'
 
     def perform_create(self, serializer):
         """Save the bill then immediately post the AP journal entry.
@@ -154,11 +159,12 @@ class BillViewSet(viewsets.ModelViewSet):
         return Response(BillPaymentSerializer(payment).data, status=drf_status.HTTP_201_CREATED)
 
 
-class BillPaymentViewSet(viewsets.ModelViewSet):
+class BillPaymentViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = BillPayment.objects.all().select_related("account", "bill").order_by("-date", "-id")
     serializer_class = BillPaymentSerializer
     permission_classes = [permissions.IsAuthenticated, CanManageFinances]
     filterset_fields = ["method", "account", "bill", "project"]
+    project_field = 'project'
 
     def create(self, request, *args, **kwargs):
         """Override so we always go through the service (updates bill + posts JE)."""
@@ -188,11 +194,12 @@ class BillPaymentViewSet(viewsets.ModelViewSet):
         BillService.delete_bill_payment(instance)
 
 
-class BankTransferViewSet(viewsets.ModelViewSet):
+class BankTransferViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = BankTransfer.objects.all().select_related("from_account", "to_account").order_by("-date", "-id")
     serializer_class = BankTransferSerializer
     permission_classes = [permissions.IsAuthenticated, CanManageFinances]
     filterset_fields = ["from_account", "to_account", "project"]
+    project_field = 'project'
 
     def perform_create(self, serializer):
         """Save the transfer then post the GL journal entry."""
@@ -218,28 +225,31 @@ class BankTransferViewSet(viewsets.ModelViewSet):
 # Budget
 # -----------------------------------------------------------------------------
 
-class BudgetCategoryViewSet(viewsets.ModelViewSet):
+class BudgetCategoryViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = BudgetCategory.objects.all().order_by("name")
     serializer_class = BudgetCategorySerializer
     permission_classes = [permissions.IsAuthenticated, CanManageFinances]
     filterset_fields = ["project"]
+    project_field = 'project'
 
 
-class PhaseBudgetAllocationViewSet(viewsets.ModelViewSet):
+class PhaseBudgetAllocationViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = PhaseBudgetAllocation.objects.all()
     serializer_class = PhaseBudgetAllocationSerializer
     permission_classes = [permissions.IsAuthenticated, CanManageFinances]
+    project_field = 'phase__project'
 
 
 # -----------------------------------------------------------------------------
 # Funding
 # -----------------------------------------------------------------------------
 
-class FundingSourceViewSet(viewsets.ModelViewSet):
+class FundingSourceViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = FundingSource.objects.all().prefetch_related("transactions").order_by("-received_date")
     serializer_class = FundingSourceSerializer
     permission_classes = [permissions.IsAuthenticated, CanManageFinances]
     filterset_fields = ["project"]
+    project_field = 'project'
 
     @action(detail=True, methods=["post"], url_path="recalculate")
     def recalculate(self, request, pk=None):
@@ -254,18 +264,19 @@ class FundingSourceViewSet(viewsets.ModelViewSet):
         })
 
 
-class FundingTransactionViewSet(viewsets.ModelViewSet):
+class FundingTransactionViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = FundingTransaction.objects.all().order_by("-date", "-id")
     serializer_class = FundingTransactionSerializer
     permission_classes = [permissions.IsAuthenticated, CanManageFinances]
     filterset_fields = ["transaction_type", "funding_source"]
+    project_field = 'funding_source__project'
 
 
 # -----------------------------------------------------------------------------
 # Expenses / Payments
 # -----------------------------------------------------------------------------
 
-class ExpenseViewSet(viewsets.ModelViewSet):
+class ExpenseViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = (
         Expense.objects.all()
         .select_related("category", "phase", "supplier", "contractor", "funding_source", "task", "material")
@@ -277,6 +288,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_class = ExpenseFilter
     search_fields = ["title", "paid_to", "category__name", "phase__name"]
+    project_field = 'project'
 
     def perform_destroy(self, instance):
         for payment in instance.payments.all():
@@ -407,10 +419,11 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         })
 
 
-class PaymentViewSet(viewsets.ModelViewSet):
+class PaymentViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = Payment.objects.all().select_related("expense", "funding_source").order_by("-date", "-id")
     serializer_class = PaymentSerializer
     permission_classes = [permissions.IsAuthenticated, CanManageFinances]
+    project_field = 'project'
 
     def perform_create(self, serializer):
         data = serializer.validated_data

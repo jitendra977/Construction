@@ -39,7 +39,8 @@ const ProgressBar = ({ value, max, color = '#f97316', label }) => {
 export default function ProjectDetailPage() {
     const { project }  = useOutletContext() || {};
     const navigate     = useNavigate();
-    const base    = usePlatformBase();
+    const base         = usePlatformBase();
+    const isMobile     = base.includes('mobile');
     const { activeProjectId } = useConstruction();
     const [stats, setStats]   = useState(null);
     const [loadingStats, setLS] = useState(false);
@@ -72,7 +73,7 @@ export default function ProjectDetailPage() {
     const s = stats;
 
     return (
-        <div className="p-6 max-w-5xl mx-auto space-y-6">
+        <div style={{ padding: isMobile ? '14px 14px 24px' : '24px', maxWidth: 960, margin: '0 auto' }} className="space-y-5">
             {/* Project banner */}
             {project && (
                 <div className="rounded-2xl p-5 flex flex-wrap items-start gap-4"
@@ -190,7 +191,11 @@ export default function ProjectDetailPage() {
             <section>
                 <h3 className="text-sm font-black uppercase tracking-widest mb-3"
                     style={{ color: 'var(--t-text3)' }}>⚡ Quick Links</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : 'repeat(auto-fill, minmax(140px, 1fr))',
+                    gap: isMobile ? 8 : 12,
+                }}>
                     {[
                         { icon: '📅', label: 'Timeline',   path: `${base}/timeline`   },
                         { icon: '🏛️', label: 'Structure',  path: `${base}/structure`  },
@@ -203,9 +208,23 @@ export default function ProjectDetailPage() {
                         { icon: '🧮', label: 'Estimator',  path: `${base}/estimator`  },
                     ].map(({ icon, label, path }) => (
                         <button key={path} onClick={() => navigate(path)}
-                            className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:shadow-md"
-                            style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)', color: 'var(--t-text)' }}>
-                            <span className="text-xl">{icon}</span>
+                            style={{
+                                display: 'flex',
+                                flexDirection: isMobile ? 'column' : 'row',
+                                alignItems: 'center',
+                                justifyContent: isMobile ? 'center' : 'flex-start',
+                                gap: isMobile ? 4 : 10,
+                                padding: isMobile ? '12px 8px' : '12px 16px',
+                                borderRadius: 12,
+                                fontSize: isMobile ? 10 : 13,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                background: 'var(--t-surface)',
+                                border: '1px solid var(--t-border)',
+                                color: 'var(--t-text)',
+                                transition: 'box-shadow 0.15s',
+                            }}>
+                            <span style={{ fontSize: isMobile ? 20 : 18 }}>{icon}</span>
                             {label}
                         </button>
                     ))}

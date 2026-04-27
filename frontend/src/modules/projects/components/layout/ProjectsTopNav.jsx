@@ -12,15 +12,27 @@ export default function ProjectsTopNav({ projectId }) {
     ];
 
     return (
-        <div className="flex items-center gap-1 px-4 pt-4 pb-0"
-            style={{ borderBottom: '1px solid var(--t-border)' }}>
+        <div
+            className="flex items-center gap-0 overflow-x-auto scrollbar-hide"
+            style={{
+                borderBottom: '1px solid var(--t-border)',
+                background: 'var(--t-surface)',
+                padding: '0 12px',
+            }}
+        >
             {tabs.map(({ to, label }) => (
                 <NavLink key={to} to={to}
-                    className="px-4 py-2 text-sm font-semibold rounded-t-lg transition-colors"
+                    className="shrink-0"
                     style={({ isActive }) => ({
+                        display: 'flex', alignItems: 'center',
+                        padding: '13px 16px',
+                        fontSize: 12, fontWeight: 700,
+                        whiteSpace: 'nowrap',
                         color:        isActive ? '#f97316' : 'var(--t-text3)',
                         borderBottom: isActive ? '2px solid #f97316' : '2px solid transparent',
-                        background:   'transparent',
+                        textDecoration: 'none',
+                        background: 'transparent',
+                        transition: 'color 0.15s',
                     })}>
                     {label}
                 </NavLink>

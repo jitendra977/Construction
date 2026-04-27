@@ -3,20 +3,38 @@ from .models import HouseProject, ConstructionPhase, Room, Floor, UserGuide, Use
 
 # ── Project Member ─────────────────────────────────────────────────────────────
 class ProjectMemberSerializer(serializers.ModelSerializer):
-    username    = serializers.ReadOnlyField(source='user.username')
-    email       = serializers.ReadOnlyField(source='user.email')
-    full_name   = serializers.SerializerMethodField()
+    username     = serializers.ReadOnlyField(source='user.username')
+    email        = serializers.ReadOnlyField(source='user.email')
+    full_name    = serializers.SerializerMethodField()
     role_display = serializers.ReadOnlyField(source='get_role_display')
+    profile_image = serializers.SerializerMethodField()
 
     class Meta:
         model  = ProjectMember
-        fields = ['id', 'project', 'user', 'username', 'email', 'full_name',
-                  'role', 'role_display', 'note', 'joined_at']
-        read_only_fields = ['id', 'joined_at']
+        fields = [
+            'id', 'project', 'user', 'username', 'email', 'full_name', 'profile_image',
+            'role', 'role_display', 'note', 'joined_at',
+            # Granular permission flags
+            'can_manage_members', 'can_manage_finances', 'can_view_finances',
+            'can_manage_phases',  'can_manage_structure',
+            'can_manage_resources', 'can_upload_media',
+        ]
+        read_only_fields = ['id', 'joined_at', 'username', 'email', 'full_name', 'profile_image', 'role_display']
 
     def get_full_name(self, obj):
         u = obj.user
         return f"{u.first_name} {u.last_name}".strip() or u.username
+
+    def get_profile_image(self, obj):
+        try:
+            if obj.user.profile_image:
+                request = self.context.get('request')
+                if request:
+                    return request.build_absolute_uri(obj.user.profile_image.url)
+                return obj.user.profile_image.url
+        except Exception:
+            pass
+        return None
 
 # ── House Project ──────────────────────────────────────────────────────────────
 class HouseProjectSerializer(serializers.ModelSerializer):

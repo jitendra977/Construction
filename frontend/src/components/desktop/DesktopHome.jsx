@@ -7,8 +7,6 @@ import {
 } from 'lucide-react';
 import Modal from '../common/Modal';
 import SuccessModal from '../common/SuccessModal';
-import PhaseDetailModal from './manage/PhaseDetailModal';
-import TaskPreviewModal from './manage/TaskPreviewModal';
 import WastageAlertPanel from '../common/WastageAlertPanel';
 import { constructionService, permitService, dashboardService, getMediaUrl } from '../../services/api';
 import { useConstruction } from '../../context/ConstructionContext';
@@ -74,8 +72,7 @@ const DesktopHome = () => {
     const [selectedPhase, setSelectedPhase] = useState(null);
     const [newTaskTitle, setNewTaskTitle] = useState('');
     const [loading, setLoading] = useState(false);
-    const [detailPhase, setDetailPhase] = useState(null);
-    const [previewTask, setPreviewTask] = useState(null);
+    // Phase/Task details are now handled in PhasesPage — navigate there instead
 
     const [confirmConfig, setConfirmConfig] = useState({ isOpen: false });
     const showConfirm = (config) => setConfirmConfig({ ...config, isOpen: true });
@@ -399,7 +396,7 @@ const DesktopHome = () => {
                                     <div
                                         key={phase.id}
                                         className="px-6 py-4 flex items-center gap-4 cursor-pointer hover:bg-[var(--t-surface2)] transition-colors"
-                                        onClick={() => setDetailPhase(phase)}
+                                        onClick={() => navigate('/dashboard/desktop/phases')}
                                     >
                                         {/* Step marker */}
                                         <div
@@ -464,7 +461,7 @@ const DesktopHome = () => {
                                 priorityTasks.map((task) => (
                                     <div
                                         key={task.id}
-                                        onClick={() => setPreviewTask(task)}
+                                        onClick={() => navigate('/dashboard/desktop/phases')}
                                         className="flex items-center gap-3 px-5 py-3 hover:bg-[var(--t-surface2)] cursor-pointer transition-colors"
                                     >
                                         <input
@@ -776,16 +773,6 @@ const DesktopHome = () => {
                 </form>
             </Modal>
 
-            {detailPhase && (
-                <PhaseDetailModal
-                    isOpen={!!detailPhase}
-                    onClose={() => setDetailPhase(null)}
-                    phase={detailPhase ? dashboardData.phases.find(p => p.id === detailPhase.id) : null}
-                    tasks={detailPhase ? dashboardData.tasks.filter(t => t.phase === detailPhase.id) : []}
-                    onRefresh={refreshData}
-                />
-            )}
-
             <SuccessModal
                 isOpen={successModalInfo.isOpen}
                 onClose={() => setSuccessModalInfo({ ...successModalInfo, isOpen: false })}
@@ -793,14 +780,6 @@ const DesktopHome = () => {
                 message={successModalInfo.message}
                 supplierName={successModalInfo.supplierName}
             />
-
-            {previewTask && (
-                <TaskPreviewModal
-                    isOpen={!!previewTask}
-                    onClose={() => setPreviewTask(null)}
-                    task={previewTask}
-                />
-            )}
 
             <ConfirmModal
                 isOpen={confirmConfig.isOpen}

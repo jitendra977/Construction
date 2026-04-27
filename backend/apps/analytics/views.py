@@ -9,11 +9,13 @@ from .serializers import (
     SupplierRateTrendSerializer,
 )
 from .services import compute_rate_trends, rebuild_alerts, refresh_all_forecasts
+from apps.core.mixins import ProjectScopedMixin
 
 
-class BudgetForecastViewSet(viewsets.ReadOnlyModelViewSet):
+class BudgetForecastViewSet(ProjectScopedMixin, viewsets.ReadOnlyModelViewSet):
     queryset = BudgetForecast.objects.select_related("category").all()
     serializer_class = BudgetForecastSerializer
+    project_field = 'category__project'
 
     @action(detail=False, methods=["post"])
     def refresh(self, request):
@@ -22,9 +24,10 @@ class BudgetForecastViewSet(viewsets.ReadOnlyModelViewSet):
         return Response({"status": "ok", "count": BudgetForecast.objects.count()})
 
 
-class SupplierRateTrendViewSet(viewsets.ReadOnlyModelViewSet):
+class SupplierRateTrendViewSet(ProjectScopedMixin, viewsets.ReadOnlyModelViewSet):
     queryset = SupplierRateTrend.objects.select_related("supplier", "material").all()
     serializer_class = SupplierRateTrendSerializer
+    project_field = 'material__project'
 
     @action(detail=False, methods=["post"])
     def refresh(self, request):

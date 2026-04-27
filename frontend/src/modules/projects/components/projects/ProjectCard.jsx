@@ -30,9 +30,10 @@ const MiniBar = ({ value, max, color = '#f97316' }) => {
     );
 };
 
-export default function ProjectCard({ project, isActive, onActivate }) {
+export default function ProjectCard({ project, isActive, onActivate, onEdit }) {
     const navigate = useNavigate();
-    const base    = usePlatformBase();
+    const base     = usePlatformBase();
+    const isMobile = base.includes('mobile');
 
     const phaseTotal = project.phase_count       || 0;
     const phaseDone  = project.completed_phase_count || 0;
@@ -46,18 +47,26 @@ export default function ProjectCard({ project, isActive, onActivate }) {
 
     return (
         <div
-            className="rounded-2xl p-5 cursor-pointer transition-all hover:shadow-lg flex flex-col gap-4"
+            className="rounded-2xl cursor-pointer transition-all hover:shadow-lg flex flex-col"
             style={{
                 background:  'var(--t-surface)',
                 border:      `2px solid ${isActive ? '#f97316' : 'var(--t-border)'}`,
                 boxShadow:   isActive ? '0 0 0 3px rgba(249,115,22,0.12)' : undefined,
+                padding:     isMobile ? '14px' : '20px',
+                gap:         isMobile ? 12 : 16,
             }}
             onClick={onActivate}
         >
             {/* Header */}
             <div className="flex items-start gap-3">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0"
-                    style={{ background: 'rgba(234,88,12,0.12)' }}>
+                <div
+                    className="rounded-xl flex items-center justify-center shrink-0"
+                    style={{
+                        width: isMobile ? 38 : 48,
+                        height: isMobile ? 38 : 48,
+                        fontSize: isMobile ? 18 : 24,
+                        background: 'rgba(234,88,12,0.12)',
+                    }}>
                     🏗️
                 </div>
                 <div className="flex-1 min-w-0">
@@ -134,10 +143,13 @@ export default function ProjectCard({ project, isActive, onActivate }) {
             </div>
 
             {/* Action buttons */}
-            <div className="flex gap-2 mt-1">
+            <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                 <button
-                    className="flex-1 py-2 rounded-lg text-xs font-bold transition-colors"
                     style={{
+                        flex: 1,
+                        padding: isMobile ? '9px 0' : '8px 0',
+                        borderRadius: 10, fontSize: isMobile ? 11 : 12,
+                        fontWeight: 800, cursor: 'pointer',
                         background: isActive ? 'rgba(249,115,22,0.15)' : 'var(--t-bg)',
                         color:      isActive ? '#f97316' : 'var(--t-text3)',
                         border:     `1px solid ${isActive ? '#f97316' : 'var(--t-border)'}`,
@@ -146,8 +158,13 @@ export default function ProjectCard({ project, isActive, onActivate }) {
                     {isActive ? '✓ Active Project' : 'Set as Active'}
                 </button>
                 <button
-                    className="flex-1 py-2 rounded-lg text-xs font-bold transition-colors"
-                    style={{ background: '#f97316', color: '#fff' }}
+                    style={{
+                        flex: 1,
+                        padding: isMobile ? '9px 0' : '8px 0',
+                        borderRadius: 10, fontSize: isMobile ? 11 : 12,
+                        fontWeight: 800, cursor: 'pointer',
+                        background: '#f97316', color: '#fff', border: 'none',
+                    }}
                     onClick={(e) => {
                         e.stopPropagation();
                         onActivate();

@@ -4,10 +4,12 @@ from rest_framework.response import Response
 from .models import PermitStep
 from .serializers import PermitStepSerializer
 from apps.resources.models import Document
+from apps.core.mixins import ProjectScopedMixin
 
-class PermitStepViewSet(viewsets.ModelViewSet):
+class PermitStepViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = PermitStep.objects.all()
     serializer_class = PermitStepSerializer
+    project_field = 'project'
     
     @action(detail=True, methods=['post'])
     def attach_document(self, request, pk=None):

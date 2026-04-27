@@ -181,7 +181,7 @@ function QuickAddTask({ phaseId, onAdded }) {
 }
 
 /* ─── TaskRow ────────────────────────────────────────────────────────────── */
-function TaskRow({ task, onUpdate, onDelete }) {
+function TaskRow({ task, onUpdate, onDelete, onTaskClick }) {
     const [hovered, setHovered]  = useState(false);
     const [deleting, setDeleting] = useState(false);
 
@@ -308,6 +308,23 @@ function TaskRow({ task, onUpdate, onDelete }) {
                 {task.estimated_cost > 0 ? `Rs.${Number(task.estimated_cost).toLocaleString()}` : ''}
             </span>
 
+            {/* Detail view button */}
+            {onTaskClick && (
+                <button
+                    onClick={e => { e.stopPropagation(); onTaskClick(task); }}
+                    style={{
+                        padding: '3px 9px', borderRadius: 5, fontSize: 10, fontWeight: 800,
+                        background: hovered ? 'rgba(249,115,22,0.1)' : 'transparent',
+                        color: hovered ? '#f97316' : 'transparent',
+                        border: hovered ? '1px solid rgba(249,115,22,0.3)' : '1px solid transparent',
+                        cursor: 'pointer', flexShrink: 0,
+                        transition: 'all 0.15s', whiteSpace: 'nowrap',
+                    }}
+                >
+                    Detail
+                </button>
+            )}
+
             {/* Delete */}
             <button
                 onClick={del}
@@ -331,6 +348,7 @@ function SortablePhaseAccordion({
     phase, tasks, expanded, onToggle,
     onPhaseUpdate, onPhaseDelete,
     onTaskUpdate, onTaskDelete, onTaskAdded,
+    onPhaseClick, onTaskClick,
     canManage, searchQuery, filterStatus, filterPriority,
 }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -397,11 +415,27 @@ function SortablePhaseAccordion({
 
                 {/* Name + mini-progress */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{
-                        fontSize: 14, fontWeight: 800, color: 'var(--t-text)',
-                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                    }}>
-                        {phase.name}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{
+                            fontSize: 14, fontWeight: 800, color: 'var(--t-text)',
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                            flex: 1,
+                        }}>
+                            {phase.name}
+                        </div>
+                        {onPhaseClick && (
+                            <button
+                                onClick={e => { e.stopPropagation(); onPhaseClick(phase); }}
+                                style={{
+                                    padding: '2px 8px', borderRadius: 4, fontSize: 9, fontWeight: 800,
+                                    background: 'rgba(249,115,22,0.08)', color: '#f97316',
+                                    border: '1px solid rgba(249,115,22,0.25)', cursor: 'pointer',
+                                    flexShrink: 0, whiteSpace: 'nowrap', letterSpacing: '0.04em',
+                                }}
+                            >
+                                Detail →
+                            </button>
+                        )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3, flexWrap: 'wrap' }}>
                         <div style={{ width: 80, height: 4, borderRadius: 2, background: 'var(--t-border)', overflow: 'hidden' }}>
@@ -544,6 +578,7 @@ function SortablePhaseAccordion({
                                         task={task}
                                         onUpdate={onTaskUpdate}
                                         onDelete={onTaskDelete}
+                                        onTaskClick={onTaskClick}
                                     />
                                 ))
                         )}
@@ -708,7 +743,7 @@ function AddPhaseForm({ phaseCount, onCreated, onCancel }) {
 }
 
 /* ─── PhasesTab (main) ───────────────────────────────────────────────────── */
-const PhasesTab = ({ searchQuery = '' }) => {
+const PhasesTab = ({ searchQuery = '', onPhaseClick, onTaskClick }) => {
     const { dashboardData, refreshData, activeProjectId } = useConstruction();
     const canManage = authService.hasPermission('can_manage_phases');
 
@@ -871,6 +906,8 @@ const PhasesTab = ({ searchQuery = '' }) => {
                             onTaskUpdate={handleTaskUpdate}
                             onTaskDelete={handleTaskDelete}
                             onTaskAdded={handleTaskAdded}
+                            onPhaseClick={onPhaseClick}
+                            onTaskClick={onTaskClick}
                             canManage={canManage}
                             activeProjectId={activeProjectId}
                             searchQuery={searchQuery}

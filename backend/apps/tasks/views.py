@@ -8,17 +8,19 @@ from collections import defaultdict, deque
 from .models import Task, TaskUpdate, TaskMedia
 from .serializers import TaskSerializer, TaskUpdateSerializer, TaskMediaSerializer
 from apps.accounts.permissions import CanManagePhases
+from apps.core.mixins import ProjectScopedMixin
 
 
-class TaskViewSet(viewsets.ModelViewSet):
+class TaskViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     # Required by DRF router for basename auto-detection.
     # Actual filtering is done in get_queryset() below.
-    queryset = Task.objects.all()
+    queryset = Task.objects.select_related('phase', 'phase__project', 'room', 'assigned_to', 'category')
     serializer_class = TaskSerializer
     permission_classes = [permissions.IsAuthenticated, CanManagePhases]
+    project_field = 'phase__project'
 
     def get_queryset(self):
-        qs = Task.objects.select_related('phase', 'phase__project', 'room', 'assigned_to', 'category')
+        qs = super().get_queryset()
         phase_id = self.request.query_params.get('phase')
         project_id = self.request.query_params.get('project')
         if phase_id:
@@ -204,27 +206,29 @@ class TaskViewSet(viewsets.ModelViewSet):
         return Response(TaskUpdateSerializer(update).data, status=status.HTTP_201_CREATED)
 
 
-class TaskUpdateViewSet(viewsets.ModelViewSet):
+class TaskUpdateViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = TaskUpdate.objects.all()
     serializer_class = TaskUpdateSerializer
     permission_classes = [permissions.IsAuthenticated, CanManagePhases]
+    project_field = 'task__phase__project'
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        qs = super().get_queryset()
         task_id = self.request.query_params.get('task')
         if task_id:
-            queryset = queryset.filter(task_id=task_id)
-        return queryset
+            qs = qs.filter(task_id=task_id)
+        return qs
 
 
-class TaskMediaViewSet(viewsets.ModelViewSet):
+class TaskMediaViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = TaskMedia.objects.all()
     serializer_class = TaskMediaSerializer
     permission_classes = [permissions.IsAuthenticated, CanManagePhases]
+    project_field = 'task__phase__project'
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        qs = super().get_queryset()
         task_id = self.request.query_params.get('task')
         if task_id:
-            queryset = queryset.filter(task_id=task_id)
-        return queryset
+            qs = qs.filter(task_id=task_id)
+        return qs

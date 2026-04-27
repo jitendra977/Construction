@@ -2,7 +2,7 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
 // Desktop Components
-import DesktopHome     from '../../components/desktop/DesktopHome';
+import Dashboard       from '../../modules/dashboard';
 import DesktopPhotos   from '../../components/desktop/DesktopPhotos';
 import DesktopManage   from '../../components/desktop/DesktopManage';
 import EstimatorHub    from '../../pages/estimator/EstimatorHub';
@@ -32,7 +32,7 @@ const DesktopRoutes = () => {
             <Route index element={<Navigate to="projects" replace />} />
 
             {/* Stand-alone pages */}
-            <Route path="home"       element={<DesktopHome />}    />
+            <Route path="home"       element={<Dashboard />}      />
             <Route path="estimator"  element={<EstimatorHub />}   />
             <Route path="permits"    element={<PermitPage />}     />
             <Route path="manage"     element={<DesktopManage />}  />

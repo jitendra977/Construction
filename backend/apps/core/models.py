@@ -512,8 +512,12 @@ class EmailLog(models.Model):
 
 class ProjectMember(models.Model):
     """
-    Team member with a project-specific role.
-    Complements the User.assigned_projects M2M with a role & join timestamp.
+    Team member with a project-specific role and granular permission flags.
+
+    Each member has a `role` (broad classification) and seven boolean
+    permission flags that can be individually overridden.  When a member is
+    first created, `apply_role_defaults()` is called to seed those flags from
+    the role's standard permission matrix.
     """
     ROLE_CHOICES = [
         ('OWNER',       'Owner / मालिक'),
@@ -524,6 +528,64 @@ class ProjectMember(models.Model):
         ('VIEWER',      'Viewer / दर्शक'),
     ]
 
+    # Default permission matrix — keyed by role
+    ROLE_DEFAULT_PERMISSIONS = {
+        'OWNER': {
+            'can_manage_members':   True,
+            'can_manage_finances':  True,
+            'can_view_finances':    True,
+            'can_manage_phases':    True,
+            'can_manage_structure': True,
+            'can_manage_resources': True,
+            'can_upload_media':     True,
+        },
+        'MANAGER': {
+            'can_manage_members':   True,
+            'can_manage_finances':  True,
+            'can_view_finances':    True,
+            'can_manage_phases':    True,
+            'can_manage_structure': True,
+            'can_manage_resources': True,
+            'can_upload_media':     True,
+        },
+        'ENGINEER': {
+            'can_manage_members':   False,
+            'can_manage_finances':  False,
+            'can_view_finances':    True,
+            'can_manage_phases':    True,
+            'can_manage_structure': True,
+            'can_manage_resources': False,
+            'can_upload_media':     True,
+        },
+        'SUPERVISOR': {
+            'can_manage_members':   False,
+            'can_manage_finances':  False,
+            'can_view_finances':    True,
+            'can_manage_phases':    True,
+            'can_manage_structure': False,
+            'can_manage_resources': False,
+            'can_upload_media':     True,
+        },
+        'CONTRACTOR': {
+            'can_manage_members':   False,
+            'can_manage_finances':  False,
+            'can_view_finances':    False,
+            'can_manage_phases':    False,
+            'can_manage_structure': False,
+            'can_manage_resources': True,
+            'can_upload_media':     True,
+        },
+        'VIEWER': {
+            'can_manage_members':   False,
+            'can_manage_finances':  False,
+            'can_view_finances':    True,
+            'can_manage_phases':    False,
+            'can_manage_structure': False,
+            'can_manage_resources': False,
+            'can_upload_media':     False,
+        },
+    }
+
     project = models.ForeignKey(
         'core.HouseProject', on_delete=models.CASCADE,
         related_name='members',
@@ -532,10 +594,26 @@ class ProjectMember(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
         related_name='project_memberships',
     )
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='VIEWER')
-    note = models.CharField(max_length=200, blank=True, default='',
-                            help_text="Short note e.g. 'Lead civil engineer'")
+    role     = models.CharField(max_length=20, choices=ROLE_CHOICES, default='VIEWER')
+    note     = models.CharField(max_length=200, blank=True, default='',
+                                help_text="Short note e.g. 'Lead civil engineer'")
     joined_at = models.DateTimeField(auto_now_add=True)
+
+    # ── Granular permission flags ─────────────────────────────────────────────
+    can_manage_members   = models.BooleanField(default=False,
+        help_text='Add / remove / edit team members')
+    can_manage_finances  = models.BooleanField(default=False,
+        help_text='Create / edit expenses, budgets, payments')
+    can_view_finances    = models.BooleanField(default=False,
+        help_text='Read-only access to financial data')
+    can_manage_phases    = models.BooleanField(default=False,
+        help_text='Create / edit phases and tasks')
+    can_manage_structure = models.BooleanField(default=False,
+        help_text='Create / edit floors and rooms')
+    can_manage_resources = models.BooleanField(default=False,
+        help_text='Create / edit materials, contractors, suppliers')
+    can_upload_media     = models.BooleanField(default=False,
+        help_text='Upload photos and documents')
 
     class Meta:
         unique_together = ('project', 'user')
@@ -545,3 +623,18 @@ class ProjectMember(models.Model):
 
     def __str__(self):
         return f"{self.user.username} → {self.project.name} ({self.role})"
+
+    # ── Helpers ───────────────────────────────────────────────────────────────
+    def apply_role_defaults(self):
+        """Seed all permission flags from this member's role defaults."""
+        defaults = self.ROLE_DEFAULT_PERMISSIONS.get(self.role, {})
+        for field, value in defaults.items():
+            setattr(self, field, value)
+
+    @property
+    def permission_fields(self):
+        return [
+            'can_manage_members', 'can_manage_finances', 'can_view_finances',
+            'can_manage_phases',  'can_manage_structure',
+            'can_manage_resources', 'can_upload_media',
+        ]
