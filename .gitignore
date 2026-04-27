@@ -74,3 +74,4 @@ docker-compose.dev.yml
 
 # Local settings overrides (may contain real secrets)
 backend/config/settings_local.py
+deploy.log
