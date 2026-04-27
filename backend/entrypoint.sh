@@ -48,7 +48,7 @@ ok "Migrations complete"
 
 # ── Seed admin user + roles ───────────────────────────────────
 log "Seeding admin user and roles..."
-python manage.py shell --no-startup-messages <<'PYEOF'
+python manage.py shell <<'PYEOF'
 from apps.accounts.models import User, Role
 
 for code, name in Role.ROLE_CODES:
