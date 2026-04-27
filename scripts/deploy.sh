@@ -157,12 +157,11 @@ ssh_exec "
   echo '==> Git safe dir'
   git config --global --add safe.directory '${REMOTE_DIR}' 2>/dev/null || true
 
-  echo '==> Pull latest code'
+  echo '==> Pull latest code (hard reset — server working tree is always authoritative from git)'
   git fetch origin
-  git stash 2>/dev/null || true
   git checkout '${BRANCH}'
-  git pull origin '${BRANCH}'
-  git stash pop 2>/dev/null || true
+  git reset --hard origin/'${BRANCH}'
+  git clean -fd
 
   echo '==> Save current tag for rollback'
   PREV=\$(grep '^IMAGE_TAG=' .env 2>/dev/null | cut -d= -f2 | head -1 || echo 'latest')
@@ -209,7 +208,7 @@ ssh_exec "
 # 5. Smoke test
 step "Smoke test"
 if [[ "$DRY_RUN" == "false" ]]; then
-  HEALTH="https://${VPS_HOST}/api/v1/health/"
+  HEALTH="https://api.construction.nishanaweb.cloud/api/v1/health/"
   CODE=$(curl -sk -o /dev/null -w "%{http_code}" --max-time 12 "$HEALTH" 2>/dev/null || echo "000")
   if [[ "$CODE" == "200" ]]; then
     ok "Health check → HTTP ${CODE}"
