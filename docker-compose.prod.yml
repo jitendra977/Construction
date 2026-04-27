@@ -78,6 +78,8 @@ services:
       DB_HOST:    db
       DB_PORT:    5432
       REDIS_URL:  redis://:${REDIS_PASSWORD:-redispass}@redis:6379/0
+    ports:
+      - "8001:8000"
     volumes:
       - media_data:/app/media
       - static_data:/app/staticfiles
@@ -164,6 +166,8 @@ services:
     image: constructpro-frontend:${IMAGE_TAG:-latest}
     container_name: construction_frontend
     <<: [*restart, *logging]
+    ports:
+      - "8080:80"
     volumes:
       - media_data:/usr/share/nginx/html/media:ro
       - static_data:/usr/share/nginx/html/static:ro
