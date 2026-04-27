@@ -1,7 +1,7 @@
 # ============================================================
 #  ConstructPro — Production Stack
 #  Frontend: https://construction.nishanaweb.cloud
-#  Backend:  https://backend.nishanaweb.cloud
+#  Backend:  https://api.construction.nishanaweb.cloud
 # ============================================================
 version: '3.9'
 
@@ -172,7 +172,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: ${VITE_API_URL:-https://backend.nishanaweb.cloud/api/v1}
+        VITE_API_URL: ${VITE_API_URL:-https://api.construction.nishanaweb.cloud/api/v1}
     image: constructpro-frontend:${IMAGE_TAG:-latest}
     container_name: construction_frontend
     <<: [*restart, *logging]
