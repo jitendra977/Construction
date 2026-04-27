@@ -4,53 +4,54 @@ from django.db import migrations
 from django.utils.text import slugify
 
 def link_contractors_to_users(apps, schema_editor):
-    Contractor = apps.get_model('resources', 'Contractor')
-    User = apps.get_model('accounts', 'User')
-    Role = apps.get_model('accounts', 'Role')
+    """
+    Links existing contractors to user accounts.
+    Safe to run on a fresh database — skips gracefully if no contractors exist
+    or if Role model is not yet available in the migration state.
+    """
+    try:
+        Contractor = apps.get_model('resources', 'Contractor')
+        User = apps.get_model('accounts', 'User')
+        Role = apps.get_model('accounts', 'Role')
+    except LookupError:
+        # Models not available in this migration state — safe to skip
+        return
+
+    # Fresh database — nothing to link
+    if not Contractor.objects.exists():
+        return
 
     try:
         contractor_role = Role.objects.get(code='CONTRACTOR')
     except Role.DoesNotExist:
-        # Fallback if roles aren't initialized yet
         contractor_role = Role.objects.create(code='CONTRACTOR', name='Contractor')
 
     for contractor in Contractor.objects.all():
         if contractor.user:
             continue
-        
-        email = contractor.email
-        if not email:
-            # Generate dummy email if missing
-            email = f"{slugify(contractor.name)}@example.com"
-        
-        # Try to find user by email
+
+        email = contractor.email or f"{slugify(contractor.name)}@example.com"
         user = User.objects.filter(email=email).first()
-        
+
         if not user:
-            # Create user if not exists
             username = slugify(contractor.name).replace('-', '_')
-            # Ensure unique username
             base_username = username
             counter = 1
             while User.objects.filter(username=username).exists():
                 username = f"{base_username}_{counter}"
                 counter += 1
-            
-            # Split name for first/last
-            name_parts = contractor.name.split(' ', 1)
-            first_name = name_parts[0]
-            last_name = name_parts[1] if len(name_parts) > 1 else ''
 
+            name_parts = contractor.name.split(' ', 1)
             user = User.objects.create_user(
                 username=username,
                 email=email,
-                password='password123', # Default password for migration
-                first_name=first_name,
-                last_name=last_name,
-                role=contractor_role
+                password='password123',
+                first_name=name_parts[0],
+                last_name=name_parts[1] if len(name_parts) > 1 else '',
+                role=contractor_role,
             )
-            print(f"Created user {username} for contractor {contractor.name}")
-        
+            print(f"  Created user {username} for contractor {contractor.name}")
+
         contractor.user = user
         contractor.save()
 
