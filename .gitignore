@@ -74,4 +74,12 @@ docker-compose.dev.yml
 
 # Local settings overrides (may contain real secrets)
 backend/config/settings_local.py
+
+# Deploy logs (generated output — not source)
 deploy.log
+deploy-*.log
+
+# Backups
+backups/
+
+# docs/DEPLOY.md is intentionally tracked — it is the deployment guide
