@@ -91,7 +91,7 @@ export const authService = {
                 });
                 data = formData;
             }
-1
+
             const response = await api.patch('auth/profile/', data, config);
 
             // Update stored user info

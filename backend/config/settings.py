@@ -227,8 +227,11 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle'
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '100/day',
-        'user': '1000/day'
+        # Raised from 100/day — the login endpoint is AllowAny (anonymous),
+        # so the old limit was easily exhausted during normal testing,
+        # locking out legitimate users with no visible error.
+        'anon': '300/day',
+        'user': '2000/day'
     }
 }
 

@@ -10,7 +10,15 @@
       "Bash(curl -s -o /tmp/curl2.out -w \"status=%{http_code}\\\\n\" \"http://127.0.0.1:8001/api/v1/accounting/budget-revisions/\")",
       "Bash(pkill -f \"manage.py runserver 8001\")",
       "Bash(curl -s -o /tmp/login_resp.json -w \"HTTP %{http_code}\\\\n\" -X POST https://api.construction.nishanaweb.cloud/api/v1/auth/login/ -H \"Content-Type: application/json\" -d '{\"username\":\"nonexistent@test.com\",\"password\":\"wrong\"}' --max-time 15)",
-      "Bash(curl -s -o /tmp/login_resp2.json -w \"HTTP %{http_code}\\\\n\" -X POST https://api.construction.nishanaweb.cloud/api/v1/auth/login/ -H \"Content-Type: application/json\" -d '{\"username\":\"nonexistent@test.com\",\"password\":\"wrong\"}' --max-time 15)"
+      "Bash(curl -s -o /tmp/login_resp2.json -w \"HTTP %{http_code}\\\\n\" -X POST https://api.construction.nishanaweb.cloud/api/v1/auth/login/ -H \"Content-Type: application/json\" -d '{\"username\":\"nonexistent@test.com\",\"password\":\"wrong\"}' --max-time 15)",
+      "Bash(curl -s -o /tmp/login_bad.json -w \"HTTP %{http_code}\\\\n\" -X POST https://api.construction.nishanaweb.cloud/api/v1/auth/login/ -H \"Content-Type: application/json\" -d '{\"username\":\"nonexistent@test.com\",\"password\":\"wrong\"}' --max-time 15)",
+      "Bash(curl -s -o /tmp/health.json -w \"HTTP %{http_code}\\\\n\" https://api.construction.nishanaweb.cloud/api/v1/health/ --max-time 10)",
+      "Bash(curl -s -o /tmp/login_email.json -w \"email-key HTTP %{http_code}\\\\n\" -X POST https://api.construction.nishanaweb.cloud/api/v1/auth/login/ -H \"Content-Type: application/json\" -d '{\"email\":\"nonexistent@test.com\",\"password\":\"wrong\"}' --max-time 15)",
+      "Bash(curl -s -o /tmp/login_empty.json -w \"empty HTTP %{http_code}\\\\n\" -X POST https://api.construction.nishanaweb.cloud/api/v1/auth/login/ -H \"Content-Type: application/json\" -d '{}' --max-time 15)",
+      "Bash(curl -s -o /tmp/r1.json -w \"GET nonexistent HTTP %{http_code}\\\\n\" https://api.construction.nishanaweb.cloud/api/v1/this-does-not-exist/ --max-time 10)",
+      "Bash(curl -s -o /tmp/r2.json -w \"GET projects \\(no auth\\) HTTP %{http_code}\\\\n\" https://api.construction.nishanaweb.cloud/api/v1/projects/ --max-time 10)",
+      "Bash(curl -s -o /tmp/r3.json -w \"OPTIONS auth/login HTTP %{http_code}\\\\n\" -X OPTIONS https://api.construction.nishanaweb.cloud/api/v1/auth/login/ --max-time 10)",
+      "Bash(curl -s -o /tmp/x.json -w \"HTTP %{http_code}  hdrs:\\\\n\" -D - -X POST https://api.construction.nishanaweb.cloud/api/v1/auth/login/ -H \"Content-Type: application/json\" -d '{\"username\":\"trigger-test@x.com\",\"password\":\"x\"}' --max-time 15)"
     ]
   }
 }

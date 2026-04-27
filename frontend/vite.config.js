@@ -58,6 +58,12 @@ export default defineConfig({
             }
           },
           {
+            // Auth endpoints must NEVER be served from cache — a stale cached
+            // 401/200 response would cause phantom login failures or ghost sessions.
+            urlPattern: /\/api\/v1\/auth\/.*/i,
+            handler: 'NetworkOnly',
+          },
+          {
             urlPattern: /\/api\/.*/i,
             handler: 'NetworkFirst',
             options: {

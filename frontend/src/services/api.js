@@ -35,7 +35,11 @@ api.interceptors.response.use(
         console.error(`❌ API Error [${error.response?.status}]: ${originalRequest?.method?.toUpperCase()} ${originalRequest?.url}`, error.response?.data);
 
         // If error is 401 and we haven't retried yet
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        // Skip the refresh logic for the login endpoint itself — a 401 there
+        // means bad credentials, not an expired session. Without this guard the
+        // interceptor swallows the real error message from the server.
+        const isLoginRequest = originalRequest?.url?.includes('auth/login/');
+        if (error.response?.status === 401 && !originalRequest._retry && !isLoginRequest) {
             originalRequest._retry = true;
             console.log("Attempting token refresh...");
 

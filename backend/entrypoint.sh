@@ -59,9 +59,11 @@ super_admin_role, _ = Role.objects.get_or_create(
     defaults={"name": "Super Admin", "can_manage_all_systems": True},
 )
 
-admin_email    = "admin@gmail.com"
-admin_username = "admin"
-admin_pass     = "adminpass"
+import os
+
+admin_email    = os.environ.get("DJANGO_SUPERUSER_EMAIL",    "admin@gmail.com")
+admin_username = os.environ.get("DJANGO_SUPERUSER_USERNAME", "admin")
+admin_pass     = os.environ.get("DJANGO_SUPERUSER_PASSWORD", "")
 
 user = (
     User.objects.filter(email=admin_email).first()
@@ -69,15 +71,24 @@ user = (
 )
 
 if user:
-    user.username    = admin_username
-    user.email       = admin_email
-    user.role        = super_admin_role
+    user.username     = admin_username
+    user.email        = admin_email
+    user.role         = super_admin_role
     user.is_superuser = True
     user.is_staff     = True
-    user.set_password(admin_pass)
+    # Only reset the password if the env var is explicitly set —
+    # avoids wiping a manually-changed password on every deploy.
+    if admin_pass:
+        user.set_password(admin_pass)
+        print(f"  Password updated from DJANGO_SUPERUSER_PASSWORD")
+    else:
+        print(f"  Password unchanged (DJANGO_SUPERUSER_PASSWORD not set)")
     user.save()
     print(f"  Updated admin user: {admin_email}")
 else:
+    if not admin_pass:
+        admin_pass = "adminpass"
+        print(f"  WARNING: DJANGO_SUPERUSER_PASSWORD not set — using default 'adminpass'")
     User.objects.create_superuser(
         username=admin_username,
         email=admin_email,
