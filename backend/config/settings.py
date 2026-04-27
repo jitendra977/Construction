@@ -41,6 +41,10 @@ INSTALLED_APPS = [
     'django_filters',
     'simple_history',
     
+    # Celery / task scheduling
+    'django_celery_beat',
+    'django_celery_results',
+
     # Local apps
     'apps.accounts',
     'apps.core',
@@ -107,17 +111,22 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 import dj_database_url
 
-# Database
-# Supports both individual DB_* variables (for MySQL) or DATABASE_URL
+# ── Database ──────────────────────────────────────────────────
+# Production: PostgreSQL via DB_* env vars.
+# Dev fallback: DATABASE_URL env var, or SQLite.
 if config('DB_NAME', default=None):
     DATABASES = {
         'default': {
-            'ENGINE': config('DB_ENGINE', default='django.db.backends.mysql'),
+            'ENGINE': config('DB_ENGINE', default='django.db.backends.postgresql'),
             'NAME': config('DB_NAME'),
-            'USER': config('DB_USER'),
-            'PASSWORD': config('DB_PASSWORD'),
-            'HOST': config('DB_HOST'),
-            'PORT': config('DB_PORT', default='3306'),
+            'USER': config('DB_USER', default=''),
+            'PASSWORD': config('DB_PASSWORD', default=''),
+            'HOST': config('DB_HOST', default='db'),
+            'PORT': config('DB_PORT', default='5432'),
+            'CONN_MAX_AGE': 600,
+            'OPTIONS': {
+                'connect_timeout': 10,
+            },
         }
     }
 else:
@@ -128,6 +137,30 @@ else:
             conn_health_checks=True,
         )
     }
+
+# ── Redis Cache ───────────────────────────────────────────────
+REDIS_URL = config('REDIS_URL', default='redis://redis:6379/0')
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': REDIS_URL,
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        },
+        'TIMEOUT': 300,
+    }
+}
+
+# ── Celery ────────────────────────────────────────────────────
+CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULT_BACKEND = 'django-db'
+CELERY_RESULT_EXTENDED = True
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

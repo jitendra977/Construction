@@ -1,0 +1,260 @@
+# ============================================================
+#  ConstructPro — Command Center
+#
+#  Run `make help` to see all commands.
+#  All docker compose commands default to production.
+#  Add ENV=dev to switch:  make up ENV=dev
+# ============================================================
+
+.DEFAULT_GOAL := help
+SHELL         := /bin/bash
+ENV           ?= prod
+SERVICE       ?=
+
+COMPOSE_PROD  := docker-compose.prod.yml
+COMPOSE_DEV   := docker-compose.dev.yml
+COMPOSE_FILE  := $(if $(filter dev,$(ENV)),$(COMPOSE_DEV),$(COMPOSE_PROD))
+DC            := docker compose -f $(COMPOSE_FILE)
+
+# Load .env if present
+-include .env
+export
+
+# ── Colours ──────────────────────────────────────────────────
+CYAN  := \033[0;36m
+GREEN := \033[0;32m
+RESET := \033[0m
+BOLD  := \033[1m
+
+# ════════════════════════════════════════════════════════════
+#  HELP
+# ════════════════════════════════════════════════════════════
+.PHONY: help
+help: ## Show this help message
+	@echo ""
+	@echo -e "$(BOLD)$(CYAN)  ConstructPro — Make Commands$(RESET)"
+	@echo -e "  Usage: make <command> [ENV=dev] [SERVICE=backend]"
+	@echo ""
+	@echo -e "$(BOLD)  🚀 Deploy$(RESET)"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
+	  | awk 'BEGIN{FS=":.*?## "}; /Deploy|deploy/{printf "  $(CYAN)%-22s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+	@echo -e "$(BOLD)  🐳 Docker$(RESET)"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
+	  | awk 'BEGIN{FS=":.*?## "}; /Docker|docker|Container/{printf "  $(CYAN)%-22s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+	@echo -e "$(BOLD)  🛠  Dev$(RESET)"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
+	  | awk 'BEGIN{FS=":.*?## "}; /Dev|dev|Local/{printf "  $(CYAN)%-22s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+	@echo -e "$(BOLD)  🗄  Database$(RESET)"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
+	  | awk 'BEGIN{FS=":.*?## "}; /DB|db|Migrat|migrat/{printf "  $(CYAN)%-22s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+	@echo -e "$(BOLD)  🔧 Maintenance$(RESET)"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
+	  | awk 'BEGIN{FS=":.*?## "}; /Maintenance|Clean|Backup|Shell|Logs/{printf "  $(CYAN)%-22s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+
+# ════════════════════════════════════════════════════════════
+#  🚀 DEPLOY
+# ════════════════════════════════════════════════════════════
+.PHONY: deploy
+deploy: ## Deploy — full push + build + migrate + restart (prod)
+	@bash scripts/deploy.sh
+
+.PHONY: deploy-service
+deploy-service: ## Deploy — rebuild one service only: make deploy-service SERVICE=backend
+	@bash scripts/deploy.sh --service $(SERVICE)
+
+.PHONY: update
+update: ## Deploy — quick update (pull + rebuild + migrate on VPS)
+	@bash scripts/update.sh
+
+.PHONY: update-code
+update-code: ## Deploy — pull code + restart, skip rebuild
+	@bash scripts/update.sh --no-rebuild
+
+.PHONY: migrate-remote
+migrate-remote: ## Deploy — run migrations on VPS only
+	@bash scripts/update.sh --migrations-only
+
+.PHONY: rollback
+rollback: ## Deploy — roll back to the previous image tag
+	@bash scripts/deploy.sh --rollback
+
+.PHONY: dry-run
+dry-run: ## Deploy — preview what deploy would do (no changes)
+	@bash scripts/deploy.sh --dry-run
+
+# ════════════════════════════════════════════════════════════
+#  🐳 DOCKER — LOCAL
+# ════════════════════════════════════════════════════════════
+.PHONY: up
+up: ## Docker — start all containers (ENV=dev for dev stack)
+	$(DC) up -d $(SERVICE)
+
+.PHONY: down
+down: ## Docker — stop and remove containers
+	$(DC) down
+
+.PHONY: stop
+stop: ## Docker — stop containers (keep volumes)
+	$(DC) stop $(SERVICE)
+
+.PHONY: restart
+restart: ## Docker — restart containers
+	$(DC) restart $(SERVICE)
+
+.PHONY: build
+build: ## Docker — build images (add SERVICE= to target one)
+	$(DC) build --pull $(SERVICE)
+
+.PHONY: rebuild
+rebuild: ## Docker — force rebuild with no cache
+	$(DC) build --no-cache --pull $(SERVICE)
+
+.PHONY: ps
+ps: ## Docker — show running containers
+	$(DC) ps
+
+.PHONY: status
+status: ps ## Docker — alias for ps
+
+.PHONY: logs
+logs: ## Docker — tail all logs (add SERVICE= to filter)
+	$(DC) logs -f --tail=100 $(SERVICE)
+
+.PHONY: logs-backend
+logs-backend: ## Docker — tail backend logs only
+	$(DC) logs -f --tail=200 backend
+
+.PHONY: logs-frontend
+logs-frontend: ## Docker — tail frontend/nginx logs
+	$(DC) logs -f --tail=100 frontend
+
+# ════════════════════════════════════════════════════════════
+#  🛠 DEV — LOCAL DEVELOPMENT
+# ════════════════════════════════════════════════════════════
+.PHONY: dev
+dev: ## Dev — start local dev stack (hot reload)
+	docker compose -f $(COMPOSE_DEV) up
+
+.PHONY: dev-build
+dev-build: ## Dev — rebuild dev images then start
+	docker compose -f $(COMPOSE_DEV) up --build
+
+.PHONY: dev-down
+dev-down: ## Dev — stop local dev stack
+	docker compose -f $(COMPOSE_DEV) down
+
+.PHONY: dev-logs
+dev-logs: ## Dev — tail dev stack logs
+	docker compose -f $(COMPOSE_DEV) logs -f --tail=100
+
+# ════════════════════════════════════════════════════════════
+#  🗄 DATABASE
+# ════════════════════════════════════════════════════════════
+.PHONY: migrate
+migrate: ## DB — run Django migrations
+	$(DC) exec backend python manage.py migrate --noinput
+
+.PHONY: makemigrations
+makemigrations: ## DB — create new migrations
+	$(DC) exec backend python manage.py makemigrations
+
+.PHONY: showmigrations
+showmigrations: ## DB — list migration status
+	$(DC) exec backend python manage.py showmigrations
+
+.PHONY: createsuperuser
+createsuperuser: ## DB — create Django superuser interactively
+	$(DC) exec backend python manage.py createsuperuser
+
+.PHONY: dbshell
+dbshell: ## DB — open PostgreSQL shell
+	$(DC) exec db psql -U $${DB_USER:-constructpro} -d $${DB_NAME:-constructpro}
+
+.PHONY: db-backup
+db-backup: ## DB — dump database to ./backups/db_TIMESTAMP.sql.gz
+	@mkdir -p backups
+	@TS=$$(date +%Y%m%d_%H%M%S) && \
+	$(DC) exec -T db pg_dump -U $${DB_USER:-constructpro} $${DB_NAME:-constructpro} \
+	  | gzip > backups/db_$$TS.sql.gz && \
+	echo "Backup saved: backups/db_$$TS.sql.gz"
+
+.PHONY: db-restore
+db-restore: ## DB — restore from file: make db-restore FILE=backups/db_XXX.sql.gz
+	@test -n "$(FILE)" || (echo "Usage: make db-restore FILE=backups/db_XXX.sql.gz" && exit 1)
+	@echo "Restoring $(FILE) ..."
+	@gunzip -c $(FILE) | $(DC) exec -T db psql -U $${DB_USER:-constructpro} -d $${DB_NAME:-constructpro}
+	@echo "Restore complete."
+
+# ════════════════════════════════════════════════════════════
+#  🔧 MAINTENANCE
+# ════════════════════════════════════════════════════════════
+.PHONY: shell
+shell: ## Maintenance — open Django shell
+	$(DC) exec backend python manage.py shell
+
+.PHONY: bash
+bash: ## Maintenance — open bash in backend container
+	$(DC) exec backend bash
+
+.PHONY: collectstatic
+collectstatic: ## Maintenance — collect static files
+	$(DC) exec backend python manage.py collectstatic --noinput --clear
+
+.PHONY: health
+health: ## Maintenance — check /api/v1/health/ endpoint
+	@URL=$${VITE_API_URL:-http://localhost:8000/api/v1}/health/ && \
+	echo "Checking $$URL ..." && \
+	curl -sf "$$URL" | python3 -m json.tool || echo "FAILED"
+
+.PHONY: clean
+clean: ## Maintenance — remove stopped containers and dangling images
+	docker container prune -f
+	docker image prune -f
+
+.PHONY: clean-all
+clean-all: ## Maintenance — full Docker cleanup (DESTRUCTIVE — keeps volumes)
+	docker system prune -f
+
+.PHONY: volumes
+volumes: ## Maintenance — list Docker volumes
+	docker volume ls | grep construction
+
+.PHONY: setup-vps
+setup-vps: ## Maintenance — run first-time VPS setup script via SSH
+	ssh $${VPS_USER:-nishanaweb}@$${VPS_HOST:-nishanaweb.cloud} 'bash -s' < scripts/setup.sh
+
+.PHONY: env-check
+env-check: ## Maintenance — verify required .env vars are set
+	@echo "Checking required environment variables..."
+	@for var in SECRET_KEY DB_PASSWORD REDIS_PASSWORD VITE_API_URL VPS_HOST; do \
+	  val=$$(grep "^$$var=" .env 2>/dev/null | cut -d= -f2); \
+	  if [[ -z "$$val" || "$$val" == *"change-me"* ]]; then \
+	    echo "  ✖  $$var — missing or default!"; \
+	  else \
+	    echo "  ✔  $$var"; \
+	  fi; \
+	done
+
+.PHONY: add-tech
+add-tech: ## Maintenance — interactive guide to add a new technology/service
+	@echo ""
+	@echo "  To add a new service (e.g. Elasticsearch, Minio, Flower):"
+	@echo "  1. Add a service block to docker-compose.prod.yml"
+	@echo "  2. Add its env vars to .env.example and .env"
+	@echo "  3. Connect it to the 'internal' network"
+	@echo "  4. Add a healthcheck"
+	@echo "  5. Run: make build && make up SERVICE=<new-service>"
+	@echo ""
+	@echo "  Common add-ons:"
+	@echo "  - Elasticsearch:  image: elasticsearch:8.13-alpine"
+	@echo "  - MinIO (S3):     image: minio/minio:latest"
+	@echo "  - Flower (Celery):image: mher/flower:latest"
+	@echo "  - Mailhog (dev):  image: mailhog/mailhog:latest"
+	@echo "  - Prometheus:     image: prom/prometheus:latest"
+	@echo "  - Grafana:        image: grafana/grafana:latest"
+	@echo ""

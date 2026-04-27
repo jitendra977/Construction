@@ -1,0 +1,197 @@
+# ============================================================
+#  ConstructPro — Production Stack
+#  Usage: docker compose -f docker-compose.prod.yml up -d
+# ============================================================
+version: '3.9'
+
+x-restart: &restart
+  restart: unless-stopped
+
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "5"
+
+# ── Services ─────────────────────────────────────────────────
+services:
+
+  # ── PostgreSQL ─────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: construction_db
+    <<: [*restart, *logging]
+    environment:
+      POSTGRES_DB:       ${DB_NAME:-constructpro}
+      POSTGRES_USER:     ${DB_USER:-constructpro}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./scripts/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-constructpro} -d ${DB_NAME:-constructpro}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  # ── Redis ──────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: construction_redis
+    <<: [*restart, *logging]
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redispass} --maxmemory 128mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redispass}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 192m
+
+  # ── Django Backend ─────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    image: constructpro-backend:${IMAGE_TAG:-latest}
+    container_name: construction_backend
+    <<: [*restart, *logging]
+    env_file: ./backend/.env
+    environment:
+      DJANGO_ENV:          production
+      DB_HOST:             db
+      DB_PORT:             5432
+      REDIS_URL:           redis://:${REDIS_PASSWORD:-redispass}@redis:6379/0
+    volumes:
+      - media_data:/app/media
+      - static_data:/app/staticfiles
+    networks:
+      - internal
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8000/api/v1/health/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+
+  # ── Celery Worker (background tasks) ───────────────────────
+  celery:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    image: constructpro-backend:${IMAGE_TAG:-latest}
+    container_name: construction_celery
+    <<: [*restart, *logging]
+    command: celery -A config worker -l info --concurrency 2 -Q default,emails,reports
+    env_file: ./backend/.env
+    environment:
+      DJANGO_ENV: production
+      DB_HOST:    db
+      DB_PORT:    5432
+      REDIS_URL:  redis://:${REDIS_PASSWORD:-redispass}@redis:6379/0
+    volumes:
+      - media_data:/app/media
+    networks:
+      - internal
+    depends_on:
+      backend:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 384m
+
+  # ── Celery Beat (scheduled tasks) ──────────────────────────
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    image: constructpro-backend:${IMAGE_TAG:-latest}
+    container_name: construction_celery_beat
+    <<: [*restart, *logging]
+    command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    env_file: ./backend/.env
+    environment:
+      DJANGO_ENV: production
+      DB_HOST:    db
+      DB_PORT:    5432
+      REDIS_URL:  redis://:${REDIS_PASSWORD:-redispass}@redis:6379/0
+    networks:
+      - internal
+    depends_on:
+      backend:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 192m
+
+  # ── React Frontend (Nginx) ─────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+    image: constructpro-frontend:${IMAGE_TAG:-latest}
+    container_name: construction_frontend
+    <<: [*restart, *logging]
+    volumes:
+      - media_data:/usr/share/nginx/html/media:ro
+      - static_data:/usr/share/nginx/html/static:ro
+    networks:
+      - internal
+      - app_network
+    depends_on:
+      backend:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 64m
+
+# ── Networks ─────────────────────────────────────────────────
+networks:
+  internal:
+    driver: bridge
+    internal: true          # db/redis NOT reachable from outside
+  app_network:
+    external: true
+    name: app-network       # shared with Nginx Proxy Manager / Traefik
+
+# ── Volumes ──────────────────────────────────────────────────
+volumes:
+  pg_data:
+    driver: local
+  redis_data:
+    driver: local
+  media_data:
+    driver: local
+  static_data:
+    driver: local

@@ -1,85 +1,99 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# ============================================================
+#  ConstructPro Backend — Entrypoint
+#  Waits for DB, runs migrations, seeds admin, then starts app.
+# ============================================================
+set -euo pipefail
 
-# Exit on error
-set -e
+GRN='\033[0;32m'; CYN='\033[0;36m'; YEL='\033[1;33m'; RST='\033[0m'
+log()  { echo -e "${CYN}[entrypoint]${RST} $*"; }
+ok()   { echo -e "${GRN}[entrypoint] ✔${RST} $*"; }
+warn() { echo -e "${YEL}[entrypoint] ⚠${RST} $*"; }
 
-# Wait for database
-if [ -n "$DB_HOST" ]; then
-    echo "Waiting for database at $DB_HOST:$DB_PORT..."
-    # Use python to check database connectivity
-    python << END
-import socket
-import time
-import os
+# ── Wait for database ─────────────────────────────────────────
+wait_for_db() {
+    log "Waiting for database..."
+    python - <<'PYEOF'
+import os, socket, time, sys
 
-host = os.environ.get('DB_HOST', 'mysql_db')
-port = int(os.environ.get('DB_PORT', 3306))
+host = os.environ.get("DB_HOST", "")
+port = int(os.environ.get("DB_PORT", 5432))
 
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-for _ in range(30):
+if not host:
+    time.sleep(2)
+    sys.exit(0)
+
+for attempt in range(1, 31):
     try:
-        s.connect((host, port))
+        s = socket.create_connection((host, port), timeout=2)
         s.close()
-        break
-    except socket.error:
-        time.sleep(1)
-END
-    echo "Database is up!"
-elif [ -n "$DATABASE_URL" ]; then
-    echo "Waiting for database from DATABASE_URL..."
-    sleep 10
-fi
+        print(f"  DB reachable at {host}:{port} (attempt {attempt})")
+        sys.exit(0)
+    except OSError:
+        print(f"  Waiting for {host}:{port} ... ({attempt}/30)")
+        time.sleep(2)
 
-echo "Running migrations..."
+print("ERROR: Database not reachable after 60s")
+sys.exit(1)
+PYEOF
+}
+
+wait_for_db
+ok "Database is reachable"
+
+# ── Migrations ────────────────────────────────────────────────
+log "Running migrations..."
 python manage.py migrate --noinput
+ok "Migrations complete"
 
-echo "Ensuring default admin user (admin@gmail.com) and roles exist..."
-python manage.py shell <<EOF
+# ── Seed admin user + roles ───────────────────────────────────
+log "Seeding admin user and roles..."
+python manage.py shell --no-startup-messages <<'PYEOF'
 from apps.accounts.models import User, Role
+
 for code, name in Role.ROLE_CODES:
-    Role.objects.get_or_create(code=code, defaults={'name': name})
-
-admin_email = 'admin@gmail.com'
-admin_user = 'admin'
-admin_pass = 'adminpass'
-
-user_by_email = User.objects.filter(email=admin_email).first()
-user_by_username = User.objects.filter(username=admin_user).first()
+    Role.objects.get_or_create(code=code, defaults={"name": name})
 
 super_admin_role, _ = Role.objects.get_or_create(
-    code=Role.SUPER_ADMIN, 
-    defaults={'name': 'Super Admin', 'can_manage_all_systems': True}
+    code=Role.SUPER_ADMIN,
+    defaults={"name": "Super Admin", "can_manage_all_systems": True},
 )
 
-if user_by_email:
-    print(f"Updating existing user by email: {admin_email}...")
-    user_by_email.username = admin_user
-    user_by_email.set_password(admin_pass)
-    user_by_email.role = super_admin_role
-    user_by_email.is_superuser = True
-    user_by_email.is_staff = True
-    user_by_email.save()
-elif user_by_username:
-    print(f"Updating existing user by username: {admin_user}...")
-    user_by_username.email = admin_email
-    user_by_username.set_password(admin_pass)
-    user_by_username.role = super_admin_role
-    user_by_username.is_superuser = True
-    user_by_username.is_staff = True
-    user_by_username.save()
+admin_email    = "admin@gmail.com"
+admin_username = "admin"
+admin_pass     = "adminpass"
+
+user = (
+    User.objects.filter(email=admin_email).first()
+    or User.objects.filter(username=admin_username).first()
+)
+
+if user:
+    user.username    = admin_username
+    user.email       = admin_email
+    user.role        = super_admin_role
+    user.is_superuser = True
+    user.is_staff     = True
+    user.set_password(admin_pass)
+    user.save()
+    print(f"  Updated admin user: {admin_email}")
 else:
-    print(f"Creating superuser: {admin_email}...")
     User.objects.create_superuser(
-        username=admin_user,
+        username=admin_username,
         email=admin_email,
         password=admin_pass,
-        role=super_admin_role
+        role=super_admin_role,
     )
-    print("Superuser created successfully.")
-EOF
+    print(f"  Created admin user: {admin_email}")
+PYEOF
+ok "Admin user ready"
 
-echo "Collecting static files..."
-python manage.py collectstatic --noinput
+# ── Static files (dev only — prod bakes them into image) ──────
+if [[ "${DJANGO_ENV:-}" == "development" ]]; then
+    log "Collecting static files (dev mode)..."
+    python manage.py collectstatic --noinput --clear
+fi
 
-echo "Starting server..."
+# ── Start app ─────────────────────────────────────────────────
+ok "Starting: $*"
 exec "$@"
