@@ -61,7 +61,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('resources', '0004_contractor_user'),
-        ('accounts', '0001_initial'), # Assuming accounts mig 1 exists and has User/Role
+        ('accounts', '0002_activitylog_role_alter_user_options_user_address_and_more'),
     ]
 
     operations = [
