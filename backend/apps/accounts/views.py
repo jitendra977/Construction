@@ -1,5 +1,6 @@
 import logging
 import uuid
+from django.views.decorators.csrf import csrf_exempt
 
 from rest_framework import status, generics, permissions, viewsets
 from rest_framework.decorators import api_view, permission_classes, action
@@ -59,6 +60,7 @@ def log_activity(request, user, action, model_name,
 
 # ── Auth endpoints ────────────────────────────────────────────────────────────
 
+@csrf_exempt
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login_view(request):
@@ -72,7 +74,7 @@ def login_view(request):
         or serializer.validated_data.get('username')
     )
 
-    user = authenticate(request, email=email, password=password)
+    user = authenticate(request, username=email, password=password)
 
     if user is None:
         try:
