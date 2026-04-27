@@ -155,10 +155,18 @@ REDIS_URL = config('REDIS_URL', default='redis://redis:6379/0')
 
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        # django-redis (now in requirements.txt) — supports CLIENT_CLASS,
+        # connection pooling, and Celery result back-end correctly.
+        # The built-in django.core.cache.backends.redis.RedisCache does NOT
+        # accept CLIENT_CLASS and would throw TypeError on every cache hit,
+        # crashing all throttled DRF endpoints (including /auth/login/) with 500.
+        'BACKEND': 'django_redis.cache.RedisCache',
         'LOCATION': REDIS_URL,
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'SOCKET_CONNECT_TIMEOUT': 5,
+            'SOCKET_TIMEOUT': 5,
+            'IGNORE_EXCEPTIONS': True,  # Cache errors degrade gracefully instead of 500-ing
         },
         'TIMEOUT': 300,
     }

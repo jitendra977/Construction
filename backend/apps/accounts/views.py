@@ -2,14 +2,48 @@ import logging
 import uuid
 
 from rest_framework import status, generics, permissions, viewsets
-from rest_framework.decorators import api_view, permission_classes, action
+from rest_framework.decorators import api_view, permission_classes, throttle_classes, action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.throttling import BaseThrottle
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate, get_user_model
 from django.utils import timezone
 from django.db.models import Count, Q
+
+
+class LoginRateThrottle(BaseThrottle):
+    """
+    Cache-independent throttle for the login endpoint.
+    Uses a simple in-process dict so a Redis/cache failure can never
+    take down the login page with a 500.  Limits each IP to 20 attempts
+    per 15-minute window.
+    """
+    _attempts: dict = {}   # {ip: [timestamp, ...]}
+    WINDOW_SECONDS = 15 * 60
+    MAX_ATTEMPTS   = 20
+
+    def allow_request(self, request, view):
+        import time
+        ip  = self.get_ident(request)
+        now = time.time()
+
+        # Purge expired timestamps
+        self._attempts[ip] = [
+            t for t in self._attempts.get(ip, [])
+            if now - t < self.WINDOW_SECONDS
+        ]
+
+        if len(self._attempts[ip]) >= self.MAX_ATTEMPTS:
+            self.wait_time = self.WINDOW_SECONDS - (now - self._attempts[ip][0])
+            return False
+
+        self._attempts[ip].append(now)
+        return True
+
+    def wait(self):
+        return getattr(self, 'wait_time', None)
 
 from .serializers import (
     UserSerializer, LoginSerializer, RegisterSerializer,
@@ -61,6 +95,7 @@ def log_activity(request, user, action, model_name,
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@throttle_classes([LoginRateThrottle])  # cache-independent throttle — Redis failure won't 500
 def login_view(request):
     """JWT login — accepts email or username field."""
     serializer = LoginSerializer(data=request.data)
@@ -89,12 +124,35 @@ def login_view(request):
         except Exception:
             pass
 
-        refresh = RefreshToken.for_user(user)
+        try:
+            refresh = RefreshToken.for_user(user)
+        except Exception as e:
+            logger.error("Failed to create JWT token for user %s: %s", user.email, e)
+            return Response(
+                {'error': 'Authentication succeeded but session could not be created. '
+                          'Please contact support.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        try:
+            user_data = UserSerializer(user).data
+        except Exception as e:
+            logger.error("UserSerializer failed for user %s: %s", user.email, e)
+            # Return a minimal safe payload rather than a 500
+            user_data = {
+                'id': user.id,
+                'email': user.email,
+                'username': user.username,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'is_superuser': user.is_superuser,
+            }
+
         log_activity(request, user, 'LOGIN', 'User',
                      object_id=user.id, object_repr=user.email,
                      description='User logged in')
         return Response({
-            'user': UserSerializer(user).data,
+            'user': user_data,
             'access': str(refresh.access_token),
             'refresh': str(refresh),
         })
