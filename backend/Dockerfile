@@ -39,8 +39,14 @@ COPY . .
 
 RUN chmod +x /app/entrypoint.sh
 
-# Static files baked into image (Whitenoise serves them)
-RUN python manage.py collectstatic --noinput
+# Static files baked into image (Whitenoise serves them).
+# Use a dummy SECRET_KEY so Django can load settings during build
+# (the real key comes from the .env file at runtime).
+RUN SECRET_KEY=build-time-dummy-key-not-used-at-runtime \
+    DB_NAME=dummy \
+    DB_USER=dummy \
+    DB_PASSWORD=dummy \
+    python manage.py collectstatic --noinput
 
 # Non-root user for security
 RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser \

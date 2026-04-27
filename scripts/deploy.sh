@@ -66,8 +66,10 @@ ssh_exec() {
   if [[ "$DRY_RUN" == "true" ]]; then
     echo -e "  ${YEL}[dry-run → VPS]${RST} (ssh block skipped)"
   else
+    # NOTE: pipe through tee so ALL server-side output (including Docker build
+    # errors) is captured in deploy.log.  pipefail propagates ssh exit code.
     ssh -o StrictHostKeyChecking=no \
-        "${VPS_USER}@${VPS_HOST}" "bash -s" <<REMOTE
+        "${VPS_USER}@${VPS_HOST}" "bash -s" <<REMOTE 2>&1 | tee -a "$LOG_FILE"
 $1
 REMOTE
   fi
