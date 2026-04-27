@@ -8,7 +8,9 @@
       "Bash(curl -s -o /tmp/curl.out -w \"status=%{http_code}\\\\n\" http://127.0.0.1:8001/api/v1/accounting/)",
       "Read(//tmp/**)",
       "Bash(curl -s -o /tmp/curl2.out -w \"status=%{http_code}\\\\n\" \"http://127.0.0.1:8001/api/v1/accounting/budget-revisions/\")",
-      "Bash(pkill -f \"manage.py runserver 8001\")"
+      "Bash(pkill -f \"manage.py runserver 8001\")",
+      "Bash(curl -s -o /tmp/login_resp.json -w \"HTTP %{http_code}\\\\n\" -X POST https://api.construction.nishanaweb.cloud/api/v1/auth/login/ -H \"Content-Type: application/json\" -d '{\"username\":\"nonexistent@test.com\",\"password\":\"wrong\"}' --max-time 15)",
+      "Bash(curl -s -o /tmp/login_resp2.json -w \"HTTP %{http_code}\\\\n\" -X POST https://api.construction.nishanaweb.cloud/api/v1/auth/login/ -H \"Content-Type: application/json\" -d '{\"username\":\"nonexistent@test.com\",\"password\":\"wrong\"}' --max-time 15)"
     ]
   }
 }

@@ -136,19 +136,22 @@ class AttendanceWorkerViewSet(viewsets.ModelViewSet):
     def history(self, request, pk=None):
         """GET /api/v1/attendance/workers/{id}/history/"""
         worker = self.get_object()
-        records = DailyAttendance.objects.filter(worker=worker).order_by("-date")
-        
-        # Simple stats
-        stats = records.aggregate(
-            total_days=Count("id"),
-            total_wage=Sum("wage_earned"),
-            total_ot=Sum("overtime_hours")
-        )
+        records = list(DailyAttendance.objects.filter(worker=worker).order_by("-date")[:100])
+
+        # wage_earned is a @property so we sum in Python, not via ORM
+        total_wage = sum(float(r.wage_earned) for r in records)
+        total_ot   = sum(float(r.overtime_hours) for r in records)
+
+        stats = {
+            "total_days": len(records),
+            "total_wage": round(total_wage, 2),
+            "total_ot":   round(total_ot, 2),
+        }
 
         return Response({
-            "worker": worker.name,
-            "stats": stats,
-            "records": DailyAttendanceSerializer(records[:100], many=True).data
+            "worker":  worker.name,
+            "stats":   stats,
+            "records": DailyAttendanceSerializer(records, many=True).data,
         })
 
 
