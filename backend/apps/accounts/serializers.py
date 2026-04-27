@@ -44,10 +44,11 @@ class UserSerializer(serializers.ModelSerializer):
         return [{'id': p.id, 'name': p.name} for p in obj.assigned_projects.all()]
 
     def get_contractor_profile(self, obj):
-        if hasattr(obj, 'contractor_profile'):
+        try:
             from apps.resources.serializers import ContractorSerializer
             return ContractorSerializer(obj.contractor_profile).data
-        return None
+        except Exception:
+            return None
         
     def to_internal_value(self, data):
         """
