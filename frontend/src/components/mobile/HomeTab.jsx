@@ -5,6 +5,7 @@ import MobileLayout from './MobileLayout';
 import ThemeToggle from '../common/ThemeToggle';
 import { getMediaUrl } from '../../services/api';
 import { authService } from '../../services/auth';
+import attendanceService from '../../services/attendanceService';
 
 /* ─────────────────────────────────────────────
    LIVE CLOCK HOOK
@@ -597,6 +598,98 @@ const actDotColor = (update) => {
 };
 
 /* ─────────────────────────────────────────────
+   ATTENDANCE LIVE CARD
+───────────────────────────────────────────── */
+const AttendanceLiveCard = ({ projectId }) => {
+    const navigate = useNavigate();
+    const [data, setData]     = useState(null);
+    const [loading, setLoad]  = useState(true);
+
+    useEffect(() => {
+        if (!projectId) { setLoad(false); return; }
+        attendanceService.getLive(projectId)
+            .then(d => setData(d))
+            .catch(() => {})
+            .finally(() => setLoad(false));
+    }, [projectId]);
+
+    const present  = data?.present_count  ?? data?.present  ?? 0;
+    const absent   = data?.absent_count   ?? data?.absent   ?? 0;
+    const total    = data?.total_workers  ?? data?.total    ?? (present + absent);
+    const rate     = total > 0 ? Math.round((present / total) * 100) : 0;
+
+    return (
+        <button
+            onClick={() => navigate('/dashboard/mobile/attendance')}
+            style={{
+                width: '100%', background: 'var(--t-surface)',
+                border: '1px solid var(--t-border)', borderRadius: 3,
+                padding: 0, cursor: 'pointer', textAlign: 'left',
+                overflow: 'hidden', display: 'block',
+            }}
+        >
+            {/* header strip */}
+            <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '10px 14px 8px',
+                borderBottom: '1px solid var(--t-border)',
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 14 }}>🕐</span>
+                    <span style={{
+                        fontFamily: 'var(--f-mono)', fontSize: 9,
+                        letterSpacing: '.25em', textTransform: 'uppercase',
+                        color: 'var(--t-text2)',
+                    }}>Today's Attendance</span>
+                </div>
+                <span style={{
+                    fontFamily: 'var(--f-mono)', fontSize: 8, color: 'var(--t-primary)',
+                    letterSpacing: '.1em', textTransform: 'uppercase',
+                }}>View →</span>
+            </div>
+
+            {loading ? (
+                <div style={{ padding: '18px 14px', fontFamily: 'var(--f-mono)', fontSize: 9, color: 'var(--t-text3)', letterSpacing: '.15em' }}>
+                    Loading…
+                </div>
+            ) : (
+                <>
+                    {/* stats row */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, background: 'var(--t-border)' }}>
+                        {[
+                            { label: 'Present', val: present, color: '#10b981' },
+                            { label: 'Absent',  val: absent,  color: '#ef4444' },
+                            { label: 'Total',   val: total,   color: 'var(--t-text)' },
+                        ].map(s => (
+                            <div key={s.label} style={{ background: 'var(--t-surface)', padding: '12px 10px' }}>
+                                <div style={{ fontFamily: 'var(--f-disp)', fontSize: 28, lineHeight: 1, color: s.color }}>{s.val}</div>
+                                <div style={{ fontFamily: 'var(--f-mono)', fontSize: 8, letterSpacing: '.18em', color: 'var(--t-text2)', textTransform: 'uppercase', marginTop: 3 }}>{s.label}</div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* attendance rate bar */}
+                    <div style={{ padding: '10px 14px 12px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                            <span style={{ fontFamily: 'var(--f-mono)', fontSize: 8, color: 'var(--t-text2)', letterSpacing: '.15em', textTransform: 'uppercase' }}>Attendance rate</span>
+                            <span style={{ fontFamily: 'var(--f-disp)', fontSize: 14, color: rate >= 80 ? '#10b981' : rate >= 60 ? '#f59e0b' : '#ef4444' }}>{rate}%</span>
+                        </div>
+                        <div style={{ height: 3, background: 'var(--t-surface3)', borderRadius: 2, overflow: 'hidden' }}>
+                            <div style={{
+                                height: '100%', borderRadius: 2,
+                                width: `${rate}%`,
+                                background: rate >= 80 ? '#10b981' : rate >= 60 ? '#f59e0b' : '#ef4444',
+                                transition: 'width 1s cubic-bezier(.16,1,.3,1)',
+                            }} />
+                        </div>
+                    </div>
+                </>
+            )}
+        </button>
+    );
+};
+
+/* ─────────────────────────────────────────────
    WEEK CHART — uses real task counts by day
 ───────────────────────────────────────────── */
 const WeekChart = ({ tasks }) => {
@@ -831,6 +924,35 @@ const HomeTab = () => {
                     </div>
                 </div>
 
+                {/* ── ATTENDANCE LIVE CARD ── */}
+                <div className="ht-sec" style={{ paddingTop: 16 }}>
+                    <AttendanceLiveCard projectId={project?.id} />
+                </div>
+
+                {/* ── QUICK ACTIONS ── */}
+                <div className="ht-sec">
+                    <div className="ht-sec-head">
+                        <div className="ht-sec-label">Quick Access</div>
+                    </div>
+                    <div className="ht-quick">
+                        {[
+                            { icon: '🕐', label: 'Attendance', path: '/dashboard/mobile/attendance' },
+                            { icon: '📋', label: 'Phases',     path: '/dashboard/mobile/phases'    },
+                            { icon: '💰', label: 'Finance',    path: '/dashboard/mobile/finance'   },
+                            { icon: '📅', label: 'Timeline',   path: '/dashboard/mobile/timeline'  },
+                            { icon: '🧱', label: 'Resources',  path: '/dashboard/mobile/resource'  },
+                            { icon: '📸', label: 'Gallery',    path: '/dashboard/mobile/photos'    },
+                            { icon: '📜', label: 'Permits',    path: '/dashboard/mobile/permits'   },
+                            { icon: '🛠️', label: 'Manage',    path: '/dashboard/mobile/manage'    },
+                        ].map(a => (
+                            <button key={a.label} className="ht-qa" onClick={() => navigate(a.path)}>
+                                <span className="ht-qa-icon">{a.icon}</span>
+                                <span className="ht-qa-lbl">{a.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
                 {/* ── OVERDUE / BLOCKED ALERT ── */}
                 {(overdueTasks.length > 0 || blockedTasks.length > 0) && (
                     <div style={{ padding: '12px 16px 0' }}>
@@ -851,30 +973,6 @@ const HomeTab = () => {
                         </div>
                     </div>
                 )}
-
-                {/* ── QUICK ACTIONS ── */}
-                <div className="ht-sec">
-                    <div className="ht-sec-head">
-                        <div className="ht-sec-label">Quick Access</div>
-                    </div>
-                    <div className="ht-quick">
-                        {[
-                            { icon: '📋', label: 'Phases', path: '/dashboard/mobile/phases'   },
-                            { icon: '💰', label: 'Finance', path: '/dashboard/mobile/finance'  },
-                            { icon: '📅', label: 'Timeline', path: '/dashboard/mobile/timeline'},
-                            { icon: '📈', label: 'Analytics', path: '/dashboard/mobile/analytics'},
-                            { icon: '🧱', label: 'Resources', path: '/dashboard/mobile/resource'},
-                            { icon: '📸', label: 'Gallery', path: '/dashboard/mobile/photos'   },
-                            { icon: '📜', label: 'Permits', path: '/dashboard/mobile/permits'  },
-                            { icon: '🛠️', label: 'Manage', path: '/dashboard/mobile/manage'   },
-                        ].map(a => (
-                            <button key={a.label} className="ht-qa" onClick={() => navigate(a.path)}>
-                                <span className="ht-qa-icon">{a.icon}</span>
-                                <span className="ht-qa-lbl">{a.label}</span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
 
                 {/* ── SCHEDULE ── */}
                 <div className="ht-sec">

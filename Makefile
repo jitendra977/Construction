@@ -159,6 +159,48 @@ local-backend: ## Dev — Local backend only
 local-frontend: ## Dev — Local frontend only
 	@chmod +x scripts/run_local.sh && bash scripts/run_local.sh --frontend
 
+# ── Local venv — migration helpers (no Docker required) ──────
+VENV        := backend/venv
+VENV_PYTHON := $(VENV)/bin/python
+
+.PHONY: mm
+mm: ## Dev — makemigrations via local venv (optional: APP=attendance)
+	@bash -c '\
+	  if [ ! -f "$(VENV_PYTHON)" ]; then \
+	    echo "❌  No venv found. Run: make local-setup first."; exit 1; \
+	  fi; \
+	  cd backend && \
+	  export DJANGO_SETTINGS_MODULE=config.settings_local && \
+	  source venv/bin/activate && \
+	  python manage.py makemigrations $(APP) && \
+	  echo "✅  Migration files created." \
+	'
+
+.PHONY: migrate-local
+migrate-local: ## Dev — migrate via local venv (optional: APP=attendance)
+	@bash -c '\
+	  if [ ! -f "$(VENV_PYTHON)" ]; then \
+	    echo "❌  No venv found. Run: make local-setup first."; exit 1; \
+	  fi; \
+	  cd backend && \
+	  export DJANGO_SETTINGS_MODULE=config.settings_local && \
+	  source venv/bin/activate && \
+	  python manage.py migrate $(APP) --noinput && \
+	  echo "✅  Migrations applied." \
+	'
+
+.PHONY: showmigrations-local
+showmigrations-local: ## Dev — show migration status via local venv
+	@bash -c '\
+	  if [ ! -f "$(VENV_PYTHON)" ]; then \
+	    echo "❌  No venv found. Run: make local-setup first."; exit 1; \
+	  fi; \
+	  cd backend && \
+	  export DJANGO_SETTINGS_MODULE=config.settings_local && \
+	  source venv/bin/activate && \
+	  python manage.py showmigrations \
+	'
+
 # ── Docker-based dev stack ───────────────────────────────────
 .PHONY: dev
 dev: ## Dev — start Docker dev stack (hot reload)

@@ -24,19 +24,44 @@ class ContractorSerializer(serializers.ModelSerializer):
     total_amount = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     total_paid = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     balance_due = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
-    
+
     display_name = serializers.CharField(read_only=True)
     display_email = serializers.EmailField(read_only=True)
     display_phone = serializers.CharField(read_only=True)
 
+    # ── Linked AttendanceWorker ──────────────────────────────────────────────
+    attendance_worker_id   = serializers.SerializerMethodField()
+    attendance_worker_name = serializers.SerializerMethodField()
+    has_attendance_worker  = serializers.SerializerMethodField()
+
     class Meta:
         model = Contractor
         fields = [
-            'id', 'user', 'name', 'role', 'phone', 'email', 'address', 'photo', 
-            'citizenship_number', 'bank_details', 'skills', 'rate', 'is_active', 
-            'joined_date', 'total_amount', 'total_paid', 'balance_due',
-            'display_name', 'display_email', 'display_phone'
+            'id', 'user', 'name', 'role', 'phone', 'email', 'address', 'photo',
+            'citizenship_number', 'bank_details', 'skills', 'rate', 'daily_wage',
+            'is_active', 'joined_date', 'project',
+            'total_amount', 'total_paid', 'balance_due',
+            'display_name', 'display_email', 'display_phone',
+            'attendance_worker_id', 'attendance_worker_name', 'has_attendance_worker',
         ]
+
+    def get_attendance_worker_id(self, obj):
+        try:
+            return obj.attendance_worker.id
+        except Exception:
+            return None
+
+    def get_attendance_worker_name(self, obj):
+        try:
+            return obj.attendance_worker.name
+        except Exception:
+            return None
+
+    def get_has_attendance_worker(self, obj):
+        try:
+            return obj.attendance_worker is not None
+        except Exception:
+            return False
 
 class MaterialSerializer(serializers.ModelSerializer):
     budget_category_name = serializers.CharField(source='budget_category.name', read_only=True)

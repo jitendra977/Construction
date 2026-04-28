@@ -36,7 +36,7 @@ export default function ResourceRoutes({ projectId }) {
           <Route index                element={<ResourceDashboard />} />
           <Route path="materials"     element={<MaterialsPage />} />
           <Route path="equipment"     element={<EquipmentPage />} />
-          <Route path="labor"         element={<LaborPage />} />
+          <Route path="labor"         element={<Navigate to="/dashboard/desktop/attendance" replace />} />
           <Route path="suppliers"     element={<SuppliersPage />} />
           <Route path="purchases"     element={<PurchasesPage />} />
           <Route path="help"          element={<HelpPage />} />

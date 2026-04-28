@@ -99,6 +99,14 @@ else:
 PYEOF
 ok "Admin user ready"
 
+# ── Media directory permissions ───────────────────────────────
+# Ensure the media volume is writable by the app user.
+# The Docker volume is often created as root; fix it here so file
+# uploads (profile photos, documents, etc.) always work.
+mkdir -p /app/media
+chown -R appuser:appgroup /app/media 2>/dev/null || true
+ok "Media directory writable"
+
 # ── Static files (dev only — prod bakes them into image) ──────
 if [[ "${DJANGO_ENV:-}" == "development" ]]; then
     log "Collecting static files (dev mode)..."

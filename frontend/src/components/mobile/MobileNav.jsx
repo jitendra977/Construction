@@ -13,10 +13,11 @@ const BASE = '/dashboard/mobile';
 
 // ── Primary tabs (always visible in the bar) ─────────────────────────────────
 const PRIMARY = [
-    { id: 'home',     icon: '🏠', label: 'Home'     },
-    { id: 'projects', icon: '🗂️', label: 'Projects' },
-    { id: 'finance',  icon: '💰', label: 'Finance'  },
-    { id: 'accounts', icon: '👤', label: 'Account'  },
+    { id: 'home',       icon: '🏠', label: 'Home'       },
+    { id: 'projects',   icon: '🗂️', label: 'Projects'  },
+    { id: 'attendance', icon: '👷', label: 'Workforce' },
+    { id: 'finance',    icon: '💰', label: 'Finance'    },
+    { id: 'accounts',   icon: '👤', label: 'Account'    },
 ];
 
 // ── All sections for the drawer ──────────────────────────────────────────────
@@ -47,7 +48,7 @@ const SECTIONS = [
         label: 'Team & HR',
         color: '#f59e0b',
         items: [
-            { id: 'attendance', icon: '🕐', label: 'Attendance' },
+            { id: 'attendance', icon: '👷', label: 'Workforce' },
         ],
     },
     {

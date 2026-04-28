@@ -64,6 +64,26 @@ class AttendanceWorker(models.Model):
     joined_date  = models.DateField(null=True, blank=True)
     notes        = models.TextField(blank=True)
 
+    # ── Resource Contractor link ───────────────────────────────
+    # Links this attendance record to a resources.Contractor entry (same physical person).
+    # OneToOne: one contractor → one attendance worker per project.
+    contractor = models.OneToOneField(
+        "resources.Contractor", null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="attendance_worker",
+        help_text="Linked resource/contractor record for this attendance worker",
+    )
+
+    # ── Per-worker custom scan time window ─────────────────────
+    # When use_custom_window=True these override the project-level ScanTimeWindow.
+    use_custom_window    = models.BooleanField(
+        default=False,
+        help_text="Enable a custom scan time window for this worker (overrides project window)",
+    )
+    custom_checkin_start  = models.TimeField(null=True, blank=True, help_text="HH:MM — custom check-in window opens")
+    custom_checkin_end    = models.TimeField(null=True, blank=True, help_text="HH:MM — custom check-in window closes")
+    custom_checkout_start = models.TimeField(null=True, blank=True, help_text="HH:MM — custom check-out window opens")
+    custom_checkout_end   = models.TimeField(null=True, blank=True, help_text="HH:MM — custom check-out window closes")
+
     # ── QR Attendance ──────────────────────────────────────────
     # Unique token embedded in the worker's QR code.
     # Never changes after creation — regenerating invalidates old printed badges.
@@ -161,15 +181,64 @@ class DailyAttendance(models.Model):
         return Decimal("0")
 
 
+class ScanTimeWindow(models.Model):
+    """
+    Admin-configurable per-project time windows for check-in / check-out.
+    When is_active=True, QR scans are ONLY registered within these windows.
+    """
+    project        = models.OneToOneField(
+        "core.HouseProject", on_delete=models.CASCADE,
+        related_name="scan_time_window",
+    )
+    checkin_start  = models.TimeField(default="08:00", help_text="Check-in window opens (HH:MM)")
+    checkin_end    = models.TimeField(default="10:00", help_text="Check-in window closes (HH:MM)")
+    checkout_start = models.TimeField(default="17:00", help_text="Check-out window opens (HH:MM)")
+    checkout_end   = models.TimeField(default="19:00", help_text="Check-out window closes (HH:MM)")
+    is_active      = models.BooleanField(
+        default=False,
+        help_text="When True, scans outside configured windows are rejected.",
+    )
+    late_threshold_minutes = models.PositiveIntegerField(
+        default=30,
+        help_text="Minutes after checkin_start before a scan is marked LATE",
+    )
+    early_checkout_minutes = models.PositiveIntegerField(
+        default=30,
+        help_text="Minutes before checkout_start before a scan is marked EARLY",
+    )
+    created_by  = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="scan_windows_created",
+    )
+    created_at  = models.DateTimeField(auto_now_add=True)
+    updated_at  = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Scan Time Window"
+
+    def __str__(self):
+        status = "ON" if self.is_active else "OFF"
+        return (f"[{status}] {self.project.name} — "
+                f"IN {self.checkin_start:%H:%M}–{self.checkin_end:%H:%M}  "
+                f"OUT {self.checkout_start:%H:%M}–{self.checkout_end:%H:%M}")
+
+
 class QRScanLog(models.Model):
     """
-    Immutable log of every QR scan event.
-    Useful for audit trail and debugging.
+    Immutable log of every QR scan attempt (valid or not).
     """
     SCAN_TYPE_CHOICES = [
-        ("CHECK_IN",  "Check In"),
-        ("CHECK_OUT", "Check Out"),
-        ("IGNORED",   "Ignored (already complete)"),
+        ("CHECK_IN",    "Check In"),
+        ("CHECK_OUT",   "Check Out"),
+        ("IGNORED",     "Duplicate — ignored (cooldown)"),
+        ("OUT_OF_TIME", "Out of time window — not registered"),
+        ("BLOCKED",     "Blocked — wrong action for current state"),
+        ("INVALID",     "Invalid QR code"),
+    ]
+    SCAN_STATUS_CHOICES = [
+        ("VALID",       "Valid — registered"),
+        ("REJECTED",    "Rejected — not registered"),
+        ("DUPLICATE",   "Duplicate — cooldown active"),
     ]
 
     worker      = models.ForeignKey(
@@ -179,7 +248,10 @@ class QRScanLog(models.Model):
         DailyAttendance, null=True, blank=True,
         on_delete=models.SET_NULL, related_name="scan_logs",
     )
-    scan_type   = models.CharField(max_length=10, choices=SCAN_TYPE_CHOICES)
+    scan_type   = models.CharField(max_length=15, choices=SCAN_TYPE_CHOICES)
+    scan_status = models.CharField(max_length=10, choices=SCAN_STATUS_CHOICES, default="VALID")
+    is_late     = models.BooleanField(default=False, help_text="Check-in was after late threshold")
+    is_early    = models.BooleanField(default=False, help_text="Check-out was before early threshold")
     scanned_at  = models.DateTimeField(default=timezone.now)
     scanned_by  = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True,
@@ -187,10 +259,10 @@ class QRScanLog(models.Model):
     )
     ip_address  = models.GenericIPAddressField(null=True, blank=True)
     user_agent  = models.TextField(blank=True)
-    note        = models.CharField(max_length=200, blank=True)
+    note        = models.CharField(max_length=300, blank=True)
 
     class Meta:
         ordering = ["-scanned_at"]
 
     def __str__(self):
-        return f"{self.worker.name} — {self.scan_type} at {self.scanned_at:%Y-%m-%d %H:%M}"
+        return f"{self.worker.name} — {self.scan_type} [{self.scan_status}] at {self.scanned_at:%Y-%m-%d %H:%M}"

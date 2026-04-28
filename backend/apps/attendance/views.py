@@ -12,12 +12,13 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 
-from .models import AttendanceWorker, DailyAttendance, QRScanLog
+from .models import AttendanceWorker, DailyAttendance, QRScanLog, ScanTimeWindow
 from .serializers import (
     AttendanceWorkerSerializer,
     DailyAttendanceSerializer,
     BulkAttendanceSerializer,
     QRScanLogSerializer,
+    ScanTimeWindowSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -61,6 +62,84 @@ def _generate_qr_png_b64(data_str):
     return f"data:image/png;base64,{b64}"
 
 
+# ── Helpers ────────────────────────────────────────────────────────────────────
+
+def _get_time_window(project):
+    """Return active ScanTimeWindow for a project, or None."""
+    try:
+        w = ScanTimeWindow.objects.get(project=project)
+        return w if w.is_active else None
+    except ScanTimeWindow.DoesNotExist:
+        return None
+
+
+def _get_effective_window(worker):
+    """
+    Return the time window to enforce for this specific worker.
+    Priority:
+      1. Worker's own custom window (if use_custom_window=True and all 4 times set)
+      2. Project-level ScanTimeWindow (if active)
+      3. None  →  no restriction
+    """
+    if (worker.use_custom_window
+            and worker.custom_checkin_start
+            and worker.custom_checkin_end
+            and worker.custom_checkout_start
+            and worker.custom_checkout_end):
+        from types import SimpleNamespace
+        return SimpleNamespace(
+            is_active=True,
+            checkin_start=worker.custom_checkin_start,
+            checkin_end=worker.custom_checkin_end,
+            checkout_start=worker.custom_checkout_start,
+            checkout_end=worker.custom_checkout_end,
+            late_threshold_minutes=30,
+            early_checkout_minutes=30,
+            _source="worker",
+        )
+    return _get_time_window(worker.project)
+
+
+def _fix_missed_checkouts(worker, today):
+    """
+    Auto-close any open check-ins from PREVIOUS days.
+    Called before processing today's scan so the worker's state is clean.
+    Returns list of records that were auto-closed.
+    """
+    from datetime import time as time_type
+    missed = DailyAttendance.objects.filter(
+        worker=worker,
+        check_in__isnull=False,
+        check_out__isnull=True,
+    ).exclude(date=today)
+
+    closed = []
+    for rec in missed:
+        # Close at project checkout window start, or default 17:00
+        try:
+            win = ScanTimeWindow.objects.get(project=worker.project)
+            close_time = win.checkout_start
+        except ScanTimeWindow.DoesNotExist:
+            close_time = time_type(17, 0)
+        rec.check_out = close_time
+        suffix = "\n[Auto-closed: missed checkout — reset next day]"
+        rec.notes = (rec.notes + suffix) if rec.notes else suffix.strip()
+        rec.save(update_fields=["check_out", "notes"])
+        closed.append(rec)
+    return closed
+
+
+def _auto_calc_overtime(record, today, time_out):
+    """Recalculate and save overtime_hours based on actual worked hours > 8."""
+    if record.check_in:
+        dt_in  = datetime.combine(today, record.check_in)
+        dt_out = datetime.combine(today, time_out)
+        worked = (dt_out - dt_in).total_seconds() / 3600
+        if worked > 8:
+            record.overtime_hours = Decimal(str(round(worked - 8, 2)))
+            record.save(update_fields=["overtime_hours"])
+
+
 # ── QR Scan (AllowAny - kiosk/tablet use) ─────────────────────────────────────
 
 @api_view(["POST"])
@@ -69,10 +148,18 @@ def qr_scan(request):
     """
     POST /api/v1/attendance/qr-scan/
     Body: { "qr_data": "<JSON string from QR code>" }
-    - No check-in today  → create record, set check_in = now
-    - check_in exists, no check_out → set check_out = now, auto-calc overtime
-    - both exist → update check_out (overtime re-scan)
+
+    Smart scan flow:
+      1. Validate QR code
+      2. Cooldown guard (60 s)
+      3. Auto-close missed checkouts from previous days
+      4. Enforce time window (if project has active ScanTimeWindow)
+      5. Determine action: CHECK_IN or CHECK_OUT based on today's record state
+      6. Create/update DailyAttendance
+      7. Log to QRScanLog
     """
+    from datetime import timedelta
+
     raw = request.data.get("qr_data", "")
     if not raw:
         return Response({"error": "qr_data is required."}, status=400)
@@ -80,6 +167,13 @@ def qr_scan(request):
     try:
         payload = json.loads(raw)
     except (json.JSONDecodeError, TypeError):
+        QRScanLog.objects.create(
+            worker_id=None, scan_type="INVALID", scan_status="REJECTED",
+            scanned_at=timezone.now(),
+            ip_address=_get_client_ip(request),
+            user_agent=request.META.get("HTTP_USER_AGENT", "")[:500],
+            note="Malformed JSON in QR data",
+        ) if False else None  # worker_id required; skip log for truly invalid
         return Response({"error": "Invalid QR code format."}, status=400)
 
     if payload.get("type") != "hcms_attendance":
@@ -94,94 +188,332 @@ def qr_scan(request):
     except (AttendanceWorker.DoesNotExist, Exception):
         return Response({"error": "Invalid or revoked QR code."}, status=404)
 
-    now      = timezone.localtime()
-    today    = now.date()
-    time_now = now.time()
+    now        = timezone.localtime()
+    today      = now.date()
+    time_now   = now.time()
     scanned_by = request.user if request.user.is_authenticated else None
 
-    # ── Duplicate-scan guard: ignore if same worker scanned within last 60 s ──
+    def _log(scan_type, scan_status="VALID", attendance=None,
+             is_late=False, is_early=False, note=""):
+        return QRScanLog.objects.create(
+            worker=worker, attendance=attendance,
+            scan_type=scan_type, scan_status=scan_status,
+            is_late=is_late, is_early=is_early,
+            scanned_at=now, scanned_by=scanned_by,
+            ip_address=_get_client_ip(request),
+            user_agent=request.META.get("HTTP_USER_AGENT", "")[:500],
+            note=note,
+        )
+
+    # ── 1. Cooldown guard ──────────────────────────────────────────────────────
     COOLDOWN_SECONDS = 60
-    from datetime import timedelta
     cutoff = now - timedelta(seconds=COOLDOWN_SECONDS)
     last_scan = QRScanLog.objects.filter(
         worker=worker,
         scanned_at__gte=cutoff,
-    ).exclude(scan_type="IGNORED").order_by("-scanned_at").first()
+        scan_status="VALID",
+    ).order_by("-scanned_at").first()
 
     if last_scan:
         seconds_ago = int((now - last_scan.scanned_at).total_seconds())
         wait = COOLDOWN_SECONDS - seconds_ago
-        # Log it as IGNORED so the audit trail is complete
-        QRScanLog.objects.create(
-            worker=worker, attendance=None, scan_type="IGNORED",
-            scanned_at=now, scanned_by=scanned_by,
-            ip_address=_get_client_ip(request),
-            user_agent=request.META.get("HTTP_USER_AGENT", "")[:500],
-            note=f"Duplicate scan ignored ({seconds_ago}s after last scan)",
-        )
+        _log("IGNORED", "DUPLICATE",
+             note=f"Duplicate scan — {seconds_ago}s after last valid scan")
         return Response({
-            "success":  False,
-            "action":   "IGNORED",
-            "message":  f"Already scanned {seconds_ago}s ago. Please wait {wait}s.",
-            "worker":   {"id": worker.id, "name": worker.name, "trade": worker.get_trade_display()},
-            "project":  {"id": worker.project_id, "name": worker.project.name},
+            "success": False, "action": "IGNORED",
+            "message": f"Already scanned {seconds_ago}s ago. Please wait {wait}s.",
+            "worker":  {"id": worker.id, "name": worker.name, "trade": worker.get_trade_display()},
+            "project": {"id": worker.project_id, "name": worker.project.name},
             "cooldown_remaining": wait,
         }, status=200)
 
-    record, created = DailyAttendance.objects.get_or_create(
-        worker=worker,
-        date=today,
-        defaults={
-            "project":    worker.project,
-            "status":     "PRESENT",
-            "check_in":   time_now,
-            "recorded_by": scanned_by,
-        },
-    )
+    # ── 2. Fix missed checkouts from previous days ─────────────────────────────
+    _fix_missed_checkouts(worker, today)
 
-    if created:
-        scan_type  = "CHECK_IN"
-        action_msg = f"Checked in at {time_now.strftime('%I:%M %p')}"
-    elif record.check_out is None:
-        record.check_out = time_now
-        record.save(update_fields=["check_out"])
-        # Auto overtime
-        if record.check_in:
-            dt_in  = datetime.combine(today, record.check_in)
-            dt_out = datetime.combine(today, time_now)
-            worked = (dt_out - dt_in).total_seconds() / 3600
-            if worked > 8:
-                record.overtime_hours = Decimal(str(round(worked - 8, 2)))
-                record.save(update_fields=["overtime_hours"])
-        scan_type  = "CHECK_OUT"
-        action_msg = f"Checked out at {time_now.strftime('%I:%M %p')}"
+    # ── 3. Get today's record (if any) ────────────────────────────────────────
+    try:
+        today_record = DailyAttendance.objects.get(worker=worker, date=today)
+    except DailyAttendance.DoesNotExist:
+        today_record = None
+
+    # ── 4. Determine intended action ──────────────────────────────────────────
+    if today_record is None:
+        intended = "CHECK_IN"
+    elif today_record.check_in and today_record.check_out is None:
+        intended = "CHECK_OUT"
     else:
-        record.check_out = time_now
-        record.save(update_fields=["check_out"])
-        scan_type  = "CHECK_OUT"
-        action_msg = f"Check-out updated to {time_now.strftime('%I:%M %p')}"
+        # Both already set — this is a BLOCKED re-scan
+        _log("BLOCKED", "REJECTED",
+             attendance=today_record,
+             note="Both check-in and check-out already recorded for today")
+        return Response({
+            "success": False, "action": "BLOCKED",
+            "message": "Already checked in and out today.",
+            "worker":  {"id": worker.id, "name": worker.name, "trade": worker.get_trade_display()},
+            "project": {"id": worker.project_id, "name": worker.project.name},
+            "attendance": _attendance_dict(today_record),
+        }, status=200)
 
-    QRScanLog.objects.create(
-        worker=worker, attendance=record, scan_type=scan_type,
-        scanned_at=now, scanned_by=scanned_by,
-        ip_address=_get_client_ip(request),
-        user_agent=request.META.get("HTTP_USER_AGENT", "")[:500],
-    )
+    # ── 5. Enforce time window ─────────────────────────────────────────────────
+    # Worker's custom window takes priority over the project-level window.
+    window = _get_effective_window(worker)
+    is_late  = False
+    is_early = False
+
+    if window:
+        if intended == "CHECK_IN":
+            in_window = window.checkin_start <= time_now <= window.checkin_end
+            if not in_window:
+                _log("OUT_OF_TIME", "REJECTED",
+                     note=(f"Check-in attempt at {time_now.strftime('%H:%M')} "
+                           f"outside window {window.checkin_start:%H:%M}–{window.checkin_end:%H:%M}"))
+                return Response({
+                    "success": False, "action": "OUT_OF_TIME",
+                    "message": (
+                        f"Check-in window is {window.checkin_start.strftime('%H:%M')}–"
+                        f"{window.checkin_end.strftime('%H:%M')}. "
+                        f"Current time {time_now.strftime('%H:%M')} is outside the window."
+                    ),
+                    "worker":  {"id": worker.id, "name": worker.name, "trade": worker.get_trade_display()},
+                    "project": {"id": worker.project_id, "name": worker.project.name},
+                    "window": {
+                        "checkin_start":  window.checkin_start.strftime("%H:%M"),
+                        "checkin_end":    window.checkin_end.strftime("%H:%M"),
+                        "checkout_start": window.checkout_start.strftime("%H:%M"),
+                        "checkout_end":   window.checkout_end.strftime("%H:%M"),
+                    },
+                }, status=200)
+            # Late detection
+            from datetime import timedelta as td
+            late_threshold = (
+                datetime.combine(today, window.checkin_start) + td(minutes=window.late_threshold_minutes)
+            ).time()
+            is_late = time_now > late_threshold
+
+        elif intended == "CHECK_OUT":
+            in_window = window.checkout_start <= time_now <= window.checkout_end
+            if not in_window:
+                _log("OUT_OF_TIME", "REJECTED",
+                     attendance=today_record,
+                     note=(f"Check-out attempt at {time_now.strftime('%H:%M')} "
+                           f"outside window {window.checkout_start:%H:%M}–{window.checkout_end:%H:%M}"))
+                return Response({
+                    "success": False, "action": "OUT_OF_TIME",
+                    "message": (
+                        f"Check-out window is {window.checkout_start.strftime('%H:%M')}–"
+                        f"{window.checkout_end.strftime('%H:%M')}. "
+                        f"Current time {time_now.strftime('%H:%M')} is outside the window."
+                    ),
+                    "worker":  {"id": worker.id, "name": worker.name, "trade": worker.get_trade_display()},
+                    "project": {"id": worker.project_id, "name": worker.project.name},
+                    "window": {
+                        "checkin_start":  window.checkin_start.strftime("%H:%M"),
+                        "checkin_end":    window.checkin_end.strftime("%H:%M"),
+                        "checkout_start": window.checkout_start.strftime("%H:%M"),
+                        "checkout_end":   window.checkout_end.strftime("%H:%M"),
+                    },
+                    "attendance": _attendance_dict(today_record),
+                }, status=200)
+            # Early checkout detection
+            from datetime import timedelta as td
+            early_threshold = (
+                datetime.combine(today, window.checkout_start) - td(minutes=window.early_checkout_minutes)
+            ).time()
+            is_early = time_now < early_threshold
+
+    # ── 6. Execute the action ──────────────────────────────────────────────────
+    if intended == "CHECK_IN":
+        record = DailyAttendance.objects.create(
+            worker=worker,
+            project=worker.project,
+            date=today,
+            status="PRESENT",
+            check_in=time_now,
+            recorded_by=scanned_by,
+        )
+        late_note = " (LATE)" if is_late else ""
+        action_msg = f"Checked in at {time_now.strftime('%I:%M %p')}{late_note}"
+        _log("CHECK_IN", "VALID", attendance=record,
+             is_late=is_late, note=f"Check-in at {time_now.strftime('%H:%M')}{late_note}")
+
+    else:  # CHECK_OUT
+        today_record.check_out = time_now
+        today_record.save(update_fields=["check_out"])
+        _auto_calc_overtime(today_record, today, time_now)
+        record = today_record
+        early_note = " (EARLY)" if is_early else ""
+        action_msg = f"Checked out at {time_now.strftime('%I:%M %p')}{early_note}"
+        _log("CHECK_OUT", "VALID", attendance=record,
+             is_early=is_early, note=f"Check-out at {time_now.strftime('%H:%M')}{early_note}")
 
     return Response({
         "success": True,
-        "action":  scan_type,
+        "action":  intended,
         "message": action_msg,
+        "is_late":  is_late,
+        "is_early": is_early,
         "worker":  {"id": worker.id, "name": worker.name, "trade": worker.get_trade_display()},
         "project": {"id": worker.project_id, "name": worker.project.name},
-        "attendance": {
-            "date":           str(today),
-            "status":         record.status,
-            "check_in":       record.check_in.strftime("%H:%M")  if record.check_in  else None,
-            "check_out":      record.check_out.strftime("%H:%M") if record.check_out else None,
-            "overtime_hours": float(record.overtime_hours),
-        },
+        "attendance": _attendance_dict(record),
+        **({"window_status": "active", "late_checkin": is_late, "early_checkout": is_early}
+           if window else {"window_status": "disabled"}),
     })
+
+
+def _attendance_dict(record):
+    return {
+        "id":             record.id,
+        "date":           str(record.date),
+        "status":         record.status,
+        "check_in":       record.check_in.strftime("%H:%M")  if record.check_in  else None,
+        "check_out":      record.check_out.strftime("%H:%M") if record.check_out else None,
+        "overtime_hours": float(record.overtime_hours),
+        "wage_earned":    float(record.wage_earned),
+    }
+
+
+# ── Scan Time Window API ───────────────────────────────────────────────────────
+
+@api_view(["GET", "PUT"])
+@permission_classes([IsAuthenticated])
+def time_window(request):
+    """
+    GET  /api/v1/attendance/time-window/?project=<id>
+    PUT  /api/v1/attendance/time-window/?project=<id>
+    Retrieve or update the ScanTimeWindow for a project.
+    Creates with defaults if none exists yet.
+    """
+    project_id = request.query_params.get("project")
+    if not project_id:
+        return Response({"error": "project is required."}, status=400)
+
+    win, _ = ScanTimeWindow.objects.get_or_create(
+        project_id=project_id,
+        defaults={"created_by": request.user},
+    )
+
+    if request.method == "GET":
+        return Response(ScanTimeWindowSerializer(win).data)
+
+    ser = ScanTimeWindowSerializer(win, data=request.data, partial=True)
+    ser.is_valid(raise_exception=True)
+    ser.save()
+    return Response(ser.data)
+
+
+# ── Missed Checkouts API ───────────────────────────────────────────────────────
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def missed_checkouts(request):
+    """
+    GET /api/v1/attendance/missed-checkouts/?project=<id>
+    Returns workers who have an open check-in (no check-out) from a previous day.
+    """
+    project_id = request.query_params.get("project")
+    if not project_id:
+        return Response({"error": "project is required."}, status=400)
+
+    today = date_type.today()
+    open_records = DailyAttendance.objects.filter(
+        project_id=project_id,
+        check_in__isnull=False,
+        check_out__isnull=True,
+    ).exclude(date=today).select_related("worker").order_by("-date")
+
+    data = []
+    for rec in open_records:
+        data.append({
+            "attendance_id": rec.id,
+            "worker_id":     rec.worker_id,
+            "worker_name":   rec.worker.name,
+            "trade":         rec.worker.get_trade_display(),
+            "date":          str(rec.date),
+            "check_in":      rec.check_in.strftime("%H:%M") if rec.check_in else None,
+            "check_out":     None,
+            "notes":         rec.notes,
+        })
+
+    return Response({"count": len(data), "missed": data})
+
+
+# ── Manual Checkout API ────────────────────────────────────────────────────────
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def manual_checkout(request):
+    """
+    POST /api/v1/attendance/manual-checkout/
+    Body: { "attendance_id": <int>, "check_out": "HH:MM", "note": "" }
+    Manually closes a missed checkout record.
+    """
+    attendance_id = request.data.get("attendance_id")
+    checkout_str  = request.data.get("check_out", "")
+    note          = request.data.get("note", "")
+
+    if not attendance_id:
+        return Response({"error": "attendance_id is required."}, status=400)
+
+    try:
+        record = DailyAttendance.objects.select_related("worker").get(pk=attendance_id)
+    except DailyAttendance.DoesNotExist:
+        return Response({"error": "Attendance record not found."}, status=404)
+
+    if record.check_out:
+        return Response({"error": "This record already has a check-out."}, status=400)
+
+    from datetime import time as time_type
+    if checkout_str:
+        try:
+            h, m = map(int, checkout_str.split(":"))
+            checkout_time = time_type(h, m)
+        except (ValueError, AttributeError):
+            return Response({"error": "check_out must be HH:MM format."}, status=400)
+    else:
+        checkout_time = time_type(17, 0)
+
+    record.check_out = checkout_time
+    admin_note = f"[Manual checkout by {request.user.username}: {checkout_str or '17:00'}]"
+    if note:
+        admin_note += f" {note}"
+    record.notes = (record.notes + "\n" + admin_note) if record.notes else admin_note
+    record.save(update_fields=["check_out", "notes"])
+    _auto_calc_overtime(record, record.date, checkout_time)
+
+    return Response({
+        "success": True,
+        "message": f"Manual checkout set to {checkout_time.strftime('%H:%M')} for {record.worker.name} on {record.date}.",
+        "attendance": _attendance_dict(record),
+    })
+
+
+# ── Project Scan Logs API ──────────────────────────────────────────────────────
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def project_scan_logs(request):
+    """
+    GET /api/v1/attendance/scan-logs/?project=<id>&date=<YYYY-MM-DD>&limit=100
+    Returns QR scan log for a project (for the admin panel).
+    """
+    project_id = request.query_params.get("project")
+    if not project_id:
+        return Response({"error": "project is required."}, status=400)
+
+    qs = QRScanLog.objects.filter(
+        worker__project_id=project_id
+    ).select_related("worker", "scanned_by", "attendance").order_by("-scanned_at")
+
+    if d := request.query_params.get("date"):
+        qs = qs.filter(scanned_at__date=d)
+
+    if status_filter := request.query_params.get("scan_status"):
+        qs = qs.filter(scan_status=status_filter)
+
+    limit = min(int(request.query_params.get("limit", 100)), 500)
+    qs = qs[:limit]
+
+    return Response(QRScanLogSerializer(qs, many=True).data)
 
 
 # ── Worker ViewSet ─────────────────────────────────────────────────────────────
@@ -479,6 +811,718 @@ class AttendanceWorkerViewSet(viewsets.ModelViewSet):
         worker = self.get_object()
         logs = QRScanLog.objects.filter(worker=worker).select_related("scanned_by")[:50]
         return Response(QRScanLogSerializer(logs, many=True).data)
+
+    # ── Contractor link/unlink ─────────────────────────────────────────────────
+
+    @action(detail=True, methods=["post"], url_path="link-contractor")
+    def link_contractor(self, request, pk=None):
+        """
+        POST /api/v1/attendance/workers/{id}/link-contractor/
+        Body: { "contractor_id": <int>, "sync_data": true/false }
+        Links a resources.Contractor to this AttendanceWorker.
+        Optionally syncs name/phone/daily_rate from contractor.
+        """
+        from apps.resources.models import Contractor
+
+        worker        = self.get_object()
+        contractor_id = request.data.get("contractor_id")
+        sync_data     = request.data.get("sync_data", True)
+
+        if not contractor_id:
+            return Response({"error": "contractor_id is required."}, status=400)
+
+        try:
+            contractor = Contractor.objects.get(pk=contractor_id, project=worker.project)
+        except Contractor.DoesNotExist:
+            return Response({"error": "Contractor not found in this project."}, status=404)
+
+        # Check if contractor is already linked to another worker
+        if hasattr(contractor, "attendance_worker") and contractor.attendance_worker != worker:
+            return Response({
+                "error": f"Contractor '{contractor.name}' is already linked to attendance worker "
+                         f"'{contractor.attendance_worker.name}' (id={contractor.attendance_worker_id})."
+            }, status=400)
+
+        worker.contractor = contractor
+        update_fields = ["contractor"]
+
+        if sync_data:
+            # Sync contractor → worker (contractor is the source of truth for identity)
+            if contractor.name:
+                worker.name = contractor.name
+                update_fields.append("name")
+            if contractor.phone:
+                worker.phone = contractor.phone
+                update_fields.append("phone")
+            if contractor.daily_wage and contractor.daily_wage > 0:
+                worker.daily_rate = contractor.daily_wage
+                update_fields.append("daily_rate")
+
+        worker.save(update_fields=update_fields)
+
+        logger.info(
+            "Linked contractor %s (%s) → attendance worker %s (%s)",
+            contractor.id, contractor.name, worker.id, worker.name,
+        )
+
+        return Response(
+            AttendanceWorkerSerializer(worker, context={"request": request}).data,
+            status=200,
+        )
+
+    @action(detail=True, methods=["post"], url_path="unlink-contractor")
+    def unlink_contractor(self, request, pk=None):
+        """
+        POST /api/v1/attendance/workers/{id}/unlink-contractor/
+        Removes the contractor link. No data is deleted.
+        """
+        worker = self.get_object()
+        if not worker.contractor_id:
+            return Response({"error": "This worker has no linked contractor."}, status=400)
+        worker.contractor = None
+        worker.save(update_fields=["contractor"])
+        return Response(
+            AttendanceWorkerSerializer(worker, context={"request": request}).data,
+            status=200,
+        )
+
+    @action(detail=True, methods=["post"], url_path="sync-from-contractor")
+    def sync_from_contractor(self, request, pk=None):
+        """
+        POST /api/v1/attendance/workers/{id}/sync-from-contractor/
+        Re-syncs name, phone, daily_rate from the linked contractor.
+        """
+        worker = self.get_object()
+        if not worker.contractor_id:
+            return Response({"error": "No contractor linked. Link one first."}, status=400)
+
+        c = worker.contractor
+        changed = []
+        if c.name and c.name != worker.name:
+            worker.name = c.name
+            changed.append("name")
+        if c.phone and c.phone != worker.phone:
+            worker.phone = c.phone
+            changed.append("phone")
+        if c.daily_wage and c.daily_wage > 0 and c.daily_wage != worker.daily_rate:
+            worker.daily_rate = c.daily_wage
+            changed.append("daily_rate")
+
+        if changed:
+            worker.save(update_fields=changed)
+            return Response({
+                "synced": True,
+                "fields_updated": changed,
+                "worker": AttendanceWorkerSerializer(worker, context={"request": request}).data,
+            })
+        return Response({"synced": False, "message": "Already in sync. No changes needed."})
+
+
+# ── Unlinked Contractors API ───────────────────────────────────────────────────
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def unlinked_contractors(request):
+    """
+    GET /api/v1/attendance/unlinked-contractors/?project=<id>
+    Returns contractors in this project that have NO linked attendance worker yet.
+    Useful for the "Link to Resource" picker in ManpowerTab.
+    """
+    from apps.resources.models import Contractor
+
+    project_id = request.query_params.get("project")
+    if not project_id:
+        return Response({"error": "project is required."}, status=400)
+
+    # Contractors in this project with no attendance_worker reverse relation
+    contractors = Contractor.objects.filter(
+        project_id=project_id,
+        attendance_worker__isnull=True,
+        is_active=True,
+    ).order_by("name")
+
+    data = [
+        {
+            "id":         c.id,
+            "name":       c.display_name,
+            "role":       c.role,
+            "role_label": c.get_role_display(),
+            "phone":      c.display_phone,
+            "email":      c.display_email,
+            "daily_wage": float(c.daily_wage) if c.daily_wage else None,
+        }
+        for c in contractors
+    ]
+    return Response({"count": len(data), "contractors": data})
+
+
+# ── Unified Manpower API ───────────────────────────────────────────────────────
+
+# ╔═══════════════════════════════════════════════════════════════════════════╗
+# ║            REAL-WORLD UNIFIED PERSON API                                  ║
+# ║  One record per real human. Three roles: Attendance · Payment · Login     ║
+# ╚═══════════════════════════════════════════════════════════════════════════╝
+
+def _build_person_entry(worker, today_records):
+    """Convert an AttendanceWorker + optional Contractor into a unified person dict."""
+    from decimal import Decimal as D
+
+    rec = today_records.get(worker.id)
+    today_status    = rec.status         if rec else "NOT_MARKED"
+    today_check_in  = rec.check_in.strftime("%H:%M")  if rec and rec.check_in  else None
+    today_check_out = rec.check_out.strftime("%H:%M") if rec and rec.check_out else None
+
+    # ── Payment role ──────────────────────────────────────────────────────────
+    c            = worker.contractor if worker.contractor_id else None
+    role_payment = c is not None
+    try:
+        total_paid  = float(c.total_paid)   if c else None
+        balance_due = float(c.balance_due)  if c else None
+    except Exception:
+        total_paid = balance_due = None
+
+    in_sync = True
+    if c:
+        in_sync = (
+            (c.name or "") == (worker.name or "") and
+            (c.phone or "") == (worker.phone or "") and
+            (not c.daily_wage or c.daily_wage == worker.daily_rate)
+        )
+
+    # ── Login role ────────────────────────────────────────────────────────────
+    u          = worker.linked_user
+    role_login = u is not None
+
+    return {
+        # Identity
+        "worker_id":   worker.id,
+        "name":        worker.name,
+        "trade":       worker.trade,
+        "trade_label": worker.get_trade_display(),
+        "worker_type": worker.worker_type,
+        "phone":       worker.phone,
+        "daily_rate":  float(worker.daily_rate),
+        "is_active":   worker.is_active,
+        "joined_date": str(worker.joined_date) if worker.joined_date else None,
+        "notes":       worker.notes,
+        # Today
+        "today_status":    today_status,
+        "today_check_in":  today_check_in,
+        "today_check_out": today_check_out,
+        # Role: attendance (always true for worker-based rows)
+        "role_attendance": True,
+        "qr_token":        str(worker.qr_token),
+        # Role: payment
+        "role_payment":          role_payment,
+        "contractor_id":         c.id               if c else None,
+        "contractor_role":       c.role             if c else None,
+        "contractor_role_label": c.get_role_display() if c else None,
+        "total_paid":            total_paid,
+        "balance_due":           balance_due,
+        "in_sync":               in_sync,
+        # Role: login
+        "role_login":  role_login,
+        "user_id":     u.id                                    if u else None,
+        "user_email":  u.email                                 if u else None,
+        "user_name":   (u.get_full_name() or u.username)       if u else None,
+    }
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def persons_list(request):
+    """
+    GET /api/v1/attendance/persons/?project=<id>&active=true|false|all
+    Flat list of all persons in this project with their three role flags.
+    AttendanceWorker is the master record. Contractors with no worker are included as
+    'orphan_contractors' so the UI can offer to bring them into the system.
+    """
+    from apps.resources.models import Contractor
+
+    project_id = request.query_params.get("project")
+    if not project_id:
+        return Response({"error": "project is required."}, status=400)
+
+    active_param = request.query_params.get("active", "true")
+    qs = AttendanceWorker.objects.filter(project_id=project_id).select_related(
+        "contractor", "linked_user"
+    )
+    if active_param == "true":
+        qs = qs.filter(is_active=True)
+    elif active_param == "false":
+        qs = qs.filter(is_active=False)
+    # "all" → no filter
+
+    workers = list(qs)
+    worker_ids = [w.id for w in workers]
+
+    # Batch-load today's records
+    from datetime import date as date_type
+    today = date_type.today()
+    today_records = {
+        r.worker_id: r
+        for r in DailyAttendance.objects.filter(worker_id__in=worker_ids, date=today)
+    }
+
+    persons = [_build_person_entry(w, today_records) for w in workers]
+
+    # Contractors not yet linked to any attendance worker (orphans)
+    orphans = Contractor.objects.filter(
+        project_id=project_id,
+        attendance_worker__isnull=True,
+        is_active=True,
+    ).select_related("user").order_by("name")
+
+    orphan_contractors = [
+        {
+            "contractor_id":    c.id,
+            "name":             c.name or (c.user.get_full_name() if c.user else ""),
+            "role":             c.role,
+            "role_label":       c.get_role_display(),
+            "phone":            c.phone,
+            "daily_wage":       float(c.daily_wage) if c.daily_wage else None,
+        }
+        for c in orphans
+    ]
+
+    # Summary
+    summary = {
+        "total":            len(persons),
+        "with_payment":     sum(1 for p in persons if p["role_payment"]),
+        "with_login":       sum(1 for p in persons if p["role_login"]),
+        "active":           sum(1 for p in persons if p["is_active"]),
+        "orphan_contractors": len(orphan_contractors),
+    }
+
+    return Response({
+        "persons":            persons,
+        "orphan_contractors": orphan_contractors,
+        "summary":            summary,
+    })
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def person_add(request):
+    """
+    POST /api/v1/attendance/persons/add/
+    Create a new unified person with selected roles — ONE form, ONE action.
+
+    Body: {
+        project:          int,
+        name:             str,
+        trade:            str,   e.g. "MASON"
+        contractor_role:  str,   e.g. "MISTRI" (used only when role_payment=true)
+        phone:            str,
+        daily_rate:       decimal,
+        worker_type:      str    "LABOUR" | "STAFF"  (default LABOUR)
+        notes:            str,
+        joined_date:      str    "YYYY-MM-DD"  (optional)
+        role_attendance:  bool   (default true  — create AttendanceWorker)
+        role_payment:     bool   (default false — create Contractor)
+    }
+    """
+    from apps.resources.models import Contractor
+    from django.db import transaction
+    from django.db.models.signals import post_save
+    from apps.attendance.signals import contractor_post_save
+
+    project_id       = request.data.get("project")
+    name             = (request.data.get("name") or "").strip()
+    trade            = request.data.get("trade", "OTHER")
+    contractor_role  = request.data.get("contractor_role", "LABOUR")
+    phone            = (request.data.get("phone") or "").strip()
+    daily_rate       = request.data.get("daily_rate", 0) or 0
+    worker_type      = request.data.get("worker_type", "LABOUR")
+    notes            = request.data.get("notes", "")
+    joined_date      = request.data.get("joined_date") or None
+    role_attendance  = bool(request.data.get("role_attendance", True))
+    role_payment     = bool(request.data.get("role_payment", False))
+
+    if not project_id or not name:
+        return Response({"error": "project and name are required."}, status=400)
+    if not role_attendance and not role_payment:
+        return Response({"error": "Enable at least one role (attendance or payment)."}, status=400)
+
+    worker     = None
+    contractor = None
+
+    # Disconnect the auto-link signal while we manually create to avoid double-worker
+    post_save.disconnect(contractor_post_save, sender=Contractor)
+    try:
+        with transaction.atomic():
+            # ── Create Contractor (payment role) ──────────────────────────────
+            if role_payment:
+                contractor = Contractor.objects.create(
+                    project_id=project_id,
+                    name=name,
+                    role=contractor_role,
+                    phone=phone,
+                    daily_wage=daily_rate if daily_rate else None,
+                )
+
+            # ── Create AttendanceWorker (attendance role) ─────────────────────
+            if role_attendance:
+                # Enforce unique_together (project, name)
+                final_name = name
+                counter    = 1
+                while AttendanceWorker.objects.filter(
+                    project_id=project_id, name=final_name
+                ).exists():
+                    final_name = f"{name} ({counter})"
+                    counter   += 1
+
+                worker = AttendanceWorker.objects.create(
+                    project_id  = project_id,
+                    name        = final_name,
+                    trade       = trade,
+                    worker_type = worker_type,
+                    daily_rate  = daily_rate,
+                    phone       = phone,
+                    notes       = notes,
+                    joined_date = joined_date,
+                    contractor  = contractor,
+                )
+    finally:
+        post_save.connect(contractor_post_save, sender=Contractor)
+
+    logger.info(
+        "person_add: created worker=%s contractor=%s for project=%s name='%s'",
+        worker.id if worker else None,
+        contractor.id if contractor else None,
+        project_id, name,
+    )
+
+    return Response({
+        "worker_id":     worker.id     if worker     else None,
+        "contractor_id": contractor.id if contractor else None,
+        "name":          name,
+        "roles": {
+            "attendance": role_attendance,
+            "payment":    role_payment,
+        },
+    }, status=status.HTTP_201_CREATED)
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def person_update(request, worker_id):
+    """
+    PATCH /api/v1/attendance/persons/<worker_id>/update/
+    Update core identity fields (name, trade, phone, daily_rate) on the worker
+    AND push the same diff to the linked contractor (if any).
+    """
+    try:
+        worker = AttendanceWorker.objects.select_related("contractor").get(
+            pk=worker_id
+        )
+    except AttendanceWorker.DoesNotExist:
+        return Response({"error": "Worker not found."}, status=404)
+
+    worker_fields = []
+    for field in ("name", "trade", "worker_type", "phone", "notes", "joined_date", "is_active"):
+        if field in request.data:
+            setattr(worker, field, request.data[field])
+            worker_fields.append(field)
+    if "daily_rate" in request.data:
+        worker.daily_rate = Decimal(str(request.data["daily_rate"]))
+        worker_fields.append("daily_rate")
+
+    if worker_fields:
+        worker.save(update_fields=worker_fields)
+
+    # Push identity changes to linked contractor (skip signal — direct update)
+    if worker.contractor_id and worker.contractor:
+        c = worker.contractor
+        c_fields = []
+        if "name"       in worker_fields: c.name       = worker.name;       c_fields.append("name")
+        if "phone"      in worker_fields: c.phone      = worker.phone;      c_fields.append("phone")
+        if "daily_rate" in worker_fields: c.daily_wage = worker.daily_rate; c_fields.append("daily_wage")
+        if c_fields:
+            c.save(update_fields=c_fields)
+
+    return Response(
+        AttendanceWorkerSerializer(worker, context={"request": request}).data
+    )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def person_toggle_role(request, worker_id):
+    """
+    POST /api/v1/attendance/persons/<worker_id>/toggle-role/
+    Body: { "role": "payment" | "login", "enable": true | false }
+
+    payment enable  → create Contractor linked to this worker
+    payment disable → detach Contractor (does NOT delete — preserves expense history)
+    login   enable  → call existing create-account logic
+    login   disable → detach linked_user (does NOT delete user account)
+    """
+    from apps.resources.models import Contractor
+    from django.db.models.signals import post_save
+    from apps.attendance.signals import contractor_post_save
+
+    try:
+        worker = AttendanceWorker.objects.select_related(
+            "contractor", "linked_user"
+        ).get(pk=worker_id)
+    except AttendanceWorker.DoesNotExist:
+        return Response({"error": "Worker not found."}, status=404)
+
+    role   = request.data.get("role")
+    enable = request.data.get("enable", True)
+
+    # ── Payment role ──────────────────────────────────────────────────────────
+    if role == "payment":
+        if enable:
+            if worker.contractor_id:
+                return Response({"message": "Payment role already enabled."})
+            # Create new Contractor linked to this worker
+            post_save.disconnect(contractor_post_save, sender=Contractor)
+            try:
+                c = Contractor.objects.create(
+                    project_id = worker.project_id,
+                    name       = worker.name,
+                    role       = request.data.get("contractor_role", "LABOUR"),
+                    phone      = worker.phone,
+                    daily_wage = worker.daily_rate or None,
+                )
+                worker.contractor = c
+                worker.save(update_fields=["contractor"])
+            finally:
+                post_save.connect(contractor_post_save, sender=Contractor)
+            return Response({"enabled": True, "contractor_id": c.id})
+        else:
+            # Disable: detach but keep Contractor record (expense history!)
+            worker.contractor = None
+            worker.save(update_fields=["contractor"])
+            return Response({"enabled": False})
+
+    # ── Login role ────────────────────────────────────────────────────────────
+    if role == "login":
+        if enable:
+            if worker.linked_user_id:
+                return Response({"message": "Login role already enabled.", "user_id": worker.linked_user_id})
+            # Reuse existing create-account view logic
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            import secrets, string
+            email    = request.data.get("email", "")
+            username = request.data.get("username") or (
+                worker.name.lower().replace(" ", ".") + "_" + secrets.token_hex(3)
+            )
+            password = request.data.get("password") or (
+                "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(10))
+            )
+            if not email:
+                return Response({"error": "email is required to create a login."}, status=400)
+            if User.objects.filter(email=email).exists():
+                return Response({"error": f"An account with email '{email}' already exists."}, status=400)
+            user = User.objects.create_user(
+                username=username, email=email, password=password,
+                first_name=worker.name.split()[0] if worker.name else "",
+                last_name=" ".join(worker.name.split()[1:]) if len(worker.name.split()) > 1 else "",
+            )
+            worker.linked_user = user
+            worker.save(update_fields=["linked_user"])
+            return Response({
+                "enabled": True,
+                "user_id": user.id,
+                "username": user.username,
+                "temp_password": password,
+            })
+        else:
+            worker.linked_user = None
+            worker.save(update_fields=["linked_user"])
+            return Response({"enabled": False})
+
+    return Response({"error": "role must be 'payment' or 'login'."}, status=400)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def person_adopt_contractor(request):
+    """
+    POST /api/v1/attendance/persons/adopt-contractor/
+    Bring an 'orphan' contractor (no attendance worker) into the unified system
+    by auto-creating an AttendanceWorker for them.
+    Body: { "contractor_id": int, "trade": "MASON" }
+    """
+    from apps.resources.models import Contractor
+    from django.db.models.signals import post_save
+    from apps.attendance.signals import contractor_post_save, CONTRACTOR_ROLE_TO_TRADE
+
+    contractor_id = request.data.get("contractor_id")
+    trade         = request.data.get("trade")
+
+    try:
+        c = Contractor.objects.get(pk=contractor_id)
+    except Contractor.DoesNotExist:
+        return Response({"error": "Contractor not found."}, status=404)
+
+    if hasattr(c, "attendance_worker") and c.attendance_worker_id:
+        return Response({"error": "This contractor already has an attendance worker linked."}, status=400)
+
+    if not c.project_id:
+        return Response({"error": "Contractor has no project — cannot create worker."}, status=400)
+
+    # Resolve trade
+    resolved_trade = trade or CONTRACTOR_ROLE_TO_TRADE.get(c.role, "OTHER")
+    name = c.name or (c.user.get_full_name() if c.user else "Unnamed")
+
+    final_name = name
+    counter    = 1
+    while AttendanceWorker.objects.filter(project_id=c.project_id, name=final_name).exists():
+        final_name = f"{name} ({counter})"
+        counter   += 1
+
+    post_save.disconnect(contractor_post_save, sender=Contractor)
+    try:
+        worker = AttendanceWorker.objects.create(
+            project_id  = c.project_id,
+            name        = final_name,
+            trade       = resolved_trade,
+            daily_rate  = c.daily_wage or 0,
+            phone       = c.phone or "",
+            linked_user = c.user,
+            contractor  = c,
+        )
+    finally:
+        post_save.connect(contractor_post_save, sender=Contractor)
+
+    return Response({
+        "worker_id":     worker.id,
+        "contractor_id": c.id,
+        "name":          worker.name,
+        "trade":         worker.trade,
+    }, status=status.HTTP_201_CREATED)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def manpower_overview(request):
+    """
+    GET /api/v1/attendance/manpower/?project=<id>
+    Returns unified view of ALL people in this project across both systems:
+    - Attendance workers (with/without contractor link)
+    - Contractors not yet linked to any attendance worker
+
+    Response shape:
+    {
+      "linked":     [ {...worker + contractor data...} ],
+      "workers_only":    [ {...worker, no contractor...} ],
+      "contractors_only": [ {...contractor, no worker...} ],
+      "summary": { "total": N, "linked": N, "workers_only": N, "contractors_only": N }
+    }
+    """
+    from apps.resources.models import Contractor
+    from datetime import date as date_type
+
+    project_id = request.query_params.get("project")
+    if not project_id:
+        return Response({"error": "project is required."}, status=400)
+
+    today = date_type.today()
+
+    # ── All attendance workers ────────────────────────────────────────────────
+    workers = AttendanceWorker.objects.filter(
+        project_id=project_id,
+    ).select_related("contractor", "linked_user")
+
+    # ── Contractors with no worker link ───────────────────────────────────────
+    solo_contractors = Contractor.objects.filter(
+        project_id=project_id,
+        attendance_worker__isnull=True,
+        is_active=True,
+    ).order_by("name")
+
+    # ── Today's attendance status for workers (efficient batch) ───────────────
+    worker_ids = [w.id for w in workers]
+    today_records = {
+        r.worker_id: r
+        for r in DailyAttendance.objects.filter(
+            worker_id__in=worker_ids, date=today
+        )
+    }
+
+    def worker_today_status(w):
+        rec = today_records.get(w.id)
+        if rec is None:
+            return {"status": "NOT_MARKED", "check_in": None, "check_out": None}
+        return {
+            "status":    rec.status,
+            "check_in":  rec.check_in.strftime("%H:%M")  if rec.check_in  else None,
+            "check_out": rec.check_out.strftime("%H:%M") if rec.check_out else None,
+        }
+
+    linked_list      = []
+    workers_only_list = []
+
+    for w in workers:
+        entry = {
+            "worker_id":    w.id,
+            "worker_name":  w.name,
+            "trade":        w.trade,
+            "trade_label":  w.get_trade_display(),
+            "worker_type":  w.worker_type,
+            "daily_rate":   float(w.daily_rate),
+            "phone":        w.phone,
+            "is_active":    w.is_active,
+            "has_account":  w.linked_user_id is not None,
+            "today":        worker_today_status(w),
+        }
+
+        if w.contractor_id:
+            c = w.contractor
+            entry.update({
+                "contractor_id":    c.id,
+                "contractor_name":  c.name,
+                "contractor_role":  c.role,
+                "contractor_role_label": c.get_role_display(),
+                "contractor_phone": c.phone,
+                "contractor_email": c.email,
+                "contractor_daily_wage": float(c.daily_wage) if c.daily_wage else None,
+                "in_sync": (
+                    c.name == w.name and
+                    c.phone == w.phone and
+                    (not c.daily_wage or c.daily_wage == w.daily_rate)
+                ),
+            })
+            linked_list.append(entry)
+        else:
+            entry.update({
+                "contractor_id":   None,
+                "contractor_name": None,
+            })
+            workers_only_list.append(entry)
+
+    contractors_only_list = [
+        {
+            "contractor_id":    c.id,
+            "contractor_name":  c.name,
+            "contractor_role":  c.role,
+            "contractor_role_label": c.get_role_display(),
+            "contractor_phone": c.phone,
+            "contractor_email": c.email,
+            "contractor_daily_wage": float(c.daily_wage) if c.daily_wage else None,
+            "worker_id":   None,
+            "worker_name": None,
+        }
+        for c in solo_contractors
+    ]
+
+    total = len(linked_list) + len(workers_only_list) + len(contractors_only_list)
+    return Response({
+        "linked":            linked_list,
+        "workers_only":      workers_only_list,
+        "contractors_only":  contractors_only_list,
+        "summary": {
+            "total":             total,
+            "linked":            len(linked_list),
+            "workers_only":      len(workers_only_list),
+            "contractors_only":  len(contractors_only_list),
+        },
+    })
 
 
 # ── Daily Attendance ViewSet ───────────────────────────────────────────────────

@@ -1,0 +1,28 @@
+# ─────────────────────────────────────────────────────────────
+#  Local dev requirements — SQLite, no MySQL, no Redis worker
+#  Used by: scripts/run_local.sh  (make local / make local-setup)
+# ─────────────────────────────────────────────────────────────
+
+Django==4.2.9
+djangorestframework==3.14.0
+djangorestframework-simplejwt==5.3.1
+django-cors-headers==4.3.1
+python-decouple==3.8
+Pillow==10.2.0
+gunicorn==21.2.0
+django-filter==25.1
+dj-database-url==2.1.0
+whitenoise==6.6.0
+reportlab==4.0.9
+django-simple-history==3.4.0
+requests==2.32.5
+user-agents==2.2.0
+qrcode[pil]==7.4.2
+
+# Celery — tasks run inline locally (CELERY_TASK_ALWAYS_EAGER=True)
+celery==5.3.6
+django-celery-beat==2.6.0
+django-celery-results==2.5.1
+
+# NOTE: psycopg2, mysqlclient, redis, django-redis are intentionally
+# omitted — not needed when using SQLite + DummyCache locally.

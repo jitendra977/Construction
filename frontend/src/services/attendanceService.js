@@ -58,6 +58,35 @@ export const attendanceService = {
         axios.post(`${API_URL}/attendance/qr-scan/`, { qr_data: qrData }, {
             headers: { ...getHeaders(), 'Content-Type': 'application/json' },
         }).then(r => r.data),
+
+    // ── Scan Time Window (admin) ───────────────────────────────────────────────
+    getTimeWindow:    (project)        => api.get('time-window/',      { params: { project } }).then(r => r.data),
+    updateTimeWindow: (project, data)  => api.put('time-window/',      data, { params: { project } }).then(r => r.data),
+
+    // ── Missed checkouts (admin) ───────────────────────────────────────────────
+    getMissedCheckouts: (project)          => api.get('missed-checkouts/', { params: { project } }).then(r => r.data),
+    manualCheckout:     (payload)          => api.post('manual-checkout/',  payload).then(r => r.data),
+
+    // ── Scan attempt log (admin) ───────────────────────────────────────────────
+    getScanLogs: (params = {}) => api.get('scan-logs/', { params }).then(r => r.data),
+
+    // ── Manpower legacy (kept for backward compat) ───────────────────────────
+    getManpower:           (project)              => api.get('manpower/',              { params: { project } }).then(r => r.data),
+    getUnlinkedContractors:(project)              => api.get('unlinked-contractors/',  { params: { project } }).then(r => r.data),
+    linkContractor:        (workerId, payload)    => api.post(`workers/${workerId}/link-contractor/`,    payload).then(r => r.data),
+    unlinkContractor:      (workerId)             => api.post(`workers/${workerId}/unlink-contractor/`,  {}).then(r => r.data),
+    syncFromContractor:    (workerId)             => api.post(`workers/${workerId}/sync-from-contractor/`, {}).then(r => r.data),
+
+    // ── Unified Person API (real-world single record per human) ───────────────
+    getPersons:           (project, active = 'true') =>
+        api.get('persons/', { params: { project, active } }).then(r => r.data),
+    addPerson:            (data)         => api.post('persons/add/', data).then(r => r.data),
+    updatePerson:         (workerId, data) =>
+        api.patch(`persons/${workerId}/update/`, data).then(r => r.data),
+    toggleRole:           (workerId, data) =>
+        api.post(`persons/${workerId}/toggle-role/`, data).then(r => r.data),
+    adoptContractor:      (data)         =>
+        api.post('persons/adopt-contractor/', data).then(r => r.data),
 };
 
 export default attendanceService;

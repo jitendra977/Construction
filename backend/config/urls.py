@@ -83,6 +83,9 @@ urlpatterns = [
 
     # ── Attendance ────────────────────────────────────────────────────────────
     path('api/v1/attendance/', include('apps.attendance.urls')),
+
+    # ── Teams ─────────────────────────────────────────────────────────────────
+    path('api/v1/teams/', include('apps.teams.urls')),
 ]
 
 # Serve media files in development

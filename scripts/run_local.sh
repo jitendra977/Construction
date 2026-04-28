@@ -79,10 +79,16 @@ if $RUN_BACKEND; then
     source venv/bin/activate
 
     # 3. Install / sync requirements
-    if $DO_SETUP || ! python -c "import celery" 2>/dev/null; then
+    #    Prefer requirements-local.txt (no mysqlclient/psycopg2/redis) when
+    #    available — avoids needing native C libs that break on a fresh Mac.
+    if $DO_SETUP || ! python -c "import django" 2>/dev/null; then
         info "Installing Python dependencies (this takes ~30s first time)..."
         pip install -q --upgrade pip
-        pip install -q -r requirements.txt
+        if [ -f "requirements-local.txt" ]; then
+            pip install -q -r requirements-local.txt
+        else
+            pip install -q -r requirements.txt
+        fi
         ok "Dependencies installed"
     else
         ok "Dependencies up to date"

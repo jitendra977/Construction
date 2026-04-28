@@ -1,618 +1,492 @@
 /**
- * WorkersTab — worker roster with QR badge generation & printing.
+ * WorkersTab — Premium Redesign
+ * ─────────────────────────────────────────────────────────────────────────────
+ * A high-end staff management interface combining Workers & Manpower.
  */
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import attendanceService from '../../services/attendanceService';
 import WorkerHistoryModal from './WorkerHistoryModal';
 
 const TRADES = ['MASON','HELPER','CARPENTER','ELECTRICIAN','PLUMBER','PAINTER',
   'STEEL_FIXER','SUPERVISOR','TILE_SETTER','EXCAVATOR','WATERPROOF',
   'DRIVER','SECURITY','ENGINEER','ACCOUNTANT','MANAGER','OTHER'];
-const TRADE_LABELS = {
-  MASON:'Mason (Dakarmi)', HELPER:'Helper (Jugi)', CARPENTER:'Carpenter (Mistri)',
-  ELECTRICIAN:'Electrician', PLUMBER:'Plumber', PAINTER:'Painter',
-  STEEL_FIXER:'Steel Fixer (Lohari)', SUPERVISOR:'Site Supervisor',
-  TILE_SETTER:'Tile Setter', EXCAVATOR:'Excavator Operator',
-  WATERPROOF:'Waterproofing Applicator', DRIVER:'Driver',
-  SECURITY:'Security Guard', ENGINEER:'Engineer',
-  ACCOUNTANT:'Accountant', MANAGER:'Project Manager', OTHER:'Other',
+
+const TRADE_ICONS = {
+  MASON: '🧱', HELPER: '🤝', CARPENTER: '🪚', ELECTRICIAN: '⚡', PLUMBER: '🔧',
+  PAINTER: '🎨', STEEL_FIXER: '🏗️', SUPERVISOR: '🦺', TILE_SETTER: '📐',
+  EXCAVATOR: '🚜', WATERPROOF: '💧', DRIVER: '🚛', SECURITY: '🛡️',
+  ENGINEER: '⚙️', ACCOUNTANT: '📑', MANAGER: '💼', OTHER: '👷'
 };
-const ROLE_COLORS = {
-  OWNER:'#f97316', MANAGER:'#f97316', ENGINEER:'#3b82f6',
-  SUPERVISOR:'#8b5cf6', CONTRACTOR:'#10b981', VIEWER:'#64748b',
-};
+
 const EMPTY_FORM = {
   name:'', trade:'MASON', worker_type:'LABOUR',
   daily_rate:'', overtime_rate_per_hour:'', phone:'', joined_date:'', notes:'',
+  role_attendance: true, role_payment: false, contractor_role: 'LABOUR'
 };
 
-// ── Create Account Modal ──────────────────────────────────────────────────────
-function CreateAccountModal({ worker, onClose, onDone }) {
-  const [email,    setEmail]    = useState('');
-  const [password, setPassword] = useState('');
-  const [saving,   setSaving]   = useState(false);
-  const [result,   setResult]   = useState(null);  // credentials returned
-  const [err,      setErr]      = useState('');
+// ── Shared UI ─────────────────────────────────────────────────────────────────
 
-  const handleCreate = async () => {
-    setSaving(true); setErr('');
-    try {
-      const data = await attendanceService.createWorkerAccount(worker.id, { email, password });
-      setResult(data.credentials);
-      onDone?.();
-    } catch (e) {
-      setErr(e?.response?.data?.error || 'Failed to create account.');
-    } finally { setSaving(false); }
-  };
+const Card = ({ children, style, onClick }) => (
+  <div 
+    onClick={onClick}
+    style={{
+      background: 'var(--t-surface)',
+      borderRadius: 20,
+      border: '1px solid var(--t-border)',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
+      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+      position: 'relative',
+      overflow: 'hidden',
+      cursor: onClick ? 'pointer' : 'default',
+      ...style
+    }}
+  >
+    {children}
+  </div>
+);
 
-  return (
-    <div style={{ position:'fixed', inset:0, zIndex:1000, background:'rgba(0,0,0,0.55)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center' }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ background:'var(--t-surface)', borderRadius:20, border:'1px solid var(--t-border)', padding:28, width:380, maxWidth:'94vw', boxShadow:'0 24px 80px rgba(0,0,0,0.3)' }}>
+const Badge = ({ children, color, icon }) => (
+  <span style={{
+    display: 'inline-flex', alignItems: 'center', gap: 4,
+    padding: '4px 10px', borderRadius: 8, fontSize: 10, fontWeight: 800,
+    background: `${color}15`, color: color,
+    border: `1px solid ${color}30`,
+    textTransform: 'uppercase', letterSpacing: '0.02em'
+  }}>
+    {icon && <span>{icon}</span>}
+    {children}
+  </span>
+);
 
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
-          <h3 style={{ margin:0, fontSize:16, fontWeight:900, color:'var(--t-text)' }}>🔐 Create Login — {worker.name}</h3>
-          <button onClick={onClose} style={{ background:'var(--t-surface2)', border:'1px solid var(--t-border)', borderRadius:8, width:32, height:32, cursor:'pointer', fontSize:16, color:'var(--t-text3)' }}>✕</button>
-        </div>
+const miniBtnStyle = {
+  width: 28, height: 28, borderRadius: 8, border: '1px solid var(--t-border)',
+  background: 'var(--t-bg)', cursor: 'pointer', display: 'flex', alignItems: 'center', 
+  justifyContent: 'center', fontSize: 14, transition: '0.2s'
+};
 
-        {!result ? (<>
-          <p style={{ margin:'0 0 16px', fontSize:13, color:'var(--t-text3)' }}>
-            Create a login account so <strong style={{ color:'var(--t-text)' }}>{worker.name}</strong> can sign in and scan their QR badge independently.
-          </p>
+// ── Modals ────────────────────────────────────────────────────────────────────
 
-          <label style={{ fontSize:12, fontWeight:700, color:'var(--t-text3)', display:'block', marginBottom:4 }}>Email (optional — auto-generated if blank)</label>
-          <input value={email} onChange={e => setEmail(e.target.value)} placeholder="e.g. rambahadur@gmail.com" style={{ width:'100%', padding:'9px 12px', borderRadius:9, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text)', fontSize:13, marginBottom:12, boxSizing:'border-box' }} />
-
-          <label style={{ fontSize:12, fontWeight:700, color:'var(--t-text3)', display:'block', marginBottom:4 }}>Password (optional — auto-generated if blank)</label>
-          <input value={password} onChange={e => setPassword(e.target.value)} placeholder="Leave blank to auto-generate" type="text" style={{ width:'100%', padding:'9px 12px', borderRadius:9, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text)', fontSize:13, marginBottom:16, boxSizing:'border-box' }} />
-
-          {err && <div style={{ padding:'8px 12px', borderRadius:8, background:'rgba(239,68,68,0.1)', color:'#ef4444', fontSize:13, marginBottom:12 }}>{err}</div>}
-
-          <div style={{ display:'flex', gap:8 }}>
-            <button onClick={onClose} style={{ flex:1, padding:'10px', borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-surface2)', color:'var(--t-text)', fontWeight:700, fontSize:13, cursor:'pointer' }}>Cancel</button>
-            <button onClick={handleCreate} disabled={saving} style={{ flex:2, padding:'10px', borderRadius:10, border:'none', background:'#3b82f6', color:'#fff', fontWeight:800, fontSize:13, cursor:'pointer', opacity: saving ? 0.7 : 1 }}>
-              {saving ? 'Creating…' : '🔐 Create Account'}
-            </button>
-          </div>
-        </>) : (
-          // ── Credentials display ──────────────────────────────────────────
-          <div>
-            <div style={{ padding:16, borderRadius:12, background:'rgba(16,185,129,0.08)', border:'1px solid #10b981', marginBottom:16 }}>
-              <p style={{ margin:'0 0 4px', fontSize:12, fontWeight:800, color:'#10b981' }}>✅ ACCOUNT CREATED — COPY & SHARE</p>
-              <p style={{ margin:'0 0 2px', fontSize:13, color:'var(--t-text)' }}><strong>Name:</strong> {result.name}</p>
-              <p style={{ margin:'0 0 2px', fontSize:13, color:'var(--t-text)' }}><strong>Email:</strong> {result.email}</p>
-              <p style={{ margin:'0 0 2px', fontSize:13, color:'var(--t-text)' }}><strong>Username:</strong> {result.username}</p>
-              <p style={{ margin:'0 0 2px', fontSize:13, color:'var(--t-text)' }}><strong>Password:</strong> <code style={{ background:'var(--t-surface2)', padding:'2px 6px', borderRadius:4, fontWeight:900, letterSpacing:'0.05em' }}>{result.password}</code></p>
-            </div>
-            <p style={{ margin:'0 0 14px', fontSize:12, color:'var(--t-text3)' }}>
-              ⚠️ This password will not be shown again. Write it down or share it with the worker now.
-            </p>
-            <button onClick={onClose} style={{ width:'100%', padding:'10px', borderRadius:10, border:'none', background:'#10b981', color:'#fff', fontWeight:800, fontSize:13, cursor:'pointer' }}>Done</button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── QR Badge Modal ────────────────────────────────────────────────────────────
 function QRBadgeModal({ worker, onClose }) {
-  const [qrData, setQrData]   = useState(null);
+  const [qrData,  setQrData]  = useState(null);
   const [loading, setLoading] = useState(true);
-  const [regen, setRegen]     = useState(false);
-  const printRef = useRef(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    try {
-      const d = await attendanceService.getWorkerQRCode(worker.id);
-      setQrData(d);
-    } catch { setQrData(null); }
+    try { const d = await attendanceService.getWorkerQRCode(worker.worker_id); setQrData(d); }
+    catch { setQrData(null); }
     finally { setLoading(false); }
-  }, [worker.id]);
+  }, [worker.worker_id]);
 
   useEffect(() => { load(); }, [load]);
 
-  const handleRegenerate = async () => {
-    if (!window.confirm('Regenerate QR? All previously printed badges for this worker will become invalid.')) return;
-    setRegen(true);
-    await attendanceService.regenerateQR(worker.id);
-    await load();
-    setRegen(false);
-  };
-
   const handlePrint = () => {
     const w = window.open('', '_blank', 'width=400,height=500');
-    w.document.write(`
-      <html><head><title>QR Badge — ${worker.name}</title>
+    w.document.write(`<html><head><title>QR Badge — ${worker.name}</title>
       <style>
-        body { margin: 0; display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; background: #fff; }
-        .badge { border: 2px solid #1a1a2e; border-radius: 16px; padding: 24px 28px; text-align: center; width: 280px; }
-        .badge h2 { margin: 0 0 4px; font-size: 18px; font-weight: 900; color: #1a1a2e; }
-        .badge p  { margin: 0 0 12px; font-size: 12px; color: #64748b; }
-        .badge img { width: 200px; height: 200px; }
-        .badge .tag { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 800; background: #1a1a2e; color: #fff; margin-top: 12px; }
-        .badge .note { font-size: 10px; color: #94a3b8; margin-top: 10px; }
-        @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-      </style></head>
-      <body><div class="badge">
-        <h2>${worker.name}</h2>
-        <p>${qrData?.trade || worker.trade_display}</p>
-        <img src="${qrData?.qr_image}" alt="QR" />
-        <div class="tag">${qrData?.project || 'Project'}</div>
-        <p class="note">Scan to mark attendance</p>
-      </div></body></html>
-    `);
-    w.document.close();
-    w.focus();
-    setTimeout(() => { w.print(); }, 400);
+        body { margin:0; display:flex; align-items:center; justify-content:center; min-height:100vh; font-family:'Inter', sans-serif; background:#f8fafc; }
+        .badge { background:#fff; border-radius:24px; padding:32px; text-align:center; width:300px; box-shadow:0 10px 40px rgba(0,0,0,0.1); border:1px solid #e2e8f0; }
+        .badge h2 { margin:0 0 4px; font-size:22px; font-weight:900; color:#1e293b; }
+        .badge p { margin:0 0 20px; font-size:14px; color:#64748b; font-weight:600; }
+        .badge img { width:220px; height:220px; border-radius:12px; }
+        @media print { body { background:#fff; } .badge { box-shadow:none; border:2px solid #000; } }
+      </style></head><body><div class="badge"><h2>${worker.name}</h2><p>${worker.trade_label}</p><img src="${qrData?.qr_image}" /></div></body></html>`);
+    w.print();
   };
 
   return (
-    <div style={{
-      position:'fixed', inset:0, background:'rgba(0,0,0,0.6)',
-      display:'flex', alignItems:'center', justifyContent:'center', zIndex:2000, padding:16,
-    }}>
-      <div style={{
-        background:'var(--t-surface)', borderRadius:20, padding:28,
-        width:'100%', maxWidth:400, border:'1px solid var(--t-border)',
-        textAlign:'center',
-      }}>
-        {/* Header */}
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
-          <h3 style={{ margin:0, fontSize:16, fontWeight:900, color:'var(--t-text)' }}>
-            📱 QR Badge — {worker.name}
-          </h3>
-          <button onClick={onClose} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'var(--t-text3)' }}>✕</button>
+    <div style={{ position:'fixed', inset:0, zIndex:200, background:'rgba(0,0,0,0.4)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <div style={{ background:'var(--t-surface)', width:360, borderRadius:24, padding:32, textAlign:'center', position:'relative', border:'1px solid var(--t-border)', boxShadow:'0 20px 50px rgba(0,0,0,0.2)' }}>
+        <button onClick={onClose} style={{ position:'absolute', right:20, top:20, background:'none', border:'none', fontSize:18, cursor:'pointer' }}>✕</button>
+        <div style={{ fontSize:40, marginBottom:16 }}>🪪</div>
+        <h2 style={{ margin:0, fontWeight:900, color:'var(--t-text)' }}>Worker Badge</h2>
+        <p style={{ margin:'4px 0 24px', fontSize:14, color:'var(--t-text3)', fontWeight:600 }}>{worker.name}</p>
+        
+        <div style={{ background:'var(--t-bg)', borderRadius:20, padding:20, border:'1px solid var(--t-border)', marginBottom:24, minHeight:200, display:'flex', alignItems:'center', justifyContent:'center' }}>
+          {loading ? <div className="loading-spinner" /> : <img src={qrData?.qr_image} style={{ width:180, height:180, borderRadius:12 }} />}
         </div>
 
-        {loading ? (
-          <div style={{ padding:40, color:'var(--t-text3)' }}>Generating QR code…</div>
-        ) : qrData ? (
-          <>
-            {/* Badge preview */}
-            <div ref={printRef} style={{
-              display:'inline-block', border:'2px solid var(--t-border)',
-              borderRadius:16, padding:'20px 24px', background:'#fff',
-              marginBottom:20,
-            }}>
-              <p style={{ margin:'0 0 4px', fontWeight:900, fontSize:16, color:'#1a1a2e' }}>
-                {worker.name}
-              </p>
-              <p style={{ margin:'0 0 12px', fontSize:11, color:'#64748b' }}>
-                {qrData.trade} · {qrData.project}
-              </p>
-              <img src={qrData.qr_image} alt="QR" style={{ width:180, height:180, display:'block', margin:'0 auto' }} />
-              <p style={{ margin:'10px 0 0', fontSize:10, color:'#94a3b8' }}>
-                Scan to mark attendance
-              </p>
-            </div>
-
-            {/* Actions */}
-            <div style={{ display:'flex', gap:10, marginBottom:14 }}>
-              <button onClick={handlePrint} style={{
-                flex:1, padding:'10px', borderRadius:10, fontWeight:800, fontSize:13,
-                background:'#1a1a2e', color:'#fff', border:'none', cursor:'pointer',
-              }}>🖨️ Print Badge</button>
-              <button onClick={() => {
-                const a = document.createElement('a');
-                a.href = qrData.qr_image;
-                a.download = `qr-${worker.name.replace(/\s+/g,'-')}.png`;
-                a.click();
-              }} style={{
-                flex:1, padding:'10px', borderRadius:10, fontWeight:800, fontSize:13,
-                background:'var(--t-bg)', color:'var(--t-text)',
-                border:'1px solid var(--t-border)', cursor:'pointer',
-              }}>⬇️ Download PNG</button>
-            </div>
-
-            <button onClick={handleRegenerate} disabled={regen} style={{
-              width:'100%', padding:'8px', borderRadius:8, fontWeight:700, fontSize:12,
-              border:'1px solid #ef4444', background:'rgba(239,68,68,0.06)',
-              color:'#ef4444', cursor:'pointer', opacity: regen ? 0.6 : 1,
-            }}>
-              {regen ? 'Regenerating…' : '🔄 Regenerate QR (invalidates old badges)'}
-            </button>
-          </>
-        ) : (
-          <div style={{ padding:40, color:'#ef4444' }}>Failed to load QR code.</div>
-        )}
+        <button onClick={handlePrint} style={{ width:'100%', padding:'14px', borderRadius:14, border:'none', background:'var(--t-text)', color:'var(--t-surface)', fontWeight:900, cursor:'pointer' }}>🖨️ Print Badge</button>
       </div>
     </div>
   );
 }
 
-// ── Main component ─────────────────────────────────────────────────────────────
+// ── Main Component ────────────────────────────────────────────────────────────
+
 export default function WorkersTab({ projectId }) {
-  const [workers, setWorkers]           = useState([]);
-  const [loading, setLoading]           = useState(false);
-  const [error, setError]               = useState('');
-  const [showForm, setShowForm]         = useState(false);
-  const [editing, setEditing]           = useState(null);
-  const [form, setForm]                 = useState(EMPTY_FORM);
-  const [saving, setSaving]             = useState(false);
-  const [filter, setFilter]             = useState('ALL');
-  const [searchTerm, setSearchTerm]     = useState('');
-  const [showImport, setShowImport]     = useState(false);
-  const [unlinked, setUnlinked]         = useState([]);
-  const [importRates, setImportRates]   = useState({});
-  const [importing, setImporting]       = useState(null);
-  const [qrWorker,      setQrWorker]      = useState(null);
-  const [accountWorker, setAccountWorker] = useState(null); // worker for create-account modal
+  const [persons,    setPersons]    = useState([]);
+  const [orphans,    setOrphans]    = useState([]);
+  const [summary,    setSummary]    = useState(null);
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState('');
+  
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterTab,  setFilterTab]  = useState('ALL'); 
+  const [viewMode,   setViewMode]   = useState('TABLE'); 
+  const [groupBy,    setGroupBy]    = useState('NONE'); 
+
+  const [qrPerson,      setQrPerson]      = useState(null);
   const [historyId,     setHistoryId]     = useState(null);
+  const [showForm,      setShowForm]      = useState(false);
+  const [editingId,     setEditingId]     = useState(null);
+  const [form,          setForm]          = useState(EMPTY_FORM);
+  const [saving,        setSaving]        = useState(false);
 
   const load = useCallback(async () => {
     if (!projectId) return;
-    setLoading(true);
+    setLoading(true); setError('');
     try {
-      const data = await attendanceService.getWorkers({ project: projectId });
-      setWorkers(Array.isArray(data) ? data : data.results || []);
-    } catch { setError('Failed to load workers.'); }
+      const data = await attendanceService.getPersons(projectId, 'all');
+      setPersons(data.persons || []);
+      setOrphans(data.orphan_contractors || []);
+      setSummary(data.summary);
+    } catch { setError('Connection lost. Please try again.'); }
     finally  { setLoading(false); }
   }, [projectId]);
 
   useEffect(() => { load(); }, [load]);
 
-  const deleteWorker = async (id) => {
-    if (!window.confirm('Delete this worker and all their attendance records?')) return;
-    try { await attendanceService.deleteWorker(id); load(); }
-    catch { setError('Delete failed.'); }
-  };
-
-  const openImport = async () => {
-    const data = await attendanceService.getUnlinkedTeamMembers(projectId);
-    const list = Array.isArray(data) ? data : [];
-    setUnlinked(list);
-    const rates = {};
-    list.forEach(m => { rates[m.member_id] = ''; });
-    setImportRates(rates);
-    setShowImport(true);
-  };
-
-  const doImport = async (member) => {
-    setImporting(member.member_id);
-    try {
-      await attendanceService.importTeamMember({
-        project: projectId, member_id: member.member_id,
-        daily_rate: importRates[member.member_id] || 0, worker_type: 'STAFF',
-      });
-      setUnlinked(u => u.filter(m => m.member_id !== member.member_id));
-      load();
-    } catch (e) { setError(e.response?.data?.error || 'Import failed.'); }
-    finally     { setImporting(null); }
-  };
-
-  const openEdit = (w) => {
-    setEditing(w.id);
-    setForm({
-      name: w.name, trade: w.trade, worker_type: w.worker_type,
-      daily_rate: w.daily_rate, overtime_rate_per_hour: w.overtime_rate_per_hour || '',
-      phone: w.phone || '', joined_date: w.joined_date || '', notes: w.notes || '',
-    });
-    setShowForm(true);
-  };
-
-  const save = async () => {
+  const handleSave = async () => {
     if (!form.name.trim()) return;
     setSaving(true);
     try {
       const payload = { ...form, project: projectId };
-      if (editing) await attendanceService.updateWorker(editing, payload);
-      else         await attendanceService.createWorker(payload);
-      setShowForm(false);
-      load();
-    } catch (e) { setError(e.response?.data ? JSON.stringify(e.response.data) : 'Save failed.'); }
+      if (editingId) await attendanceService.updatePerson(editingId, payload);
+      else           await attendanceService.addPerson(payload);
+      setShowForm(false); load();
+    } catch (e) { setError('Failed to save record.'); }
     finally     { setSaving(false); }
   };
 
-  const toggleActive = async (w) => {
-    try { await attendanceService.updateWorker(w.id, { is_active: !w.is_active }); load(); }
-    catch { setError('Update failed.'); }
-  };
-
-  const displayed = workers.filter(w => {
-    const matchType   = filter === 'ALL' || w.worker_type === filter;
-    const matchSearch = w.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        w.trade_display.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchType && matchSearch;
+  const filteredPersons = persons.filter(p => {
+    const search = searchTerm.toLowerCase();
+    const matchSearch = p.name.toLowerCase().includes(search) || (p.trade_label||'').toLowerCase().includes(search);
+    const matchTab    = filterTab === 'ALL' || (filterTab === 'ORPHAN' ? false : p.worker_type === filterTab);
+    return matchSearch && matchTab;
   });
 
-  if (!projectId) return (
-    <div style={{ padding:40, textAlign:'center', color:'var(--t-text3)' }}>Select a project first.</div>
+  const filteredOrphans = filterTab === 'ALL' || filterTab === 'ORPHAN' ? orphans.filter(o => o.name.toLowerCase().includes(searchTerm.toLowerCase())) : [];
+
+  if (!projectId) return <div style={{ textAlign:'center', padding:100 }}>🏗️ Select a project first.</div>;
+
+  const renderWorkerList = (list) => {
+    if (viewMode === 'GRID') {
+      return (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+          {list.map(p => (
+            <PersonCard 
+              key={p.worker_id} p={p} 
+              onEdit={() => { setEditingId(p.worker_id); setForm(p); setShowForm(true); }} 
+              onQR={() => setQrPerson(p)} 
+              onHistory={() => setHistoryId(p.worker_id)} 
+            />
+          ))}
+        </div>
+      );
+    }
+    return (
+      <div style={{ background: 'var(--t-surface)', borderRadius: 20, border: '1px solid var(--t-border)', overflow: 'hidden' }}>
+        <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+          <thead style={{ background:'var(--t-bg)', borderBottom:'1px solid var(--t-border)' }}>
+            <tr>
+              {['Staff Name', 'Trade', 'Type', 'Daily Rate', 'Status', 'Roles', 'Actions'].map(h => (
+                <th key={h} style={{ padding:'14px 16px', textAlign:'left', fontSize:11, fontWeight:800, color:'var(--t-text3)', textTransform:'uppercase', letterSpacing:'0.05em' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {list.map(p => (
+              <PersonRow 
+                key={p.worker_id} p={p} 
+                onEdit={() => { setEditingId(p.worker_id); setForm(p); setShowForm(true); }} 
+                onQR={() => setQrPerson(p)} 
+                onHistory={() => setHistoryId(p.worker_id)} 
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ padding: '0 0 40px' }}>
+      
+      {/* ── Summary Section ── */}
+      <div style={{ display:'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap:16, marginBottom:24 }}>
+        <SummaryCard label="Total Force" value={summary?.total || 0} color="#6366f1" icon="👥" />
+        <SummaryCard label="Active Now" value={summary?.active || 0} color="#22c55e" icon="⚡" />
+        <SummaryCard label="Pay Linked" value={summary?.with_payment || 0} color="#f59e0b" icon="💰" />
+        <SummaryCard label="Login Ready" value={summary?.with_login || 0} color="#3b82f6" icon="🔐" />
+      </div>
+
+      {/* ── Action Bar ── */}
+      <div style={{ display:'flex', gap:12, marginBottom:24, flexWrap:'wrap', alignItems:'center', background:'var(--t-surface)', padding:12, borderRadius:16, border:'1px solid var(--t-border)' }}>
+        <div style={{ position:'relative', flex:1, minWidth:240 }}>
+          <span style={{ position:'absolute', left:14, top:10, color:'var(--t-text3)' }}>🔍</span>
+          <input type="text" placeholder="Search roster..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+            style={{ width:'100%', padding:'10px 14px 10px 40px', borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text)', fontSize:14, outline:'none' }} />
+        </div>
+
+        <div style={{ display:'flex', gap:6, background:'var(--t-bg)', padding:4, borderRadius:10 }}>
+          {['ALL', 'LABOUR', 'STAFF', 'ORPHAN'].map(tab => (
+            <button key={tab} onClick={() => setFilterTab(tab)} style={{
+              padding:'7px 14px', borderRadius:8, border:'none', fontSize:11, fontWeight:800, cursor:'pointer',
+              background: filterTab === tab ? '#f97316' : 'transparent', color: filterTab === tab ? '#fff' : 'var(--t-text3)'
+            }}>{tab}</button>
+          ))}
+        </div>
+
+        <select value={groupBy} onChange={e => setGroupBy(e.target.value)} style={{ padding:'8px 12px', borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text)', fontSize:11, fontWeight:900 }}>
+          <option value="NONE">Ungrouped</option>
+          <option value="TEAM">Group by Team</option>
+          <option value="TRADE">Group by Trade</option>
+        </select>
+
+        <button onClick={() => { setEditingId(null); setForm(EMPTY_FORM); setShowForm(true); }}
+          style={{ padding:'10px 20px', borderRadius:12, border:'none', background:'#f97316', color:'#fff', fontWeight:900, fontSize:13, cursor:'pointer' }}>+ Register Staff</button>
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign:'center', padding:60 }}>Loading workforce roster...</div>
+      ) : (
+        <>
+          {groupBy === 'NONE' ? (
+            renderWorkerList(filteredPersons)
+          ) : (
+            (() => {
+              const groups = {};
+              filteredPersons.forEach(p => {
+                let key = groupBy === 'TEAM' ? (p.teams?.[0]?.name || 'Unassigned') : (p.trade_label || 'Other');
+                if (!groups[key]) groups[key] = [];
+                groups[key].push(p);
+              });
+              return Object.entries(groups).sort().map(([key, members]) => (
+                <div key={key} style={{ marginBottom:32 }}>
+                   <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16, padding:'0 4px' }}>
+                    <div style={{ padding:'4px 12px', borderRadius:8, background:'var(--t-surface2)', fontSize:12, fontWeight:900, color:'var(--t-primary)' }}>{key}</div>
+                    <div style={{ flex:1, height:1, background:'var(--t-border)', opacity:0.5 }} />
+                  </div>
+                  {renderWorkerList(members)}
+                </div>
+              ));
+            })()
+          )}
+
+          {/* Orphans */}
+          {filteredOrphans.length > 0 && (
+            <div style={{ marginTop:40 }}>
+               <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16, padding:'0 4px' }}>
+                <div style={{ padding:'4px 12px', borderRadius:8, background:'#fef3c7', fontSize:12, fontWeight:900, color:'#92400e' }}>UNLINKED CONTRACTORS</div>
+                <div style={{ flex:1, height:1, background:'var(--t-border)', opacity:0.5 }} />
+              </div>
+              <div style={{ opacity:0.7 }}>{renderWorkerList(filteredOrphans.map(o => ({ ...o, worker_id: o.contractor_id, worker_type:'ORPHAN', is_orphan:true })))}</div>
+            </div>
+          )}
+        </>
+      )}
+
+      {qrPerson && <QRBadgeModal worker={qrPerson} onClose={() => setQrPerson(null)} />}
+      {historyId && <WorkerHistoryModal workerId={historyId} onClose={() => setHistoryId(null)} />}
+      {showForm && <StaffFormSheet editingId={editingId} form={form} setForm={setForm} onSave={handleSave} onClose={() => setShowForm(false)} saving={saving} />}
+    </div>
+  );
+}
+
+// ── Components ───────────────────────────────────────────────────────────────
+
+function SummaryCard({ label, value, color, icon }) {
+  return (
+    <Card style={{ padding:20, borderLeft: `4px solid ${color}` }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        <div>
+          <div style={{ fontSize:28, fontWeight:900, color:color, marginBottom:2 }}>{value}</div>
+          <div style={{ fontSize:11, fontWeight:800, color:'var(--t-text3)', textTransform:'uppercase', letterSpacing:'0.05em' }}>{label}</div>
+        </div>
+        <div style={{ fontSize:24 }}>{icon}</div>
+      </div>
+    </Card>
+  );
+}
+
+function PersonRow({ p, onEdit, onQR, onHistory }) {
+  const isPresent = p.today_status === 'PRESENT';
+  return (
+    <tr style={{ borderBottom:'1px solid var(--t-border)' }}>
+      <td style={{ padding:'12px 16px' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <div style={{ width:32, height:32, borderRadius:8, background:'var(--t-bg)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16 }}>{TRADE_ICONS[p.trade]||'👷'}</div>
+          <div style={{ fontWeight:700, color:p.is_orphan ? '#f59e0b' : 'var(--t-text)' }}>{p.name}</div>
+        </div>
+      </td>
+      <td style={{ padding:'12px 16px', color:'var(--t-text3)', fontWeight:600 }}>{p.trade_label || 'Other'}</td>
+      <td style={{ padding:'12px 16px' }}><Badge color={p.worker_type==='STAFF'?'#6366f1':'#94a3b8'}>{p.worker_type}</Badge></td>
+      <td style={{ padding:'12px 16px', fontWeight:700, color:'#f97316' }}>{p.daily_rate ? `NPR ${Number(p.daily_rate).toLocaleString()}` : '—'}</td>
+      <td style={{ padding:'12px 16px' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+          <div style={{ width:8, height:8, borderRadius:'50%', background: isPresent?'#22c55e':p.today_status==='ABSENT'?'#ef4444':'#d1d5db' }} />
+          <span style={{ fontSize:11, fontWeight:700, color:'var(--t-text3)' }}>{p.today_status || 'NOT MARKED'}</span>
+        </div>
+      </td>
+      <td style={{ padding:'12px 16px' }}>
+        <div style={{ display:'flex', gap:4 }}>
+          {p.role_attendance && <span title="Attendance Ready">📋</span>}
+          {p.role_payment && <span title="Payment Linked">💰</span>}
+        </div>
+      </td>
+      <td style={{ padding:'12px 16px' }}>
+        <div style={{ display:'flex', gap:4 }}>
+          <button onClick={onQR} style={miniBtnStyle}>🪪</button>
+          <button onClick={onHistory} style={miniBtnStyle}>🕒</button>
+          <button onClick={onEdit} style={miniBtnStyle}>✏️</button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function PersonCard({ p, onEdit, onQR, onHistory }) {
+  const isPresent = p.today_status === 'PRESENT';
+  return (
+    <Card style={{ padding:20 }}>
+       <div style={{ display:'flex', gap:16, alignItems:'flex-start', marginBottom:16 }}>
+          <div style={{ 
+            width:54, height:54, borderRadius:16, background:'var(--t-bg)', 
+            display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, border:'1px solid var(--t-border)'
+          }}>
+            {TRADE_ICONS[p.trade] || '👷'}
+          </div>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontWeight:900, fontSize:16, color:'var(--t-text)', marginBottom:2 }}>{p.name}</div>
+            <div style={{ fontSize:12, fontWeight:700, color:'var(--t-text3)' }}>{p.trade_label} • <span style={{color:'#f97316'}}>Rs. {Number(p.daily_rate||0).toLocaleString()}</span></div>
+          </div>
+       </div>
+       <div style={{ display:'flex', gap:8, borderTop:'1px solid var(--t-border)', paddingTop:16 }}>
+          <button onClick={onQR} style={{flex:1, padding:'8px', borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-bg)', fontSize:12, fontWeight:800}}>Badge</button>
+          <button onClick={onHistory} style={{flex:1, padding:'8px', borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-bg)', fontSize:12, fontWeight:800}}>History</button>
+          <button onClick={onEdit} style={{flex:1, padding:'8px', borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-bg)', fontSize:12, fontWeight:800}}>Edit</button>
+       </div>
+    </Card>
+  );
+}
+
+function StaffFormSheet({ editingId, form, setForm, onSave, onClose, saving }) {
+  const set = (f, v) => setForm(prev => ({ ...prev, [f]: v }));
+  
+  const sectionTitleStyle = { fontSize:13, fontWeight:900, marginBottom:16, color:'var(--t-text)', display:'flex', alignItems:'center', gap:8 };
+  const inputStyle = { width:'100%', padding:'12px 14px', borderRadius:14, border:'1px solid var(--t-border)', background:'var(--t-surface)', color:'var(--t-text)', fontSize:14, outline:'none', fontWeight:600 };
+  
+  const Field = ({ label, children }) => (
+    <div style={{ flex:1 }}>
+      <label style={{ display:'block', fontSize:10, fontWeight:800, color:'var(--t-text3)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6, marginLeft:4 }}>{label}</label>
+      {children}
+    </div>
+  );
+
+  const RoleToggle = ({ icon, title, desc, checked, onChange }) => (
+    <div onClick={() => onChange(!checked)} style={{ display:'flex', gap:12, alignItems:'center', padding:12, borderRadius:16, border:`1px solid ${checked?'var(--t-primary)':'var(--t-border)'}`, background:checked?'var(--t-primary)05':'transparent', cursor:'pointer', transition:'0.2s' }}>
+      <div style={{ width:36, height:36, borderRadius:10, background:'var(--t-bg)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, border:'1px solid var(--t-border)' }}>{icon}</div>
+      <div style={{ flex:1 }}>
+        <div style={{ fontSize:13, fontWeight:900, color:'var(--t-text)' }}>{title}</div>
+        <div style={{ fontSize:11, color:'var(--t-text3)', fontWeight:600 }}>{desc}</div>
+      </div>
+      <div style={{ width:40, height:22, borderRadius:20, background:checked?'#f97316':'#e2e8f0', position:'relative', transition:'0.3s' }}>
+        <div style={{ position:'absolute', top:3, left:checked?21:3, width:16, height:16, borderRadius:'50%', background:'#fff', transition:'0.3s', boxShadow:'0 2px 4px rgba(0,0,0,0.1)' }} />
+      </div>
+    </div>
   );
 
   return (
-    <div>
-      {/* Toolbar */}
-      <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16, flexWrap:'wrap' }}>
-        <div style={{ display:'flex', gap:4 }}>
-          {['ALL','LABOUR','STAFF'].map(f => (
-            <button key={f} onClick={() => setFilter(f)} style={{
-              padding:'6px 14px', borderRadius:8, fontSize:12, fontWeight:700,
-              border:'1px solid var(--t-border)',
-              background: filter===f ? '#f97316' : 'var(--t-surface)',
-              color: filter===f ? '#fff' : 'var(--t-text)', cursor:'pointer',
-            }}>{f}</button>
-          ))}
+    <div style={{ position:'fixed', inset:0, zIndex:300, display:'flex', justifyContent:'flex-end', background:'rgba(0,0,0,0.4)', backdropFilter:'blur(8px)' }}>
+      <style>{`
+        .form-section { padding: 30px; border-bottom: 1px solid var(--t-border); }
+        .form-section:last-child { border-bottom: none; }
+      `}</style>
+
+      <div style={{ width:480, background:'var(--t-bg)', height:'100%', display:'flex', flexDirection:'column', boxShadow:'-20px 0 60px rgba(0,0,0,0.2)' }}>
+        {/* Header */}
+        <div style={{ padding:'24px 30px', borderBottom:'1px solid var(--t-border)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+          <div>
+            <h2 style={{ margin:0, fontWeight:900, fontSize:22 }}>{editingId ? 'Edit Profile' : 'Register New Staff'}</h2>
+            <p style={{ margin:'4px 0 0', fontSize:12, color:'var(--t-text3)', fontWeight:600 }}>Manage workforce identity & roles.</p>
+          </div>
+          <button onClick={onClose} style={{ background:'var(--t-bg)', border:'1px solid var(--t-border)', width:36, height:36, borderRadius:12, cursor:'pointer', fontSize:18 }}>✕</button>
         </div>
-        <input type="text" placeholder="Search worker…" value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)} style={{
-            padding:'6px 12px', borderRadius:8, fontSize:12,
-            border:'1px solid var(--t-border)', background:'var(--t-surface)',
-            color:'var(--t-text)', width:180,
-          }} />
-        <div style={{ marginLeft:'auto', display:'flex', gap:8 }}>
-          <button onClick={openImport} style={{
-            padding:'8px 16px', borderRadius:10, fontSize:13, fontWeight:700,
-            background:'var(--t-surface)', color:'#3b82f6',
-            border:'1px solid #3b82f6', cursor:'pointer',
-          }}>👥 Import from Team</button>
-          <button onClick={() => { setEditing(null); setForm(EMPTY_FORM); setShowForm(true); }} style={{
-            padding:'8px 18px', borderRadius:10, fontSize:13, fontWeight:800,
-            background:'#f97316', color:'#fff', border:'none', cursor:'pointer',
-          }}>+ Add Worker</button>
+
+        <div style={{ flex:1, overflowY:'auto' }}>
+          {/* Identity Section */}
+          <div className="form-section">
+            <h3 style={sectionTitleStyle}>👤 Identity</h3>
+            <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+              <Field label="Full Name">
+                <input style={inputStyle} value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Ram Bahadur Tamang" />
+              </Field>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+                <Field label="Phone Number">
+                  <input style={inputStyle} value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="98XXXXXXXX" />
+                </Field>
+                <Field label="Staff Type">
+                  <select style={inputStyle} value={form.worker_type} onChange={e => set('worker_type', e.target.value)}>
+                    <option value="LABOUR">Daily Labour</option>
+                    <option value="STAFF">Internal Staff</option>
+                  </select>
+                </Field>
+              </div>
+            </div>
+          </div>
+
+          {/* Work Section */}
+          <div className="form-section" style={{ background:'rgba(249,115,22,0.02)' }}>
+            <h3 style={sectionTitleStyle}>🏗️ Work & Pay</h3>
+            <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+              <Field label="Primary Trade">
+                <select style={inputStyle} value={form.trade} onChange={e => set('trade', e.target.value)}>
+                  {TRADES.map(t => <option key={t} value={t}>{TRADE_ICONS[t]} {t}</option>)}
+                </select>
+              </Field>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+                <Field label="Daily Wage (NPR)">
+                  <input style={inputStyle} type="number" value={form.daily_rate} onChange={e => set('daily_rate', e.target.value)} />
+                </Field>
+                <Field label="Joined Date">
+                  <input style={inputStyle} type="date" value={form.joined_date} onChange={e => set('joined_date', e.target.value)} />
+                </Field>
+              </div>
+            </div>
+          </div>
+
+          {/* Roles Section */}
+          <div className="form-section">
+            <h3 style={sectionTitleStyle}>🔐 Capabilities</h3>
+            <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+              <RoleToggle 
+                icon="📋" title="Attendance Tracking" desc="Enable QR scanning for check-in" 
+                checked={form.role_attendance} onChange={v => set('role_attendance', v)} 
+              />
+              <RoleToggle 
+                icon="💰" title="Financial Linking" desc="Connect to payment ledger" 
+                checked={form.role_payment} onChange={v => set('role_payment', v)} 
+              />
+            </div>
+          </div>
+
+          <div className="form-section">
+             <Field label="Internal Notes">
+               <textarea style={{...inputStyle, height:80, resize:'none'}} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Skills, equipment provided..." />
+             </Field>
+          </div>
+        </div>
+
+        <div style={{ padding:'24px 30px', borderTop:'1px solid var(--t-border)', background:'var(--t-surface)' }}>
+          <button 
+            onClick={onSave} 
+            disabled={saving}
+            style={{ width:'100%', padding:16, borderRadius:16, border:'none', background:'#000', color:'#fff', fontWeight:900, fontSize:15, cursor:'pointer', boxShadow:'0 10px 30px rgba(0,0,0,0.1)' }}
+          >
+            {saving ? 'Synchronizing...' : editingId ? 'Update Profile' : 'Register Staff'}
+          </button>
         </div>
       </div>
-
-      {error && (
-        <div style={{ padding:'8px 14px', borderRadius:8, background:'rgba(239,68,68,0.1)', color:'#ef4444', fontSize:13, marginBottom:12 }}>
-          {error}
-        </div>
-      )}
-
-      {/* Table */}
-      {loading ? (
-        <div style={{ padding:40, textAlign:'center', color:'var(--t-text3)' }}>Loading…</div>
-      ) : displayed.length === 0 ? (
-        <div style={{ padding:40, textAlign:'center', borderRadius:12, background:'var(--t-surface)', border:'1px solid var(--t-border)', color:'var(--t-text3)' }}>
-          No workers yet. Click "+ Add Worker" to get started.
-        </div>
-      ) : (
-        <div style={{ overflowX:'auto' }}>
-          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
-            <thead>
-              <tr style={{ background:'var(--t-surface)' }}>
-                {['Name','Type','Trade','Daily Rate','OT Rate/hr','Phone','Login Account','Status','QR',''].map(h => (
-                  <th key={h} style={{
-                    padding:'10px 12px', textAlign:'left', fontWeight:800, fontSize:11,
-                    textTransform:'uppercase', letterSpacing:'0.05em',
-                    color:'var(--t-text3)', borderBottom:'2px solid var(--t-border)',
-                  }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {displayed.map((w, i) => (
-                <tr key={w.id} style={{
-                  borderBottom:'1px solid var(--t-border)',
-                  opacity: w.is_active ? 1 : 0.5,
-                  background: i % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.02)',
-                }}>
-                  <td style={{ padding:'10px 12px', fontWeight:700, color:'var(--t-text)' }}>{w.name}</td>
-                  <td style={{ padding:'10px 12px' }}>
-                    <span style={{
-                      padding:'2px 8px', borderRadius:6, fontSize:11, fontWeight:700,
-                      background: w.worker_type==='STAFF' ? 'rgba(59,130,246,0.1)' : 'rgba(249,115,22,0.1)',
-                      color: w.worker_type==='STAFF' ? '#3b82f6' : '#f97316',
-                    }}>{w.worker_type}</span>
-                  </td>
-                  <td style={{ padding:'10px 12px', color:'var(--t-text3)' }}>{w.trade_display}</td>
-                  <td style={{ padding:'10px 12px', fontWeight:700 }}>NPR {Number(w.daily_rate).toLocaleString()}</td>
-                  <td style={{ padding:'10px 12px', color:'var(--t-text3)' }}>
-                    {Number(w.overtime_rate_per_hour) > 0
-                      ? `NPR ${Number(w.overtime_rate_per_hour).toLocaleString()}`
-                      : <span style={{ color:'#10b981', fontSize:11 }}>Auto (1.5×)</span>}
-                  </td>
-                  <td style={{ padding:'10px 12px', color:'var(--t-text3)' }}>{w.phone || '—'}</td>
-
-                  {/* ── Login Account ── */}
-                  <td style={{ padding:'10px 12px' }}>
-                    {w.has_account ? (
-                      <div>
-                        <span style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'2px 8px', borderRadius:6, fontSize:11, fontWeight:700, background:'rgba(16,185,129,0.1)', color:'#10b981' }}>
-                          ✅ Active
-                        </span>
-                        <p style={{ margin:'2px 0 0', fontSize:11, color:'var(--t-text3)' }}>{w.account_email || w.account_username}</p>
-                      </div>
-                    ) : (
-                      <button onClick={() => setAccountWorker(w)} style={{
-                        padding:'4px 10px', borderRadius:6, fontSize:11, fontWeight:700,
-                        border:'1px solid #3b82f6', background:'rgba(59,130,246,0.08)',
-                        color:'#3b82f6', cursor:'pointer', whiteSpace:'nowrap',
-                      }}>➕ Create Login</button>
-                    )}
-                  </td>
-
-                  <td style={{ padding:'10px 12px' }}>
-                    <button onClick={() => toggleActive(w)} style={{
-                      padding:'3px 10px', borderRadius:6, fontSize:11, fontWeight:700,
-                      border:`1px solid ${w.is_active ? '#10b981' : '#ef4444'}`,
-                      background: w.is_active ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
-                      color: w.is_active ? '#10b981' : '#ef4444', cursor:'pointer',
-                    }}>{w.is_active ? 'Active' : 'Inactive'}</button>
-                  </td>
-                  {/* QR button */}
-                  <td style={{ padding:'10px 12px' }}>
-                    <button onClick={() => setQrWorker(w)} title="Show QR Badge" style={{
-                      padding:'4px 10px', borderRadius:6, fontSize:13, fontWeight:700,
-                      border:'1px solid #f97316', background:'rgba(249,115,22,0.08)',
-                      color:'#f97316', cursor:'pointer',
-                    }}>📱 QR</button>
-                  </td>
-                  <td style={{ padding:'10px 12px' }}>
-                    <div style={{ display:'flex', gap:6 }}>
-                      <button onClick={() => openEdit(w)} style={{
-                        padding:'4px 10px', borderRadius:6, fontSize:12, fontWeight:700,
-                        border:'1px solid var(--t-border)', background:'var(--t-bg)',
-                        color:'var(--t-text)', cursor:'pointer',
-                      }}>✏️</button>
-                      <button onClick={() => setHistoryId(w.id)} style={{
-                        padding:'4px 10px', borderRadius:6, fontSize:12, fontWeight:700,
-                        border:'1px solid var(--t-border)', background:'var(--t-bg)',
-                        color:'var(--t-text3)', cursor:'pointer',
-                      }}>🕒</button>
-                      <button onClick={() => deleteWorker(w.id)} style={{
-                        padding:'4px 10px', borderRadius:6, fontSize:12, fontWeight:700,
-                        border:'1px solid rgba(239,68,68,0.2)', background:'rgba(239,68,68,0.05)',
-                        color:'#ef4444', cursor:'pointer',
-                      }}>🗑️</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* QR Badge Modal */}
-      {qrWorker && <QRBadgeModal worker={qrWorker} onClose={() => setQrWorker(null)} />}
-
-      {/* Create Account Modal */}
-      {accountWorker && (
-        <CreateAccountModal
-          worker={accountWorker}
-          onClose={() => setAccountWorker(null)}
-          onDone={() => { load(); }}
-        />
-      )}
-
-      {/* History Modal */}
-      {historyId && <WorkerHistoryModal workerId={historyId} onClose={() => setHistoryId(null)} />}
-
-      {/* Import Modal */}
-      {showImport && (
-        <div style={{
-          position:'fixed', inset:0, background:'rgba(0,0,0,0.5)',
-          display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:16,
-        }}>
-          <div style={{
-            background:'var(--t-surface)', borderRadius:16, padding:28,
-            width:'100%', maxWidth:540, maxHeight:'90vh', overflowY:'auto',
-            border:'1px solid var(--t-border)',
-          }}>
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
-              <h3 style={{ margin:0, fontSize:16, fontWeight:800, color:'var(--t-text)' }}>👥 Import from Project Team</h3>
-              <button onClick={() => setShowImport(false)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'var(--t-text3)' }}>✕</button>
-            </div>
-            {unlinked.length === 0 ? (
-              <div style={{ textAlign:'center', padding:'24px 16px' }}>
-                <p style={{ margin:'0 0 8px', fontSize:28 }}>✅</p>
-                <p style={{ margin:'0 0 6px', fontWeight:800, fontSize:14, color:'var(--t-text)' }}>All team members are already imported.</p>
-                <p style={{ margin:0, fontSize:12, color:'var(--t-text3)', lineHeight:1.6 }}>
-                  To add new people, use <strong>+ Add Worker</strong> (for daily labour/contractors without accounts) or first invite them to the project via <strong>Project Team</strong> settings, then come back here.
-                  <br/>To give any worker a login, use the <strong>➕ Create Login</strong> button in the worker table.
-                </p>
-              </div>
-            ) : (
-              <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-                <p style={{ margin:'0 0 12px', fontSize:12, color:'var(--t-text3)' }}>
-                  Set daily rate then click Import.
-                </p>
-                {unlinked.map(m => (
-                  <div key={m.member_id} style={{
-                    display:'flex', alignItems:'center', gap:12, padding:'12px 14px',
-                    borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-bg)',
-                  }}>
-                    <div style={{
-                      width:36, height:36, borderRadius:'50%', flexShrink:0,
-                      background: ROLE_COLORS[m.role] || '#64748b',
-                      display:'flex', alignItems:'center', justifyContent:'center',
-                      color:'#fff', fontWeight:800, fontSize:14,
-                    }}>{m.name.charAt(0).toUpperCase()}</div>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontWeight:700, fontSize:13, color:'var(--t-text)' }}>{m.name}</div>
-                      <div style={{ fontSize:11, color:'var(--t-text3)' }}>
-                        <span style={{ padding:'1px 6px', borderRadius:4, fontWeight:700, marginRight:6,
-                          background:`${ROLE_COLORS[m.role]||'#64748b'}22`, color:ROLE_COLORS[m.role]||'#64748b' }}>
-                          {m.role}
-                        </span>
-                        {m.email}
-                      </div>
-                    </div>
-                    <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:2, flexShrink:0 }}>
-                      <label style={{ fontSize:10, fontWeight:700, color:'var(--t-text3)', textTransform:'uppercase' }}>Daily Rate</label>
-                      <input type="number" placeholder="NPR"
-                        value={importRates[m.member_id] || ''}
-                        onChange={e => setImportRates(r => ({ ...r, [m.member_id]: e.target.value }))}
-                        style={{ width:90, padding:'5px 8px', borderRadius:7, border:'1px solid var(--t-border)', background:'var(--t-surface)', color:'var(--t-text)', fontSize:12, textAlign:'right' }} />
-                    </div>
-                    <button onClick={() => doImport(m)} disabled={importing===m.member_id} style={{
-                      padding:'7px 14px', borderRadius:8, fontSize:12, fontWeight:800,
-                      background: importing===m.member_id ? '#94a3b8' : '#3b82f6',
-                      color:'#fff', border:'none', cursor:'pointer', flexShrink:0,
-                    }}>{importing===m.member_id ? '…' : 'Import'}</button>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div style={{ marginTop:20, textAlign:'right' }}>
-              <button onClick={() => setShowImport(false)} style={{
-                padding:'9px 22px', borderRadius:10, fontWeight:700, fontSize:13,
-                border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text)', cursor:'pointer',
-              }}>Close</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add/Edit Modal */}
-      {showForm && (
-        <div style={{
-          position:'fixed', inset:0, background:'rgba(0,0,0,0.5)',
-          display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:16,
-        }}>
-          <div style={{
-            background:'var(--t-surface)', borderRadius:16, padding:28,
-            width:'100%', maxWidth:480, maxHeight:'90vh', overflowY:'auto',
-            border:'1px solid var(--t-border)',
-          }}>
-            <h3 style={{ margin:'0 0 20px', fontSize:16, fontWeight:800, color:'var(--t-text)' }}>
-              {editing ? '✏️ Edit Worker' : '➕ Add Worker'}
-            </h3>
-            <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-              {[
-                { label:'Name *', key:'name', type:'text' },
-                { label:'Phone', key:'phone', type:'text' },
-                { label:'Daily Rate (NPR)', key:'daily_rate', type:'number' },
-                { label:'OT Rate/hour (NPR, 0=auto 1.5×)', key:'overtime_rate_per_hour', type:'number' },
-                { label:'Joining Date', key:'joined_date', type:'date' },
-              ].map(f => (
-                <div key={f.key}>
-                  <label style={{ fontSize:11, fontWeight:700, color:'var(--t-text3)', textTransform:'uppercase' }}>{f.label}</label>
-                  <input type={f.type} value={form[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))} style={{
-                    width:'100%', marginTop:4, padding:'8px 12px', borderRadius:8,
-                    border:'1px solid var(--t-border)', background:'var(--t-bg)',
-                    color:'var(--t-text)', fontSize:13, boxSizing:'border-box',
-                  }} />
-                </div>
-              ))}
-              <div>
-                <label style={{ fontSize:11, fontWeight:700, color:'var(--t-text3)', textTransform:'uppercase' }}>Type</label>
-                <select value={form.worker_type} onChange={e => setForm(p => ({ ...p, worker_type: e.target.value }))} style={{ width:'100%', marginTop:4, padding:'8px 12px', borderRadius:8, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text)', fontSize:13 }}>
-                  <option value="LABOUR">Daily Labour</option>
-                  <option value="STAFF">Salaried Staff</option>
-                </select>
-              </div>
-              <div>
-                <label style={{ fontSize:11, fontWeight:700, color:'var(--t-text3)', textTransform:'uppercase' }}>Trade / Role</label>
-                <select value={form.trade} onChange={e => setForm(p => ({ ...p, trade: e.target.value }))} style={{ width:'100%', marginTop:4, padding:'8px 12px', borderRadius:8, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text)', fontSize:13 }}>
-                  {TRADES.map(t => <option key={t} value={t}>{TRADE_LABELS[t]}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={{ fontSize:11, fontWeight:700, color:'var(--t-text3)', textTransform:'uppercase' }}>Notes</label>
-                <textarea value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} rows={2} style={{ width:'100%', marginTop:4, padding:'8px 12px', borderRadius:8, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text)', fontSize:13, resize:'vertical', boxSizing:'border-box' }} />
-              </div>
-            </div>
-            <div style={{ display:'flex', gap:10, marginTop:20 }}>
-              <button onClick={() => setShowForm(false)} style={{ flex:1, padding:'10px', borderRadius:10, fontWeight:700, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text)', cursor:'pointer' }}>Cancel</button>
-              <button onClick={save} disabled={saving || !form.name.trim()} style={{ flex:2, padding:'10px', borderRadius:10, fontWeight:800, background:'#f97316', color:'#fff', border:'none', cursor:'pointer', opacity: saving ? 0.7 : 1 }}>
-                {saving ? 'Saving…' : editing ? 'Update Worker' : 'Add Worker'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

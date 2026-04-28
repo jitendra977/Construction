@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import AttendanceWorker, DailyAttendance, QRScanLog
+from .models import AttendanceWorker, DailyAttendance, QRScanLog, ScanTimeWindow
 
 
 class AttendanceWorkerSerializer(serializers.ModelSerializer):
@@ -19,6 +19,14 @@ class AttendanceWorkerSerializer(serializers.ModelSerializer):
     account_username   = serializers.SerializerMethodField()
     account_name       = serializers.SerializerMethodField()
 
+    # ── Linked Contractor (resources.Contractor) ───────────────────────────────
+    contractor_id      = serializers.IntegerField(source="contractor.id",   read_only=True, default=None)
+    contractor_name    = serializers.CharField(source="contractor.name",    read_only=True, default=None)
+    contractor_role    = serializers.CharField(source="contractor.role",    read_only=True, default=None)
+    contractor_phone   = serializers.CharField(source="contractor.phone",   read_only=True, default=None)
+    contractor_email   = serializers.CharField(source="contractor.email",   read_only=True, default=None)
+    has_contractor     = serializers.SerializerMethodField()
+
     class Meta:
         model  = AttendanceWorker
         fields = [
@@ -29,7 +37,15 @@ class AttendanceWorkerSerializer(serializers.ModelSerializer):
             "member_role", "member_user_name", "member_user_email", "member_user_avatar",
             "has_account", "account_email", "account_username", "account_name",
             "is_active", "joined_date", "notes",
+            # Per-worker custom scan window
+            "use_custom_window",
+            "custom_checkin_start", "custom_checkin_end",
+            "custom_checkout_start", "custom_checkout_end",
             "qr_token",
+            # Contractor link
+            "contractor", "contractor_id", "contractor_name",
+            "contractor_role", "contractor_phone", "contractor_email",
+            "has_contractor",
             "created_at", "updated_at",
         ]
         read_only_fields = ["qr_token", "created_at", "updated_at"]
@@ -55,6 +71,9 @@ class AttendanceWorkerSerializer(serializers.ModelSerializer):
             except Exception:
                 pass
         return None
+
+    def get_has_contractor(self, obj):
+        return obj.contractor_id is not None
 
     def get_has_account(self, obj):
         return obj.linked_user_id is not None
@@ -100,14 +119,19 @@ class BulkAttendanceSerializer(serializers.Serializer):
 
 
 class QRScanLogSerializer(serializers.ModelSerializer):
-    worker_name   = serializers.CharField(source="worker.name", read_only=True)
+    worker_name     = serializers.CharField(source="worker.name", read_only=True)
     scanned_by_name = serializers.SerializerMethodField()
+    scan_type_display   = serializers.CharField(source="get_scan_type_display",   read_only=True)
+    scan_status_display = serializers.CharField(source="get_scan_status_display", read_only=True)
 
     class Meta:
         model  = QRScanLog
         fields = [
             "id", "worker", "worker_name", "attendance",
-            "scan_type", "scanned_at",
+            "scan_type", "scan_type_display",
+            "scan_status", "scan_status_display",
+            "is_late", "is_early",
+            "scanned_at",
             "scanned_by", "scanned_by_name",
             "ip_address", "note",
         ]
@@ -116,3 +140,69 @@ class QRScanLogSerializer(serializers.ModelSerializer):
         if obj.scanned_by:
             return obj.scanned_by.get_full_name() or obj.scanned_by.username
         return "Kiosk / Anonymous"
+
+
+class ScanTimeWindowSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = ScanTimeWindow
+        fields = [
+            "id", "project",
+            "checkin_start", "checkin_end",
+            "checkout_start", "checkout_end",
+            "is_active",
+            "late_threshold_minutes", "early_checkout_minutes",
+            "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class PersonRolesSerializer(serializers.Serializer):
+    """
+    Flat serializer for the unified /persons/ endpoint.
+    One entry per real person — shows which roles they have enabled.
+    """
+    # ── Core identity (from AttendanceWorker as master) ───────────────────────
+    worker_id    = serializers.IntegerField()
+    name         = serializers.CharField()
+    trade        = serializers.CharField()
+    trade_label  = serializers.CharField()
+    worker_type  = serializers.CharField()
+    phone        = serializers.CharField()
+    daily_rate   = serializers.DecimalField(max_digits=10, decimal_places=2)
+    is_active    = serializers.BooleanField()
+    joined_date  = serializers.DateField(allow_null=True)
+    notes        = serializers.CharField()
+
+    # ── Today's attendance snapshot ───────────────────────────────────────────
+    today_status   = serializers.CharField(allow_null=True)
+    today_check_in  = serializers.CharField(allow_null=True)
+    today_check_out = serializers.CharField(allow_null=True)
+
+    # ── Role: Attendance tracking ─────────────────────────────────────────────
+    role_attendance = serializers.BooleanField()   # always True for worker-based rows
+    qr_token        = serializers.UUIDField(allow_null=True)
+
+    # ── Role: Payment / Contractor ────────────────────────────────────────────
+    role_payment      = serializers.BooleanField()
+    contractor_id     = serializers.IntegerField(allow_null=True)
+    contractor_role   = serializers.CharField(allow_null=True)
+    contractor_role_label = serializers.CharField(allow_null=True)
+    total_paid        = serializers.DecimalField(max_digits=12, decimal_places=2, allow_null=True)
+    balance_due       = serializers.DecimalField(max_digits=12, decimal_places=2, allow_null=True)
+    in_sync           = serializers.BooleanField()
+
+    # ── Role: Login account ───────────────────────────────────────────────────
+    role_login    = serializers.BooleanField()
+    user_id       = serializers.IntegerField(allow_null=True)
+    user_email    = serializers.CharField(allow_null=True)
+    user_name     = serializers.CharField(allow_null=True)
+
+    # ── Grouping ──────────────────────────────────────────────────────────────
+    teams         = serializers.SerializerMethodField()
+
+    def get_teams(self, obj):
+        # obj is the AttendanceWorker instance
+        return [
+            {"id": t.id, "name": t.name} 
+            for t in obj.teams.all()
+        ]

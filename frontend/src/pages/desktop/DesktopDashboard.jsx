@@ -42,7 +42,7 @@ function DesktopDashboard() {
         { id: 'structure', icon: '🏛️', label: 'Structure (संरचना)' },
         { id: 'photos',    icon: '📸',  label: 'Gallery (फोटो ग्यालरी)' },
         { id: 'timelapse',   icon: '🎞️', label: 'Timelapse (टाइमल्याप्स)' },
-        { id: 'attendance',  icon: '🕐',  label: 'Attendance (हाजिरी)' },
+        { id: 'attendance',  icon: '👷',  label: 'Workforce (कार्यबल)' },
         // Settings / Account
         { id: 'accounts',  icon: '👤',  label: 'Accounts (खाता)' },
         { id: 'guides',    icon: '📚',  label: 'User Guide (मद्दत निर्देशिका)' },
