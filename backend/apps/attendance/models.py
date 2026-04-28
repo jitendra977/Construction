@@ -266,3 +266,24 @@ class QRScanLog(models.Model):
 
     def __str__(self):
         return f"{self.worker.name} — {self.scan_type} [{self.scan_status}] at {self.scanned_at:%Y-%m-%d %H:%M}"
+
+class ProjectHoliday(models.Model):
+    """
+    Official holidays for a project. 
+    Marking a date as a holiday can trigger bulk attendance updates.
+    """
+    project = models.ForeignKey(
+        "core.HouseProject", on_delete=models.CASCADE, related_name="holidays"
+    )
+    date    = models.DateField()
+    name    = models.CharField(max_length=200, help_text="e.g. Dashain, Tihar, Workers Day")
+    notes   = models.TextField(blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-date"]
+        unique_together = [("project", "date")]
+
+    def __str__(self):
+        return f"{self.date} — {self.name} ({self.project.name})"

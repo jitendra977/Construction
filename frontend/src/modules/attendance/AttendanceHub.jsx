@@ -14,6 +14,7 @@ import MonthlyReportTab from './MonthlyReportTab';
 import PayrollTab       from './PayrollTab';
 import AdminScanTab     from './AdminScanTab';
 import TeamsTab         from './TeamsTab';
+import AttendanceLogsTab from './AttendanceLogsTab';
 
 // ── Mobile detection hook ──────────────────────────────────────────────────────
 function useIsMobile() {
@@ -120,8 +121,7 @@ function MyQRModal({ projectId, onClose }) {
 const TABS = [
     { id: 'scanner', label: 'QR Scanner',      icon: '📷', short: 'Scan'    },
     { id: 'daily',   label: 'Daily Sheet',      icon: '📋', short: 'Daily'   },
-    { id: 'workers', label: 'Staff Roster',    icon: '👷', short: 'Staff'   },
-    { id: 'teams',   label: 'Teams & Groups',   icon: '👥', short: 'Teams'   },
+    { id: 'logs',    label: 'Records',          icon: '🗄️', short: 'Logs'    },
     { id: 'monthly', label: 'Monthly Report',   icon: '📅', short: 'Monthly' },
     { id: 'payroll', label: 'Payroll',          icon: '💰', short: 'Pay'     },
 ];
@@ -169,7 +169,7 @@ function MobileTabBar({ active, onChange, onQR }) {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function AttendanceHub() {
-    const [activeTab, setActiveTab] = useState('scanner');
+    const [activeTab, setActiveTab] = useState('daily');
     const [myQROpen,  setMyQROpen]  = useState(false);
     const isMobile = useIsMobile();
 
@@ -181,8 +181,7 @@ export default function AttendanceHub() {
         <>
             {activeTab === 'scanner' && <QRScannerTab      projectId={activeProjectId} />}
             {activeTab === 'daily'   && <DailySheetTab     projectId={activeProjectId} />}
-            {activeTab === 'workers' && <WorkersTab         projectId={activeProjectId} />}
-            {activeTab === 'teams'   && <TeamsTab           projectId={activeProjectId} />}
+            {activeTab === 'logs'    && <AttendanceLogsTab  projectId={activeProjectId} />}
             {activeTab === 'monthly' && <MonthlyReportTab   projectId={activeProjectId} />}
             {activeTab === 'payroll' && <PayrollTab         projectId={activeProjectId} />}
         </>
@@ -237,8 +236,8 @@ export default function AttendanceHub() {
 
     // ── DESKTOP LAYOUT ─────────────────────────────────────────────────────────
     return (
-        <div className="min-h-screen" style={{ background: 'var(--t-bg)', padding: '24px 20px 60px' }}>
-            <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+        <div className="min-h-screen" style={{ background: 'var(--t-bg)', padding: '24px 32px 60px' }}>
+            <div style={{ width: '100%', margin: '0 auto' }}>
 
                 {/* Header */}
                 <div style={{ marginBottom: 20, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
@@ -288,7 +287,7 @@ export default function AttendanceHub() {
                 </div>
 
                 {/* Content card */}
-                <div style={{ background: 'var(--t-surface)', borderRadius: 16, border: '1px solid var(--t-border)', padding: '20px 20px 24px' }}>
+                <div style={{ background: 'var(--t-surface)', borderRadius: 16, border: '1px solid var(--t-border)', padding: '12px' }}>
                     <TabContent />
                 </div>
             </div>

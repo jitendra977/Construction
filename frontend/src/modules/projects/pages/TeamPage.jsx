@@ -9,6 +9,7 @@ import { useParams, useOutletContext } from 'react-router-dom';
 import api from '../services/projectsApi';
 import attendanceService from '../../../services/attendanceService';
 import WorkersTab from '../../attendance/WorkersTab';
+import TeamsTab from '../../attendance/TeamsTab';
 import TeamMemberRow, { ROLE_CONFIG, ROLES, PERM_META } from '../components/team/TeamMemberRow';
 
 const ROLE_DEFAULTS = {
@@ -87,29 +88,26 @@ export default function TeamPage() {
         <div style={{ padding: '0 0 60px', maxWidth: 900, margin: '0 auto' }}>
 
             {/* ── Tab Switcher ── */}
-            <div style={{ display:'flex', gap:20, marginBottom:24, borderBottom:'1px solid var(--t-border)', paddingBottom:12 }}>
-                <button 
-                    onClick={() => setActiveTab('MANAGEMENT')}
-                    style={{ 
-                        background:'none', border:'none', fontSize:15, fontWeight:800, cursor:'pointer',
-                        color: activeTab === 'MANAGEMENT' ? '#f97316' : 'var(--t-text3)',
-                        position:'relative', transition:'0.2s'
-                    }}
-                >
-                    🏢 Office & Management
-                    {activeTab === 'MANAGEMENT' && <div style={{ position:'absolute', bottom:-13, left:0, right:0, height:3, background:'#f97316', borderRadius:2 }} />}
-                </button>
-                <button 
-                    onClick={() => setActiveTab('LABOUR')}
-                    style={{ 
-                        background:'none', border:'none', fontSize:15, fontWeight:800, cursor:'pointer',
-                        color: activeTab === 'LABOUR' ? '#f97316' : 'var(--t-text3)',
-                        position:'relative', transition:'0.2s'
-                    }}
-                >
-                    🦺 Field Labour & Force
-                    {activeTab === 'LABOUR' && <div style={{ position:'absolute', bottom:-13, left:0, right:0, height:3, background:'#f97316', borderRadius:2 }} />}
-                </button>
+            <div style={{ display:'flex', gap:24, marginBottom:24, borderBottom:'1px solid var(--t-border)', paddingBottom:12 }}>
+                {[
+                    { id: 'MANAGEMENT', label: 'Office & Management', icon: '🏢' },
+                    { id: 'TEAMS',      label: 'Workforce Teams',    icon: '👥' },
+                    { id: 'LABOUR',     label: 'Individual Staff',   icon: '👷' },
+                ].map(tab => (
+                    <button 
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        style={{ 
+                            background:'none', border:'none', fontSize:14, fontWeight:800, cursor:'pointer',
+                            color: activeTab === tab.id ? '#f97316' : 'var(--t-text3)',
+                            position:'relative', transition:'0.2s', display:'flex', alignItems:'center', gap:8
+                        }}
+                    >
+                        <span>{tab.icon}</span>
+                        {tab.label}
+                        {activeTab === tab.id && <div style={{ position:'absolute', bottom:-13, left:0, right:0, height:3, background:'#f97316', borderRadius:2 }} />}
+                    </button>
+                ))}
             </div>
 
             {activeTab === 'MANAGEMENT' ? (
@@ -184,6 +182,8 @@ export default function TeamPage() {
                         </div>
                     )}
                 </>
+            ) : activeTab === 'TEAMS' ? (
+                <TeamsTab projectId={projectId} />
             ) : (
                 <WorkersTab projectId={projectId} />
             )}

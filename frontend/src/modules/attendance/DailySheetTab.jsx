@@ -2,11 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import attendanceService from '../../services/attendanceService';
 
 const STATUS_OPTIONS = [
-    { value: 'PRESENT',  label: 'Present',  short: 'P', color: '#10b981', bg: 'rgba(16,185,129,0.12)' },
+    { value: 'PRESENT',  label: 'Present',  short: 'P', color: '#22c55e', bg: 'rgba(34,197,94,0.12)' },
     { value: 'ABSENT',   label: 'Absent',   short: 'A', color: '#ef4444', bg: 'rgba(239,68,68,0.12)'  },
     { value: 'HALF_DAY', label: 'Half',     short: 'H', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
-    { value: 'LEAVE',    label: 'Leave',    short: 'L', color: '#8b5cf6', bg: 'rgba(139,92,246,0.12)' },
-    { value: 'HOLIDAY',  label: 'Holiday',  short: 'HO', color: '#64748b', bg: 'rgba(100,116,139,0.12)'},
+    { value: 'LEAVE',    label: 'Leave',    short: 'L', color: '#6366f1', bg: 'rgba(99,102,241,0.12)' },
+    { value: 'HOLIDAY',  label: 'Holiday',  short: 'HO', color: '#94a3b8', bg: 'rgba(148,163,184,0.12)'},
 ];
 const statusMeta = Object.fromEntries(STATUS_OPTIONS.map(s => [s.value, s]));
 
@@ -102,6 +102,19 @@ function MobileDailySheet({ projectId }) {
         finally { setSaving(false); }
     };
 
+    const handleSetHoliday = async () => {
+        const name = prompt('Enter Holiday Name (e.g. Dashain, Tihar):', 'Public Holiday');
+        if (!name) return;
+        if (!window.confirm(`Mark all workers as HOLIDAY for ${date}?`)) return;
+        setSaving(true); setError('');
+        try {
+            await attendanceService.setHoliday({ project: projectId, date, name });
+            setSaved(true); setTimeout(() => setSaved(false), 3000);
+            reload();
+        } catch { setError('Failed to set holiday.'); }
+        finally { setSaving(false); }
+    };
+
     const counts = { PRESENT: 0, ABSENT: 0, HALF_DAY: 0, LEAVE: 0, HOLIDAY: 0 };
     Object.values(sheet).forEach(r => { if (r?.status) counts[r.status] = (counts[r.status] || 0) + 1; });
 
@@ -143,6 +156,11 @@ function MobileDailySheet({ projectId }) {
                         border: '1px solid var(--t-border)', background: 'var(--t-surface)',
                         color: 'var(--t-text3)', cursor: 'pointer',
                     }}>📋 Copy Yesterday</button>
+                    <button onClick={handleSetHoliday} style={{
+                        padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 800,
+                        border: '1px solid #94a3b8', background: 'rgba(148,163,184,0.12)',
+                        color: '#475569', cursor: 'pointer',
+                    }}>🎉 Set Holiday</button>
                 </div>
             )}
 
@@ -280,7 +298,7 @@ function DesktopDailySheet({ projectId }) {
     const [saving, setSaving] = useState(false);
     const [saved,  setSaved]  = useState(false);
 
-    const { workers, sheet, setSheet, loading, error, setError } = useSheetData(projectId, date);
+    const { workers, sheet, setSheet, loading, error, setError, reload } = useSheetData(projectId, date);
 
     const setStatus = (wid, status) => setSheet(s => ({ ...s, [wid]: { ...s[wid], status } }));
     const setOT     = (wid, val)    => setSheet(s => ({ ...s, [wid]: { ...s[wid], overtime_hours: val } }));
@@ -322,6 +340,19 @@ function DesktopDailySheet({ projectId }) {
     const counts = { PRESENT: 0, ABSENT: 0, HALF_DAY: 0, LEAVE: 0, HOLIDAY: 0 };
     Object.values(sheet).forEach(r => { if (r?.status) counts[r.status] = (counts[r.status] || 0) + 1; });
 
+    const handleSetHoliday = async () => {
+        const name = prompt('Enter Holiday Name (e.g. Dashain, Tihar):', 'Public Holiday');
+        if (!name) return;
+        if (!window.confirm(`Mark all workers as HOLIDAY for ${date}?`)) return;
+        setSaving(true); setError('');
+        try {
+            await attendanceService.setHoliday({ project: projectId, date, name });
+            setSaved(true); setTimeout(() => setSaved(false), 3000);
+            reload();
+        } catch { setError('Failed to set holiday.'); }
+        finally { setSaving(false); }
+    };
+
     if (!projectId) return (
         <div style={{ padding: 40, textAlign: 'center', color: 'var(--t-text3)' }}>Select a project to mark attendance.</div>
     );
@@ -344,6 +375,11 @@ function DesktopDailySheet({ projectId }) {
                         border: '1px solid var(--t-border)', background: 'var(--t-surface)',
                         color: 'var(--t-text3)', cursor: 'pointer',
                     }}>📋 Copy Previous Day</button>
+                    <button onClick={handleSetHoliday} style={{
+                        padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 800,
+                        border: '1px solid #94a3b8', background: 'rgba(148,163,184,0.12)',
+                        color: '#475569', cursor: 'pointer',
+                    }}>🎉 Set Holiday</button>
                 </div>
                 <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
                     {saved  && <span style={{ fontSize: 12, color: '#10b981', fontWeight: 700 }}>✔ Saved</span>}

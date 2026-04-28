@@ -12,7 +12,7 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 
-from .models import AttendanceWorker, DailyAttendance, QRScanLog, ScanTimeWindow
+from .models import AttendanceWorker, DailyAttendance, QRScanLog, ScanTimeWindow, ProjectHoliday
 from .serializers import (
     AttendanceWorkerSerializer,
     DailyAttendanceSerializer,
@@ -1587,6 +1587,48 @@ class DailyAttendanceViewSet(viewsets.ModelViewSet):
             else:
                 updated_count += 1
         return Response({"created": created_count, "updated": updated_count, "errors": errors})
+
+    @action(detail=False, methods=["post"], url_path="set-holiday")
+    def set_holiday(self, request):
+        """
+        POST /api/v1/attendance/daily/set-holiday/
+        Body: { "project": <id>, "date": "YYYY-MM-DD", "name": "Holiday Name" }
+        Marks all active workers in the project as HOLIDAY for that date.
+        """
+        project_id = request.data.get("project")
+        day        = request.data.get("date")
+        name       = request.data.get("name", "Public Holiday")
+        
+        if not project_id or not day:
+            return Response({"error": "project and date are required."}, status=400)
+            
+        # 1. Save to ProjectHoliday model
+        ProjectHoliday.objects.update_or_create(
+            project_id=project_id, date=day,
+            defaults={"name": name}
+        )
+        
+        # 2. Bulk update/create DailyAttendance
+        active_workers = AttendanceWorker.objects.filter(project_id=project_id, is_active=True)
+        count = 0
+        for w in active_workers:
+            _, created = DailyAttendance.objects.update_or_create(
+                worker=w, date=day,
+                defaults={
+                    "project_id": project_id,
+                    "status": "HOLIDAY",
+                    "notes": name,
+                    "recorded_by": request.user,
+                    "daily_rate_snapshot": w.daily_rate,
+                    "overtime_rate_snapshot": w.effective_overtime_rate()
+                }
+            )
+            count += 1
+            
+        return Response({
+            "status": "success",
+            "message": f"Marked {count} workers as HOLIDAY for {day} ({name})."
+        })
 
     @action(detail=False, methods=["get"], url_path="live")
     def live(self, request):

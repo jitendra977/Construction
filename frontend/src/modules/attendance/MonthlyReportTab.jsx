@@ -1,462 +1,265 @@
-import React, { useState, useEffect, useCallback } from 'react';
+/**
+ * MonthlyReportTab — Advanced Master Attendance Sheet
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Provides a bird's-eye view of the entire workforce's monthly performance.
+ */
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import attendanceService from '../../services/attendanceService';
+import WorkerHistoryModal from './WorkerHistoryModal';
 
-function thisMonth() {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
-
-const STATUS_COLORS = {
-    PRESENT: '#10b981', ABSENT: '#ef4444',
-    HALF_DAY: '#f59e0b', LEAVE: '#8b5cf6', HOLIDAY: '#64748b',
+const STATUS_MAP = {
+  PRESENT: { short: 'P', color: '#22c55e', label: 'Present' },
+  ABSENT:  { short: 'A', color: '#ef4444', label: 'Absent' },
+  HALFDAY: { short: 'H', color: '#f59e0b', label: 'Half Day' },
+  LEAVE:   { short: 'L', color: '#6366f1', label: 'Leave' },
+  HOLIDAY: { short: 'HO', color: '#94a3b8', label: 'Holiday' }
 };
-const STATUS_SHORT = { PRESENT: 'P', ABSENT: 'A', HALF_DAY: 'H', LEAVE: 'L', HOLIDAY: 'HO' };
 
-// ── Mobile detection ──────────────────────────────────────────────────────────
-function useIsMobile() {
-    const [mobile, setMobile] = useState(() => window.innerWidth < 768);
-    useEffect(() => {
-        const fn = () => setMobile(window.innerWidth < 768);
-        window.addEventListener('resize', fn);
-        return () => window.removeEventListener('resize', fn);
-    }, []);
-    return mobile;
-}
-
-// ── Shared data hook ──────────────────────────────────────────────────────────
-function useMonthlyData(projectId, month) {
-    const [summary, setSummary] = useState(null);
-    const [records, setRecords] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [error,   setError]   = useState('');
-
-    const load = useCallback(async () => {
-        if (!projectId) return;
-        setLoading(true); setError('');
-        try {
-            const [sum, recs] = await Promise.all([
-                attendanceService.getMonthlySummary(projectId, month),
-                attendanceService.getRecords({ project: projectId, month }),
-            ]);
-            setSummary(sum);
-            setRecords(Array.isArray(recs) ? recs : recs.results || []);
-        } catch { setError('Failed to load monthly data.'); }
-        finally { setLoading(false); }
-    }, [projectId, month]);
-
-    useEffect(() => { load(); }, [load]);
-    return { summary, records, loading, error };
-}
-
-// ── Mobile layout ─────────────────────────────────────────────────────────────
-function MobileMonthlyReport({ projectId }) {
-    const [month,    setMonth]   = useState(thisMonth());
-    const [view,     setView]    = useState('summary'); // summary | workers | grid
-    const { summary, records, loading, error } = useMonthlyData(projectId, month);
-
-    if (!projectId) return (
-        <div style={{ padding:'40px 20px', textAlign:'center', color:'var(--t-text3)', fontSize:14 }}>Select a project first.</div>
-    );
-
-    const workers = summary?.workers || [];
-    const totals  = summary?.totals  || {};
-
-    // Build day grid
-    const buildGrid = () => {
-        const [y, m] = month.split('-').map(Number);
-        const daysInMonth = new Date(y, m, 0).getDate();
-        const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-        const map = {};
-        records.forEach(r => {
-            if (!map[r.worker_name]) map[r.worker_name] = {};
-            map[r.worker_name][parseInt(r.date.split('-')[2])] = r.status;
-        });
-        return { days, map };
-    };
-
-    const stats = workers.reduce((acc, w) => {
-        acc.PRESENT  += w.days_present;
-        acc.ABSENT   += w.days_absent;
-        acc.HALF_DAY += w.days_half;
-        acc.LEAVE    += w.days_leave;
-        return acc;
-    }, { PRESENT: 0, ABSENT: 0, HALF_DAY: 0, LEAVE: 0 });
-    const statsTotal = Object.values(stats).reduce((a, b) => a + b, 0);
-
-    return (
-        <div style={{ paddingBottom: 40 }}>
-            {/* Controls */}
-            <div style={{ padding: '12px 12px 0', display: 'flex', gap: 8, alignItems: 'center' }}>
-                <input type="month" value={month} onChange={e => setMonth(e.target.value)}
-                    style={{ flex: 1, padding: '10px 12px', borderRadius: 10, fontSize: 14, border: '1px solid var(--t-border)', background: 'var(--t-surface)', color: 'var(--t-text)', fontWeight: 700 }} />
-            </div>
-
-            {/* View toggle pills */}
-            <div style={{ padding: '8px 12px 0', display: 'flex', gap: 6 }}>
-                {[['summary','📊 Summary'], ['workers','👷 Workers'], ['grid','📅 Grid']].map(([v, label]) => (
-                    <button key={v} onClick={() => setView(v)} style={{
-                        flex: 1, padding: '8px 4px', borderRadius: 8, fontSize: 11, fontWeight: 800,
-                        border: '1px solid var(--t-border)',
-                        background: view === v ? '#f97316' : 'var(--t-surface)',
-                        color: view === v ? '#fff' : 'var(--t-text3)', cursor: 'pointer',
-                    }}>{label}</button>
-                ))}
-            </div>
-
-            {error && <div style={{ margin:'8px 12px 0', padding:'8px 12px', borderRadius:8, background:'rgba(239,68,68,0.1)', color:'#ef4444', fontSize:13 }}>{error}</div>}
-
-            {loading ? (
-                <div style={{ padding:'40px 20px', textAlign:'center', color:'var(--t-text3)' }}>Loading…</div>
-            ) : !summary || workers.length === 0 ? (
-                <div style={{ margin:'12px', padding:'32px 20px', textAlign:'center', borderRadius:14, background:'var(--t-surface)', border:'1px solid var(--t-border)', color:'var(--t-text3)', fontSize:13 }}>
-                    No attendance recorded for {month}.
-                </div>
-            ) : view === 'summary' ? (
-                <div style={{ padding: '10px 12px 0' }}>
-                    {/* KPI cards */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
-                        {[
-                            { icon:'👷', label:'Workers',      val: totals.total_workers,                                                              color:'#f97316' },
-                            { icon:'📅', label:'Days',         val: totals.days_in_month,                                                              color:'#3b82f6' },
-                            { icon:'💰', label:'Wage Bill',    val: `NPR ${Math.round(totals.total_wage_bill||0).toLocaleString()}`,                  color:'#10b981' },
-                            { icon:'⏱️', label:'Avg Attend.',  val: workers.length ? `${(stats.PRESENT/workers.length).toFixed(1)}d` : '—',          color:'#8b5cf6' },
-                        ].map(c => (
-                            <div key={c.label} style={{ padding:'14px 12px', borderRadius:12, background:'var(--t-surface)', border:'1px solid var(--t-border)', textAlign:'center' }}>
-                                <div style={{ fontSize:22, marginBottom:4 }}>{c.icon}</div>
-                                <div style={{ fontSize:10, color:'var(--t-text3)', fontWeight:700, textTransform:'uppercase', marginBottom:2 }}>{c.label}</div>
-                                <div style={{ fontSize:16, fontWeight:900, color:c.color }}>{c.val}</div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Attendance distribution bar */}
-                    <div style={{ background:'var(--t-surface)', borderRadius:14, border:'1px solid var(--t-border)', padding:'14px 14px', marginBottom:14 }}>
-                        <div style={{ fontSize:12, fontWeight:800, color:'var(--t-text)', marginBottom:10 }}>📊 Monthly Distribution</div>
-                        <div style={{ height:20, display:'flex', borderRadius:10, overflow:'hidden', background:'var(--t-bg)', marginBottom:10 }}>
-                            {Object.entries(stats).map(([st, val]) => {
-                                const pct = statsTotal > 0 ? (val / statsTotal) * 100 : 0;
-                                if (pct <= 0) return null;
-                                return <div key={st} title={`${st}: ${val}`} style={{ width:`${pct}%`, background:STATUS_COLORS[st] }} />;
-                            })}
-                        </div>
-                        <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
-                            {Object.entries(stats).map(([st, val]) => (
-                                <div key={st} style={{ display:'flex', alignItems:'center', gap:4 }}>
-                                    <div style={{ width:8, height:8, borderRadius:'50%', background:STATUS_COLORS[st] }} />
-                                    <span style={{ fontSize:10, fontWeight:700, color:'var(--t-text3)' }}>{st.replace('_',' ')} {val}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Top earner highlight */}
-                    {workers.length > 0 && (() => {
-                        const top = [...workers].sort((a,b) => b.grand_total - a.grand_total)[0];
-                        return (
-                            <div style={{ background:'rgba(16,185,129,0.06)', border:'1px solid #10b98130', borderRadius:14, padding:'12px 14px' }}>
-                                <div style={{ fontSize:10, fontWeight:800, color:'#10b981', textTransform:'uppercase', marginBottom:6 }}>💰 Total Payroll Summary</div>
-                                <div style={{ fontSize:22, fontWeight:900, color:'#10b981' }}>NPR {Math.round(totals.total_wage_bill||0).toLocaleString()}</div>
-                                <div style={{ fontSize:11, color:'var(--t-text3)', marginTop:3 }}>{totals.total_workers} workers · {totals.days_in_month} days</div>
-                            </div>
-                        );
-                    })()}
-                </div>
-            ) : view === 'workers' ? (
-                <div style={{ padding:'10px 12px 0', display:'flex', flexDirection:'column', gap:8 }}>
-                    {workers.map(w => (
-                        <div key={w.worker_id} style={{ borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-surface)', padding:'12px 14px' }}>
-                            <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:10 }}>
-                                <div>
-                                    <div style={{ fontWeight:800, fontSize:14, color:'var(--t-text)', display:'flex', alignItems:'center', gap:6 }}>
-                                        {w.worker_name}
-                                        <span style={{ padding:'1px 6px', borderRadius:5, fontSize:9, fontWeight:800, background:w.worker_type==='STAFF'?'rgba(59,130,246,0.1)':'rgba(249,115,22,0.1)', color:w.worker_type==='STAFF'?'#3b82f6':'#f97316' }}>{w.worker_type}</span>
-                                    </div>
-                                    <div style={{ fontSize:11, color:'var(--t-text3)', marginTop:1 }}>{w.trade}</div>
-                                </div>
-                                <div style={{ textAlign:'right' }}>
-                                    <div style={{ fontWeight:900, fontSize:15, color:'#10b981' }}>NPR {Math.round(w.grand_total).toLocaleString()}</div>
-                                    <div style={{ fontSize:10, color:'var(--t-text3)' }}>{w.effective_days.toFixed(1)} eff. days</div>
-                                </div>
-                            </div>
-                            {/* Status mini pills */}
-                            <div style={{ display:'flex', gap:6 }}>
-                                {[
-                                    { label:'P', val:w.days_present, color:'#10b981' },
-                                    { label:'A', val:w.days_absent,  color:'#ef4444' },
-                                    { label:'H', val:w.days_half,    color:'#f59e0b' },
-                                    { label:'L', val:w.days_leave,   color:'#8b5cf6' },
-                                ].map(s => (
-                                    <div key={s.label} style={{ flex:1, textAlign:'center', padding:'4px 2px', borderRadius:7, background:`${s.color}15`, border:`1px solid ${s.color}30` }}>
-                                        <div style={{ fontWeight:900, fontSize:14, color:s.color }}>{s.val}</div>
-                                        <div style={{ fontSize:9, fontWeight:800, color:s.color }}>{s.label}</div>
-                                    </div>
-                                ))}
-                                <div style={{ flex:1, textAlign:'center', padding:'4px 2px', borderRadius:7, background:'rgba(139,92,246,0.1)', border:'1px solid rgba(139,92,246,0.2)' }}>
-                                    <div style={{ fontWeight:900, fontSize:14, color:'#8b5cf6' }}>{w.total_overtime_hours.toFixed(0)}</div>
-                                    <div style={{ fontSize:9, fontWeight:800, color:'#8b5cf6' }}>OT</div>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                    {/* Grand total row */}
-                    <div style={{ background:'rgba(16,185,129,0.08)', border:'2px solid #10b981', borderRadius:12, padding:'14px', textAlign:'center' }}>
-                        <div style={{ fontSize:11, fontWeight:800, color:'#10b981', marginBottom:4 }}>GRAND TOTAL</div>
-                        <div style={{ fontSize:24, fontWeight:900, color:'#10b981' }}>NPR {Math.round(totals.total_wage_bill||0).toLocaleString()}</div>
-                    </div>
-                </div>
-            ) : (
-                /* Grid view — horizontal scroll */
-                (() => {
-                    const { days, map } = buildGrid();
-                    return (
-                        <div style={{ padding:'10px 12px 0' }}>
-                            <div style={{ fontSize:11, color:'var(--t-text3)', marginBottom:8, fontWeight:700 }}>
-                                Swipe → to see all days &nbsp;·&nbsp; P=Present A=Absent H=Half L=Leave
-                            </div>
-                            <div style={{ overflowX:'auto', borderRadius:12, border:'1px solid var(--t-border)' }}>
-                                <table style={{ borderCollapse:'collapse', fontSize:10, minWidth: `${140 + days.length * 28}px` }}>
-                                    <thead>
-                                        <tr style={{ background:'var(--t-surface)' }}>
-                                            <th style={{ padding:'8px 10px', textAlign:'left', fontWeight:800, color:'var(--t-text3)', borderBottom:'1px solid var(--t-border)', minWidth:120, position:'sticky', left:0, background:'var(--t-surface)' }}>Worker</th>
-                                            {days.map(d => (
-                                                <th key={d} style={{ padding:'6px 3px', textAlign:'center', fontWeight:700, color:'var(--t-text3)', borderBottom:'1px solid var(--t-border)', minWidth:24 }}>{d}</th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {workers.map((w, i) => {
-                                            const wmap = map[w.worker_name] || {};
-                                            return (
-                                                <tr key={w.worker_id} style={{ borderBottom:'1px solid var(--t-border)', background:i%2===0?'transparent':'rgba(0,0,0,0.02)' }}>
-                                                    <td style={{ padding:'6px 10px', fontWeight:700, color:'var(--t-text)', whiteSpace:'nowrap', position:'sticky', left:0, background:i%2===0?'var(--t-surface)':'var(--t-surface)', fontSize:11 }}>{w.worker_name}</td>
-                                                    {days.map(d => {
-                                                        const st = wmap[d];
-                                                        return (
-                                                            <td key={d} style={{ padding:'3px', textAlign:'center' }}>
-                                                                {st ? (
-                                                                    <span style={{ display:'inline-block', width:20, height:20, lineHeight:'20px', borderRadius:3, fontSize:8, fontWeight:800, background:`${STATUS_COLORS[st]}20`, color:STATUS_COLORS[st] }}>
-                                                                        {STATUS_SHORT[st]}
-                                                                    </span>
-                                                                ) : (
-                                                                    <span style={{ color:'var(--t-border)', fontSize:8 }}>·</span>
-                                                                )}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    );
-                })()
-            )}
-        </div>
-    );
-}
-
-// ── Desktop layout (original) ─────────────────────────────────────────────────
-function DesktopMonthlyReport({ projectId }) {
-    const [month, setMonth] = useState(thisMonth());
-    const [view,  setView]  = useState('table');
-    const { summary, records, loading, error } = useMonthlyData(projectId, month);
-
-    const buildGrid = () => {
-        const [y, m] = month.split('-').map(Number);
-        const daysInMonth = new Date(y, m, 0).getDate();
-        const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-        const map = {};
-        records.forEach(r => {
-            const wname = r.worker_name;
-            if (!map[wname]) map[wname] = {};
-            const day = parseInt(r.date.split('-')[2]);
-            map[wname][day] = r.status;
-        });
-        return { days, map };
-    };
-
-    if (!projectId) return (
-        <div style={{ padding: 40, textAlign: 'center', color: 'var(--t-text3)' }}>Select a project first.</div>
-    );
-
-    const { days, map } = buildGrid();
-
-    return (
-        <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-                <input type="month" value={month} onChange={e => setMonth(e.target.value)}
-                    style={{ padding: '8px 12px', borderRadius: 10, fontSize: 13, border: '1px solid var(--t-border)', background: 'var(--t-surface)', color: 'var(--t-text)' }} />
-                <div style={{ display: 'flex', gap: 4 }}>
-                    {['table', 'grid'].map(v => (
-                        <button key={v} onClick={() => setView(v)} style={{
-                            padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700,
-                            border: '1px solid var(--t-border)',
-                            background: view === v ? '#f97316' : 'var(--t-surface)',
-                            color: view === v ? '#fff' : 'var(--t-text)', cursor: 'pointer',
-                        }}>{v === 'table' ? '📋 Summary' : '📅 Grid'}</button>
-                    ))}
-                </div>
-                {error && <span style={{ fontSize: 12, color: '#ef4444' }}>{error}</span>}
-            </div>
-
-            {loading ? (
-                <div style={{ padding: 40, textAlign: 'center', color: 'var(--t-text3)' }}>Loading…</div>
-            ) : !summary || summary.workers?.length === 0 ? (
-                <div style={{ padding: 40, textAlign: 'center', borderRadius: 12, background: 'var(--t-surface)', border: '1px solid var(--t-border)', color: 'var(--t-text3)' }}>
-                    No attendance recorded for {month}.
-                </div>
-            ) : view === 'table' ? (
-                <>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginBottom: 20 }}>
-                        {[
-                            ['👷', 'Workers', summary.totals.total_workers, '#f97316'],
-                            ['📅', 'Days in Month', summary.totals.days_in_month, '#3b82f6'],
-                            ['💰', 'Total Wage Bill', `NPR ${Number(summary.totals.total_wage_bill).toLocaleString()}`, '#10b981'],
-                        ].map(([icon, label, val, color]) => (
-                            <div key={label} style={{ padding: '14px 16px', borderRadius: 12, background: 'var(--t-surface)', border: '1px solid var(--t-border)', textAlign: 'center' }}>
-                                <div style={{ fontSize: 20, marginBottom: 4 }}>{icon}</div>
-                                <div style={{ fontSize: 11, color: 'var(--t-text3)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 2 }}>{label}</div>
-                                <div style={{ fontSize: 18, fontWeight: 900, color }}>{val}</div>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div style={{ background: 'var(--t-surface)', padding: 20, borderRadius: 16, border: '1px solid var(--t-border)', marginBottom: 24 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                            <h4 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: 'var(--t-text)' }}>📊 Monthly Attendance Distribution</h4>
-                            <span style={{ fontSize: 11, color: 'var(--t-text3)', fontWeight: 700 }}>{month} Overview</span>
-                        </div>
-                        {(() => {
-                            const stats = summary.workers.reduce((acc, w) => {
-                                acc.PRESENT  += w.days_present;
-                                acc.ABSENT   += w.days_absent;
-                                acc.HALF_DAY += w.days_half;
-                                acc.LEAVE    += w.days_leave;
-                                acc.HOLIDAY  += (summary.totals.days_in_month - (w.days_present + w.days_absent + w.days_half + w.days_leave));
-                                return acc;
-                            }, { PRESENT: 0, ABSENT: 0, HALF_DAY: 0, LEAVE: 0, HOLIDAY: 0 });
-                            const total = Object.values(stats).reduce((a, b) => a + b, 0);
-                            return (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                    <div style={{ height: 28, display: 'flex', borderRadius: 14, overflow: 'hidden', background: 'var(--t-bg)' }}>
-                                        {Object.entries(stats).map(([st, val]) => {
-                                            const pct = (val / total) * 100;
-                                            if (pct <= 0) return null;
-                                            return <div key={st} title={`${st}: ${val} days (${pct.toFixed(1)}%)`} style={{ width: `${pct}%`, background: STATUS_COLORS[st], transition: 'width 0.5s ease' }} />;
-                                        })}
-                                    </div>
-                                    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                                        {Object.entries(stats).map(([st, val]) => (
-                                            <div key={st} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_COLORS[st] }} />
-                                                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text)' }}>{st}</span>
-                                                <span style={{ fontSize: 11, color: 'var(--t-text3)' }}>{val} days</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            );
-                        })()}
-                    </div>
-
-                    <div style={{ overflowX: 'auto' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                            <thead>
-                                <tr style={{ background: 'var(--t-surface)' }}>
-                                    {['Worker', 'Trade', 'P', 'A', 'H', 'L', 'Eff. Days', 'OT hrs', 'Base Wage', 'OT Pay', 'Total'].map(h => (
-                                        <th key={h} style={{ padding: '10px 10px', textAlign: 'left', fontWeight: 800, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--t-text3)', borderBottom: '2px solid var(--t-border)' }}>{h}</th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {summary.workers.map((w, i) => (
-                                    <tr key={w.worker_id} style={{ borderBottom: '1px solid var(--t-border)', background: i % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.02)' }}>
-                                        <td style={{ padding: '9px 10px', fontWeight: 700, color: 'var(--t-text)' }}>
-                                            {w.worker_name}
-                                            <span style={{ marginLeft: 6, fontSize: 10, padding: '2px 6px', borderRadius: 6, background: w.worker_type === 'STAFF' ? 'rgba(59,130,246,0.1)' : 'rgba(249,115,22,0.1)', color: w.worker_type === 'STAFF' ? '#3b82f6' : '#f97316' }}>{w.worker_type}</span>
-                                        </td>
-                                        <td style={{ padding: '9px 10px', color: 'var(--t-text3)' }}>{w.trade}</td>
-                                        <td style={{ padding: '9px 10px', color: '#10b981', fontWeight: 700 }}>{w.days_present}</td>
-                                        <td style={{ padding: '9px 10px', color: '#ef4444', fontWeight: 700 }}>{w.days_absent}</td>
-                                        <td style={{ padding: '9px 10px', color: '#f59e0b', fontWeight: 700 }}>{w.days_half}</td>
-                                        <td style={{ padding: '9px 10px', color: '#8b5cf6', fontWeight: 700 }}>{w.days_leave}</td>
-                                        <td style={{ padding: '9px 10px', fontWeight: 700, color: 'var(--t-text)' }}>{w.effective_days.toFixed(1)}</td>
-                                        <td style={{ padding: '9px 10px', color: 'var(--t-text3)' }}>{w.total_overtime_hours.toFixed(1)}</td>
-                                        <td style={{ padding: '9px 10px', color: 'var(--t-text3)' }}>NPR {Math.round(w.total_wage).toLocaleString()}</td>
-                                        <td style={{ padding: '9px 10px', color: '#8b5cf6' }}>NPR {Math.round(w.total_overtime_pay).toLocaleString()}</td>
-                                        <td style={{ padding: '9px 10px', fontWeight: 800, color: '#10b981' }}>NPR {Math.round(w.grand_total).toLocaleString()}</td>
-                                    </tr>
-                                ))}
-                                <tr style={{ background: 'var(--t-surface)', fontWeight: 800 }}>
-                                    <td colSpan={10} style={{ padding: '10px 10px', textAlign: 'right', color: 'var(--t-text3)', fontSize: 12, textTransform: 'uppercase' }}>Grand Total</td>
-                                    <td style={{ padding: '10px 10px', fontWeight: 900, color: '#10b981', fontSize: 14 }}>
-                                        NPR {Math.round(summary.totals.total_wage_bill).toLocaleString()}
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </>
-            ) : (
-                <div style={{ overflowX: 'auto' }}>
-                    <table style={{ borderCollapse: 'collapse', fontSize: 11, minWidth: 800 }}>
-                        <thead>
-                            <tr>
-                                <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 800, color: 'var(--t-text3)', borderBottom: '2px solid var(--t-border)', minWidth: 140 }}>Worker</th>
-                                {days.map(d => (
-                                    <th key={d} style={{ padding: '6px 4px', textAlign: 'center', fontWeight: 700, color: 'var(--t-text3)', borderBottom: '2px solid var(--t-border)', minWidth: 28 }}>{d}</th>
-                                ))}
-                                <th style={{ padding: '8px 8px', textAlign: 'right', fontWeight: 800, color: 'var(--t-text3)', borderBottom: '2px solid var(--t-border)' }}>Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {summary.workers.map((w, i) => {
-                                const wmap = map[w.worker_name] || {};
-                                return (
-                                    <tr key={w.worker_id} style={{ borderBottom: '1px solid var(--t-border)', background: i % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.02)' }}>
-                                        <td style={{ padding: '7px 12px', fontWeight: 700, color: 'var(--t-text)', whiteSpace: 'nowrap' }}>{w.worker_name}</td>
-                                        {days.map(d => {
-                                            const st = wmap[d];
-                                            return (
-                                                <td key={d} style={{ padding: '4px', textAlign: 'center' }}>
-                                                    {st ? (
-                                                        <span style={{ display: 'inline-block', width: 22, height: 22, lineHeight: '22px', borderRadius: 4, fontSize: 9, fontWeight: 800, background: `${STATUS_COLORS[st]}20`, color: STATUS_COLORS[st] }}>
-                                                            {STATUS_SHORT[st]}
-                                                        </span>
-                                                    ) : (
-                                                        <span style={{ color: 'var(--t-border)', fontSize: 10 }}>·</span>
-                                                    )}
-                                                </td>
-                                            );
-                                        })}
-                                        <td style={{ padding: '7px 8px', textAlign: 'right', fontWeight: 800, color: '#10b981', whiteSpace: 'nowrap' }}>
-                                            {w.days_present}P {w.days_half > 0 ? `${w.days_half}H` : ''} {w.days_absent > 0 ? `${w.days_absent}A` : ''}
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                    <div style={{ display: 'flex', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
-                        {Object.entries(STATUS_SHORT).map(([st, sh]) => (
-                            <div key={st} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}>
-                                <span style={{ display: 'inline-block', width: 18, height: 18, lineHeight: '18px', textAlign: 'center', borderRadius: 3, fontSize: 9, fontWeight: 800, background: `${STATUS_COLORS[st]}20`, color: STATUS_COLORS[st] }}>{sh}</span>
-                                <span style={{ color: 'var(--t-text3)' }}>{st.replace('_', ' ')}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-}
-
-// ── Main export ───────────────────────────────────────────────────────────────
 export default function MonthlyReportTab({ projectId }) {
-    const isMobile = useIsMobile();
-    return isMobile
-        ? <MobileMonthlyReport projectId={projectId} />
-        : <DesktopMonthlyReport projectId={projectId} />;
+  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [data, setData] = useState({ workers: [], records: [] });
+  const [loading, setLoading] = useState(true);
+  const [selectedWorker, setSelectedWorker] = useState(null);
+
+  const load = useCallback(async () => {
+    if (!projectId) return;
+    setLoading(true);
+    try {
+      const [summary, recs] = await Promise.all([
+        attendanceService.getMonthlySummary(projectId, month),
+        attendanceService.getRecords({ project: projectId, month })
+      ]);
+      setData({ 
+        workers: summary.workers || [], 
+        records: Array.isArray(recs) ? recs : recs.results || [] 
+      });
+    } catch (err) {
+      console.error("Failed to load monthly master sheet:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId, month]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const { days, gridMap } = useMemo(() => {
+    const [y, m] = month.split('-').map(Number);
+    const daysInMonth = new Date(y, m, 0).getDate();
+    const dayArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+    
+    const map = {};
+    data.records.forEach(r => {
+      const day = parseInt(r.date.split('-')[2]);
+      if (!map[r.worker]) map[r.worker] = {};
+      map[r.worker][day] = r;
+    });
+    
+    return { days: dayArray, gridMap: map };
+  }, [month, data.records]);
+
+  if (!projectId) return <div style={emptyStyle}>Select a project to view master sheet.</div>;
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
+      
+      {/* Top Bar */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        <div style={{ display:'flex', gap:12, alignItems:'center' }}>
+          <input 
+            type="month" 
+            value={month}
+            onChange={e => setMonth(e.target.value)}
+            style={{ padding:'10px 14px', borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-surface)', fontWeight:900, fontSize:14 }}
+          />
+          <div style={{ fontSize:12, color:'var(--t-text3)', fontWeight:700 }}>
+            {data.workers.length} Personnel · {days.length} Operating Days
+          </div>
+        </div>
+        <div style={{ display:'flex', gap:8 }}>
+           {Object.entries(STATUS_MAP).map(([key, cfg]) => (
+             <div key={key} style={{ display:'flex', alignItems:'center', gap:4 }}>
+               <div style={{ width:8, height:8, borderRadius:'50%', background:cfg.color }} />
+               <span style={{ fontSize:10, fontWeight:800, color:'var(--t-text3)', textTransform:'uppercase' }}>{cfg.short}</span>
+             </div>
+           ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign:'center', padding:60, color:'var(--t-text3)' }}>Compiling monthly records...</div>
+      ) : (
+        <div style={{ 
+          background:'var(--t-surface)', borderRadius:20, border:'1px solid var(--t-border)', 
+          overflow:'hidden', boxShadow:'0 10px 30px rgba(0,0,0,0.05)' 
+        }}>
+          <div style={{ overflowX:'auto' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+              <thead>
+                <tr style={{ background:'var(--t-bg)', borderBottom:'1px solid var(--t-border)' }}>
+                  <th style={{ ...stickyCol, padding:'16px 20px', minWidth:180, textAlign:'left', zIndex:20 }}>PERSONNEL</th>
+                  {days.map(d => {
+                    const dateObj = new Date(month.split('-')[0], month.split('-')[1]-1, d);
+                    const isSaturday = dateObj.getDay() === 6;
+                    
+                    const todayDate = new Date();
+                    const isToday = todayDate.getDate() === d && 
+                                    todayDate.getMonth() === (month.split('-')[1]-1) && 
+                                    todayDate.getFullYear() === parseInt(month.split('-')[0]);
+
+                    return (
+                      <th 
+                        key={d} 
+                        style={{ 
+                          padding:'8px 4px', minWidth:32, textAlign:'center', 
+                          fontWeight:900, 
+                          color: isToday ? '#1d4ed8' : (isSaturday ? '#ef4444' : 'var(--t-text3)'),
+                          background: isToday ? 'rgba(59,130,246,0.25)' : (isSaturday ? 'rgba(239,68,68,0.05)' : 'transparent'),
+                          borderBottom: isToday ? '4px solid #1d4ed8' : 'none',
+                          borderRadius: isToday ? '8px 8px 0 0' : '0',
+                          boxShadow: isToday ? 'inset 0 -2px 0 rgba(0,0,0,0.1)' : 'none'
+                        }}
+                      >
+                        {d}
+                        <div style={{ fontSize:7, opacity:0.8, color: isToday ? '#1d4ed8' : 'inherit' }}>{dateObj.toLocaleDateString('en-US', { weekday: 'short' }).slice(0,2)}</div>
+                      </th>
+                    );
+                  })}
+                  <th style={{ padding:'16px 20px', minWidth:80, textAlign:'center', fontWeight:900, color:'var(--t-text3)' }}>TOTAL</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.workers.length === 0 ? (
+                  <tr><td colSpan={days.length + 2} style={{ padding:60, textAlign:'center', color:'var(--t-text3)' }}>No personnel records for this period.</td></tr>
+                ) : data.workers.map(w => {
+                  const workerRecords = gridMap[w.worker_id] || {};
+                  return (
+                    <tr key={w.worker_id} style={{ borderBottom:'1px solid var(--t-border)', transition:'background 0.2s' }}>
+                      <td 
+                        onClick={() => setSelectedWorker(w.worker_id)}
+                        style={{ ...stickyCol, padding:'12px 20px', fontWeight:800, cursor:'pointer' }}
+                        onMouseOver={e => e.currentTarget.style.background = 'var(--t-bg)'}
+                        onMouseOut={e => e.currentTarget.style.background = 'var(--t-surface)'}
+                      >
+                        <div style={{ color:'var(--t-text)', display:'flex', alignItems:'center', gap:6 }}>
+                          {w.worker_name}
+                          <span style={{ fontSize:10 }}>🔗</span>
+                        </div>
+                        <div style={{ fontSize:9, color:'var(--t-text3)', textTransform:'uppercase' }}>{w.trade}</div>
+                      </td>
+                      {days.map(d => {
+                        const rec = workerRecords[d];
+                        const cfg = rec ? STATUS_MAP[rec.status] : null;
+                        const isPresent = rec?.status === 'PRESENT';
+                        
+                        const dateObj = new Date(month.split('-')[0], month.split('-')[1]-1, d);
+                        const isSaturday = dateObj.getDay() === 6;
+                        const todayDate = new Date();
+                        const isToday = todayDate.getDate() === d && 
+                                        todayDate.getMonth() === (month.split('-')[1]-1) && 
+                                        todayDate.getFullYear() === parseInt(month.split('-')[0]);
+
+                        return (
+                          <td key={d} style={{ 
+                            padding:1, textAlign:'center', 
+                            background: isToday ? 'rgba(59,130,246,0.12)' : (isSaturday ? 'rgba(0,0,0,0.02)' : 'transparent'),
+                            borderLeft: isToday ? '1px solid rgba(59,130,246,0.2)' : 'none',
+                            borderRight: isToday ? '1px solid rgba(59,130,246,0.2)' : 'none',
+                          }}>
+                            <div style={{ 
+                              width:28, height:28, margin:'0 auto', borderRadius:4, 
+                              display:'flex', alignItems:'center', justifyContent:'center',
+                              fontSize:10, fontWeight:900,
+                              background: cfg ? (isPresent ? `${cfg.color}15` : cfg.color) : 'transparent',
+                              color: cfg ? (isPresent ? cfg.color : '#fff') : 'transparent',
+                              border: cfg ? (isPresent ? `1px solid ${cfg.color}30` : 'none') : (isToday ? '1px dashed #1d4ed8' : '1px dashed var(--t-border)'),
+                              boxShadow: cfg && !isPresent ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
+                            }}>
+                              {cfg ? cfg.short : '·'}
+                            </div>
+                          </td>
+                        );
+                      })}
+                      <td style={{ padding:'12px 20px', textAlign:'center' }}>
+                        <div style={{ fontWeight:900, color:'#10b981' }}>{w.days_present}P</div>
+                        <div style={{ fontSize:9, color:'var(--t-text3)' }}>{Math.round(w.total_overtime_hours)}h OT</div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Footer Legend / Actions */}
+          <div style={{ padding:'16px 20px', background:'var(--t-bg)', borderTop:'1px solid var(--t-border)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <div style={{ display:'flex', gap:16 }}>
+               {Object.entries(STATUS_MAP).map(([key, cfg]) => (
+                 <div key={key} style={{ display:'flex', alignItems:'center', gap:8 }}>
+                   <div style={{ 
+                     width:24, height:24, borderRadius:4, 
+                     background: key === 'PRESENT' ? `${cfg.color}15` : cfg.color, 
+                     display:'flex', alignItems:'center', justifyContent:'center', 
+                     fontSize:10, fontWeight:900, 
+                     color: key === 'PRESENT' ? cfg.color : '#fff',
+                     border: key === 'PRESENT' ? `1px solid ${cfg.color}30` : 'none'
+                   }}>
+                     {cfg.short}
+                   </div>
+                   <span style={{ fontSize:11, fontWeight:700, color:'var(--t-text3)' }}>{cfg.label}</span>
+                 </div>
+               ))}
+            </div>
+            <button 
+              onClick={() => window.print()}
+              style={{ padding:'8px 16px', borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-surface)', fontSize:12, fontWeight:800, cursor:'pointer' }}
+            >
+              📥 Export PDF
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Financial Summary Card */}
+      {!loading && data.workers.length > 0 && (
+        <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:24 }}>
+          <div style={{ background:'var(--t-surface)', padding:24, borderRadius:20, border:'1px solid var(--t-border)' }}>
+             <h4 style={{ margin:'0 0 16px', fontSize:14, fontWeight:900 }}>💰 Monthly Payroll Outlook</h4>
+             <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:20 }}>
+                <div style={sumBox}>
+                  <div style={sumLabel}>Basic Wages</div>
+                  <div style={sumVal}>NPR {Math.round(data.workers.reduce((a,b)=>a + parseFloat(b.total_wage || 0), 0)).toLocaleString()}</div>
+                </div>
+                <div style={sumBox}>
+                  <div style={sumLabel}>Overtime Pay</div>
+                  <div style={sumVal}>NPR {Math.round(data.workers.reduce((a,b)=>a + parseFloat(b.total_overtime_pay || 0), 0)).toLocaleString()}</div>
+                </div>
+                <div style={{ ...sumBox, background:'rgba(16,185,129,0.05)', borderColor:'#10b981' }}>
+                  <div style={sumLabel}>Grand Total</div>
+                  <div style={{ ...sumVal, color:'#10b981' }}>NPR {Math.round(data.workers.reduce((a,b)=>a + parseFloat(b.grand_total || 0), 0)).toLocaleString()}</div>
+                </div>
+             </div>
+          </div>
+          <div style={{ background:'var(--t-surface)', padding:24, borderRadius:20, border:'1px solid var(--t-border)', display:'flex', flexDirection:'column', justifyContent:'center', textAlign:'center' }}>
+             <div style={{ fontSize:32, marginBottom:8 }}>📊</div>
+             <div style={{ fontWeight:900, fontSize:18 }}>{ (data.workers.reduce((a,b)=>a+b.days_present, 0) / (data.workers.length * days.length) * 100).toFixed(1) }%</div>
+             <div style={{ fontSize:11, fontWeight:700, color:'var(--t-text3)', textTransform:'uppercase' }}>Overall Attendance Rate</div>
+          </div>
+        </div>
+      )}
+
+      {selectedWorker && (
+        <WorkerHistoryModal 
+          workerId={selectedWorker} 
+          onClose={() => setSelectedWorker(null)} 
+        />
+      )}
+
+    </div>
+  );
 }
+
+const stickyCol = { position:'sticky', left:0, background:'var(--t-surface)', borderRight:'1px solid var(--t-border)' };
+const emptyStyle = { padding:60, textAlign:'center', color:'var(--t-text3)', fontSize:14 };
+const sumBox = { padding:16, borderRadius:16, border:'1px solid var(--t-border)', background:'var(--t-bg)' };
+const sumLabel = { fontSize:10, fontWeight:800, color:'var(--t-text3)', textTransform:'uppercase', marginBottom:4 };
+const sumVal = { fontSize:16, fontWeight:900 };

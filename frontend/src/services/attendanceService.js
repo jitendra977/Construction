@@ -34,8 +34,12 @@ export const attendanceService = {
     getRecords:   (params = {}) => api.get('records/', { params }).then(r => r.data),
     createRecord: (data)        => api.post('records/', data).then(r => r.data),
     updateRecord: (id, data)    => api.patch(`records/${id}/`, data).then(r => r.data),
+    deleteRecord: (id)          => api.delete(`records/${id}/`).then(r => r.data),
     bulkMark:     (payload)     => api.post('records/bulk/', payload).then(r => r.data),
     getLive:      (project)     => api.get('records/live/', { params: { project } }).then(r => r.data),
+
+    // Holiday Management
+    setHoliday: (data) => api.post('records/set-holiday/', data).then(r => r.data),
 
     // Monthly
     getMonthlySummary: (project, month) =>

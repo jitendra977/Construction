@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import ResourceContext, { useResource } from '../../context/ResourceContext';
+import ResourceContext from '../../context/ResourceContext';
 import teamsApi from '../../services/teamsApi';
 
 export default function TeamForm({ team, onDone, projectId: propProjectId, workers = [] }) {
-  const resourceCtx = React.useContext(ResourceContext); // Optional context
+  const resourceCtx = React.useContext(ResourceContext);
   const projectId = propProjectId || resourceCtx?.projectId;
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState('');
@@ -29,10 +29,6 @@ export default function TeamForm({ team, onDone, projectId: propProjectId, worke
         leader: formData.leader || null
       };
       
-      // If we are editing, we should preserve the members list
-      // The serializer might clear it if 'members' is missing and it's a PUT
-      // But we are using PATCH in teamsApi, so it should be fine.
-      
       if (team?.id) {
         await teamsApi.updateTeam(team.id, data);
       } else {
@@ -46,70 +42,88 @@ export default function TeamForm({ team, onDone, projectId: propProjectId, worke
     }
   };
 
+  const inputStyle = { 
+    width:'100%', padding:'12px 14px', borderRadius:14, border:'1px solid var(--t-border)', 
+    background:'var(--t-surface)', color:'var(--t-text)', fontSize:14, outline:'none', fontWeight:600 
+  };
+
+  const labelStyle = { 
+    display:'block', fontSize:10, fontWeight:800, color:'var(--t-text3)', 
+    textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6, marginLeft:4 
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="p-4 space-y-4">
+    <form onSubmit={handleSubmit} style={{ padding: 30, display:'flex', flexDirection:'column', gap:24 }}>
       {error && (
-        <div className="p-3 bg-red-50 text-red-600 text-[10px] font-bold rounded-lg border border-red-100">
-          {error}
+        <div style={{ padding:16, borderRadius:12, background:'rgba(239,68,68,0.1)', color:'#ef4444', fontSize:12, fontWeight:700, border:'1px solid rgba(239,68,68,0.2)' }}>
+          ⚠️ {error}
         </div>
       )}
 
-      <div className="space-y-1">
-        <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Team Name</label>
+      <div>
+        <label style={labelStyle}>Team Nomenclature</label>
         <input
           required
           type="text"
           value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-black outline-none transition-all"
-          placeholder="e.g., Masonry Team A"
+          style={inputStyle}
+          placeholder="e.g. Masonry Group A"
         />
       </div>
 
-      <div className="space-y-1">
-        <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Description</label>
+      <div>
+        <label style={labelStyle}>Strategic Objectives / Description</label>
         <textarea
           value={formData.description}
           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-black outline-none transition-all h-24 resize-none"
-          placeholder="What does this team do?"
+          style={{ ...inputStyle, height:100, resize:'none' }}
+          placeholder="Define the scope and goals of this workforce team..."
         />
       </div>
 
-      <div className="space-y-1">
-        <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Team Leader</label>
-        <select
-          value={formData.leader}
-          onChange={(e) => setFormData({ ...formData, leader: e.target.value })}
-          className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-black outline-none transition-all"
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20 }}>
+        <div>
+          <label style={labelStyle}>Team Lead Official</label>
+          <select
+            value={formData.leader}
+            onChange={(e) => setFormData({ ...formData, leader: e.target.value })}
+            style={inputStyle}
+          >
+            <option value="">Unassigned</option>
+            {workers.map(w => (
+              <option key={w.id} value={w.id}>{w.name} ({w.trade})</option>
+            ))}
+          </select>
+        </div>
+        
+        <div style={{ display:'flex', alignItems:'center', gap:12, paddingTop:24 }}>
+           <div 
+             onClick={() => setFormData({ ...formData, is_active: !formData.is_active })}
+             style={{ 
+               width:44, height:24, borderRadius:20, background: formData.is_active ? '#22c55e' : '#e2e8f0',
+               position:'relative', cursor:'pointer', transition:'0.3s'
+             }}
+           >
+             <div style={{ position:'absolute', top:3, left: formData.is_active ? 23 : 3, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'0.3s', boxShadow:'0 2px 4px rgba(0,0,0,0.1)' }} />
+           </div>
+           <span style={{ fontSize:12, fontWeight:800, color:'var(--t-text)' }}>Active Status</span>
+        </div>
+      </div>
+
+      <div style={{ paddingTop:12 }}>
+        <button
+          disabled={loading}
+          type="submit"
+          style={{ 
+            width:'100%', padding:16, borderRadius:16, border:'none', background:'#000', 
+            color:'#fff', fontWeight:900, fontSize:15, cursor:'pointer',
+            boxShadow:'0 10px 30px rgba(0,0,0,0.1)', opacity: loading ? 0.6 : 1
+          }}
         >
-          <option value="">No Leader Assigned</option>
-          {workers.map(w => (
-            <option key={w.id} value={w.id}>{w.name} ({w.trade})</option>
-          ))}
-        </select>
+          {loading ? 'Processing...' : team?.id ? 'Authorize Update' : 'Establish Team'}
+        </button>
       </div>
-
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          id="is_active"
-          checked={formData.is_active}
-          onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-          className="w-4 h-4 rounded border-gray-300 text-black focus:ring-black"
-        />
-        <label htmlFor="is_active" className="text-[10px] font-black text-gray-500 uppercase tracking-wider cursor-pointer">
-          Active Team
-        </label>
-      </div>
-
-      <button
-        disabled={loading}
-        type="submit"
-        className="w-full py-2 bg-black text-white text-xs font-black rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-50"
-      >
-        {loading ? 'Saving...' : team?.id ? 'Update Team' : 'Create Team'}
-      </button>
     </form>
   );
 }

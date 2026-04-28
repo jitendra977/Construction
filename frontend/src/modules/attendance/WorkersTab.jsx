@@ -189,7 +189,7 @@ export default function WorkersTab({ projectId }) {
         <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
           <thead style={{ background:'var(--t-bg)', borderBottom:'1px solid var(--t-border)' }}>
             <tr>
-              {['Staff Name', 'Trade', 'Type', 'Daily Rate', 'Status', 'Roles', 'Actions'].map(h => (
+              {['Staff Name', 'Team', 'Trade', 'Type', 'Daily Rate', 'Status', 'Actions'].map(h => (
                 <th key={h} style={{ padding:'14px 16px', textAlign:'left', fontSize:11, fontWeight:800, color:'var(--t-text3)', textTransform:'uppercase', letterSpacing:'0.05em' }}>{h}</th>
               ))}
             </tr>
@@ -319,6 +319,11 @@ function PersonRow({ p, onEdit, onQR, onHistory }) {
           <div style={{ fontWeight:700, color:p.is_orphan ? '#f59e0b' : 'var(--t-text)' }}>{p.name}</div>
         </div>
       </td>
+      <td style={{ padding:'12px 16px' }}>
+        <div style={{ fontSize:10, fontWeight:900, color:p.teams?.[0]?.name ? '#f97316' : 'var(--t-text3)', textTransform:'uppercase', letterSpacing:'0.05em' }}>
+          {p.teams?.[0]?.name || 'No Team'}
+        </div>
+      </td>
       <td style={{ padding:'12px 16px', color:'var(--t-text3)', fontWeight:600 }}>{p.trade_label || 'Other'}</td>
       <td style={{ padding:'12px 16px' }}><Badge color={p.worker_type==='STAFF'?'#6366f1':'#94a3b8'}>{p.worker_type}</Badge></td>
       <td style={{ padding:'12px 16px', fontWeight:700, color:'#f97316' }}>{p.daily_rate ? `NPR ${Number(p.daily_rate).toLocaleString()}` : '—'}</td>
@@ -330,15 +335,9 @@ function PersonRow({ p, onEdit, onQR, onHistory }) {
       </td>
       <td style={{ padding:'12px 16px' }}>
         <div style={{ display:'flex', gap:4 }}>
-          {p.role_attendance && <span title="Attendance Ready">📋</span>}
-          {p.role_payment && <span title="Payment Linked">💰</span>}
-        </div>
-      </td>
-      <td style={{ padding:'12px 16px' }}>
-        <div style={{ display:'flex', gap:4 }}>
-          <button onClick={onQR} style={miniBtnStyle}>🪪</button>
-          <button onClick={onHistory} style={miniBtnStyle}>🕒</button>
-          <button onClick={onEdit} style={miniBtnStyle}>✏️</button>
+          <button onClick={onQR} style={miniBtnStyle} title="View Badge">🪪</button>
+          <button onClick={onHistory} style={miniBtnStyle} title="View Service Record">📄</button>
+          <button onClick={onEdit} style={miniBtnStyle} title="Edit Profile">✏️</button>
         </div>
       </td>
     </tr>
@@ -363,7 +362,7 @@ function PersonCard({ p, onEdit, onQR, onHistory }) {
        </div>
        <div style={{ display:'flex', gap:8, borderTop:'1px solid var(--t-border)', paddingTop:16 }}>
           <button onClick={onQR} style={{flex:1, padding:'8px', borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-bg)', fontSize:12, fontWeight:800}}>Badge</button>
-          <button onClick={onHistory} style={{flex:1, padding:'8px', borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-bg)', fontSize:12, fontWeight:800}}>History</button>
+          <button onClick={onHistory} style={{flex:1, padding:'8px', borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-bg)', fontSize:12, fontWeight:800}}>Record</button>
           <button onClick={onEdit} style={{flex:1, padding:'8px', borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-bg)', fontSize:12, fontWeight:800}}>Edit</button>
        </div>
     </Card>

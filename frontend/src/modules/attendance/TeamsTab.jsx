@@ -61,21 +61,34 @@ export default function TeamsTab({ projectId }) {
   return (
     <div style={{ padding:'0 0 40px' }}>
       
-      {/* Header / Action Bar */}
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24 }}>
-        <div>
-          <h2 style={{ margin:0, fontSize:18, fontWeight:900 }}>Workforce Teams</h2>
-          <p style={{ margin:0, fontSize:11, color:'var(--t-text3)', fontWeight:700 }}>{teams.length} teams registered</p>
+      {/* Advanced Header */}
+      <div style={{ 
+        display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:32,
+        padding: '24px 30px', background: 'var(--t-surface)', borderRadius: 24, border: '1px solid var(--t-border)',
+        boxShadow: '0 10px 30px rgba(0,0,0,0.02)'
+      }}>
+        <div style={{ display:'flex', gap:32 }}>
+          <div>
+            <div style={{ fontSize:11, fontWeight:800, color:'var(--t-text3)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:4 }}>Operational Teams</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'var(--t-text)' }}>{teams.length} <span style={{ fontSize:14, fontWeight:700, color:'var(--t-text3)' }}>Groups</span></div>
+          </div>
+          <div style={{ width:1, height:40, background:'var(--t-border)' }} />
+          <div>
+            <div style={{ fontSize:11, fontWeight:800, color:'var(--t-text3)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:4 }}>Total Assignment</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#f97316' }}>{teams.reduce((acc, t) => acc + (t.member_count || 0), 0)} <span style={{ fontSize:14, fontWeight:700, color:'var(--t-text3)' }}>Personnel</span></div>
+          </div>
         </div>
+        
         <button 
           onClick={handleCreate}
           style={{ 
-            padding:'10px 20px', borderRadius:12, border:'none', background:'#f97316', 
-            color:'#fff', fontWeight:900, fontSize:13, cursor:'pointer',
-            boxShadow:'0 10px 20px rgba(249,115,22,0.15)'
+            padding:'12px 24px', borderRadius:14, border:'none', background:'#000', 
+            color:'#fff', fontWeight:900, fontSize:14, cursor:'pointer',
+            boxShadow:'0 10px 25px rgba(0,0,0,0.1)', display:'flex', alignItems:'center', gap:10
           }}
         >
-          + Create New Team
+          <span style={{ fontSize:18 }}>+</span>
+          Establish New Team
         </button>
       </div>
 
@@ -87,7 +100,11 @@ export default function TeamsTab({ projectId }) {
 
       {/* Modals */}
       {(showCreate || editingTeam) && (
-        <Modal onClose={handleDone} title={editingTeam ? 'Edit Team' : 'Create Team'}>
+        <Modal 
+          isOpen={true} 
+          onClose={handleDone} 
+          title={editingTeam ? 'Edit Team' : 'Create Team'}
+        >
           <TeamForm 
             projectId={projectId} 
             team={editingTeam} 
@@ -98,7 +115,11 @@ export default function TeamsTab({ projectId }) {
       )}
 
       {managingTeam && (
-        <Modal onClose={handleDone} title={`Manage Members: ${managingTeam.name}`}>
+        <Modal 
+          isOpen={true} 
+          onClose={handleDone} 
+          title={`Manage Members: ${managingTeam.name}`}
+        >
           <ManageMembers 
             projectId={projectId} 
             team={managingTeam} 
