@@ -59,33 +59,38 @@ help: ## Show this help message
 # ════════════════════════════════════════════════════════════
 #  🚀 DEPLOY
 # ════════════════════════════════════════════════════════════
+
+# Local only — push code to git, server is NOT touched
 .PHONY: deploy
-deploy: ## Deploy — full push + build + migrate + restart (prod)
+deploy: ## Deploy — push code to git only (server unchanged)
 	@bash scripts/deploy.sh
 
-.PHONY: deploy-service
-deploy-service: ## Deploy — rebuild one service only: make deploy-service SERVICE=backend
-	@bash scripts/deploy.sh --service $(SERVICE)
+# Server side — SSH in, pull, build, migrate, restart
+.PHONY: server-deploy
+server-deploy: ## Deploy — build + migrate + restart on VPS (SSH)
+	@bash scripts/deploy.sh --server
 
-.PHONY: update
-update: ## Deploy — quick update (pull + rebuild + migrate on VPS)
-	@bash scripts/update.sh
+.PHONY: server-deploy-service
+server-deploy-service: ## Deploy — rebuild one service on VPS: make server-deploy-service SERVICE=backend
+	@bash scripts/deploy.sh --server --service $(SERVICE)
 
-.PHONY: update-code
-update-code: ## Deploy — pull code + restart, skip rebuild
-	@bash scripts/update.sh --no-rebuild
+# Push code then immediately deploy on server
+.PHONY: full-deploy
+full-deploy: ## Deploy — push code then deploy on server (combined)
+	@bash scripts/deploy.sh
+	@bash scripts/deploy.sh --server
+
+.PHONY: rollback
+rollback: ## Deploy — roll back server to previous image tag
+	@bash scripts/deploy.sh --rollback
+
+.PHONY: dry-run
+dry-run: ## Deploy — preview push without making changes
+	@bash scripts/deploy.sh --dry-run
 
 .PHONY: migrate-remote
 migrate-remote: ## Deploy — run migrations on VPS only
 	@bash scripts/update.sh --migrations-only
-
-.PHONY: rollback
-rollback: ## Deploy — roll back to the previous image tag
-	@bash scripts/deploy.sh --rollback
-
-.PHONY: dry-run
-dry-run: ## Deploy — preview what deploy would do (no changes)
-	@bash scripts/deploy.sh --dry-run
 
 # ════════════════════════════════════════════════════════════
 #  🐳 DOCKER — LOCAL

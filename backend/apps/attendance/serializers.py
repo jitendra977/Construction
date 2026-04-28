@@ -13,6 +13,12 @@ class AttendanceWorkerSerializer(serializers.ModelSerializer):
     member_user_email = serializers.SerializerMethodField()
     member_user_avatar= serializers.SerializerMethodField()
 
+    # ── Account status (linked_user) ──────────────────────────────────────────
+    has_account        = serializers.SerializerMethodField()
+    account_email      = serializers.SerializerMethodField()
+    account_username   = serializers.SerializerMethodField()
+    account_name       = serializers.SerializerMethodField()
+
     class Meta:
         model  = AttendanceWorker
         fields = [
@@ -21,6 +27,7 @@ class AttendanceWorkerSerializer(serializers.ModelSerializer):
             "daily_rate", "overtime_rate_per_hour", "effective_ot_rate",
             "phone", "address", "linked_user", "project_member",
             "member_role", "member_user_name", "member_user_email", "member_user_avatar",
+            "has_account", "account_email", "account_username", "account_name",
             "is_active", "joined_date", "notes",
             "qr_token",
             "created_at", "updated_at",
@@ -47,6 +54,20 @@ class AttendanceWorkerSerializer(serializers.ModelSerializer):
                         return request.build_absolute_uri(obj.project_member.user.profile_image.url)
             except Exception:
                 pass
+        return None
+
+    def get_has_account(self, obj):
+        return obj.linked_user_id is not None
+
+    def get_account_email(self, obj):
+        return obj.linked_user.email if obj.linked_user_id and obj.linked_user else None
+
+    def get_account_username(self, obj):
+        return obj.linked_user.username if obj.linked_user_id and obj.linked_user else None
+
+    def get_account_name(self, obj):
+        if obj.linked_user_id and obj.linked_user:
+            return obj.linked_user.get_full_name() or obj.linked_user.username
         return None
 
 

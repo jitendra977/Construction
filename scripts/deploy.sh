@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # ============================================================
-#  ConstructPro — Smart Deploy Script
+#  ConstructPro — Deploy Script
 #
-#  Usage:
-#    ./scripts/deploy.sh                      # full production deploy
-#    ./scripts/deploy.sh --env dev            # deploy dev stack
-#    ./scripts/deploy.sh --rollback           # roll back to previous tag
-#    ./scripts/deploy.sh --service backend    # rebuild one service only
-#    ./scripts/deploy.sh --dry-run            # preview without changes
+#  LOCAL commands (no SSH):
+#    make deploy                  # git push only  ← default
+#    make deploy --dry-run        # preview push
+#
+#  SERVER commands (SSH required):
+#    make server-deploy           # pull + build + migrate + restart on VPS
+#    make server-deploy SERVICE=backend   # rebuild one service only
+#    make rollback                # roll back to previous image tag
 # ============================================================
 set -euo pipefail
 
@@ -17,7 +19,8 @@ CYN='\033[0;36m'; BOLD='\033[1m'; RST='\033[0m'
 OK="${GRN}✔${RST}"; WRN="${YEL}⚠${RST}"; ERR="${RED}✖${RST}"; NFO="${CYN}▶${RST}"
 
 # ── Defaults ─────────────────────────────────────────────────
-ENV="prod"; ROLLBACK=false; DRY_RUN=false; SERVICE=""
+ENV="prod"; DRY_RUN=false; SERVICE=""
+MODE="push"          # push | server | rollback
 COMPOSE_FILE="docker-compose.prod.yml"
 LOG_FILE="./deploy.log"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
@@ -25,14 +28,15 @@ TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 # ── Argument parsing ─────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --env)      ENV="$2";      shift 2 ;;
-    --rollback) ROLLBACK=true; shift   ;;
-    --dry-run)  DRY_RUN=true;  shift   ;;
-    --service)  SERVICE="$2";  shift 2 ;;
+    --env)         ENV="$2";      shift 2 ;;
+    --server)      MODE="server"; shift   ;;
+    --rollback)    MODE="rollback"; shift ;;
+    --dry-run)     DRY_RUN=true;  shift   ;;
+    --service)     SERVICE="$2";  shift 2 ;;
     -h|--help)
       grep '^#  ' "$0" | sed 's/#  //'
       exit 0 ;;
-    *) echo -e "${ERR} Unknown: $1"; exit 1 ;;
+    *) echo -e "${ERR} Unknown flag: $1"; exit 1 ;;
   esac
 done
 
@@ -66,8 +70,6 @@ ssh_exec() {
   if [[ "$DRY_RUN" == "true" ]]; then
     echo -e "  ${YEL}[dry-run → VPS]${RST} (ssh block skipped)"
   else
-    # NOTE: pipe through tee so ALL server-side output (including Docker build
-    # errors) is captured in deploy.log.  pipefail propagates ssh exit code.
     ssh -o StrictHostKeyChecking=no \
         "${VPS_USER}@${VPS_HOST}" "bash -s" <<REMOTE 2>&1 | tee -a "$LOG_FILE"
 $1
@@ -75,33 +77,62 @@ REMOTE
   fi
 }
 
-# ── SSH agent — load key once so all connections share it ─────
-if [[ "$DRY_RUN" == "false" ]]; then
+# ── SSH agent ─────────────────────────────────────────────────
+load_ssh() {
   if ! ssh-add -l &>/dev/null; then
     eval "$(ssh-agent -s)" >/dev/null
   fi
   ssh-add ~/.ssh/id_ed25519 2>/dev/null || true
-fi
+}
 
 # ── Banner ────────────────────────────────────────────────────
 echo "" | tee -a "$LOG_FILE"
 echo -e "${BOLD}${CYN}╔══════════════════════════════════════════╗${RST}" | tee -a "$LOG_FILE"
 echo -e "${BOLD}${CYN}║       ConstructPro Deploy System         ║${RST}" | tee -a "$LOG_FILE"
 echo -e "${BOLD}${CYN}╚══════════════════════════════════════════╝${RST}" | tee -a "$LOG_FILE"
-echo -e "  ${BOLD}Time:${RST}   ${TIMESTAMP}"      | tee -a "$LOG_FILE"
-echo -e "  ${BOLD}Env:${RST}    ${ENV}"             | tee -a "$LOG_FILE"
+echo -e "  ${BOLD}Mode:${RST}   ${MODE}"            | tee -a "$LOG_FILE"
+echo -e "  ${BOLD}Time:${RST}   ${TIMESTAMP}"       | tee -a "$LOG_FILE"
 echo -e "  ${BOLD}Branch:${RST} ${BRANCH}"          | tee -a "$LOG_FILE"
-echo -e "  ${BOLD}Tag:${RST}    ${IMAGE_TAG}"       | tee -a "$LOG_FILE"
-echo -e "  ${BOLD}Host:${RST}   ${VPS_HOST}"        | tee -a "$LOG_FILE"
-[[ "$DRY_RUN"  == "true" ]] && echo -e "  ${YEL}DRY RUN — no changes will be made${RST}" | tee -a "$LOG_FILE"
-[[ "$ROLLBACK" == "true" ]] && echo -e "  ${YEL}ROLLBACK MODE${RST}" | tee -a "$LOG_FILE"
+[[ "$DRY_RUN" == "true" ]] && echo -e "  ${YEL}DRY RUN — no changes will be made${RST}" | tee -a "$LOG_FILE"
 echo "" | tee -a "$LOG_FILE"
 
+
 # ════════════════════════════════════════════════════════════
-#  ROLLBACK
+#  MODE: push  — local git push only, server untouched
 # ════════════════════════════════════════════════════════════
-if [[ "$ROLLBACK" == "true" ]]; then
-  step "Rolling back"
+if [[ "$MODE" == "push" ]]; then
+  step "Pre-flight"
+  command -v git >/dev/null || die "git not found"
+
+  DIRTY=$(git status --porcelain 2>/dev/null | grep -v '??' || true)
+  if [[ -n "$DIRTY" ]]; then
+    warn "Uncommitted changes detected:"
+    echo "$DIRTY"
+    read -r -p "  Continue anyway? [y/N] " ans
+    [[ "$ans" =~ ^[Yy]$ ]] || die "Aborted."
+  fi
+  ok "Git status OK"
+
+  step "Push code → origin/${BRANCH}"
+  run "git push origin HEAD:${BRANCH}"
+  ok "Code pushed to origin/${BRANCH}"
+
+  echo ""
+  echo -e "${BOLD}${GRN}╔══════════════════════════════════════════╗${RST}"
+  echo -e "${BOLD}${GRN}║   Code pushed. Server NOT touched.       ║${RST}"
+  echo -e "${BOLD}${GRN}╚══════════════════════════════════════════╝${RST}"
+  echo -e "  To deploy on the server run:  ${BOLD}make server-deploy${RST}"
+  echo ""
+  exit 0
+fi
+
+
+# ════════════════════════════════════════════════════════════
+#  MODE: rollback  — revert server to previous image tag
+# ════════════════════════════════════════════════════════════
+if [[ "$MODE" == "rollback" ]]; then
+  [[ "$DRY_RUN" == "false" ]] && load_ssh
+  step "Rolling back server to previous tag"
   ssh_exec "
     set -e
     cd '${REMOTE_DIR}'
@@ -115,42 +146,24 @@ if [[ "$ROLLBACK" == "true" ]]; then
   exit 0
 fi
 
-# ════════════════════════════════════════════════════════════
-#  NORMAL DEPLOY
-# ════════════════════════════════════════════════════════════
 
-# 1. Pre-flight
-step "Pre-flight checks"
-command -v git >/dev/null || die "git not found"
+# ════════════════════════════════════════════════════════════
+#  MODE: server  — SSH deploy: pull + build + migrate + restart
+# ════════════════════════════════════════════════════════════
+step "Pre-flight"
 command -v ssh >/dev/null || die "ssh not found"
-ok "Local tools OK"
-
-DIRTY=$(git status --porcelain 2>/dev/null | grep -v '??' || true)
-if [[ -n "$DIRTY" ]]; then
-  warn "Uncommitted changes:"
-  echo "$DIRTY"
-  read -r -p "  Continue anyway? [y/N] " ans
-  [[ "$ans" =~ ^[Yy]$ ]] || die "Aborted."
-fi
-ok "Git status OK"
 
 if [[ "$DRY_RUN" == "false" ]]; then
+  load_ssh
   ssh -o StrictHostKeyChecking=no -o ConnectTimeout=6 \
       "${VPS_USER}@${VPS_HOST}" "echo reachable" >/dev/null 2>&1 \
     || die "Cannot reach ${VPS_HOST} via SSH"
-  ok "SSH reachable"
+  ok "SSH reachable: ${VPS_HOST}"
 fi
 
-# 2. Push code
-step "Push code → origin/${BRANCH}"
-run "git push origin HEAD:${BRANCH}"
-ok "Code pushed"
-
-# 3. Build service list
-BUILD_SERVICES="$SERVICE"   # empty = all
+BUILD_SERVICES="$SERVICE"
 UP_SERVICES="$SERVICE"
 
-# 4. Remote deploy
 step "Remote deploy on ${VPS_HOST}"
 ssh_exec "
   set -e
@@ -159,7 +172,7 @@ ssh_exec "
   echo '==> Git safe dir'
   git config --global --add safe.directory '${REMOTE_DIR}' 2>/dev/null || true
 
-  echo '==> Pull latest code (hard reset — server working tree is always authoritative from git)'
+  echo '==> Pull latest code'
   git fetch origin
   git checkout '${BRANCH}'
   git reset --hard origin/'${BRANCH}'
@@ -167,13 +180,11 @@ ssh_exec "
 
   echo '==> Save current tag for rollback'
   PREV=\$(grep '^IMAGE_TAG=' .env 2>/dev/null | cut -d= -f2 | head -1 || echo 'latest')
-  # Update or insert IMAGE_TAG_PREV
   if grep -q '^IMAGE_TAG_PREV=' .env 2>/dev/null; then
     sed -i \"s|^IMAGE_TAG_PREV=.*|IMAGE_TAG_PREV=\$PREV|\" .env
   else
     echo \"IMAGE_TAG_PREV=\$PREV\" >> .env
   fi
-  # Update or insert IMAGE_TAG
   if grep -q '^IMAGE_TAG=' .env 2>/dev/null; then
     sed -i 's|^IMAGE_TAG=.*|IMAGE_TAG=${IMAGE_TAG}|' .env
   else
@@ -207,7 +218,7 @@ ssh_exec "
   echo '==> DONE'
 "
 
-# 5. Smoke test
+# Smoke test
 step "Smoke test"
 if [[ "$DRY_RUN" == "false" ]]; then
   HEALTH="https://api.construction.nishanaweb.cloud/api/v1/health/"
@@ -215,15 +226,14 @@ if [[ "$DRY_RUN" == "false" ]]; then
   if [[ "$CODE" == "200" ]]; then
     ok "Health check → HTTP ${CODE}"
   else
-    warn "Health check → HTTP ${CODE}  (site may still be starting)"
+    warn "Health check → HTTP ${CODE}  (may still be starting)"
     warn "Check with: make logs   |   make status"
   fi
 fi
 
-# ── Done ─────────────────────────────────────────────────────
 echo ""
 echo -e "${BOLD}${GRN}╔══════════════════════════════════════════╗${RST}"
-echo -e "${BOLD}${GRN}║   Deploy complete!  Tag: ${IMAGE_TAG}${RST}"
+echo -e "${BOLD}${GRN}║   Server deploy complete!  Tag: ${IMAGE_TAG}${RST}"
 echo -e "${BOLD}${GRN}╚══════════════════════════════════════════╝${RST}"
 echo -e "  Full log: ${LOG_FILE}"
 echo ""

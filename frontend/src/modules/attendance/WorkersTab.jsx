@@ -26,6 +26,74 @@ const EMPTY_FORM = {
   daily_rate:'', overtime_rate_per_hour:'', phone:'', joined_date:'', notes:'',
 };
 
+// ── Create Account Modal ──────────────────────────────────────────────────────
+function CreateAccountModal({ worker, onClose, onDone }) {
+  const [email,    setEmail]    = useState('');
+  const [password, setPassword] = useState('');
+  const [saving,   setSaving]   = useState(false);
+  const [result,   setResult]   = useState(null);  // credentials returned
+  const [err,      setErr]      = useState('');
+
+  const handleCreate = async () => {
+    setSaving(true); setErr('');
+    try {
+      const data = await attendanceService.createWorkerAccount(worker.id, { email, password });
+      setResult(data.credentials);
+      onDone?.();
+    } catch (e) {
+      setErr(e?.response?.data?.error || 'Failed to create account.');
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div style={{ position:'fixed', inset:0, zIndex:1000, background:'rgba(0,0,0,0.55)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center' }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background:'var(--t-surface)', borderRadius:20, border:'1px solid var(--t-border)', padding:28, width:380, maxWidth:'94vw', boxShadow:'0 24px 80px rgba(0,0,0,0.3)' }}>
+
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
+          <h3 style={{ margin:0, fontSize:16, fontWeight:900, color:'var(--t-text)' }}>🔐 Create Login — {worker.name}</h3>
+          <button onClick={onClose} style={{ background:'var(--t-surface2)', border:'1px solid var(--t-border)', borderRadius:8, width:32, height:32, cursor:'pointer', fontSize:16, color:'var(--t-text3)' }}>✕</button>
+        </div>
+
+        {!result ? (<>
+          <p style={{ margin:'0 0 16px', fontSize:13, color:'var(--t-text3)' }}>
+            Create a login account so <strong style={{ color:'var(--t-text)' }}>{worker.name}</strong> can sign in and scan their QR badge independently.
+          </p>
+
+          <label style={{ fontSize:12, fontWeight:700, color:'var(--t-text3)', display:'block', marginBottom:4 }}>Email (optional — auto-generated if blank)</label>
+          <input value={email} onChange={e => setEmail(e.target.value)} placeholder="e.g. rambahadur@gmail.com" style={{ width:'100%', padding:'9px 12px', borderRadius:9, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text)', fontSize:13, marginBottom:12, boxSizing:'border-box' }} />
+
+          <label style={{ fontSize:12, fontWeight:700, color:'var(--t-text3)', display:'block', marginBottom:4 }}>Password (optional — auto-generated if blank)</label>
+          <input value={password} onChange={e => setPassword(e.target.value)} placeholder="Leave blank to auto-generate" type="text" style={{ width:'100%', padding:'9px 12px', borderRadius:9, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text)', fontSize:13, marginBottom:16, boxSizing:'border-box' }} />
+
+          {err && <div style={{ padding:'8px 12px', borderRadius:8, background:'rgba(239,68,68,0.1)', color:'#ef4444', fontSize:13, marginBottom:12 }}>{err}</div>}
+
+          <div style={{ display:'flex', gap:8 }}>
+            <button onClick={onClose} style={{ flex:1, padding:'10px', borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-surface2)', color:'var(--t-text)', fontWeight:700, fontSize:13, cursor:'pointer' }}>Cancel</button>
+            <button onClick={handleCreate} disabled={saving} style={{ flex:2, padding:'10px', borderRadius:10, border:'none', background:'#3b82f6', color:'#fff', fontWeight:800, fontSize:13, cursor:'pointer', opacity: saving ? 0.7 : 1 }}>
+              {saving ? 'Creating…' : '🔐 Create Account'}
+            </button>
+          </div>
+        </>) : (
+          // ── Credentials display ──────────────────────────────────────────
+          <div>
+            <div style={{ padding:16, borderRadius:12, background:'rgba(16,185,129,0.08)', border:'1px solid #10b981', marginBottom:16 }}>
+              <p style={{ margin:'0 0 4px', fontSize:12, fontWeight:800, color:'#10b981' }}>✅ ACCOUNT CREATED — COPY & SHARE</p>
+              <p style={{ margin:'0 0 2px', fontSize:13, color:'var(--t-text)' }}><strong>Name:</strong> {result.name}</p>
+              <p style={{ margin:'0 0 2px', fontSize:13, color:'var(--t-text)' }}><strong>Email:</strong> {result.email}</p>
+              <p style={{ margin:'0 0 2px', fontSize:13, color:'var(--t-text)' }}><strong>Username:</strong> {result.username}</p>
+              <p style={{ margin:'0 0 2px', fontSize:13, color:'var(--t-text)' }}><strong>Password:</strong> <code style={{ background:'var(--t-surface2)', padding:'2px 6px', borderRadius:4, fontWeight:900, letterSpacing:'0.05em' }}>{result.password}</code></p>
+            </div>
+            <p style={{ margin:'0 0 14px', fontSize:12, color:'var(--t-text3)' }}>
+              ⚠️ This password will not be shown again. Write it down or share it with the worker now.
+            </p>
+            <button onClick={onClose} style={{ width:'100%', padding:'10px', borderRadius:10, border:'none', background:'#10b981', color:'#fff', fontWeight:800, fontSize:13, cursor:'pointer' }}>Done</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── QR Badge Modal ────────────────────────────────────────────────────────────
 function QRBadgeModal({ worker, onClose }) {
   const [qrData, setQrData]   = useState(null);
@@ -168,8 +236,9 @@ export default function WorkersTab({ projectId }) {
   const [unlinked, setUnlinked]         = useState([]);
   const [importRates, setImportRates]   = useState({});
   const [importing, setImporting]       = useState(null);
-  const [qrWorker, setQrWorker]         = useState(null);  // worker for QR modal
-  const [historyId, setHistoryId]       = useState(null);
+  const [qrWorker,      setQrWorker]      = useState(null);
+  const [accountWorker, setAccountWorker] = useState(null); // worker for create-account modal
+  const [historyId,     setHistoryId]     = useState(null);
 
   const load = useCallback(async () => {
     if (!projectId) return;
@@ -302,7 +371,7 @@ export default function WorkersTab({ projectId }) {
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
             <thead>
               <tr style={{ background:'var(--t-surface)' }}>
-                {['Name','Type','Trade','Daily Rate','OT Rate/hr','Phone','Status','QR',''].map(h => (
+                {['Name','Type','Trade','Daily Rate','OT Rate/hr','Phone','Login Account','Status','QR',''].map(h => (
                   <th key={h} style={{
                     padding:'10px 12px', textAlign:'left', fontWeight:800, fontSize:11,
                     textTransform:'uppercase', letterSpacing:'0.05em',
@@ -334,6 +403,25 @@ export default function WorkersTab({ projectId }) {
                       : <span style={{ color:'#10b981', fontSize:11 }}>Auto (1.5×)</span>}
                   </td>
                   <td style={{ padding:'10px 12px', color:'var(--t-text3)' }}>{w.phone || '—'}</td>
+
+                  {/* ── Login Account ── */}
+                  <td style={{ padding:'10px 12px' }}>
+                    {w.has_account ? (
+                      <div>
+                        <span style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'2px 8px', borderRadius:6, fontSize:11, fontWeight:700, background:'rgba(16,185,129,0.1)', color:'#10b981' }}>
+                          ✅ Active
+                        </span>
+                        <p style={{ margin:'2px 0 0', fontSize:11, color:'var(--t-text3)' }}>{w.account_email || w.account_username}</p>
+                      </div>
+                    ) : (
+                      <button onClick={() => setAccountWorker(w)} style={{
+                        padding:'4px 10px', borderRadius:6, fontSize:11, fontWeight:700,
+                        border:'1px solid #3b82f6', background:'rgba(59,130,246,0.08)',
+                        color:'#3b82f6', cursor:'pointer', whiteSpace:'nowrap',
+                      }}>➕ Create Login</button>
+                    )}
+                  </td>
+
                   <td style={{ padding:'10px 12px' }}>
                     <button onClick={() => toggleActive(w)} style={{
                       padding:'3px 10px', borderRadius:6, fontSize:11, fontWeight:700,
@@ -379,6 +467,15 @@ export default function WorkersTab({ projectId }) {
       {/* QR Badge Modal */}
       {qrWorker && <QRBadgeModal worker={qrWorker} onClose={() => setQrWorker(null)} />}
 
+      {/* Create Account Modal */}
+      {accountWorker && (
+        <CreateAccountModal
+          worker={accountWorker}
+          onClose={() => setAccountWorker(null)}
+          onDone={() => { load(); }}
+        />
+      )}
+
       {/* History Modal */}
       {historyId && <WorkerHistoryModal workerId={historyId} onClose={() => setHistoryId(null)} />}
 
@@ -398,8 +495,13 @@ export default function WorkersTab({ projectId }) {
               <button onClick={() => setShowImport(false)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'var(--t-text3)' }}>✕</button>
             </div>
             {unlinked.length === 0 ? (
-              <div style={{ textAlign:'center', padding:'30px 0', color:'var(--t-text3)', fontSize:14 }}>
-                All team members are already imported.
+              <div style={{ textAlign:'center', padding:'24px 16px' }}>
+                <p style={{ margin:'0 0 8px', fontSize:28 }}>✅</p>
+                <p style={{ margin:'0 0 6px', fontWeight:800, fontSize:14, color:'var(--t-text)' }}>All team members are already imported.</p>
+                <p style={{ margin:0, fontSize:12, color:'var(--t-text3)', lineHeight:1.6 }}>
+                  To add new people, use <strong>+ Add Worker</strong> (for daily labour/contractors without accounts) or first invite them to the project via <strong>Project Team</strong> settings, then come back here.
+                  <br/>To give any worker a login, use the <strong>➕ Create Login</strong> button in the worker table.
+                </p>
               </div>
             ) : (
               <div style={{ display:'flex', flexDirection:'column', gap:10 }}>

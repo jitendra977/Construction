@@ -357,6 +357,100 @@ class UserViewSet(viewsets.ModelViewSet):
                      description=f'Admin reset password for {user.email}')
         return Response({'message': f'Password reset for {user.email}.'})
 
+    @action(detail=True, methods=['get'], url_path='projects')
+    def user_projects(self, request, pk=None):
+        """
+        GET /api/v1/accounts/users/{id}/projects/
+        Returns every project in the system with this user's membership status.
+        """
+        from apps.core.models import HouseProject, ProjectMember
+        user = self.get_object()
+
+        all_projects = HouseProject.objects.all().order_by('name')
+        memberships  = {
+            m.project_id: m
+            for m in ProjectMember.objects.filter(user=user).select_related('project')
+        }
+        assigned_ids = set(user.assigned_projects.values_list('id', flat=True))
+
+        data = []
+        for p in all_projects:
+            m = memberships.get(p.id)
+            data.append({
+                'project_id':   p.id,
+                'project_name': p.name,
+                'is_assigned':  p.id in assigned_ids,
+                'member_id':    m.id   if m else None,
+                'member_role':  m.role if m else None,
+                'permissions': {
+                    'can_manage_members':   m.can_manage_members   if m else False,
+                    'can_manage_finances':  m.can_manage_finances  if m else False,
+                    'can_view_finances':    m.can_view_finances    if m else False,
+                    'can_manage_phases':    m.can_manage_phases    if m else False,
+                    'can_manage_structure': m.can_manage_structure if m else False,
+                    'can_manage_resources': m.can_manage_resources if m else False,
+                    'can_upload_media':     m.can_upload_media     if m else False,
+                } if m else None,
+            })
+        return Response(data)
+
+    @action(detail=True, methods=['post'], url_path='set-project')
+    def set_project(self, request, pk=None):
+        """
+        POST /api/v1/accounts/users/{id}/set-project/
+        Body: { project_id, action: 'add'|'remove', role, ...permission flags }
+        Adds/removes project access and manages the ProjectMember record.
+        """
+        from apps.core.models import HouseProject, ProjectMember
+        user       = self.get_object()
+        project_id = request.data.get('project_id')
+        op         = request.data.get('action', 'add')
+
+        try:
+            project = HouseProject.objects.get(id=project_id)
+        except HouseProject.DoesNotExist:
+            return Response({'error': 'Project not found.'}, status=404)
+
+        if op == 'remove':
+            user.assigned_projects.remove(project)
+            ProjectMember.objects.filter(user=user, project=project).delete()
+            log_activity(request, request.user, 'UPDATE', 'User',
+                         object_id=user.id, object_repr=user.email,
+                         description=f'Removed {user.email} from project {project.name}')
+            return Response({'message': f'Removed {user.email} from {project.name}.'})
+
+        # ── add / update ──────────────────────────────────────────────────────
+        role = request.data.get('role', 'VIEWER')
+        user.assigned_projects.add(project)
+
+        member, created = ProjectMember.objects.get_or_create(
+            user=user, project=project,
+            defaults={'role': role},
+        )
+        if not created:
+            member.role = role
+
+        # Seed defaults from role, then override with any explicit flags sent
+        member.apply_role_defaults()
+        perm_fields = [
+            'can_manage_members', 'can_manage_finances', 'can_view_finances',
+            'can_manage_phases',  'can_manage_structure',
+            'can_manage_resources', 'can_upload_media',
+        ]
+        for field in perm_fields:
+            if field in request.data:
+                setattr(member, field, bool(request.data[field]))
+        member.save()
+
+        log_activity(request, request.user, 'UPDATE', 'User',
+                     object_id=user.id, object_repr=user.email,
+                     description=f'{"Added" if created else "Updated"} {user.email} in {project.name} as {role}')
+        return Response({
+            'message':   f'{"Added" if created else "Updated"} {user.email} in {project.name} as {role}.',
+            'member_id': member.id,
+            'created':   created,
+        })
+
     @action(detail=False, methods=['post'], url_path='invite')
     def invite(self, request):
         """

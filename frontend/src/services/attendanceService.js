@@ -45,6 +45,10 @@ export const attendanceService = {
     postToFinance: (payload) =>
         api.post('records/post-to-finance/', payload).then(r => r.data),
 
+    // Create login account for a worker who doesn't have one
+    createWorkerAccount: (workerId, payload = {}) =>
+        api.post(`workers/${workerId}/create-account/`, payload).then(r => r.data),
+
     // My QR badge — finds or auto-creates this user's worker profile & returns QR
     getMyQR: (projectId) =>
         api.get('workers/my-qr/', { params: { project: projectId } }).then(r => r.data),

@@ -30,6 +30,8 @@ export const activateUser        = (id)       => http.post(`accounts/users/${id}
 export const deactivateUser      = (id)       => http.post(`accounts/users/${id}/deactivate/`);
 export const resetUserPassword   = (id, data) => http.post(`accounts/users/${id}/reset-password/`, data);
 export const inviteUser          = (data)     => http.post('accounts/users/invite/', data);
+export const getUserProjects     = (id)       => http.get(`accounts/users/${id}/projects/`);
+export const setUserProject      = (id, data) => http.post(`accounts/users/${id}/set-project/`, data);
 
 // ── Roles ─────────────────────────────────────────────────────────────────────
 export const getRoles            = ()         => http.get('accounts/roles/');
@@ -53,6 +55,7 @@ const accountsApi = {
     getProfile, updateProfile, changePassword,
     getUsers, getUser, createUser, updateUser, deleteUser,
     activateUser, deactivateUser, resetUserPassword, inviteUser,
+    getUserProjects, setUserProject,
     getRoles, getRole, createRole, updateRole, deleteRole,
     getActivityLogs,
 };

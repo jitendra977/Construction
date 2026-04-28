@@ -351,6 +351,115 @@ class AttendanceWorkerViewSet(viewsets.ModelViewSet):
             AttendanceWorkerSerializer(worker, context={"request": request}).data, status=201
         )
 
+    @action(detail=True, methods=["post"], url_path="create-account")
+    def create_account(self, request, pk=None):
+        """
+        POST /api/v1/attendance/workers/{id}/create-account/
+        Body (all optional):
+          email    — defaults to <username>@<site>
+          password — auto-generated if blank
+
+        Creates a login account for this worker, links it, adds them to the
+        project's assigned_projects, and creates a ProjectMember record.
+        Returns the plain-text credentials (show once — admin must copy them).
+        """
+        import re, secrets
+        from django.contrib.auth import get_user_model
+        from apps.core.models import ProjectMember
+
+        worker = self.get_object()
+
+        if worker.linked_user_id:
+            u = worker.linked_user
+            return Response({
+                "error": f"Worker already has an account — {u.email} (@{u.username})"
+            }, status=400)
+
+        # ── Build username from worker name ──────────────────────────────────
+        User = get_user_model()
+        base = re.sub(r"[^a-z0-9]", "", worker.name.lower().replace(" ", "."))
+        if not base:
+            base = f"worker{worker.id}"
+        username = base
+        counter = 1
+        while User.objects.filter(username=username).exists():
+            username = f"{base}{counter}"
+            counter += 1
+
+        # ── Email & password ─────────────────────────────────────────────────
+        email    = (request.data.get("email") or "").strip()
+        password = (request.data.get("password") or "").strip()
+        if not email:
+            domain = request.get_host().split(":")[0]
+            email = f"{username}@{domain}"
+        if not password:
+            password = secrets.token_urlsafe(10)   # 14 random chars
+
+        # Ensure email is unique
+        if User.objects.filter(email=email).exists():
+            return Response({"error": f"Email already in use: {email}"}, status=400)
+
+        # ── Create user ──────────────────────────────────────────────────────
+        name_parts = worker.name.strip().split()
+        first_name = name_parts[0] if name_parts else worker.name
+        last_name  = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
+
+        try:
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password,
+                first_name=first_name,
+                last_name=last_name,
+                is_active=True,
+                is_verified=True,
+            )
+        except Exception as exc:
+            return Response({"error": f"Account creation failed: {exc}"}, status=400)
+
+        # ── Link user → worker ───────────────────────────────────────────────
+        worker.linked_user = user
+        worker.save(update_fields=["linked_user"])
+
+        # ── Grant access to this project ─────────────────────────────────────
+        user.assigned_projects.add(worker.project)
+
+        # ── Create ProjectMember (if not already) ────────────────────────────
+        TRADE_TO_ROLE = {
+            "MANAGER":     "MANAGER",
+            "SUPERVISOR":  "SUPERVISOR",
+            "ENGINEER":    "ENGINEER",
+            "ACCOUNTANT":  "MANAGER",
+        }
+        role = TRADE_TO_ROLE.get(worker.trade, "CONTRACTOR" if worker.worker_type == "STAFF" else "VIEWER")
+
+        member = None
+        if not ProjectMember.objects.filter(project=worker.project, user=user).exists():
+            member = ProjectMember(project=worker.project, user=user, role=role)
+            member.apply_role_defaults()
+            member.save()
+            # Link back to attendance worker
+            if not worker.project_member_id:
+                worker.project_member = member
+                worker.save(update_fields=["project_member"])
+
+        logger.info(
+            "Account created for worker %s (%s) — user %s", worker.id, worker.name, username
+        )
+
+        return Response({
+            "success": True,
+            "message": f"Account created for {worker.name}.",
+            "credentials": {
+                "name":     f"{first_name} {last_name}".strip(),
+                "username": username,
+                "email":    email,
+                "password": password,
+            },
+            "project_role": role,
+            "user_id": user.id,
+        }, status=201)
+
     @action(detail=True, methods=["get"], url_path="history")
     def history(self, request, pk=None):
         worker  = self.get_object()
