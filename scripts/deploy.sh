@@ -204,7 +204,7 @@ ssh_exec "
     python manage.py collectstatic --noinput --clear
 
   echo '==> Start / restart services'
-  docker compose -f '${COMPOSE_FILE}' up -d ${UP_SERVICES}
+  docker compose -f '${COMPOSE_FILE}' up -d --force-recreate --remove-orphans ${UP_SERVICES}
 
   echo '==> Wait for containers (20s)'
   sleep 20

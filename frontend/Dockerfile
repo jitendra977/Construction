@@ -2,13 +2,19 @@ FROM oven/bun:1 as build
 
 WORKDIR /app
 
-# Copy package files
+# Copy package files first (cached layer — only busted if deps change)
 COPY package.json bun.lock ./
 
 # Install dependencies
 RUN bun install
 
-# Copy source code
+# CACHEBUST arg — changes every deploy to force a fresh source copy + build
+# Passed in from docker-compose as IMAGE_TAG (timestamp), so layer cache is
+# always invalidated here even if individual source files look unchanged to Docker.
+ARG CACHEBUST=1
+RUN echo "Build: $CACHEBUST"
+
+# Copy source code (cache always busted by CACHEBUST above)
 COPY . .
 
 # Build the app
