@@ -213,7 +213,7 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 # In production, media is served by the frontend Nginx (shared Docker volume).
 # Set MEDIA_URL env var to the frontend domain so DRF builds correct image URLs.
 # e.g. MEDIA_URL=https://construction.nishanaweb.cloud/media/
-MEDIA_URL = os.environ.get('MEDIA_URL', '/media/')
+MEDIA_URL = config('MEDIA_URL', default='/media/')
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # Default primary key field type
