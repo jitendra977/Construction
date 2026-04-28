@@ -212,7 +212,11 @@ ssh_exec "
   echo '==> Service status'
   docker compose -f '${COMPOSE_FILE}' ps
 
-  echo '==> Prune unused images'
+  echo '==> Prune old project images (keep current tag only)'
+  docker images --format '{{.Repository}}:{{.Tag}}' \
+    | grep '^constructpro-' \
+    | grep -v ':${IMAGE_TAG}$' \
+    | xargs -r docker rmi -f 2>/dev/null || true
   docker image prune -f
 
   echo '==> DONE'
