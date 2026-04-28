@@ -12,13 +12,15 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 
-from .models import AttendanceWorker, DailyAttendance, QRScanLog, ScanTimeWindow, ProjectHoliday
+from .models import AttendanceWorker, DailyAttendance, QRScanLog, ScanTimeWindow, ProjectHoliday, ProjectAttendanceSettings
 from .serializers import (
     AttendanceWorkerSerializer,
     DailyAttendanceSerializer,
     BulkAttendanceSerializer,
     QRScanLogSerializer,
     ScanTimeWindowSerializer,
+    ProjectHolidaySerializer,
+    ProjectAttendanceSettingsSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -130,14 +132,53 @@ def _fix_missed_checkouts(worker, today):
 
 
 def _auto_calc_overtime(record, today, time_out):
-    """Recalculate and save overtime_hours based on actual worked hours > 8."""
-    if record.check_in:
-        dt_in  = datetime.combine(today, record.check_in)
-        dt_out = datetime.combine(today, time_out)
-        worked = (dt_out - dt_in).total_seconds() / 3600
-        if worked > 8:
-            record.overtime_hours = Decimal(str(round(worked - 8, 2)))
-            record.save(update_fields=["overtime_hours"])
+    """
+    Recalculate overtime_hours AND auto-set status from punch times.
+
+    Status rules (mirrors frontend autoStatusFromTimes):
+      net_hours >= half_std  → PRESENT   (and compute overtime if net > std)
+      net_hours <  half_std  → HALF_DAY  (left early)
+      check_in only          → HALF_DAY  (incomplete — handled by caller)
+
+    Falls back to 8 h standard / 0 break / auto_overtime=True when no settings.
+    """
+    if not record.check_in:
+        return
+
+    # Resolve project settings
+    std_hours   = Decimal("8")
+    break_hours = Decimal("0")
+    auto_ot     = True
+    try:
+        s = ProjectAttendanceSettings.objects.get(project_id=record.project_id)
+        auto_ot     = s.auto_overtime
+        std_hours   = Decimal(str(s.working_hours_per_day))
+        break_hours = Decimal(str(s.break_minutes)) / Decimal("60")
+    except ProjectAttendanceSettings.DoesNotExist:
+        pass
+
+    dt_in      = datetime.combine(today, record.check_in)
+    dt_out     = datetime.combine(today, time_out)
+    gross_h    = Decimal(str((dt_out - dt_in).total_seconds() / 3600))
+    net_hours  = gross_h - break_hours
+    half_std   = std_hours / Decimal("2")
+
+    update_fields = []
+
+    # Auto-status
+    new_status = "PRESENT" if net_hours >= half_std else "HALF_DAY"
+    if record.status != new_status:
+        record.status = new_status
+        update_fields.append("status")
+
+    # Auto-overtime (only when enabled and full day worked)
+    if auto_ot and net_hours > std_hours:
+        ot = round(float(net_hours - std_hours), 2)
+        record.overtime_hours = Decimal(str(ot))
+        update_fields.append("overtime_hours")
+
+    if update_fields:
+        record.save(update_fields=update_fields)
 
 
 # ── QR Scan (AllowAny - kiosk/tablet use) ─────────────────────────────────────
@@ -963,6 +1004,180 @@ def unlinked_contractors(request):
 # ║  One record per real human. Three roles: Attendance · Payment · Login     ║
 # ╚═══════════════════════════════════════════════════════════════════════════╝
 
+# ╔═══════════════════════════════════════════════════════════════════════════╗
+# ║                 DASHBOARD + STATS                                          ║
+# ╚═══════════════════════════════════════════════════════════════════════════╝
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def dashboard(request):
+    """
+    GET /api/v1/attendance/dashboard/?project=<id>
+    Returns:
+      - today's live counts (on_site / checked_out / unmarked / absent)
+      - 7-day attendance trend
+      - this-month totals (wage bill, effective days)
+      - overtime flag: workers with >8h on site today
+    """
+    from datetime import timedelta
+
+    project_id = request.query_params.get("project")
+    if not project_id:
+        return Response({"error": "project is required."}, status=400)
+
+    today  = date_type.today()
+    workers = AttendanceWorker.objects.filter(project_id=project_id, is_active=True)
+    total_workers = workers.count()
+
+    # ── Today ────────────────────────────────────────────────────────────────
+    today_records = list(DailyAttendance.objects.filter(
+        project_id=project_id, date=today
+    ).select_related("worker"))
+
+    present    = [r for r in today_records if r.status == "PRESENT"]
+    half_day   = [r for r in today_records if r.status == "HALF_DAY"]
+    absent     = [r for r in today_records if r.status == "ABSENT"]
+    on_leave   = [r for r in today_records if r.status in ("LEAVE", "HOLIDAY")]
+
+    marked_ids = {r.worker_id for r in today_records}
+    unmarked   = total_workers - len(marked_ids)
+
+    on_site    = [r for r in present + half_day if r.check_in and not r.check_out]
+    checked_out= [r for r in present + half_day if r.check_out]
+
+    today_wage = sum(float(r.wage_earned) for r in today_records)
+    today_ot   = sum(float(r.overtime_hours) for r in today_records)
+
+    # Workers late (from QR logs today)
+    late_count = QRScanLog.objects.filter(
+        worker__project_id=project_id,
+        scan_type="CHECK_IN",
+        is_late=True,
+        scanned_at__date=today,
+    ).count()
+
+    # ── 7-day trend ──────────────────────────────────────────────────────────
+    trend = []
+    for i in range(6, -1, -1):
+        day = today - timedelta(days=i)
+        recs = DailyAttendance.objects.filter(project_id=project_id, date=day)
+        present_count = recs.filter(status__in=("PRESENT", "HALF_DAY")).count()
+        trend.append({
+            "date":          str(day),
+            "day":           day.strftime("%a"),
+            "present":       present_count,
+            "total_workers": total_workers,
+            "pct":           round(present_count / total_workers * 100) if total_workers else 0,
+        })
+
+    # ── This month ────────────────────────────────────────────────────────────
+    month_records = DailyAttendance.objects.filter(
+        project_id=project_id,
+        date__year=today.year,
+        date__month=today.month,
+    )
+    month_wage = sum(float(r.wage_earned) for r in month_records)
+    month_days = today.day  # days elapsed this month
+
+    return Response({
+        "today": {
+            "date":        str(today),
+            "total":       total_workers,
+            "present":     len(present),
+            "half_day":    len(half_day),
+            "absent":      len(absent),
+            "on_leave":    len(on_leave),
+            "unmarked":    max(unmarked, 0),
+            "on_site":     len(on_site),
+            "checked_out": len(checked_out),
+            "late":        late_count,
+            "wage_today":  round(today_wage, 2),
+            "ot_hours":    round(today_ot, 2),
+        },
+        "trend":  trend,
+        "month": {
+            "wage_bill":    round(month_wage, 2),
+            "days_elapsed": month_days,
+            "month_label":  today.strftime("%B %Y"),
+        },
+    })
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def worker_stats(request, worker_id):
+    """
+    GET /api/v1/attendance/workers/<id>/stats/?months=1
+    Returns attendance stats for one worker:
+      - present streak (consecutive days)
+      - this-month attendance %
+      - total days worked this month
+      - total wages this month
+      - last 30 records (compact)
+    """
+    from datetime import timedelta
+
+    try:
+        worker = AttendanceWorker.objects.get(pk=worker_id)
+    except AttendanceWorker.DoesNotExist:
+        return Response({"error": "Worker not found."}, status=404)
+
+    today = date_type.today()
+    year, month = today.year, today.month
+
+    # This month records
+    month_records = list(DailyAttendance.objects.filter(
+        worker=worker, date__year=year, date__month=month
+    ).order_by("date"))
+
+    present_days  = sum(1 for r in month_records if r.status in ("PRESENT", "HALF_DAY"))
+    working_days  = today.day
+    attendance_pct = round(present_days / working_days * 100) if working_days else 0
+    month_wage    = sum(float(r.wage_earned) for r in month_records)
+    month_ot      = sum(float(r.overtime_hours) for r in month_records)
+
+    # Consecutive streak (going backwards from today)
+    streak = 0
+    check_day = today
+    # 90 days ≈ 15 weeks — enough for any realistic streak
+    all_records = {
+        r.date: r.status
+        for r in DailyAttendance.objects.filter(worker=worker).order_by("-date")[:90]
+    }
+    while True:
+        status = all_records.get(check_day)
+        if status in ("PRESENT", "HALF_DAY"):
+            streak  += 1
+            check_day = check_day - timedelta(days=1)
+        elif status in ("HOLIDAY", "LEAVE"):
+            check_day = check_day - timedelta(days=1)  # skip, don't break streak
+        else:
+            break
+
+    # Last 30 records compact
+    recent = [
+        {
+            "date":   str(r.date),
+            "status": r.status,
+            "ot":     float(r.overtime_hours),
+            "wage":   float(r.wage_earned),
+        }
+        for r in DailyAttendance.objects.filter(worker=worker).order_by("-date")[:30]
+    ]
+
+    return Response({
+        "worker_id":      worker.id,
+        "worker_name":    worker.name,
+        "streak":         streak,
+        "attendance_pct": attendance_pct,
+        "present_days":   present_days,
+        "working_days":   working_days,
+        "month_wage":     round(month_wage, 2),
+        "month_ot":       round(month_ot, 2),
+        "recent":         recent,
+    })
+
+
 def _build_person_entry(worker, today_records):
     """Convert an AttendanceWorker + optional Contractor into a unified person dict."""
     from decimal import Decimal as D
@@ -1567,25 +1782,46 @@ class DailyAttendanceViewSet(viewsets.ModelViewSet):
             except AttendanceWorker.DoesNotExist:
                 errors.append(f"Worker {rec.get('worker')} not found.")
                 continue
-            _, created = DailyAttendance.objects.update_or_create(
+            # Build defaults — never overwrite check_in/check_out with None
+            # (QR-scanned times must be preserved when the sheet saves over them)
+            bulk_defaults = {
+                "project_id":     project_id,
+                "status":         rec.get("status", "PRESENT"),
+                "overtime_hours": Decimal(str(rec.get("overtime_hours", 0))),
+                "notes":          rec.get("notes", ""),
+                "recorded_by":    request.user,
+            }
+            if rec.get("check_in")  is not None: bulk_defaults["check_in"]  = rec["check_in"]
+            if rec.get("check_out") is not None: bulk_defaults["check_out"] = rec["check_out"]
+            # NOTE: daily_rate_snapshot / overtime_rate_snapshot are handled by
+            # DailyAttendance.save() on first creation (if not self.pk).
+            # Do NOT include them here — that would cause an UnboundLocalError
+            # (`created` is only defined AFTER update_or_create returns) and would
+            # wrongly overwrite historical snapshots on updates.
+            obj, is_created = DailyAttendance.objects.update_or_create(
                 worker=worker, date=day,
-                defaults={
-                    "project_id": project_id,
-                    "status": rec.get("status", "PRESENT"),
-                    "overtime_hours": Decimal(str(rec.get("overtime_hours", 0))),
-                    "check_in": rec.get("check_in"),
-                    "check_out": rec.get("check_out"),
-                    "notes": rec.get("notes", ""),
-                    "recorded_by": request.user,
-                    **({"daily_rate_snapshot": worker.daily_rate,
-                        "overtime_rate_snapshot": worker.effective_overtime_rate()}
-                       if created else {}),
-                },
+                defaults=bulk_defaults,
             )
-            if created:
+            if is_created:
                 created_count += 1
             else:
                 updated_count += 1
+
+            # Auto-status + OT from punch times
+            from datetime import time as time_type
+            if obj.check_in and obj.check_out:
+                # Both punches present — derive PRESENT vs HALF_DAY + overtime
+                try:
+                    co = obj.check_out if isinstance(obj.check_out, time_type) else datetime.strptime(str(obj.check_out), "%H:%M:%S").time()
+                    _auto_calc_overtime(obj, day, co)
+                except Exception:
+                    pass
+            elif obj.check_in and not obj.check_out:
+                # Check-in only → incomplete shift = HALF_DAY
+                if obj.status not in ("HALF_DAY", "LEAVE", "HOLIDAY", "ABSENT"):
+                    obj.status = "HALF_DAY"
+                    obj.save(update_fields=["status"])
+
         return Response({"created": created_count, "updated": updated_count, "errors": errors})
 
     @action(detail=False, methods=["post"], url_path="set-holiday")
@@ -1779,3 +2015,166 @@ class DailyAttendanceViewSet(viewsets.ModelViewSet):
         writer.writerow(["GRAND TOTAL","","","","","","","","","","",
                           data["totals"]["total_wage_bill"]])
         return resp
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  PROJECT ATTENDANCE SETTINGS
+# ══════════════════════════════════════════════════════════════════════════════
+
+@api_view(["GET", "PUT", "PATCH"])
+@permission_classes([IsAuthenticated])
+def attendance_settings(request):
+    """
+    GET  /api/v1/attendance/settings/?project=<id>  — fetch (or auto-create) settings
+    PUT  /api/v1/attendance/settings/?project=<id>  — full update
+    PATCH /api/v1/attendance/settings/?project=<id> — partial update
+    """
+    project_id = request.query_params.get("project") or request.data.get("project")
+    if not project_id:
+        return Response({"error": "project is required."}, status=400)
+
+    obj, _ = ProjectAttendanceSettings.objects.get_or_create(project_id=project_id)
+
+    if request.method == "GET":
+        return Response(ProjectAttendanceSettingsSerializer(obj).data)
+
+    partial = (request.method == "PATCH")
+    ser = ProjectAttendanceSettingsSerializer(obj, data=request.data, partial=partial)
+    ser.is_valid(raise_exception=True)
+    ser.save()
+    return Response(ser.data)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  PROJECT HOLIDAYS
+# ══════════════════════════════════════════════════════════════════════════════
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def holidays_list(request):
+    """
+    GET  /api/v1/attendance/holidays/?project=<id>[&year=YYYY]
+         — list holidays for the project (optionally filter by year)
+    POST /api/v1/attendance/holidays/
+         Body: { project, date, name, notes, auto_apply }
+         — create a holiday; if auto_apply=true (default from settings)
+           bulk-mark all active workers as HOLIDAY for that date
+    """
+    project_id = request.query_params.get("project") or request.data.get("project")
+    if not project_id:
+        return Response({"error": "project is required."}, status=400)
+
+    if request.method == "GET":
+        qs = ProjectHoliday.objects.filter(project_id=project_id).order_by("date")
+        year = request.query_params.get("year")
+        if year:
+            qs = qs.filter(date__year=year)
+        return Response(ProjectHolidaySerializer(qs, many=True).data)
+
+    # POST — create holiday
+    date_str   = (request.data.get("date") or "").strip()
+    name       = (request.data.get("name") or "Holiday").strip()
+    notes      = request.data.get("notes", "")
+    auto_apply = request.data.get("auto_apply", None)  # None → check settings
+
+    if not date_str:
+        return Response({"error": "date is required (YYYY-MM-DD)."}, status=400)
+
+    # Resolve auto_apply from project settings if not explicitly passed
+    if auto_apply is None:
+        try:
+            settings_obj = ProjectAttendanceSettings.objects.get(project_id=project_id)
+            auto_apply = settings_obj.auto_apply_holiday
+        except ProjectAttendanceSettings.DoesNotExist:
+            auto_apply = True
+
+    holiday, created_h = ProjectHoliday.objects.update_or_create(
+        project_id=project_id, date=date_str,
+        defaults={"name": name, "notes": notes},
+    )
+
+    workers_marked = 0
+    if auto_apply:
+        active_workers = AttendanceWorker.objects.filter(project_id=project_id, is_active=True)
+        for w in active_workers:
+            DailyAttendance.objects.update_or_create(
+                worker=w, date=date_str,
+                defaults={
+                    "project_id":             project_id,
+                    "status":                 "HOLIDAY",
+                    "notes":                  name,
+                    "recorded_by":            request.user,
+                    "daily_rate_snapshot":    w.daily_rate,
+                    "overtime_rate_snapshot": w.effective_overtime_rate(),
+                },
+            )
+            workers_marked += 1
+        holiday.applied = True
+        holiday.save(update_fields=["applied"])
+
+    return Response({
+        "holiday":       ProjectHolidaySerializer(holiday).data,
+        "workers_marked": workers_marked,
+        "auto_applied":  auto_apply,
+    }, status=201 if created_h else 200)
+
+
+@api_view(["GET", "DELETE"])
+@permission_classes([IsAuthenticated])
+def holiday_detail(request, holiday_id):
+    """
+    GET    /api/v1/attendance/holidays/<id>/  — fetch single holiday
+    DELETE /api/v1/attendance/holidays/<id>/  — delete holiday
+    """
+    try:
+        holiday = ProjectHoliday.objects.get(pk=holiday_id)
+    except ProjectHoliday.DoesNotExist:
+        return Response({"error": "Holiday not found."}, status=404)
+
+    if request.method == "GET":
+        return Response(ProjectHolidaySerializer(holiday).data)
+
+    holiday.delete()
+    return Response({"deleted": True}, status=204)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def holiday_apply(request, holiday_id):
+    """
+    POST /api/v1/attendance/holidays/<id>/apply/
+    (Re-)apply a holiday: mark all active workers as HOLIDAY for that date.
+    Useful when workers were added AFTER the holiday was originally applied.
+    """
+    try:
+        holiday = ProjectHoliday.objects.get(pk=holiday_id)
+    except ProjectHoliday.DoesNotExist:
+        return Response({"error": "Holiday not found."}, status=404)
+
+    active_workers = AttendanceWorker.objects.filter(
+        project_id=holiday.project_id, is_active=True
+    )
+    count = 0
+    for w in active_workers:
+        DailyAttendance.objects.update_or_create(
+            worker=w, date=holiday.date,
+            defaults={
+                "project_id":             holiday.project_id,
+                "status":                 "HOLIDAY",
+                "notes":                  holiday.name,
+                "recorded_by":            request.user,
+                "daily_rate_snapshot":    w.daily_rate,
+                "overtime_rate_snapshot": w.effective_overtime_rate(),
+            },
+        )
+        count += 1
+
+    holiday.applied = True
+    holiday.save(update_fields=["applied"])
+
+    return Response({
+        "applied":         True,
+        "workers_marked":  count,
+        "holiday_date":    str(holiday.date),
+        "holiday_name":    holiday.name,
+    })

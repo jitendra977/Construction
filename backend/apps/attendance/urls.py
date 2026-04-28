@@ -16,6 +16,14 @@ from .views import (
     person_update,
     person_toggle_role,
     person_adopt_contractor,
+    # Dashboard + stats
+    dashboard,
+    worker_stats,
+    # Settings + Holidays
+    attendance_settings,
+    holidays_list,
+    holiday_detail,
+    holiday_apply,
 )
 
 router = DefaultRouter()
@@ -42,4 +50,13 @@ urlpatterns = router.urls + [
     path("persons/adopt-contractor/",          person_adopt_contractor,name="person-adopt-contractor"),
     path("persons/<int:worker_id>/update/",    person_update,          name="person-update"),
     path("persons/<int:worker_id>/toggle-role/", person_toggle_role,   name="person-toggle-role"),
+    # Dashboard + stats
+    path("dashboard/",                           dashboard,             name="attendance-dashboard"),
+    path("workers/<int:worker_id>/stats/",       worker_stats,          name="worker-stats"),
+    # Project settings
+    path("settings/",                            attendance_settings,   name="attendance-settings"),
+    # Holidays
+    path("holidays/",                            holidays_list,         name="attendance-holidays"),
+    path("holidays/<int:holiday_id>/",           holiday_detail,        name="attendance-holiday-detail"),
+    path("holidays/<int:holiday_id>/apply/",     holiday_apply,         name="attendance-holiday-apply"),
 ]

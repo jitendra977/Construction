@@ -4,17 +4,13 @@
  * Mobile  : full-screen content, bottom pill tab bar, My QR FAB
  * Desktop : header + horizontal tab bar + card wrapper (unchanged)
  */
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useConstruction } from '../../context/ConstructionContext';
 import attendanceService from '../../services/attendanceService';
-import QRScannerTab     from './QRScannerTab';
 import DailySheetTab    from './DailySheetTab';
-import WorkersTab       from './WorkersTab';
 import MonthlyReportTab from './MonthlyReportTab';
 import PayrollTab       from './PayrollTab';
-import AdminScanTab     from './AdminScanTab';
-import TeamsTab         from './TeamsTab';
-import AttendanceLogsTab from './AttendanceLogsTab';
+import SettingsTab      from './SettingsTab';
 
 // ── Mobile detection hook ──────────────────────────────────────────────────────
 function useIsMobile() {
@@ -118,48 +114,92 @@ function MyQRModal({ projectId, onClose }) {
 }
 
 // ── Tab definitions ────────────────────────────────────────────────────────────
+// QR Scanner is now embedded inside DailySheetTab (no longer a standalone tab).
+// Records tab removed — data is visible directly in the Daily Sheet.
 const TABS = [
-    { id: 'scanner', label: 'QR Scanner',      icon: '📷', short: 'Scan'    },
-    { id: 'daily',   label: 'Daily Sheet',      icon: '📋', short: 'Daily'   },
-    { id: 'logs',    label: 'Records',          icon: '🗄️', short: 'Logs'    },
-    { id: 'monthly', label: 'Monthly Report',   icon: '📅', short: 'Monthly' },
-    { id: 'payroll', label: 'Payroll',          icon: '💰', short: 'Pay'     },
+    { id: 'daily',    label: 'Attendance',     icon: '📋', short: 'Daily'    },
+    { id: 'monthly',  label: 'Monthly Report', icon: '📅', short: 'Monthly'  },
+    { id: 'payroll',  label: 'Payroll',        icon: '💰', short: 'Pay'      },
+    { id: 'settings', label: 'Settings',       icon: '⚙️', short: 'Settings' },
 ];
 
-// ── Mobile bottom pill tab bar ─────────────────────────────────────────────────
-function MobileTabBar({ active, onChange, onQR }) {
+// ── Mobile bottom scrollable tab bar ──────────────────────────────────────────
+function MobileTabBar({ active, onChange, onQR, alertCount = 0 }) {
+    const scrollRef = useRef(null);
+
+    // Auto-scroll the active tab button into view whenever it changes
+    useEffect(() => {
+        const bar = scrollRef.current;
+        if (!bar) return;
+        const btn = bar.querySelector(`[data-tabid="${active}"]`);
+        if (btn) btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }, [active]);
+
     return (
         <div style={{
-            position: 'fixed', bottom: 80, left: 0, right: 0, zIndex: 100,
-            display: 'flex', justifyContent: 'center', padding: '0 12px',
-            pointerEvents: 'none',
+            position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
+            background: 'var(--t-surface)',
+            borderTop: '1px solid var(--t-border)',
+            boxShadow: '0 -4px 20px rgba(0,0,0,0.10)',
         }}>
-            <div style={{
-                display: 'flex', gap: 4, padding: '6px 8px',
-                background: 'var(--t-surface)', border: '1px solid var(--t-border)',
-                borderRadius: 20, boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
-                backdropFilter: 'blur(16px)', pointerEvents: 'all',
-            }}>
+            <div
+                ref={scrollRef}
+                style={{
+                    display: 'flex',
+                    overflowX: 'auto',
+                    scrollbarWidth: 'none',          /* Firefox */
+                    WebkitOverflowScrolling: 'touch',
+                    padding: '6px 8px 10px',
+                    gap: 2,
+                }}
+            >
+                {/* Hide scrollbar on webkit */}
+                <style>{`div::-webkit-scrollbar{display:none}`}</style>
+
                 {TABS.map(tab => (
-                    <button key={tab.id} onClick={() => onChange(tab.id)} style={{
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-                        padding: '8px 12px', borderRadius: 14, border: 'none', cursor: 'pointer',
-                        background: active === tab.id ? '#f97316' : 'transparent',
-                        color: active === tab.id ? '#fff' : 'var(--t-text3)',
-                        transition: 'all 0.18s', minWidth: 52,
-                    }}>
-                        <span style={{ fontSize: 18, lineHeight: 1 }}>{tab.icon}</span>
+                    <button
+                        key={tab.id}
+                        data-tabid={tab.id}
+                        onClick={() => onChange(tab.id)}
+                        style={{
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                            padding: '8px 14px', borderRadius: 12, border: 'none', cursor: 'pointer',
+                            background: active === tab.id ? '#f97316' : 'transparent',
+                            color: active === tab.id ? '#fff' : 'var(--t-text3)',
+                            transition: 'all 0.15s', flexShrink: 0,
+                            position: 'relative',
+                        }}
+                    >
+                        <span style={{ fontSize: 20, lineHeight: 1 }}>{tab.icon}</span>
                         <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', lineHeight: 1 }}>{tab.short}</span>
+                        {/* Alert badge on Daily tab */}
+                        {tab.id === 'daily' && alertCount > 0 && (
+                            <div style={{
+                                position: 'absolute', top: 4, right: 6,
+                                minWidth: 16, height: 16, borderRadius: 8,
+                                background: '#f59e0b', color: '#fff',
+                                fontSize: 9, fontWeight: 900,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                padding: '0 3px',
+                                boxShadow: '0 0 6px #f59e0b80',
+                            }}>{alertCount}</div>
+                        )}
                     </button>
                 ))}
-                {/* My QR pill */}
-                <div style={{ width: 1, background: 'var(--t-border)', margin: '4px 2px' }} />
-                <button onClick={onQR} style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-                    padding: '8px 12px', borderRadius: 14, border: 'none', cursor: 'pointer',
-                    background: '#f9731618', color: '#f97316', minWidth: 48,
-                }}>
-                    <span style={{ fontSize: 18, lineHeight: 1 }}>🪪</span>
+
+                {/* Divider */}
+                <div style={{ width: 1, background: 'var(--t-border)', margin: '6px 4px', flexShrink: 0 }} />
+
+                {/* My QR badge */}
+                <button
+                    onClick={onQR}
+                    style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                        padding: '8px 14px', borderRadius: 12, border: 'none', cursor: 'pointer',
+                        background: '#f9731618', color: '#f97316', flexShrink: 0,
+                    }}
+                >
+                    <span style={{ fontSize: 20, lineHeight: 1 }}>🪪</span>
                     <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', lineHeight: 1 }}>My QR</span>
                 </button>
             </div>
@@ -169,8 +209,9 @@ function MobileTabBar({ active, onChange, onQR }) {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function AttendanceHub() {
-    const [activeTab, setActiveTab] = useState('daily');
-    const [myQROpen,  setMyQROpen]  = useState(false);
+    const [activeTab,      setActiveTab]      = useState('daily');
+    const [myQROpen,       setMyQROpen]       = useState(false);
+    const [alertCount,     setAlertCount]     = useState(0); // workers with check-in but no check-out
     const isMobile = useIsMobile();
 
     const { activeProjectId, projects } = useConstruction();
@@ -179,18 +220,17 @@ export default function AttendanceHub() {
     // ── Tab content ────────────────────────────────────────────────────────────
     const TabContent = () => (
         <>
-            {activeTab === 'scanner' && <QRScannerTab      projectId={activeProjectId} />}
-            {activeTab === 'daily'   && <DailySheetTab     projectId={activeProjectId} />}
-            {activeTab === 'logs'    && <AttendanceLogsTab  projectId={activeProjectId} />}
-            {activeTab === 'monthly' && <MonthlyReportTab   projectId={activeProjectId} />}
-            {activeTab === 'payroll' && <PayrollTab         projectId={activeProjectId} />}
+            {activeTab === 'daily'    && <DailySheetTab    projectId={activeProjectId} onAlertCount={setAlertCount} />}
+            {activeTab === 'monthly'  && <MonthlyReportTab  projectId={activeProjectId} />}
+            {activeTab === 'payroll'  && <PayrollTab        projectId={activeProjectId} />}
+            {activeTab === 'settings' && <SettingsTab       projectId={activeProjectId} />}
         </>
     );
 
     // ── MOBILE LAYOUT ──────────────────────────────────────────────────────────
     if (isMobile) {
         return (
-            <div style={{ minHeight: '100vh', background: 'var(--t-bg)', paddingBottom: 160 }}>
+            <div style={{ minHeight: '100vh', background: 'var(--t-bg)', paddingBottom: 100 }}>
 
                 {/* Compact sticky header */}
                 <div style={{
@@ -222,12 +262,12 @@ export default function AttendanceHub() {
                 </div>
 
                 {/* Full-bleed content — no card wrapper on mobile */}
-                <div style={{ padding: activeTab === 'scanner' ? 0 : '12px 12px 0' }}>
+                <div style={{ padding: '12px 12px 0' }}>
                     <TabContent />
                 </div>
 
                 {/* Bottom pill tab bar */}
-                <MobileTabBar active={activeTab} onChange={setActiveTab} onQR={() => setMyQROpen(true)} />
+                <MobileTabBar active={activeTab} onChange={setActiveTab} onQR={() => setMyQROpen(true)} alertCount={alertCount} />
 
                 {myQROpen && <MyQRModal projectId={activeProjectId} onClose={() => setMyQROpen(false)} />}
             </div>
@@ -279,9 +319,20 @@ export default function AttendanceHub() {
                             background: activeTab === tab.id ? 'var(--t-surface)' : 'transparent',
                             color: activeTab === tab.id ? '#f97316' : 'var(--t-text3)',
                             whiteSpace: 'nowrap', transition: 'all 0.15s',
+                            position: 'relative',
                         }}>
                             <span>{tab.icon}</span>
                             <span>{tab.label}</span>
+                            {tab.id === 'daily' && alertCount > 0 && (
+                                <div style={{
+                                    minWidth: 18, height: 18, borderRadius: 9,
+                                    background: '#f59e0b', color: '#fff',
+                                    fontSize: 10, fontWeight: 900,
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    padding: '0 4px',
+                                    boxShadow: '0 0 6px #f59e0b60',
+                                }}>{alertCount}</div>
+                            )}
                         </button>
                     ))}
                 </div>

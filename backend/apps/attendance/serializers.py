@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import AttendanceWorker, DailyAttendance, QRScanLog, ScanTimeWindow
+from .models import AttendanceWorker, DailyAttendance, QRScanLog, ScanTimeWindow, ProjectHoliday, ProjectAttendanceSettings
 
 
 class AttendanceWorkerSerializer(serializers.ModelSerializer):
@@ -203,6 +203,33 @@ class PersonRolesSerializer(serializers.Serializer):
     def get_teams(self, obj):
         # obj is the AttendanceWorker instance
         return [
-            {"id": t.id, "name": t.name} 
+            {"id": t.id, "name": t.name}
             for t in obj.teams.all()
         ]
+
+
+class ProjectHolidaySerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = ProjectHoliday
+        fields = ["id", "project", "date", "name", "notes", "applied", "created_at"]
+        read_only_fields = ["id", "applied", "created_at"]
+
+
+class ProjectAttendanceSettingsSerializer(serializers.ModelSerializer):
+    weekly_off_list = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model  = ProjectAttendanceSettings
+        fields = [
+            "id", "project",
+            "shift_start", "shift_end", "break_minutes", "working_hours_per_day",
+            "auto_overtime",
+            "weekly_off_days", "weekly_off_list", "auto_mark_weekend_off",
+            "auto_apply_holiday",
+            "annual_leave_days", "sick_leave_days", "leave_carry_forward",
+            "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+    def get_weekly_off_list(self, obj):
+        return obj.weekly_off_list

@@ -155,7 +155,9 @@ const ACTION_CFG = {
 };
 
 // ── Main component ─────────────────────────────────────────────────────────────
-export default function QRScannerTab({ projectId }) {
+// onClose       — optional; when provided a ✕ close button is shown (overlay mode)
+// onScanSuccess — optional; called with the scan result entry after CHECK_IN / CHECK_OUT
+export default function QRScannerTab({ projectId, onClose, onScanSuccess }) {
     const isMobile = useIsMobile();
     const now      = useClock();
 
@@ -235,6 +237,10 @@ export default function QRScannerTab({ projectId }) {
             };
             setResult(entry); setResultAnim(true);
             setScanLog(prev => [entry, ...prev].slice(0, 30));
+            // Notify parent (DailySheetTab) so it can refresh the sheet
+            if (onScanSuccess && (res.action === 'CHECK_IN' || res.action === 'CHECK_OUT')) {
+                onScanSuccess(entry);
+            }
         } catch (e) {
             const entry = {
                 id: Date.now(), action: 'ERROR',
@@ -322,6 +328,24 @@ export default function QRScannerTab({ projectId }) {
                 minHeight: 'calc(100vh - 130px)',
                 overflow: 'hidden',
             }}>
+                {/* ── Close button (overlay mode only) ─────────────────────── */}
+                {onClose && (
+                    <button
+                        onClick={onClose}
+                        style={{
+                            position: 'absolute', top: 14, right: 14, zIndex: 200,
+                            width: 40, height: 40, borderRadius: 12,
+                            background: 'rgba(0,0,0,0.55)',
+                            border: '1.5px solid rgba(255,255,255,0.25)',
+                            color: '#fff', fontSize: 18, cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            backdropFilter: 'blur(6px)',
+                            boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
+                        }}
+                        title="Close scanner"
+                    >✕</button>
+                )}
+
                 {/* ── Live clock overlay ───────────────────────────────────── */}
                 <div style={{
                     position: 'absolute', top: 0, left: 0, right: 0, zIndex: 30,
@@ -666,7 +690,22 @@ export default function QRScannerTab({ projectId }) {
     // DESKTOP — clean two-column layout
     // ═══════════════════════════════════════════════════════════════════════════
     return (
-        <div style={{ display:'flex', gap:20, flexWrap:'wrap' }}>
+        <div style={{ display:'flex', gap:20, flexWrap:'wrap', position: 'relative' }}>
+            {/* Close button (overlay mode) */}
+            {onClose && (
+                <button
+                    onClick={onClose}
+                    style={{
+                        position: 'absolute', top: 0, right: 0, zIndex: 200,
+                        width: 38, height: 38, borderRadius: 10,
+                        background: 'rgba(0,0,0,0.08)',
+                        border: '1.5px solid var(--t-border)',
+                        color: 'var(--t-text)', fontSize: 18, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                    title="Close scanner"
+                >✕</button>
+            )}
 
             {/* ── Scanner panel ── */}
             <div style={{ flex:'1 1 400px', minWidth:300 }}>

@@ -91,6 +91,20 @@ export const attendanceService = {
         api.post(`persons/${workerId}/toggle-role/`, data).then(r => r.data),
     adoptContractor:      (data)         =>
         api.post('persons/adopt-contractor/', data).then(r => r.data),
+
+    // ── Dashboard + stats ─────────────────────────────────────────────────────
+    getDashboard:  (project)   => api.get('dashboard/',                       { params: { project } }).then(r => r.data),
+    getWorkerStats:(workerId)  => api.get(`workers/${workerId}/stats/`).then(r => r.data),
+
+    // ── Project Attendance Settings ────────────────────────────────────────────
+    getSettings:    (project)        => api.get('settings/',  { params: { project } }).then(r => r.data),
+    updateSettings: (project, data)  => api.patch('settings/', { ...data, project }, { params: { project } }).then(r => r.data),
+
+    // ── Holidays ───────────────────────────────────────────────────────────────
+    getHolidays:    (project, year)  => api.get('holidays/', { params: { project, ...(year ? { year } : {}) } }).then(r => r.data),
+    createHoliday:  (data)           => api.post('holidays/', data).then(r => r.data),
+    deleteHoliday:  (id)             => api.delete(`holidays/${id}/`).then(r => r.data),
+    applyHoliday:   (id)             => api.post(`holidays/${id}/apply/`).then(r => r.data),
 };
 
 export default attendanceService;
