@@ -5,6 +5,7 @@
  */
 import React, { useState } from 'react';
 import api from '../../services/projectsApi';
+import workforceService from '../../../../services/workforceService';
 
 export const ROLE_CONFIG = {
     OWNER:      { emoji: '👑', color: '#f97316', label: 'Owner' },
@@ -31,7 +32,7 @@ export const PERM_META = [
     { key: 'can_manage_resources', icon: '🧱', label: 'Resources' },
 ];
 
-export default function TeamMemberRow({ member, canManage, onUpdated, onRemoved, isLinkedToAttendance }) {
+export default function TeamMemberRow({ member, canManage, onUpdated, onRemoved, isLinkedToAttendance, onIDCard }) {
     const [expanded, setExpanded] = useState(false);
     const [saving,   setSaving]   = useState(false);
     
@@ -116,10 +117,27 @@ export default function TeamMemberRow({ member, canManage, onUpdated, onRemoved,
                             </div>
                         </div>
                         {canManage && (
-                            <button onClick={remove} style={{ 
-                                padding:'8px 12px', borderRadius:10, border:'1px solid #ef444430', 
-                                background:'rgba(239,68,68,0.05)', color:'#ef4444', fontSize:12, fontWeight:700, cursor:'pointer' 
-                            }}>🗑 Remove</button>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                {member.workforce_id && (
+                                    <button 
+                                        onClick={onIDCard}
+                                        style={{ 
+                                            padding:'8px 12px', borderRadius:10, 
+                                            border:'1px solid #3b82f6', 
+                                            background:'#eff6ff', 
+                                            color:'#1d4ed8', 
+                                            fontSize:12, fontWeight:700, cursor:'pointer',
+                                            boxShadow: '0 2px 4px rgba(59, 130, 246, 0.1)'
+                                        }}
+                                    >
+                                        🪪 ID Card
+                                    </button>
+                                )}
+                                <button onClick={remove} style={{ 
+                                    padding:'8px 12px', borderRadius:10, border:'1px solid #ef444430', 
+                                    background:'rgba(239,68,68,0.05)', color:'#ef4444', fontSize:12, fontWeight:700, cursor:'pointer' 
+                                }}>🗑 Remove</button>
+                            </div>
                         )}
                     </div>
                 </div>

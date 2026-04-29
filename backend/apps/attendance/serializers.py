@@ -46,9 +46,15 @@ class AttendanceWorkerSerializer(serializers.ModelSerializer):
             "contractor", "contractor_id", "contractor_name",
             "contractor_role", "contractor_phone", "contractor_email",
             "has_contractor",
+            "workforce_id",
             "created_at", "updated_at",
         ]
-        read_only_fields = ["qr_token", "created_at", "updated_at"]
+        read_only_fields = ["qr_token", "workforce_id", "created_at", "updated_at"]
+
+    def get_workforce_id(self, obj):
+        if hasattr(obj, 'workforce_member') and obj.workforce_member:
+            return obj.workforce_member.id
+        return None
 
     def get_member_user_name(self, obj):
         if obj.project_member and obj.project_member.user:
@@ -198,6 +204,7 @@ class PersonRolesSerializer(serializers.Serializer):
     user_name     = serializers.CharField(allow_null=True)
 
     # ── Grouping ──────────────────────────────────────────────────────────────
+    workforce_id  = serializers.UUIDField(allow_null=True)
     teams         = serializers.SerializerMethodField()
 
     def get_teams(self, obj):

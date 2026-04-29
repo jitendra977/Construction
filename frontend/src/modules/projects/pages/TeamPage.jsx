@@ -8,9 +8,11 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useOutletContext } from 'react-router-dom';
 import api from '../services/projectsApi';
 import attendanceService from '../../../services/attendanceService';
+import workforceService from '../../../services/workforceService';
 import WorkersTab from '../../attendance/WorkersTab';
 import TeamsTab from '../../attendance/TeamsTab';
 import TeamMemberRow, { ROLE_CONFIG, ROLES, PERM_META } from '../components/team/TeamMemberRow';
+import IDCardModal from '../../workforce/components/IDCardModal';
 
 const ROLE_DEFAULTS = {
     OWNER:      { can_manage_members:true,  can_manage_finances:true,  can_view_finances:true,  can_manage_phases:true,  can_manage_structure:true,  can_manage_resources:true,  can_upload_media:true  },
@@ -34,6 +36,8 @@ export default function TeamPage() {
     const [loading,  setLoading]  = useState(true);
     const [showAdd,  setShowAdd]  = useState(false);
     const [search,   setSearch]   = useState('');
+    const [showIDCard, setShowIDCard] = useState(false);
+    const [selectedMember, setSelectedMember] = useState(null);
 
     const canManage = myRole?.can_manage_members === true;
 
@@ -167,6 +171,10 @@ export default function TeamPage() {
                                             onUpdated={handleUpdated} 
                                             onRemoved={handleRemoved}
                                             isLinkedToAttendance={workers.some(w => w.linked_user === member.user)}
+                                            onIDCard={() => {
+                                                setSelectedMember(member);
+                                                setShowIDCard(true);
+                                            }}
                                         />
                                     ))}
                                 </div>
@@ -186,6 +194,13 @@ export default function TeamPage() {
                 <TeamsTab projectId={projectId} />
             ) : (
                 <WorkersTab projectId={projectId} />
+            )}
+
+            {showIDCard && selectedMember && (
+                <IDCardModal 
+                    badgeUrl={workforceService.getBadgeUrl(selectedMember.workforce_id)} 
+                    onClose={() => setShowIDCard(false)} 
+                />
             )}
         </div>
     );

@@ -5,7 +5,9 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import attendanceService from '../../services/attendanceService';
+import workforceService from '../../services/workforceService';
 import WorkerHistoryModal from './WorkerHistoryModal';
+import IDCardModal from '../workforce/components/IDCardModal';
 
 const TRADES = ['MASON','HELPER','CARPENTER','ELECTRICIAN','PLUMBER','PAINTER',
   'STEEL_FIXER','SUPERVISOR','TILE_SETTER','EXCAVATOR','WATERPROOF',
@@ -126,7 +128,9 @@ export default function WorkersTab({ projectId }) {
   const [groupBy,    setGroupBy]    = useState('NONE'); 
 
   const [qrPerson,      setQrPerson]      = useState(null);
-  const [historyId,     setHistoryId]     = useState(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showIDCard, setShowIDCard] = useState(false);
+  const [selectedWorker, setSelectedWorker] = useState(null);
   const [showForm,      setShowForm]      = useState(false);
   const [editingId,     setEditingId]     = useState(null);
   const [form,          setForm]          = useState(EMPTY_FORM);
@@ -178,7 +182,8 @@ export default function WorkersTab({ projectId }) {
               key={p.worker_id} p={p} 
               onEdit={() => { setEditingId(p.worker_id); setForm(p); setShowForm(true); }} 
               onQR={() => setQrPerson(p)} 
-              onHistory={() => setHistoryId(p.worker_id)} 
+              onHistory={() => { setSelectedWorker(p); setShowHistory(true); }} 
+              onIDCard={() => { setSelectedWorker(p); setShowIDCard(true); }}
             />
           ))}
         </div>
@@ -200,7 +205,8 @@ export default function WorkersTab({ projectId }) {
                 key={p.worker_id} p={p} 
                 onEdit={() => { setEditingId(p.worker_id); setForm(p); setShowForm(true); }} 
                 onQR={() => setQrPerson(p)} 
-                onHistory={() => setHistoryId(p.worker_id)} 
+                onHistory={() => { setSelectedWorker(p); setShowHistory(true); }} 
+                onIDCard={() => { setSelectedWorker(p); setShowIDCard(true); }}
               />
             ))}
           </tbody>
@@ -217,8 +223,9 @@ export default function WorkersTab({ projectId }) {
         <SummaryCard label="Total Force" value={summary?.total || 0} color="#6366f1" icon="👥" />
         <SummaryCard label="Active Now" value={summary?.active || 0} color="#22c55e" icon="⚡" />
         <SummaryCard label="Pay Linked" value={summary?.with_payment || 0} color="#f59e0b" icon="💰" />
-        <SummaryCard label="Login Ready" value={summary?.with_login || 0} color="#3b82f6" icon="🔐" />
-      </div>
+        <SummaryCard label="ID Cards Ready" value={summary?.with_workforce || 0} color="#3b82f6" icon="🪪" />
+        <SummaryCard label="Login Ready" value={summary?.with_login || 0} color="#6366f1" icon="🔐" />
+    </div>
 
       {/* ── Action Bar ── */}
       <div style={{ display:'flex', gap:12, marginBottom:24, flexWrap:'wrap', alignItems:'center', background:'var(--t-surface)', padding:12, borderRadius:16, border:'1px solid var(--t-border)' }}>
@@ -287,7 +294,15 @@ export default function WorkersTab({ projectId }) {
       )}
 
       {qrPerson && <QRBadgeModal worker={qrPerson} onClose={() => setQrPerson(null)} />}
-      {historyId && <WorkerHistoryModal workerId={historyId} onClose={() => setHistoryId(null)} />}
+      {showHistory && selectedWorker && (
+        <WorkerHistoryModal worker={selectedWorker} onClose={() => setShowHistory(false)} />
+      )}
+      {showIDCard && selectedWorker && (
+        <IDCardModal 
+          badgeUrl={workforceService.getBadgeUrl(selectedWorker.workforce_member_id)} 
+          onClose={() => setShowIDCard(false)} 
+        />
+      )}
       {showForm && <StaffFormSheet editingId={editingId} form={form} setForm={setForm} onSave={handleSave} onClose={() => setShowForm(false)} saving={saving} />}
     </div>
   );
@@ -309,7 +324,7 @@ function SummaryCard({ label, value, color, icon }) {
   );
 }
 
-function PersonRow({ p, onEdit, onQR, onHistory }) {
+function PersonRow({ p, onEdit, onQR, onHistory, onIDCard }) {
   const isPresent = p.today_status === 'PRESENT';
   return (
     <tr style={{ borderBottom:'1px solid var(--t-border)' }}>
@@ -335,7 +350,18 @@ function PersonRow({ p, onEdit, onQR, onHistory }) {
       </td>
       <td style={{ padding:'12px 16px' }}>
         <div style={{ display:'flex', gap:4 }}>
-          <button onClick={onQR} style={miniBtnStyle} title="View Badge">🪪</button>
+          {p.workforce_member_id && (
+            <button 
+              onClick={onIDCard}
+              style={{ ...miniBtnStyle, border: '1px solid #3b82f6', background: '#eff6ff', color: '#1d4ed8' }} 
+              title="Print ID Card"
+            >
+              🪪
+            </button>
+          )}
+          {!p.workforce_member_id && (
+            <button onClick={onQR} style={miniBtnStyle} title="Attendance QR">🔍</button>
+          )}
           <button onClick={onHistory} style={miniBtnStyle} title="View Service Record">📄</button>
           <button onClick={onEdit} style={miniBtnStyle} title="Edit Profile">✏️</button>
         </div>
@@ -344,7 +370,7 @@ function PersonRow({ p, onEdit, onQR, onHistory }) {
   );
 }
 
-function PersonCard({ p, onEdit, onQR, onHistory }) {
+function PersonCard({ p, onEdit, onQR, onHistory, onIDCard }) {
   const isPresent = p.today_status === 'PRESENT';
   return (
     <Card style={{ padding:20 }}>
@@ -361,7 +387,16 @@ function PersonCard({ p, onEdit, onQR, onHistory }) {
           </div>
        </div>
        <div style={{ display:'flex', gap:8, borderTop:'1px solid var(--t-border)', paddingTop:16 }}>
-          <button onClick={onQR} style={{flex:1, padding:'8px', borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-bg)', fontSize:12, fontWeight:800}}>Badge</button>
+          {p.workforce_member_id ? (
+            <button 
+              onClick={onIDCard}
+              style={{flex:1, padding:'8px', borderRadius:10, border:'1px solid #3b82f6', background:'#eff6ff', color:'#1d4ed8', fontSize:12, fontWeight:800}}
+            >
+              ID Card
+            </button>
+          ) : (
+            <button onClick={onQR} style={{flex:1, padding:'8px', borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-bg)', fontSize:12, fontWeight:800}}>QR Code</button>
+          )}
           <button onClick={onHistory} style={{flex:1, padding:'8px', borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-bg)', fontSize:12, fontWeight:800}}>Record</button>
           <button onClick={onEdit} style={{flex:1, padding:'8px', borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-bg)', fontSize:12, fontWeight:800}}>Edit</button>
        </div>
