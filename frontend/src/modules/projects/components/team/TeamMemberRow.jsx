@@ -26,10 +26,12 @@ export const ROLES = [
 ];
 
 export const PERM_META = [
-    { key: 'can_manage_members',   icon: '👥', label: 'Team'      },
-    { key: 'can_manage_phases',    icon: '📋', label: 'Phases'    },
-    { key: 'can_manage_finances',  icon: '💰', label: 'Finance'   },
-    { key: 'can_manage_resources', icon: '🧱', label: 'Resources' },
+    { key: 'can_manage_members',    icon: '👥', label: 'Team'      },
+    { key: 'can_manage_phases',     icon: '📋', label: 'Phases'    },
+    { key: 'can_manage_finances',   icon: '💰', label: 'Finance'   },
+    { key: 'can_manage_resources',  icon: '🧱', label: 'Resources' },
+    { key: 'can_manage_workforce',  icon: '🦺', label: 'Workforce' },
+    { key: 'can_approve_purchases', icon: '✅', label: 'Approvals' },
 ];
 
 export default function TeamMemberRow({ member, canManage, onUpdated, onRemoved, isLinkedToAttendance, onIDCard }) {

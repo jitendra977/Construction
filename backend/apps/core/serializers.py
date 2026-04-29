@@ -8,18 +8,26 @@ class ProjectMemberSerializer(serializers.ModelSerializer):
     full_name    = serializers.SerializerMethodField()
     role_display = serializers.ReadOnlyField(source='get_role_display')
     profile_image = serializers.SerializerMethodField()
+    workforce_id  = serializers.SerializerMethodField()
 
     class Meta:
         model  = ProjectMember
         fields = [
             'id', 'project', 'user', 'username', 'email', 'full_name', 'profile_image',
+            'workforce_id',
             'role', 'role_display', 'note', 'joined_at',
             # Granular permission flags
             'can_manage_members', 'can_manage_finances', 'can_view_finances',
             'can_manage_phases',  'can_manage_structure',
             'can_manage_resources', 'can_upload_media',
+            'can_manage_workforce', 'can_approve_purchases',
         ]
-        read_only_fields = ['id', 'joined_at', 'username', 'email', 'full_name', 'profile_image', 'role_display']
+        read_only_fields = ['id', 'joined_at', 'username', 'email', 'full_name', 'profile_image', 'role_display', 'workforce_id']
+
+    def get_workforce_id(self, obj):
+        if hasattr(obj.user, 'workforce_profile') and obj.user.workforce_profile:
+            return obj.user.workforce_profile.id
+        return None
 
     def get_full_name(self, obj):
         u = obj.user

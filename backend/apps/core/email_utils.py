@@ -207,3 +207,70 @@ def send_payment_receipt_email(payment, user=None, custom_subject=None, custom_m
         log_entry.error_message = error_msg
         log_entry.save()
         return False
+
+
+def send_worker_portal_credentials(
+    recipient_email,
+    worker_name,
+    employee_id,
+    username,
+    pin,
+    project_name='Construction Site',
+    portal_url='',
+    user=None,
+):
+    """
+    Send an HTML email with Worker Portal login credentials to the given address.
+
+    Called right after create_account (PIN is only available at creation time)
+    or when resending with a freshly generated PIN.
+
+    Returns True on success, False on failure.
+    Logs to EmailLog regardless of outcome.
+    """
+    from .models import EmailLog
+
+    subject = f"Your Worker Portal Access — {project_name}"
+
+    context = {
+        'worker_name':  worker_name,
+        'employee_id':  employee_id,
+        'username':     username,
+        'pin':          pin,
+        'project_name': project_name,
+        'portal_url':   portal_url or '#',
+    }
+
+    html_content = render_to_string('emails/worker_portal_credentials.html', context)
+    text_content = strip_tags(html_content)
+
+    log_entry = EmailLog.objects.create(
+        email_type      = 'OTHER',
+        recipient_name  = worker_name,
+        recipient_email = recipient_email,
+        subject         = subject,
+        sent_by         = user if user and getattr(user, 'is_authenticated', False) else None,
+    )
+
+    try:
+        email = EmailMultiAlternatives(
+            subject    = subject,
+            body       = text_content,
+            from_email = settings.DEFAULT_FROM_EMAIL,
+            to         = [recipient_email],
+        )
+        email.attach_alternative(html_content, 'text/html')
+        email.send()
+
+        log_entry.status = 'SENT'
+        log_entry.save()
+        logger.info("Portal credentials sent to %s for %s", recipient_email, worker_name)
+        return True
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Failed to send portal credentials to %s: %s", recipient_email, error_msg)
+        log_entry.status        = 'FAILED'
+        log_entry.error_message = error_msg
+        log_entry.save()
+        return False

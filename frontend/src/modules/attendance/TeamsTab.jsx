@@ -5,7 +5,7 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import teamsApi from '../resource/services/teamsApi';
-import attendanceService from '../../services/attendanceService';
+import workforceService from '../../services/workforceService';
 import TeamList from '../resource/components/labor/TeamList';
 import TeamForm from '../resource/components/labor/TeamForm';
 import ManageMembers from '../resource/components/labor/ManageMembers';
@@ -25,10 +25,11 @@ export default function TeamsTab({ projectId }) {
     try {
       const [tRes, wRes] = await Promise.all([
         teamsApi.getTeams(projectId),
-        attendanceService.getWorkers({ project: projectId })
+        workforceService.getMembers({ project: projectId, page_size: 200 }),
       ]);
       setTeams(tRes.data?.results || tRes.data || []);
-      setWorkers(Array.isArray(wRes) ? wRes : wRes.results || []);
+      const membersRaw = wRes?.results ?? wRes ?? [];
+      setWorkers(Array.isArray(membersRaw) ? membersRaw : []);
     } catch (err) {
       console.error("Failed to load workforce teams data:", err);
     } finally {

@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from apps.core.models import HouseProject, ProjectMember
 from apps.resources.models import Contractor
 from apps.attendance.models import AttendanceWorker
-from apps.teams.models import Team
+from apps.workforce.models import Team, WorkforceMember
 from decimal import Decimal
 import random
 
@@ -106,31 +106,46 @@ class Command(BaseCommand):
             attendance_workers.append(worker)
             self.stdout.write(f'  👷 Worker: {name} ({trade})')
 
-        # 4. Create Teams and Assign Workers
+        # 4. Create WorkforceMember records linked to AttendanceWorkers
+        for aw in attendance_workers:
+            name_parts = aw.name.strip().rsplit(' ', 1)
+            WorkforceMember.objects.get_or_create(
+                attendance_worker=aw,
+                defaults=dict(
+                    _first_name=name_parts[0],
+                    _last_name=name_parts[1] if len(name_parts) > 1 else '',
+                    status='ACTIVE',
+                    worker_type=aw.worker_type,
+                    _phone=aw.phone,
+                    current_project=project,
+                    join_date=aw.joined_date or project.start_date,
+                ),
+            )
+
+        # 5. Create Teams — leader and members are now WorkforceMember
         teams_data = [
-            ('Masonry Team A', 'Core structure wall builders', 'MASON', ['Ganesh Lama', 'Bharat Rai', 'Sunil Tamang']),
-            ('Finishing Support', 'Helpers for finishing work', 'HELPER', ['Prakash BK', 'Rajesh Magar']),
-            ('Technical Team', 'Specialized trades', 'ELECTRICIAN', ['Bikash Thapa', 'Manoj Gurung']),
+            ('Masonry Team A',   'Core structure wall builders', ['Ganesh Lama', 'Bharat Rai', 'Sunil Tamang']),
+            ('Finishing Support','Helpers for finishing work',   ['Prakash BK', 'Rajesh Magar']),
+            ('Technical Team',   'Specialized trades',           ['Bikash Thapa', 'Manoj Gurung']),
         ]
-        
-        for t_name, desc, leader_trade, member_names in teams_data:
-            # Find a leader from the members or just pick the first
-            leader = AttendanceWorker.objects.filter(name=member_names[0], project=project).first()
-            
+
+        for t_name, desc, member_names in teams_data:
+            # Resolve WorkforceMember via the linked AttendanceWorker name
+            wf_members = WorkforceMember.objects.filter(
+                attendance_worker__name__in=member_names,
+                current_project=project,
+            )
+            leader = WorkforceMember.objects.filter(
+                attendance_worker__name=member_names[0],
+                current_project=project,
+            ).first()
+
             team, _ = Team.objects.get_or_create(
                 project=project,
                 name=t_name,
-                defaults={
-                    'description': desc,
-                    'leader': leader,
-                    'is_active': True,
-                }
+                defaults={'description': desc, 'leader': leader, 'is_active': True},
             )
-            
-            # Add members
-            team_members = AttendanceWorker.objects.filter(name__in=member_names, project=project)
-            team.members.set(team_members)
-            
-            self.stdout.write(f'  👥 Team: {t_name} ({team_members.count()} members)')
+            team.members.set(wf_members)
+            self.stdout.write(f'  👥 Team: {t_name} ({wf_members.count()} members)')
 
         self.stdout.write(self.style.SUCCESS('✅ Human data seeding complete!'))

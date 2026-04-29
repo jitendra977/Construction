@@ -2,7 +2,8 @@ import logging
 import uuid
 
 from rest_framework import status, generics, permissions, viewsets
-from rest_framework.decorators import api_view, permission_classes, throttle_classes, action
+from rest_framework.views import APIView
+from rest_framework.decorators import api_view, permission_classes, throttle_classes, action, parser_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.throttling import BaseThrottle
@@ -179,8 +180,9 @@ def logout_view(request):
 
 @api_view(['GET', 'PATCH'])
 @permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
 def user_profile(request):
-    """Current user profile — GET or PATCH."""
+    """Current user profile — GET or PATCH (supports multipart for profile_image)."""
     user = request.user
     if request.method == 'GET':
         return Response(UserSerializer(user).data)
@@ -193,6 +195,44 @@ def user_profile(request):
                      description='User updated their profile')
         return Response(serializer.data)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def change_email(request):
+    """
+    POST /api/v1/accounts/change-email/
+    Body: { current_password, new_email }
+    Requires password confirmation before changing the primary login email.
+    """
+    user         = request.user
+    current_pw   = request.data.get('current_password', '').strip()
+    new_email    = request.data.get('new_email', '').strip().lower()
+
+    if not current_pw or not new_email:
+        return Response({'error': 'current_password and new_email are required.'},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    if not user.check_password(current_pw):
+        return Response({'error': 'Current password is incorrect.'},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    if User.objects.filter(email=new_email).exclude(pk=user.pk).exists():
+        return Response({'error': 'An account with this email already exists.'},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    # Basic format validation
+    import re
+    if not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', new_email):
+        return Response({'error': 'Invalid email address.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    old_email  = user.email
+    user.email = new_email
+    user.save(update_fields=['email'])
+    log_activity(request, user, 'UPDATE', 'User',
+                 object_id=user.id, object_repr=user.email,
+                 description=f'User changed email from {old_email} to {new_email}')
+    return Response({'message': 'Email updated successfully.', 'email': new_email})
 
 
 @api_view(['POST'])
@@ -558,3 +598,283 @@ class ActivityLogViewSet(viewsets.ReadOnlyModelViewSet):
             qs = qs.filter(timestamp__gte=timezone.now() - timedelta(days=int(days)))
 
         return qs.order_by('-timestamp')
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  WORKER PORTAL — lightweight endpoints for staff/supervisors on mobile
+# ══════════════════════════════════════════════════════════════════════════════
+
+class WorkerLoginView(APIView):
+    """
+    POST /api/v1/worker/login/
+    Body: { "phone": "98XXXXXXXX", "pin": "123456" }
+
+    Authenticates via phone (username) + PIN (password) and returns
+    a JWT pair identical to the main login — same tokens, different UI.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        from rest_framework_simplejwt.tokens import RefreshToken
+        from django.contrib.auth import authenticate
+
+        phone = (request.data.get('phone') or '').strip()
+        pin   = (request.data.get('pin')   or '').strip()
+
+        if not phone or not pin:
+            return Response(
+                {'error': 'phone and pin are required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = authenticate(request, username=phone, password=pin)
+        if not user:
+            return Response(
+                {'error': 'Invalid phone number or PIN.'},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        if not hasattr(user, 'workforce_profile'):
+            return Response(
+                {'error': 'This account is not linked to a workforce profile.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        refresh = RefreshToken.for_user(user)
+        member  = user.workforce_profile
+
+        return Response({
+            'access':      str(refresh.access_token),
+            'refresh':     str(refresh),
+            'employee_id': member.employee_id,
+            'full_name':   member.full_name,
+            'role':        member.role.title if member.role else member.worker_type,
+            'project_id':  str(member.current_project_id) if member.current_project_id else None,
+        })
+
+
+class WorkerMeView(APIView):
+    """
+    GET /api/v1/worker/me/
+    Returns the authenticated worker's own profile + today's attendance.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from django.utils import timezone
+
+        user = request.user
+        if not hasattr(user, 'workforce_profile'):
+            return Response({'error': 'No workforce profile linked.'}, status=404)
+
+        member = user.workforce_profile
+        today  = timezone.localdate()
+
+        # Today's attendance via the linked AttendanceWorker
+        today_att = None
+        if member.attendance_worker:
+            from apps.attendance.models import DailyAttendance
+            att = DailyAttendance.objects.filter(
+                worker=member.attendance_worker, date=today
+            ).first()
+            if att:
+                today_att = {
+                    'status':     att.status,
+                    'check_in':   str(att.check_in)  if att.check_in  else None,
+                    'check_out':  str(att.check_out) if att.check_out else None,
+                    'daily_rate': str(att.daily_rate_snapshot),
+                }
+
+        # Last 7 days attendance summary
+        from apps.attendance.models import DailyAttendance
+        from datetime import timedelta
+        week_att = []
+        if member.attendance_worker:
+            records = DailyAttendance.objects.filter(
+                worker=member.attendance_worker,
+                date__gte=today - timedelta(days=7),
+            ).order_by('-date')
+            week_att = [
+                {'date': str(r.date), 'status': r.status,
+                 'check_in': str(r.check_in) if r.check_in else None}
+                for r in records
+            ]
+
+        # Teams they belong to
+        teams = list(
+            member.teams.values('id', 'name', 'project__name')
+        )
+
+        return Response({
+            'employee_id':   member.employee_id,
+            'full_name':     member.full_name,
+            'phone':         member.phone,
+            'worker_type':   member.worker_type,
+            'status':        member.status,
+            'role':          member.role.title if member.role else None,
+            'project':       member.current_project.name if member.current_project else None,
+            'join_date':     str(member.join_date),
+            'today':         today_att,
+            'week':          week_att,
+            'teams':         teams,
+        })
+
+
+class WorkerCheckinView(APIView):
+    """
+    POST /api/v1/worker/checkin/
+    Body: { "type": "CHECK_IN" | "CHECK_OUT" }
+
+    Triggers a check-in or check-out for the authenticated worker using
+    their linked QR token + the project's ScanTimeWindow validation.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from django.utils import timezone as tz
+        import datetime as dt
+
+        user = request.user
+        if not hasattr(user, 'workforce_profile'):
+            return Response({'error': 'No workforce profile linked.'}, status=404)
+
+        member = user.workforce_profile
+        if not member.attendance_worker:
+            return Response(
+                {'error': 'No attendance record linked to your profile. Contact your supervisor.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        scan_type = (request.data.get('type') or 'CHECK_IN').upper()
+        if scan_type not in ('CHECK_IN', 'CHECK_OUT'):
+            return Response({'error': 'type must be CHECK_IN or CHECK_OUT.'}, status=400)
+
+        aw      = member.attendance_worker
+        project = aw.project
+        now     = tz.now()
+        today   = tz.localdate()
+
+        # Validate against ScanTimeWindow
+        from apps.attendance.models import ScanTimeWindow, DailyAttendance, QRScanLog
+        window = ScanTimeWindow.objects.filter(project=project, is_active=True).first()
+        current_time = now.time().replace(second=0, microsecond=0)
+
+        if window:
+            if scan_type == 'CHECK_IN':
+                if not (window.checkin_start <= current_time <= window.checkin_end):
+                    return Response({
+                        'error': f'Check-in window is {window.checkin_start} – {window.checkin_end}. Current time: {current_time}.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                if not (window.checkout_start <= current_time <= window.checkout_end):
+                    return Response({
+                        'error': f'Check-out window is {window.checkout_start} – {window.checkout_end}. Current time: {current_time}.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Get or create today's DailyAttendance
+        att, _ = DailyAttendance.objects.get_or_create(
+            worker=aw, date=today,
+            defaults={
+                'project':              project,
+                'status':               'PRESENT',
+                'daily_rate_snapshot':  aw.daily_rate,
+                'overtime_rate_snapshot': aw.effective_overtime_rate() if hasattr(aw, 'effective_overtime_rate') else 0,
+            },
+        )
+
+        # Apply check-in / check-out time
+        is_late = is_early = False
+        if scan_type == 'CHECK_IN':
+            if att.check_in:
+                return Response({'error': 'Already checked in today.'}, status=400)
+            att.check_in = now.time()
+            if window:
+                late_threshold = (
+                    dt.datetime.combine(today, window.checkin_start)
+                    + dt.timedelta(minutes=window.late_threshold_minutes or 30)
+                ).time()
+                is_late = att.check_in > late_threshold
+            att.save(update_fields=['check_in', 'status'])
+        else:
+            if not att.check_in:
+                return Response({'error': 'Must check in before checking out.'}, status=400)
+            if att.check_out:
+                return Response({'error': 'Already checked out today.'}, status=400)
+            att.check_out = now.time()
+            if window:
+                is_early = att.check_out < window.checkout_start
+            att.save(update_fields=['check_out'])
+
+        # Log the scan
+        QRScanLog.objects.create(
+            worker=aw,
+            attendance=att,
+            scan_type=scan_type,
+            scan_status='VALID',
+            scanned_at=now,
+            is_late=is_late,
+            is_early=is_early,
+        )
+
+        return Response({
+            'status':    'ok',
+            'scan_type': scan_type,
+            'time':      now.strftime('%H:%M'),
+            'is_late':   is_late,
+            'is_early':  is_early,
+            'message':   f'{"Check-in" if scan_type == "CHECK_IN" else "Check-out"} recorded at {now.strftime("%H:%M")}.',
+        })
+
+
+class WorkerMyTeamView(APIView):
+    """
+    GET /api/v1/worker/my-team/
+    For supervisors/team leaders — returns today's attendance status
+    for every member of their assigned team.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from django.utils import timezone
+        from apps.attendance.models import DailyAttendance
+
+        user = request.user
+        if not hasattr(user, 'workforce_profile'):
+            return Response({'error': 'No workforce profile linked.'}, status=404)
+
+        member = user.workforce_profile
+        today  = timezone.localdate()
+
+        # Teams this member leads
+        led_teams = member.led_teams.prefetch_related('members__attendance_worker').all()
+        if not led_teams.exists():
+            return Response({'error': 'You are not assigned as leader of any team.'}, status=404)
+
+        result = []
+        for team in led_teams:
+            members_data = []
+            for m in team.members.select_related('attendance_worker').all():
+                att = None
+                if m.attendance_worker:
+                    rec = DailyAttendance.objects.filter(
+                        worker=m.attendance_worker, date=today
+                    ).first()
+                    if rec:
+                        att = {
+                            'status':    rec.status,
+                            'check_in':  str(rec.check_in)  if rec.check_in  else None,
+                            'check_out': str(rec.check_out) if rec.check_out else None,
+                        }
+                members_data.append({
+                    'employee_id': m.employee_id,
+                    'full_name':   m.full_name,
+                    'role':        m.role.title if m.role else m.worker_type,
+                    'today':       att or {'status': 'NOT_MARKED'},
+                })
+            result.append({
+                'team_id':   team.id,
+                'team_name': team.name,
+                'members':   members_data,
+            })
+
+        return Response(result)

@@ -76,8 +76,8 @@ INSTALLED_APPS = [
     # ── Attendance ────────────────────────────────────────────────────────────
     'apps.attendance',
 
-    # ── Teams ─────────────────────────────────────────────────────────────────
-    'apps.teams',
+    # ── Workforce (includes Team model) ──────────────────────────────────────
+    'apps.workforce',
 ]
 
 # ─── Photo Intelligence (HCMS-2) ──────────────────────────────────────

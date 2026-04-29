@@ -80,15 +80,15 @@ export default function TeamList({ teams, onEdit, onManageMembers }) {
               <td style={{ padding: '20px 24px' }}>
                 <div style={{ display:'flex', flexWrap:'wrap', gap:4, maxWidth:180 }}>
                    {(t.members_detail || []).slice(0, 5).map(m => (
-                     <div 
-                      key={m.id} 
-                      title={m.name}
-                      style={{ 
+                     <div
+                      key={m.id}
+                      title={m.full_name}
+                      style={{
                         width:24, height:24, borderRadius:6, background:'var(--t-bg)', border:'1px solid var(--t-border)',
                         display:'flex', alignItems:'center', justifyContent:'center', fontSize:12
                       }}
                      >
-                       {TRADE_ICONS[m.trade] || '👷'}
+                       {TRADE_ICONS[m.effective_trade] || '👷'}
                      </div>
                    ))}
                    {t.member_count > 5 && (

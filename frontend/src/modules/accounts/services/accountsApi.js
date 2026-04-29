@@ -15,6 +15,7 @@ export const updateProfile       = (data)     => http.patch('auth/profile/', dat
     headers: data instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {},
 });
 export const changePassword      = (data)     => http.post('accounts/change-password/', data);
+export const changeEmail         = (data)     => http.post('accounts/change-email/', data);
 
 // ── Users ─────────────────────────────────────────────────────────────────────
 export const getUsers            = ()         => http.get('accounts/users/');
@@ -52,7 +53,7 @@ export const getActivityLogs     = (params={}) => {
 
 const accountsApi = {
     getStats,
-    getProfile, updateProfile, changePassword,
+    getProfile, updateProfile, changePassword, changeEmail,
     getUsers, getUser, createUser, updateUser, deleteUser,
     activateUser, deactivateUser, resetUserPassword, inviteUser,
     getUserProjects, setUserProject,

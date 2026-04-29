@@ -1240,6 +1240,11 @@ def _build_person_entry(worker, today_records):
         "user_id":     u.id                                    if u else None,
         "user_email":  u.email                                 if u else None,
         "user_name":   (u.get_full_name() or u.username)       if u else None,
+        # ── Workforce profile link ────────────────────────────────────────────
+        # Populated if this AttendanceWorker has been promoted to a WorkforceMember.
+        # The ManpowerTab uses this to show a "Workforce Profile" badge.
+        "workforce_member_id":  None,   # filled in persons_list() below
+        "workforce_employee_id": None,
     }
 
 
@@ -1281,6 +1286,25 @@ def persons_list(request):
 
     persons = [_build_person_entry(w, today_records) for w in workers]
 
+    # ── Batch-load workforce_member links ─────────────────────────────────────
+    # Build a map: attendance_worker_id → (workforce_member_id, employee_id)
+    # so each person card knows if it has a workforce profile.
+    try:
+        from apps.workforce.models import WorkforceMember
+        wf_map = {
+            str(m.attendance_worker_id): (str(m.id), m.employee_id)
+            for m in WorkforceMember.objects.filter(
+                attendance_worker_id__in=worker_ids
+            ).only('id', 'employee_id', 'attendance_worker_id')
+        }
+        for p in persons:
+            pair = wf_map.get(str(p['worker_id']))
+            if pair:
+                p['workforce_member_id']   = pair[0]
+                p['workforce_employee_id'] = pair[1]
+    except Exception:
+        pass   # workforce app may not be migrated yet; fail gracefully
+
     # Contractors not yet linked to any attendance worker (orphans)
     orphans = Contractor.objects.filter(
         project_id=project_id,
@@ -1302,10 +1326,11 @@ def persons_list(request):
 
     # Summary
     summary = {
-        "total":            len(persons),
-        "with_payment":     sum(1 for p in persons if p["role_payment"]),
-        "with_login":       sum(1 for p in persons if p["role_login"]),
-        "active":           sum(1 for p in persons if p["is_active"]),
+        "total":              len(persons),
+        "with_payment":       sum(1 for p in persons if p["role_payment"]),
+        "with_login":         sum(1 for p in persons if p["role_login"]),
+        "with_workforce":     sum(1 for p in persons if p.get("workforce_member_id")),
+        "active":             sum(1 for p in persons if p["is_active"]),
         "orphan_contractors": len(orphan_contractors),
     }
 

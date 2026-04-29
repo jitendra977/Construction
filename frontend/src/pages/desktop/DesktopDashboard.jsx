@@ -43,6 +43,7 @@ function DesktopDashboard() {
         { id: 'photos',    icon: '📸',  label: 'Gallery (फोटो ग्यालरी)' },
         { id: 'timelapse',   icon: '🎞️', label: 'Timelapse (टाइमल्याप्स)' },
         { id: 'attendance',  icon: '🕐',  label: 'Daily Attendance (हाजिरी)' },
+        { id: 'workforce',   icon: '👷',  label: 'Workforce (कार्यबल व्यवस्थापन)' },
         // Settings / Account
         { id: 'accounts',  icon: '👤',  label: 'Accounts (खाता)' },
         { id: 'guides',    icon: '📚',  label: 'User Guide (मद्दत निर्देशिका)' },

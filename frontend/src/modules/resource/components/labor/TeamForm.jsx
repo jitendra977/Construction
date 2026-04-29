@@ -92,7 +92,7 @@ export default function TeamForm({ team, onDone, projectId: propProjectId, worke
           >
             <option value="">Unassigned</option>
             {workers.map(w => (
-              <option key={w.id} value={w.id}>{w.name} ({w.trade})</option>
+              <option key={w.id} value={w.id}>{w.full_name} ({w.effective_trade || w.worker_type})</option>
             ))}
           </select>
         </div>

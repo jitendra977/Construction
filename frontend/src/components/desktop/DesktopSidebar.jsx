@@ -31,7 +31,7 @@ const NAV_SECTIONS = [
         id:    'team',
         label: 'Team & HR',
         icon:  '👷',
-        ids:   ['attendance'],
+        ids:   ['attendance', 'workforce'],
         defaultOpen: true,
     },
     {
@@ -296,6 +296,22 @@ const DesktopSidebar = ({ user, onLogout, navItems }) => {
                         </p>
                     </div>
                 </NavLink>
+
+                {/* Worker Portal quick-link */}
+                <a
+                    href="/worker"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                    style={{ color: '#f97316', textDecoration: 'none' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(249,115,22,0.08)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    title="Open Worker Portal (phone + PIN login)"
+                >
+                    <span style={{ fontSize: 15 }}>📱</span>
+                    <span className="flex-1 truncate">Worker Portal</span>
+                    <span style={{ fontSize: 10, opacity: 0.6 }}>↗</span>
+                </a>
 
                 {/* Theme toggle + Logout */}
                 <div className="flex items-center gap-2">

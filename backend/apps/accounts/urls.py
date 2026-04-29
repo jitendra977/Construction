@@ -1,8 +1,11 @@
 """
 Accounts Module — URL Configuration
 
-Auth routes  →  /api/v1/auth/          (legacy, kept for compatibility)
-Accounts     →  /api/v1/accounts/      (new consolidated prefix)
+Auth routes    →  /api/v1/auth/          (legacy, kept for compatibility)
+Accounts       →  /api/v1/accounts/      (new consolidated prefix)
+
+POST   /accounts/change-email/
+Worker portal  →  /api/v1/worker/        (mobile portal for staff/supervisors)
 
 Endpoints
 ─────────────────────────────────────────────────────────────
@@ -27,6 +30,12 @@ GET/PATCH/DEL       /accounts/roles/{id}/
 
 GET                 /accounts/activity-logs/
 GET                 /accounts/activity-logs/{id}/
+
+── Worker Portal ────────────────────────────────────────────
+POST   /worker/login/       phone + PIN → JWT
+GET    /worker/me/          own profile + today attendance + week summary
+POST   /worker/checkin/     check in or check out  { type: CHECK_IN|CHECK_OUT }
+GET    /worker/my-team/     team leader view — today's roster for led teams
 """
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
@@ -52,5 +61,14 @@ urlpatterns = [
 accounts_urlpatterns = [
     path('stats/',           views.accounts_stats,  name='accounts-stats'),
     path('change-password/', views.change_password, name='change-password'),
+    path('change-email/',    views.change_email,    name='change-email'),
     path('',                 include(accounts_router.urls)),
+]
+
+# ── Worker portal urls (/api/v1/worker/) ─────────────────────────────────────
+worker_urlpatterns = [
+    path('login/',   views.WorkerLoginView.as_view(),   name='worker-login'),
+    path('me/',      views.WorkerMeView.as_view(),      name='worker-me'),
+    path('checkin/', views.WorkerCheckinView.as_view(), name='worker-checkin'),
+    path('my-team/', views.WorkerMyTeamView.as_view(),  name='worker-my-team'),
 ]

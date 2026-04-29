@@ -7,12 +7,14 @@ import DesktopPhotos   from '../../components/desktop/DesktopPhotos';
 import DesktopManage   from '../../components/desktop/DesktopManage';
 import EstimatorHub    from '../../pages/estimator/EstimatorHub';
 import AttendanceHub   from '../../modules/attendance/AttendanceHub';
+import WorkforceHub    from '../../modules/workforce/WorkforceHub';
 import PermitPage      from '../../pages/permits/PermitPage';
 import DataTransferPage  from '../../pages/DataTransferPage';
 import UserGuidePage   from '../../pages/desktop/UserGuidePage';
 import PhasesPage      from '../../pages/desktop/PhasesPage';
 import TimelapsePage   from '../../pages/TimelapsePage';
 import AnalyticsPage   from '../../pages/AnalyticsPage';
+import WorkerPortal    from '../../modules/worker/WorkerPortal';
 
 // Self-contained modules
 import FinanceRoutes   from '../../modules/finance';
@@ -44,6 +46,7 @@ const DesktopRoutes = () => {
             <Route path="timelapse"  element={<TimelapsePage />}  />
             <Route path="analytics"  element={<AnalyticsPage />}  />
             <Route path="attendance" element={<AttendanceHub />}  />
+            <Route path="workforce"  element={<WorkforceHub />}  />
 
             {/* Self-contained modules */}
             <Route path="projects/*"  element={<ProjectsRoutes />} />

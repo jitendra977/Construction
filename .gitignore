@@ -83,3 +83,6 @@ deploy-*.log
 backups/
 
 # docs/DEPLOY.md is intentionally tracked — it is the deployment guide
+
+_cleanup_backup_*/
+backend/_cleanup_backup_*/

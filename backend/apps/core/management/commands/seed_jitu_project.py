@@ -26,8 +26,9 @@ class Command(BaseCommand):
         from apps.finance.models import (
             BudgetCategory, Account, Bill, BillItem, FundingSource, Expense,
         )
-        from apps.resources.models import Supplier
+        from apps.resource.models import Supplier
 
+        # ── Optional wipe ─────────────────────────────────────────────────────
         if options['wipe']:
             self.stdout.write(self.style.WARNING('⚠️  Wiping ALL existing project data...'))
             Room.objects.all().delete()
@@ -35,71 +36,44 @@ class Command(BaseCommand):
             ConstructionPhase.objects.all().delete()
             BudgetCategory.objects.all().delete()
             HouseProject.objects.all().delete()
-            # Finance data
             from apps.finance.models import (
                 BillPayment, Bill, BillItem, Expense, Payment,
                 FundingTransaction, FundingSource, JournalLine, JournalEntry,
                 Account, BankTransfer, PurchaseOrder, PhaseBudgetAllocation,
             )
-            BillPayment.objects.all().delete()
-            BillItem.objects.all().delete()
-            Bill.objects.all().delete()
-            Payment.objects.all().delete()
-            Expense.objects.all().delete()
-            FundingTransaction.objects.all().delete()
-            FundingSource.objects.all().delete()
-            JournalLine.objects.all().delete()
-            JournalEntry.objects.all().delete()
-            BankTransfer.objects.all().delete()
-            PurchaseOrder.objects.all().delete()
-            PhaseBudgetAllocation.objects.all().delete()
-            Account.objects.all().delete()
+            for M in [BillPayment, BillItem, Bill, Payment, Expense,
+                      FundingTransaction, FundingSource, JournalLine,
+                      JournalEntry, BankTransfer, PurchaseOrder,
+                      PhaseBudgetAllocation, Account]:
+                M.objects.all().delete()
             Supplier.objects.all().delete()
             self.stdout.write(self.style.SUCCESS('  ✅ All data wiped.\n'))
 
-        # ═══════════════════════════════════════════════════════════════
-        #  1. HOUSE PROJECT (from Structure Analysis Report)
-        #     Owner: Mrs. Radhika K.C. Khadka
-        #     Location: Tulsipur, Dang
-        #     Plinth Area: 90 sqm (968 sqft)
-        #     Stories: 4 (Ground + First + Second + Top)
-        #     Total Height: 12.625m, Story Height: 3.125m
-        #     Structural System: RC SMRF (Special Moment Resisting Frame)
-        #     Concrete: M20, Steel: Fe500
-        #     Column: 350×350mm, Beam: 250×400mm (GF), 230×355mm (upper)
-        #     Slab: 125mm thick
-        #     Footing: Eccentric + Isolated, SBC: 150 KN/m²
-        #     Soil: Type D (Dang Valley)
-        # ═══════════════════════════════════════════════════════════════
+        # ═══════════════════════════════════════════════════════════════════════
+        #  1. HOUSE PROJECT
+        # ═══════════════════════════════════════════════════════════════════════
         self.stdout.write('🏠 Creating House Project...')
-        project, created = HouseProject.objects.update_or_create(
-            defaults=dict(
-                name='Jitu & Shristi House Construction',
-                owner_name='Jit Bahadur Khadka (C/O: Radhika K.C. Khadka)',
-                address='Tulsipur-05, Doghare, Dang, Nepal',
-                total_budget=Decimal('5000000'),
-                start_date=date(2026, 2, 27),     # 2082-11-14 BS
-                expected_completion_date=date(2027, 12, 31),
-                area_sqft=3872,  # 90 sqm/floor × 4 floors ≈ 968 sqft/floor
-            ),
-            pk=HouseProject.objects.first().pk if HouseProject.objects.exists() else None,
+        project = HouseProject.objects.create(
+            name='Jitu & Shristi House Construction',
+            owner_name='Jit Bahadur Khadka (C/O: Radhika K.C. Khadka)',
+            address='Tulsipur-05, Doghare, Dang, Nepal',
+            total_budget=Decimal('5000000'),
+            start_date=date(2026, 2, 27),
+            expected_completion_date=date(2027, 12, 31),
+            area_sqft=3872,
         )
-        self.stdout.write(f'  {"Created" if created else "Updated"}: {project.name}')
+        self.stdout.write(f'  Created: {project.name}')
         self.stdout.write(f'  Budget: Rs. {project.total_budget:,.0f}')
         self.stdout.write(f'  Location: {project.address}')
-        self.stdout.write(f'  Plinth Area: 90 sqm (968 sqft/floor × 4 floors = {project.area_sqft} sqft)')
-        self.stdout.write(f'  Structure: 4-storey RC SMRF, 12.625m tall')
-        self.stdout.write(f'  Concrete: M20 | Steel: Fe500 | Column: 350×350mm')
         self.stdout.write('')
 
-        # ═══════════════════════════════════════════════════════════════
-        #  2. CONSTRUCTION PHASES (20 Nepali-style phases)
-        # ═══════════════════════════════════════════════════════════════
+        # ═══════════════════════════════════════════════════════════════════════
+        #  2. CONSTRUCTION PHASES
+        # ═══════════════════════════════════════════════════════════════════════
         self.stdout.write('🔨 Creating Construction Phases...')
         phases_data = [
-            # (order, name, budget, status)
-            (1,  'Naksa / Design (नक्सा)',              75000, 'COMPLETED'),
-            (2,  'Municipal Approval (नक्सा पास)',       25000, 'IN_PROGRESS'),
+            (1,  'Naksa / Design (नक्सा)',              100000, 'COMPLETED'),
+            (2,  'Municipal Approval (नक्सा पास)',        25000, 'IN_PROGRESS'),
             (3,  'Jag Khanne (जग खन्ने)',               300000, 'PENDING'),
             (4,  'Foundation / DPC',                    400000, 'PENDING'),
             (5,  'Pillar & Beam – Ground Floor',        450000, 'PENDING'),
@@ -121,24 +95,23 @@ class Command(BaseCommand):
         ]
         phases = {}
         for order, name, budget, status in phases_data:
-            phase, _ = ConstructionPhase.objects.update_or_create(
+            phase, _ = ConstructionPhase.objects.get_or_create(
                 name=name,
                 project=project,
                 defaults=dict(
                     order=order,
                     estimated_budget=Decimal(str(budget)),
                     status=status,
-                    project=project,
                 ),
             )
             phases[name] = phase
-            status_icon = {'COMPLETED': '✅', 'IN_PROGRESS': '🔄', 'PENDING': '⏳'}[status]
-            self.stdout.write(f'  {status_icon} {order:2d}. {name}  Rs. {budget:>10,}')
+            icon = {'COMPLETED': '✅', 'IN_PROGRESS': '🔄', 'PENDING': '⏳'}[status]
+            self.stdout.write(f'  {icon} {order:2d}. {name}  Rs. {budget:>10,}')
         self.stdout.write('')
 
-        # ═══════════════════════════════════════════════════════════════
+        # ═══════════════════════════════════════════════════════════════════════
         #  3. FLOORS & ROOMS
-        # ═══════════════════════════════════════════════════════════════
+        # ═══════════════════════════════════════════════════════════════════════
         self.stdout.write('🏢 Creating Floors & Rooms...')
         floors_data = [
             ('Ground Floor (तल्ला)', 0, [
@@ -160,51 +133,51 @@ class Command(BaseCommand):
             ]),
         ]
         for floor_name, level, rooms in floors_data:
-            floor, _ = Floor.objects.update_or_create(
+            floor, _ = Floor.objects.get_or_create(
                 name=floor_name,
+                project=project,
                 defaults=dict(level=level),
             )
             for room_name, area in rooms:
-                Room.objects.update_or_create(
+                Room.objects.get_or_create(
                     name=room_name, floor=floor,
                     defaults=dict(area_sqft=area),
                 )
-            room_names = ', '.join(r[0] for r in rooms)
-            self.stdout.write(f'  🏠 {floor_name}: {room_names}')
+            self.stdout.write(f'  🏠 {floor_name}: {", ".join(r[0] for r in rooms)}')
         self.stdout.write('')
 
-        # ═══════════════════════════════════════════════════════════════
+        # ═══════════════════════════════════════════════════════════════════════
         #  4. BUDGET CATEGORIES
-        # ═══════════════════════════════════════════════════════════════
+        # ═══════════════════════════════════════════════════════════════════════
         self.stdout.write('📊 Creating Budget Categories...')
-        # Budget categories based on contract BOQ sections
         categories_data = [
-            ('Design & Permits',          150000),   # Naksa, municipal
-            ('Foundation & Structure',   1500000),   # Footing, columns, beams, slabs
-            ('Masonry & Brickwork',       400000),   # 9" exterior + 4" partition walls
-            ('Plaster & Finishing',        450000),   # Internal/external plaster
-            ('Electrical',                200000),   # Litmus cable, CG/Swift Gold accessories
-            ('Plumbing & Sanitary',       150000),   # Pipes, fittings, bathroom fixtures
-            ('Doors, Windows & Railing',  400000),   # UPVC/Wooden windows, Agrakh doors, SS railing
-            ('Flooring & Tiles',          350000),   # 1583 sqft tiles + 808 sqft granite + screeding
-            ('Painting',                  200000),   # Asian Paint interior putting + exterior
-            ('Labour',                    800000),   # Mistri + Jyami wages
-            ('Water Tank & Septic',       150000),   # UG tank (Rs.1.1L) + soak pit (Rs.1.09L) + Nepatop 1000L
+            ('Design & Permits',          150000),
+            ('Foundation & Structure',   1500000),
+            ('Masonry & Brickwork',       400000),
+            ('Plaster & Finishing',       450000),
+            ('Electrical',                200000),
+            ('Plumbing & Sanitary',       150000),
+            ('Doors, Windows & Railing',  400000),
+            ('Flooring & Tiles',          350000),
+            ('Painting',                  200000),
+            ('Labour',                    800000),
+            ('Water Tank & Septic',       150000),
             ('Contingency',               250000),
         ]
         cats = {}
         for name, alloc in categories_data:
-            cat, _ = BudgetCategory.objects.update_or_create(
+            cat, _ = BudgetCategory.objects.get_or_create(
                 name=name,
+                project=project,
                 defaults=dict(allocation=Decimal(str(alloc))),
             )
             cats[name] = cat
             self.stdout.write(f'  📁 {name:30s} Rs. {alloc:>10,}')
         self.stdout.write('')
 
-        # ═══════════════════════════════════════════════════════════════
+        # ═══════════════════════════════════════════════════════════════════════
         #  5. GL ACCOUNTS (Chart of Accounts)
-        # ═══════════════════════════════════════════════════════════════
+        # ═══════════════════════════════════════════════════════════════════════
         self.stdout.write('🗂️  Creating Chart of Accounts...')
         accounts_data = [
             ('1001', 'Personal Savings (Cash)',  'ASSET',     'Cash in hand for site expenses'),
@@ -212,43 +185,47 @@ class Command(BaseCommand):
             ('2001', 'Accounts Payable',         'LIABILITY', 'Outstanding amounts owed to vendors/contractors'),
             ('3001', "Owner's Equity",           'EQUITY',    'Capital invested by Jit Bahadur Khadka'),
             ('5001', 'Design & Permit Expense',  'EXPENSE',   'Architecture, structural drawings, municipal fees'),
-            ('5002', 'Material Expense',         'EXPENSE',   'Cement (Sona/Sagarmatha), Steel (Laxmi/Narayani), Bricks, Sand'),
+            ('5002', 'Material Expense',         'EXPENSE',   'Cement, Steel, Bricks, Sand'),
             ('5003', 'Labour Expense',           'EXPENSE',   'Mistri, Jyami, Electrician, Plumber wages'),
             ('5004', 'Contractor Expense',       'EXPENSE',   'Lump-sum thekedar payments'),
         ]
         accts = {}
         for code, name, atype, desc in accounts_data:
-            acct, _ = Account.objects.update_or_create(
+            acct, _ = Account.objects.get_or_create(
                 code=code,
+                project=project,
                 defaults=dict(name=name, account_type=atype, description=desc),
             )
             accts[code] = acct
             self.stdout.write(f'  [{atype:9s}] {code} {name}')
         self.stdout.write('')
 
-        # ═══════════════════════════════════════════════════════════════
+        # ═══════════════════════════════════════════════════════════════════════
         #  6. SUPPLIER
-        # ═══════════════════════════════════════════════════════════════
+        # ═══════════════════════════════════════════════════════════════════════
         self.stdout.write('🏢 Creating Suppliers...')
-        skill_sewa, _ = Supplier.objects.update_or_create(
+        skill_sewa, _ = Supplier.objects.get_or_create(
+            project=project,
             name='Skill Sewa',
             defaults=dict(
                 contact_person='Skill Sewa Team',
                 phone='01-5915757',
                 email='info@skillsewa.com',
                 address='Baneshwor, Kathmandu',
-                category='design',
+                specialty='General',
+                is_active=True,
             ),
         )
-        self.stdout.write(f'  ✅ Skill Sewa (Baneshwor, Kathmandu)')
+        self.stdout.write('  ✅ Skill Sewa (Baneshwor, Kathmandu)')
         self.stdout.write('')
 
-        # ═══════════════════════════════════════════════════════════════
-        #  8. FUNDING SOURCES (Realistic Starting Capital)
-        # ═══════════════════════════════════════════════════════════════
+        # ═══════════════════════════════════════════════════════════════════════
+        #  7. FUNDING SOURCES
+        # ═══════════════════════════════════════════════════════════════════════
         self.stdout.write('💰 Creating Funding Sources...')
-        nabil_bank, _ = FundingSource.objects.update_or_create(
+        nabil_bank, _ = FundingSource.objects.get_or_create(
             name='Nabil Bank Savings',
+            project=project,
             defaults=dict(
                 source_type='OWN_MONEY',
                 amount=Decimal('1500000'),
@@ -259,9 +236,9 @@ class Command(BaseCommand):
                 notes='Personal savings for construction initial phases.',
             ),
         )
-        
-        emergency_cash, _ = FundingSource.objects.update_or_create(
+        emergency_cash, _ = FundingSource.objects.get_or_create(
             name='Cash in Hand (Nagad)',
+            project=project,
             defaults=dict(
                 source_type='OWN_MONEY',
                 amount=Decimal('200000'),
@@ -272,23 +249,23 @@ class Command(BaseCommand):
                 notes='Petty cash for site expenses.',
             ),
         )
-        self.stdout.write(f'  ✅ Nabil Bank: Rs. 15,00,000')
-        self.stdout.write(f'  ✅ Cash: Rs. 2,00,000')
+        self.stdout.write('  ✅ Nabil Bank: Rs. 15,00,000')
+        self.stdout.write('  ✅ Cash: Rs. 2,00,000')
         self.stdout.write('')
 
-        # ═══════════════════════════════════════════════════════════════
-        #  9. HISTORICAL BILLS & EXPENSES (from actual receipts)
-        # ═══════════════════════════════════════════════════════════════
+        # ═══════════════════════════════════════════════════════════════════════
+        #  8. HISTORICAL BILLS & EXPENSES (from actual receipts)
+        # ═══════════════════════════════════════════════════════════════════════
         self.stdout.write('🧾 Recording Historical Transactions...')
 
         from apps.finance.services import BillService, FinanceService
 
-        # --- Bill 1 & Expense 1: Skill Sewa Phase 1 (Rs. 25,000) ---
+        # Bill 1: Skill Sewa Phase 1 — Rs. 25,000 (PAID)
         bill1, b1_created = Bill.objects.get_or_create(
             bill_number='SKILL-041',
             defaults=dict(
-                supplier=skill_sewa,
-                date_issued=date(2026, 2, 27),    # 2082-11-14 BS
+                project=project,
+                date_issued=date(2026, 2, 27),
                 due_date=date(2026, 2, 27),
                 total_amount=Decimal('25000'),
                 amount_paid=Decimal('25000'),
@@ -307,36 +284,35 @@ class Command(BaseCommand):
                 phase=phases.get('Naksa / Design (नक्सा)'),
                 account=accts.get('5001'),
             )
-            # Create mirrored Expense for dashboard charts
             Expense.objects.create(
+                project=project,
                 title=item1.description,
                 amount=item1.amount,
                 expense_type='FEES',
                 category=item1.category,
                 phase=item1.phase,
-                supplier=skill_sewa,
                 funding_source=emergency_cash,
                 date=bill1.date_issued,
                 is_paid=True,
             )
-            # Post to GL & Record Payment
             try:
                 BillService.post_bill_ledger(bill1)
                 BillService.pay_bill(
                     bill1, account=accts['1001'], amount=Decimal('25000'),
-                    date=date(2026, 2, 27), method='CASH', reference_id='RCPT-SKILL-041'
+                    date=date(2026, 2, 27), method='CASH', reference_id='RCPT-SKILL-041',
                 )
                 emergency_cash.current_balance -= Decimal('25000')
                 emergency_cash.save()
-            except Exception: pass
-            self.stdout.write(f'  ✅ Bill #SKILL-041: Rs. 25,000 (PAID)')
+            except Exception:
+                pass
+            self.stdout.write('  ✅ Bill #SKILL-041: Rs. 25,000 (PAID)')
 
-        # --- Bill 2 & Expense 2: Skill Sewa Municipal Drawing (Rs. 75,000) ---
+        # Bill 2: Skill Sewa Municipal Drawing — Rs. 75,000 (PAID)
         bill2, b2_created = Bill.objects.get_or_create(
             bill_number='SKILL-RCPT-04',
             defaults=dict(
-                supplier=skill_sewa,
-                date_issued=date(2026, 4, 7),     # 2082-12-24 BS
+                project=project,
+                date_issued=date(2026, 4, 7),
                 due_date=date(2026, 4, 7),
                 total_amount=Decimal('75000'),
                 amount_paid=Decimal('75000'),
@@ -355,14 +331,13 @@ class Command(BaseCommand):
                 phase=phases.get('Municipal Approval (नक्सा पास)'),
                 account=accts.get('5001'),
             )
-            # Create mirrored Expense for dashboard charts
             Expense.objects.create(
+                project=project,
                 title=item2.description,
                 amount=item2.amount,
                 expense_type='FEES',
                 category=item2.category,
                 phase=item2.phase,
-                supplier=skill_sewa,
                 funding_source=nabil_bank,
                 date=bill2.date_issued,
                 is_paid=True,
@@ -371,30 +346,31 @@ class Command(BaseCommand):
                 BillService.post_bill_ledger(bill2)
                 BillService.pay_bill(
                     bill2, account=accts['1002'], amount=Decimal('75000'),
-                    date=date(2026, 4, 7), method='BANK_TRANSFER', reference_id='RCPT-SKILL-04'
+                    date=date(2026, 4, 7), method='BANK_TRANSFER', reference_id='RCPT-SKILL-04',
                 )
                 nabil_bank.current_balance -= Decimal('75000')
                 nabil_bank.save()
-            except Exception: pass
-            self.stdout.write(f'  ✅ Bill #SKILL-RCPT-04: Rs. 75,000 (PAID)')
+            except Exception:
+                pass
+            self.stdout.write('  ✅ Bill #SKILL-RCPT-04: Rs. 75,000 (PAID)')
 
         self.stdout.write('')
 
-        # ═══════════════════════════════════════════════════════════════
-        #  10. OPENING BALANCE (Owner's Equity)
-        # ═══════════════════════════════════════════════════════════════
+        # ═══════════════════════════════════════════════════════════════════════
+        #  9. OPENING BALANCE
+        # ═══════════════════════════════════════════════════════════════════════
         self.stdout.write('💰 Setting Ledger Opening Balances...')
         try:
             FinanceService.post_opening_balance(accts['1001'], Decimal('200000'))
             FinanceService.post_opening_balance(accts['1002'], Decimal('1500000'))
             self.stdout.write('  ✅ Ledger balances synced with Funding Sources.')
-        except Exception: pass
-
+        except Exception:
+            pass
         self.stdout.write('')
 
-        # ═══════════════════════════════════════════════════════════════
+        # ═══════════════════════════════════════════════════════════════════════
         #  SUMMARY
-        # ═══════════════════════════════════════════════════════════════
+        # ═══════════════════════════════════════════════════════════════════════
         self.stdout.write(self.style.SUCCESS('━' * 60))
         self.stdout.write(self.style.SUCCESS('✅  Jitu & Shristi House Construction — Data Seeded!'))
         self.stdout.write(self.style.SUCCESS('━' * 60))
@@ -402,17 +378,17 @@ class Command(BaseCommand):
         self.stdout.write(f'  🏠 Project           : {project.name}')
         self.stdout.write(f'  📍 Location          : {project.address}')
         self.stdout.write(f'  💰 Total Budget      : Rs. {project.total_budget:,.0f}')
-        self.stdout.write(f'  🔨 Phases            : {ConstructionPhase.objects.count()}')
-        self.stdout.write(f'  🏢 Floors            : {Floor.objects.count()}')
-        self.stdout.write(f'  🚪 Rooms             : {Room.objects.count()}')
-        self.stdout.write(f'  📊 Budget Categories : {BudgetCategory.objects.count()}')
-        self.stdout.write(f'  🗂️  GL Accounts       : {Account.objects.count()}')
-        self.stdout.write(f'  🧾 Bills Recorded    : {Bill.objects.count()}')
-        self.stdout.write(f'  🏢 Suppliers         : {Supplier.objects.count()}')
+        self.stdout.write(f'  🔨 Phases            : {ConstructionPhase.objects.filter(project=project).count()}')
+        self.stdout.write(f'  🏢 Floors            : {Floor.objects.filter(project=project).count()}')
+        self.stdout.write(f'  🚪 Rooms             : {Room.objects.filter(floor__project=project).count()}')
+        self.stdout.write(f'  📊 Budget Categories : {BudgetCategory.objects.filter(project=project).count()}')
+        self.stdout.write(f'  🗂️  GL Accounts       : {Account.objects.filter(project=project).count()}')
+        self.stdout.write(f'  🧾 Bills Recorded    : {Bill.objects.filter(project=project).count()}')
+        self.stdout.write(f'  🏢 Suppliers         : {Supplier.objects.filter(project=project).count()}')
         self.stdout.write('')
         self.stdout.write('  Historical payments from Skill Sewa receipts:')
         self.stdout.write('    • Rs. 25,000 — Design Phase 1 (2082-11-14 BS)')
         self.stdout.write('    • Rs. 75,000 — Municipal Drawings (2082-12-24 BS)')
-        self.stdout.write(f'    Total Spent: Rs. 1,00,000')
+        self.stdout.write('    Total Spent: Rs. 1,00,000')
         self.stdout.write('')
         self.stdout.write(self.style.SUCCESS('━' * 60))

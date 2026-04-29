@@ -188,6 +188,52 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
             'email':       email,
         }, status=status.HTTP_201_CREATED)
 
+    @action(detail=True, methods=['post'])
+    def send_credentials(self, request, pk=None):
+        """
+        POST /api/v1/workforce/members/{id}/send_credentials/
+
+        Sends worker portal login credentials to an email address.
+        The PIN must be supplied in the request body — it is never stored
+        in plaintext, so it must be passed immediately after create_account.
+
+        Body:
+            recipient_email  — address to send to (required)
+            pin              — plaintext PIN (required — only known at creation time)
+            portal_url       — full URL of the worker portal (optional)
+            project_name     — display name for the email header (optional)
+        """
+        from apps.core.email_utils import send_worker_portal_credentials
+
+        member          = self.get_object()
+        recipient_email = request.data.get('recipient_email', '').strip()
+        pin             = request.data.get('pin', '').strip()
+        portal_url      = request.data.get('portal_url', '')
+        project_name    = request.data.get('project_name', 'Construction Site')
+
+        if not recipient_email:
+            return Response({'error': 'recipient_email is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not pin:
+            return Response({'error': 'pin is required (PIN is only available immediately after account creation).'}, status=status.HTTP_400_BAD_REQUEST)
+
+        username = member.phone or (member.account.username if member.account else '')
+
+        ok = send_worker_portal_credentials(
+            recipient_email = recipient_email,
+            worker_name     = member.full_name,
+            employee_id     = member.employee_id,
+            username        = username,
+            pin             = pin,
+            project_name    = project_name,
+            portal_url      = portal_url,
+            user            = request.user,
+        )
+
+        if ok:
+            return Response({'message': f'Credentials sent to {recipient_email}.'})
+        else:
+            return Response({'error': 'Email delivery failed. Check server email settings.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     @action(detail=False, methods=['post'])
     def seed_from_attendance(self, request):
         """

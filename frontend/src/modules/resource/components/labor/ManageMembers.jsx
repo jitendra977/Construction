@@ -21,7 +21,7 @@ export default function ManageMembers({ team, allWorkers, onDone }) {
 
   // Get unique trades for filtering
   const trades = useMemo(() => {
-    const t = new Set(allWorkers.map(w => w.trade));
+    const t = new Set(allWorkers.map(w => w.effective_trade || w.worker_type).filter(Boolean));
     return ['ALL', ...Array.from(t).sort()];
   }, [allWorkers]);
 
@@ -33,8 +33,10 @@ export default function ManageMembers({ team, allWorkers, onDone }) {
 
   const filteredWorkers = useMemo(() => {
     return allWorkers.filter(w => {
-      const matchesSearch = w.name.toLowerCase().includes(search.toLowerCase());
-      const matchesTrade  = tradeFilter === 'ALL' || w.trade === tradeFilter;
+      const name         = w.full_name || '';
+      const trade        = w.effective_trade || w.worker_type || '';
+      const matchesSearch = name.toLowerCase().includes(search.toLowerCase());
+      const matchesTrade  = tradeFilter === 'ALL' || trade === tradeFilter;
       const matchesTab    = viewTab === 'ALL' || selectedIds.includes(w.id);
       return matchesSearch && matchesTrade && matchesTab;
     });
@@ -138,8 +140,8 @@ export default function ManageMembers({ team, allWorkers, onDone }) {
                       {w.name[0].toUpperCase()}
                     </div>
                     <div>
-                      <div style={{ fontSize:13, fontWeight:900, color:'var(--t-text)' }}>{w.name}</div>
-                      <div style={{ fontSize:10, fontWeight:800, color:'var(--t-text3)', textTransform:'uppercase' }}>{w.trade}</div>
+                      <div style={{ fontSize:13, fontWeight:900, color:'var(--t-text)' }}>{w.full_name}</div>
+                      <div style={{ fontSize:10, fontWeight:800, color:'var(--t-text3)', textTransform:'uppercase' }}>{w.effective_trade || w.worker_type}</div>
                     </div>
                 </div>
                 <div style={{ 

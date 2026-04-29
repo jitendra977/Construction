@@ -1,0 +1,87 @@
+{% extends "admin/base.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block branding %}
+<h1 id="site-name"><a href="{% url 'admin:index' %}">{{ site_header|default:_('Django administration') }}</a></h1>
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    /* Collapsible Sidebar Styles */
+    #nav-sidebar .module caption {
+        cursor: pointer !important;
+        transition: background-color 0.2s;
+        display: flex !important;
+        align-items: center;
+        padding: 8px 10px !important;
+        background: var(--darkened-bg, #f8f8f8);
+        border-bottom: 1px solid var(--border-color, #eee);
+    }
+    #nav-sidebar .module caption:hover {
+        background-color: var(--selected-bg, #f0f0f0);
+    }
+    #nav-sidebar .module caption a.section {
+        flex-grow: 1;
+        pointer-events: none; /* Make the whole caption clickable */
+        color: var(--body-fg, #333) !important;
+        font-weight: 600;
+    }
+    #nav-sidebar .module.collapsed tbody {
+        display: none !important;
+    }
+    #nav-sidebar .module caption::after {
+        content: '▾';
+        font-size: 1.2em;
+        margin-left: auto;
+        transition: transform 0.2s;
+        opacity: 0.5;
+    }
+    #nav-sidebar .module.collapsed caption::after {
+        transform: rotate(-90deg);
+    }
+    /* Visual polish for the sidebar */
+    #nav-sidebar {
+        border-right: 1px solid var(--border-color, #eee);
+    }
+    #nav-sidebar .module {
+        margin-bottom: 5px !important;
+        border: 1px solid var(--border-color, #eee);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+</style>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const modules = document.querySelectorAll('#nav-sidebar .module');
+        
+        modules.forEach(module => {
+            const caption = module.querySelector('caption');
+            if (!caption) return;
+
+            // Collapse by default as requested
+            module.classList.add('collapsed');
+
+            caption.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                module.classList.toggle('collapsed');
+            });
+        });
+        
+        // Auto-expand the module containing the current page
+        const currentPath = window.location.pathname;
+        const currentLink = document.querySelector(`#nav-sidebar a[href*="${currentPath}"]`);
+        if (currentLink) {
+            const activeModule = currentLink.closest('.module');
+            if (activeModule) {
+                activeModule.classList.remove('collapsed');
+            }
+        }
+    });
+</script>
+{% endblock %}
+
+{% block nav-global %}{% endblock %}

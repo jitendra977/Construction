@@ -49,7 +49,7 @@ help: ## Show this help message
 	@echo ""
 	@echo -e "$(BOLD)  🗄  Database$(RESET)"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
-	  | awk 'BEGIN{FS=":.*?## "}; /DB|db|Migrat|migrat/{printf "  $(CYAN)%-22s$(RESET) %s\n", $$1, $$2}'
+	  | awk 'BEGIN{FS=":.*?## "}; /DB|db|Migrat|migrat|Seed|seed/{printf "  $(CYAN)%-22s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
 	@echo -e "$(BOLD)  🔧 Maintenance$(RESET)"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -146,6 +146,47 @@ logs-frontend: ## Docker — tail frontend/nginx logs
 .PHONY: local
 local: ## Dev — Local run backend + frontend (no Docker, SQLite)
 	@chmod +x scripts/run_local.sh && bash scripts/run_local.sh
+
+.PHONY: reset-local
+reset-local: ## Dev — Wipe migrations + SQLite and rebuild from scratch
+	@chmod +x scripts/reset_local_db.sh && bash scripts/reset_local_db.sh
+
+.PHONY: seed
+seed: ## Dev — Re-seed data only (no migration reset): make seed
+	@bash -c '\
+	  cd backend && \
+	  export DJANGO_SETTINGS_MODULE=config.settings_local && \
+	  source venv/bin/activate && \
+	  python manage.py seed_all \
+	'
+
+.PHONY: seed-workforce
+seed-workforce: ## Dev — Seed all workforce models (members, payroll, teams, etc.): make seed-workforce
+	@bash -c '\
+	  if [ ! -f "$(VENV_PYTHON)" ]; then \
+	    echo "❌  No venv found. Run: make local-setup first."; exit 1; \
+	  fi; \
+	  cd backend && \
+	  export DJANGO_SETTINGS_MODULE=config.settings_local && \
+	  source venv/bin/activate && \
+	  python manage.py workforce_seeds \
+	'
+
+.PHONY: seed-workforce-clear
+seed-workforce-clear: ## Dev — Wipe & re-seed all workforce data: make seed-workforce-clear
+	@bash -c '\
+	  if [ ! -f "$(VENV_PYTHON)" ]; then \
+	    echo "❌  No venv found. Run: make local-setup first."; exit 1; \
+	  fi; \
+	  cd backend && \
+	  export DJANGO_SETTINGS_MODULE=config.settings_local && \
+	  source venv/bin/activate && \
+	  python manage.py workforce_seeds --clear \
+	'
+
+.PHONY: seed-workforce-docker
+seed-workforce-docker: ## DB — Seed all workforce models inside Docker container
+	$(DC) exec backend python manage.py workforce_seeds
 
 .PHONY: local-setup
 local-setup: ## Dev — First-time setup: create venv + install all deps

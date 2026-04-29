@@ -51,6 +51,16 @@ const workforceService = {
     seedFromAttendance: (body = {}) =>
         api.post('members/seed_from_attendance/', body).then(r => r.data),
 
+    // Create worker portal account (phone + PIN)
+    // Returns { employee_id, username, pin, email } — PIN shown ONCE
+    // Send portal credentials via email (call immediately after createAccount)
+    // data: { recipient_email, pin, portal_url?, project_name? }
+    sendPortalCredentials: (id, data) =>
+        api.post(`members/${id}/send_credentials/`, data).then(r => r.data),
+
+    createAccount: (id, data = {}) =>
+        api.post(`members/${id}/create_account/`, data).then(r => r.data),
+
     // Link / unlink attendance record
     linkAttendance:   (id, attendanceWorkerId) =>
         api.post(`members/${id}/link_attendance/`, { attendance_worker_id: attendanceWorkerId }).then(r => r.data),

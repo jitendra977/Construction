@@ -117,13 +117,14 @@ function Toggle({ value, onChange }) {
 
 function SummaryBanner({ summary }) {
   const stats = [
-    { label: 'Total',       value: summary.total,            icon: '👷', color: '#6366f1' },
-    { label: 'Attendance',  value: summary.active,           icon: '📋', color: '#22c55e' },
-    { label: 'Payment',     value: summary.with_payment,     icon: '💰', color: '#f59e0b' },
-    { label: 'Login',       value: summary.with_login,       icon: '🔐', color: '#8b5cf6' },
+    { label: 'Total',      value: summary.total,           icon: '👷', color: '#6366f1' },
+    { label: 'Attendance', value: summary.active,          icon: '📋', color: '#22c55e' },
+    { label: 'Payment',    value: summary.with_payment,    icon: '💰', color: '#f59e0b' },
+    { label: 'Login',      value: summary.with_login,      icon: '🔐', color: '#8b5cf6' },
+    { label: 'Workforce',  value: summary.with_workforce,  icon: '🗂', color: '#10b981' },
   ];
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 14 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 8, marginBottom: 14 }}>
       {stats.map(s => (
         <div key={s.label} style={{
           background: '#fff', borderRadius: 10, padding: '10px 6px',
@@ -177,9 +178,10 @@ function PersonCard({ person, onToggleRole, onEdit, toggling }) {
         </div>
         {/* Role pills */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
-          <RoleBadge icon="📋" label="QR"      enabled={person.role_attendance} small />
-          <RoleBadge icon="💰" label="Pay"     enabled={person.role_payment}    small />
-          <RoleBadge icon="🔐" label="Login"   enabled={person.role_login}      small />
+          <RoleBadge icon="📋" label="QR"        enabled={person.role_attendance}             small />
+          <RoleBadge icon="💰" label="Pay"       enabled={person.role_payment}                small />
+          <RoleBadge icon="🔐" label="Login"     enabled={person.role_login}                  small />
+          <RoleBadge icon="🗂" label="Workforce" enabled={!!person.workforce_member_id}       small />
         </div>
         <span style={{ fontSize: 11, color: '#d1d5db', marginLeft: 2 }}>{expanded ? '▲' : '▼'}</span>
       </div>
@@ -235,6 +237,41 @@ function PersonCard({ person, onToggleRole, onEdit, toggling }) {
               fontSize: 12, color: '#5b21b6',
             }}>
               🔐 {person.user_name} · {person.user_email}
+            </div>
+          )}
+
+          {/* Workforce profile link */}
+          {person.workforce_member_id ? (
+            <div style={{
+              background: '#f0fdf4', border: '1px solid #86efac',
+              borderRadius: 8, padding: '8px 10px',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              fontSize: 12,
+            }}>
+              <span style={{ color: '#15803d' }}>
+                🗂 Workforce Profile · <strong>{person.workforce_employee_id}</strong>
+              </span>
+              <a
+                href={`/dashboard/desktop/workforce`}
+                style={{ color: '#15803d', fontWeight: 700, textDecoration: 'none', fontSize: 11 }}
+              >
+                View →
+              </a>
+            </div>
+          ) : (
+            <div style={{
+              background: '#fafafa', border: '1px dashed #d1d5db',
+              borderRadius: 8, padding: '8px 10px',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              fontSize: 12, color: '#9ca3af',
+            }}>
+              <span>🗂 No Workforce Profile yet</span>
+              <a
+                href={`/dashboard/desktop/workforce`}
+                style={{ color: '#6b7280', fontWeight: 600, textDecoration: 'none', fontSize: 11 }}
+              >
+                Import in Workforce →
+              </a>
             </div>
           )}
 

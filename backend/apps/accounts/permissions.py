@@ -141,3 +141,82 @@ class IsProjectManager(permissions.BasePermission):
         project_id = getattr(obj, 'project_id', None) or getattr(getattr(obj, 'project', None), 'pk', None)
         member = _get_member(request.user, project_id)
         return member is not None and member.can_manage_members
+
+
+def _project_id_from_request(request, view):
+    """Extract project ID from query params, body, or URL kwargs."""
+    return (
+        request.query_params.get('project') or
+        request.data.get('project') or
+        view.kwargs.get('project_pk') or
+        view.kwargs.get('pk')
+    )
+
+
+class CanManageWorkforce(permissions.BasePermission):
+    """
+    Allow write access to members with can_manage_workforce = True
+    (OWNER, MANAGER, SUPERVISOR by default) or system admins.
+    Read access allowed to all authenticated project members.
+    """
+    message = 'You do not have permission to manage workforce for this project.'
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if getattr(request.user, 'is_system_admin', False):
+            return True
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        project_id = _project_id_from_request(request, view)
+        member = _get_member(request.user, project_id)
+        return member is not None and member.can_manage_workforce
+
+    def has_object_permission(self, request, view, obj):
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        if getattr(request.user, 'is_system_admin', False):
+            return True
+        project_id = getattr(obj, 'project_id', None) or getattr(getattr(obj, 'project', None), 'pk', None)
+        member = _get_member(request.user, project_id)
+        return member is not None and member.can_manage_workforce
+
+
+class CanApprovePurchases(permissions.BasePermission):
+    """
+    Allow approval actions only to members with can_approve_purchases = True
+    (OWNER, MANAGER by default) or system admins.
+    """
+    message = 'You do not have permission to approve purchases for this project.'
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if getattr(request.user, 'is_system_admin', False):
+            return True
+        project_id = _project_id_from_request(request, view)
+        member = _get_member(request.user, project_id)
+        return member is not None and member.can_approve_purchases
+
+    def has_object_permission(self, request, view, obj):
+        if getattr(request.user, 'is_system_admin', False):
+            return True
+        project_id = getattr(obj, 'project_id', None) or getattr(getattr(obj, 'project', None), 'pk', None)
+        member = _get_member(request.user, project_id)
+        return member is not None and member.can_approve_purchases
+
+
+class IsWorkerPortalUser(permissions.BasePermission):
+    """
+    Allows access only to Users whose WorkforceMember account has
+    worker_type STAFF, SUBCONTRACTOR, or FREELANCE — i.e. the simple
+    mobile worker portal.  System admins always pass.
+    """
+    message = 'Worker portal access is restricted to registered workforce members.'
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if getattr(request.user, 'is_system_admin', False):
+            return True
+        return hasattr(request.user, 'workforce_profile')

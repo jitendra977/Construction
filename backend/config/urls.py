@@ -21,7 +21,7 @@ def health_check(request):
     return JsonResponse({"status": "ok" if db_ok else "degraded", "db": db_ok}, status=status)
 
 from apps.accounts.views import UserViewSet, RoleViewSet, ActivityLogViewSet
-from apps.accounts.urls import accounts_urlpatterns
+from apps.accounts.urls import accounts_urlpatterns, worker_urlpatterns
 from apps.core.views import HouseProjectViewSet, ConstructionPhaseViewSet, RoomViewSet, FloorViewSet, UserGuideViewSet, UserGuideStepViewSet, UserGuideFAQViewSet, UserGuideSectionViewSet, EmailLogViewSet, DashboardDataView, ProjectMemberViewSet
 from apps.core.gallery_views import GalleryViewSet
 from apps.tasks.views import TaskViewSet, TaskUpdateViewSet, TaskMediaViewSet
@@ -59,6 +59,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1/auth/', include('apps.accounts.urls')),      # Auth endpoints (legacy)
     path('api/v1/accounts/', include(accounts_urlpatterns)),  # Accounts module
+    path('api/v1/worker/',   include(worker_urlpatterns)),    # Worker portal (phone+PIN)
     path('api/v1/dashboard/combined/', DashboardDataView.as_view(), name='dashboard-combined'),
     path('api/v1/', include(router.urls)),       # Main API
     path('api/v1/finance/', include('apps.finance.urls')),
@@ -84,8 +85,8 @@ urlpatterns = [
     # ── Attendance ────────────────────────────────────────────────────────────
     path('api/v1/attendance/', include('apps.attendance.urls')),
 
-    # ── Teams ─────────────────────────────────────────────────────────────────
-    path('api/v1/teams/', include('apps.teams.urls')),
+    # ── Workforce (includes /workforce/teams/) ────────────────────────────────
+    path('api/v1/workforce/', include('apps.workforce.urls')),
 ]
 
 # Serve media files in development

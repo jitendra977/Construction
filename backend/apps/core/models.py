@@ -531,58 +531,70 @@ class ProjectMember(models.Model):
     # Default permission matrix — keyed by role
     ROLE_DEFAULT_PERMISSIONS = {
         'OWNER': {
-            'can_manage_members':   True,
-            'can_manage_finances':  True,
-            'can_view_finances':    True,
-            'can_manage_phases':    True,
-            'can_manage_structure': True,
-            'can_manage_resources': True,
-            'can_upload_media':     True,
+            'can_manage_members':    True,
+            'can_manage_finances':   True,
+            'can_view_finances':     True,
+            'can_manage_phases':     True,
+            'can_manage_structure':  True,
+            'can_manage_resources':  True,
+            'can_upload_media':      True,
+            'can_manage_workforce':  True,
+            'can_approve_purchases': True,
         },
         'MANAGER': {
-            'can_manage_members':   True,
-            'can_manage_finances':  True,
-            'can_view_finances':    True,
-            'can_manage_phases':    True,
-            'can_manage_structure': True,
-            'can_manage_resources': True,
-            'can_upload_media':     True,
+            'can_manage_members':    True,
+            'can_manage_finances':   True,
+            'can_view_finances':     True,
+            'can_manage_phases':     True,
+            'can_manage_structure':  True,
+            'can_manage_resources':  True,
+            'can_upload_media':      True,
+            'can_manage_workforce':  True,
+            'can_approve_purchases': True,
         },
         'ENGINEER': {
-            'can_manage_members':   False,
-            'can_manage_finances':  False,
-            'can_view_finances':    True,
-            'can_manage_phases':    True,
-            'can_manage_structure': True,
-            'can_manage_resources': False,
-            'can_upload_media':     True,
+            'can_manage_members':    False,
+            'can_manage_finances':   False,
+            'can_view_finances':     True,
+            'can_manage_phases':     True,
+            'can_manage_structure':  True,
+            'can_manage_resources':  True,   # can raise purchase requests
+            'can_upload_media':      True,
+            'can_manage_workforce':  False,
+            'can_approve_purchases': False,  # requests only — manager approves
         },
         'SUPERVISOR': {
-            'can_manage_members':   False,
-            'can_manage_finances':  False,
-            'can_view_finances':    True,
-            'can_manage_phases':    True,
-            'can_manage_structure': False,
-            'can_manage_resources': False,
-            'can_upload_media':     True,
+            'can_manage_members':    False,
+            'can_manage_finances':   False,
+            'can_view_finances':     True,
+            'can_manage_phases':     True,
+            'can_manage_structure':  False,
+            'can_manage_resources':  False,
+            'can_upload_media':      True,
+            'can_manage_workforce':  True,   # attendance, teams, payroll view
+            'can_approve_purchases': False,
         },
         'CONTRACTOR': {
-            'can_manage_members':   False,
-            'can_manage_finances':  False,
-            'can_view_finances':    False,
-            'can_manage_phases':    False,
-            'can_manage_structure': False,
-            'can_manage_resources': True,
-            'can_upload_media':     True,
+            'can_manage_members':    False,
+            'can_manage_finances':   False,
+            'can_view_finances':     False,
+            'can_manage_phases':     False,
+            'can_manage_structure':  False,
+            'can_manage_resources':  True,
+            'can_upload_media':      True,
+            'can_manage_workforce':  False,
+            'can_approve_purchases': False,
         },
         'VIEWER': {
-            'can_manage_members':   False,
-            'can_manage_finances':  False,
-            'can_view_finances':    True,
-            'can_manage_phases':    False,
-            'can_manage_structure': False,
-            'can_manage_resources': False,
-            'can_upload_media':     False,
+            'can_manage_members':    False,
+            'can_manage_finances':   False,
+            'can_view_finances':     True,
+            'can_manage_phases':     False,
+            'can_manage_structure':  False,
+            'can_manage_resources':  False,
+            'can_upload_media':      False,
+            'can_manage_workforce':  False,
+            'can_approve_purchases': False,
         },
     }
 
@@ -614,6 +626,10 @@ class ProjectMember(models.Model):
         help_text='Create / edit materials, contractors, suppliers')
     can_upload_media     = models.BooleanField(default=False,
         help_text='Upload photos and documents')
+    can_manage_workforce = models.BooleanField(default=False,
+        help_text='Mark attendance, manage teams, view payroll for assigned workers')
+    can_approve_purchases = models.BooleanField(default=False,
+        help_text='Approve purchase requests raised by engineers / contractors')
 
     class Meta:
         unique_together = ('project', 'user')
@@ -634,7 +650,8 @@ class ProjectMember(models.Model):
     @property
     def permission_fields(self):
         return [
-            'can_manage_members', 'can_manage_finances', 'can_view_finances',
-            'can_manage_phases',  'can_manage_structure',
+            'can_manage_members',   'can_manage_finances',  'can_view_finances',
+            'can_manage_phases',    'can_manage_structure',
             'can_manage_resources', 'can_upload_media',
+            'can_manage_workforce', 'can_approve_purchases',
         ]
