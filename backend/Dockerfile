@@ -42,7 +42,8 @@ RUN chmod +x /app/entrypoint.sh
 # Static files baked into image (Whitenoise serves them).
 # Use a dummy SECRET_KEY so Django can load settings during build
 # (the real key comes from the .env file at runtime).
-RUN SECRET_KEY=build-time-dummy-key-not-used-at-runtime \
+RUN DJANGO_SETTINGS_MODULE=config.settings \
+    SECRET_KEY=build-time-dummy-key-not-used-at-runtime \
     DB_NAME=dummy \
     DB_USER=dummy \
     DB_PASSWORD=dummy \
