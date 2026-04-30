@@ -199,18 +199,16 @@ ssh_exec "
   if ! docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend python manage.py migrate --noinput; then
     echo '!! Migration failed (likely InconsistentMigrationHistory). Running Deep Reconciler...'
     
-    # 1. Clear stale records from the migration table for local apps
-    # We use --entrypoint python to bypass the bash entrypoint.sh script which might also be failing on migrate.
+    # 1. Clear ENTIRE migration history table.
+    # When squashing, built-in Django apps (admin, auth) can also have stale dependencies on custom apps.
     docker compose -f '${COMPOSE_FILE}' run --rm --no-deps --entrypoint python backend manage.py shell -c \"
 from django.db import connection
-apps = ['resources','accounting','finance','core','tasks','accounts','attendance','workforce','photo_intel','permits','estimate','fin','resource','data_transfer','estimator','analytics','assistant']
 with connection.cursor() as cursor:
-    placeholders = ','.join(['%s'] * len(apps))
-    cursor.execute(f'DELETE FROM django_migrations WHERE app IN ({placeholders})', apps)
-    print(f'Cleared stale migration records for {len(apps)} apps.')
+    cursor.execute('DELETE FROM django_migrations')
+    print('Wiped entire django_migrations table to resolve all dependency conflicts.')
 \"
     # 2. Re-apply history using --fake-initial
-    echo '==> Re-applying migrations with --fake-initial...'
+    echo '==> Re-applying all migrations with --fake-initial...'
     docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend python manage.py migrate --noinput --fake-initial
   fi
 
