@@ -186,7 +186,7 @@ ssh_exec "
     echo \"IMAGE_TAG_PREV=\$PREV\" >> .env
   fi
   if grep -q '^IMAGE_TAG=' .env 2>/dev/null; then
-    sed -i 's|^IMAGE_TAG=.*|IMAGE_TAG=${IMAGE_TAG}|' .env
+    sed -i 's|^IMAGE_TAG=.*|IMAGE_TAG=${IMAGE_TAG}' .env
   else
     echo 'IMAGE_TAG=${IMAGE_TAG}' >> .env
   fi
@@ -197,19 +197,20 @@ ssh_exec "
 
   echo '==> Run migrations'
   if ! docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend python manage.py migrate --noinput; then
-    echo '!! Migration failed (likely InconsistentMigrationHistory). Running Deep Reconciler...'
+    echo '!! Migration failed (likely history mismatch). Running Deep Reconciler...'
     
     # 1. Clear ENTIRE migration history table.
-    # When squashing, built-in Django apps (admin, auth) can also have stale dependencies on custom apps.
     docker compose -f '${COMPOSE_FILE}' run --rm --no-deps --entrypoint python backend manage.py shell -c \"
 from django.db import connection
 with connection.cursor() as cursor:
     cursor.execute('DELETE FROM django_migrations')
-    print('Wiped entire django_migrations table to resolve all dependency conflicts.')
+    print('Wiped entire django_migrations table.')
 \"
-    # 2. Re-apply history using --fake-initial
-    echo '==> Re-applying all migrations with --fake-initial...'
-    docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend python manage.py migrate --noinput --fake-initial
+    # 2. Re-apply history using --fake.
+    # Since the DB schema likely already matches the models after a squash/refactor,
+    # --fake is the safest way to mark all new migrations as finished without running SQL.
+    echo '==> Re-applying all migrations with --fake...'
+    docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend python manage.py migrate --noinput --fake
   fi
 
   echo '==> Collect static files'

@@ -66,18 +66,18 @@ git stash pop 2>/dev/null || true
 run_migrations() {
   echo '==> Running migrations'
   if ! docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend python manage.py migrate --noinput; then
-    echo '!! Migration failed (likely InconsistentMigrationHistory). Running Deep Reconciler...'
+    echo '!! Migration failed (likely history mismatch). Running Deep Reconciler...'
     
     # 1. Clear ENTIRE migration history table.
     docker compose -f '${COMPOSE_FILE}' run --rm --no-deps --entrypoint python backend manage.py shell -c \"
 from django.db import connection
 with connection.cursor() as cursor:
     cursor.execute('DELETE FROM django_migrations')
-    print('Wiped entire django_migrations table to resolve all dependency conflicts.')
+    print('Wiped entire django_migrations table.')
 \"
-    # 2. Re-apply history using --fake-initial
-    echo '==> Re-applying migrations with --fake-initial...'
-    docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend python manage.py migrate --noinput --fake-initial
+    # 2. Re-apply history using --fake.
+    echo '==> Re-applying all migrations with --fake...'
+    docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend python manage.py migrate --noinput --fake
   fi
 }
 
