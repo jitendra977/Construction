@@ -200,9 +200,10 @@ ssh_exec "
     echo '!! Migration failed (likely InconsistentMigrationHistory). Running Deep Reconciler...'
     
     # 1. Clear stale records from the migration table for local apps
-    docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend python manage.py shell -c \"
+    # We use --entrypoint python to bypass the bash entrypoint.sh script which might also be failing on migrate.
+    docker compose -f '${COMPOSE_FILE}' run --rm --no-deps --entrypoint python backend manage.py shell -c \"
 from django.db import connection
-apps = ['resources','accounting','finance','core','tasks','accounts','attendance','workforce','photo_intel','permits','estimate','fin','resource','data_transfer','estimator','analytics']
+apps = ['resources','accounting','finance','core','tasks','accounts','attendance','workforce','photo_intel','permits','estimate','fin','resource','data_transfer','estimator','analytics','assistant']
 with connection.cursor() as cursor:
     placeholders = ','.join(['%s'] * len(apps))
     cursor.execute(f'DELETE FROM django_migrations WHERE app IN ({placeholders})', apps)
