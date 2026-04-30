@@ -196,13 +196,21 @@ ssh_exec "
   docker compose -f '${COMPOSE_FILE}' build --pull ${BUILD_SERVICES}
 
   echo '==> Run migrations'
-  # Fallback logic for squashed migrations / InconsistentMigrationHistory
   if ! docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend python manage.py migrate --noinput; then
-    echo '!! Standard migration failed. Attempting to reconcile history with --fake-initial ...'
-    if ! docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend python manage.py migrate --noinput --fake-initial; then
-      echo '!! Still failing. Final attempt with global --fake to synchronize history ...'
-      docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend python manage.py migrate --noinput --fake
-    fi
+    echo '!! Migration failed (likely InconsistentMigrationHistory). Running Deep Reconciler...'
+    
+    # 1. Clear stale records from the migration table for local apps
+    docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend python manage.py shell -c \"
+from django.db import connection
+apps = ['resources','accounting','finance','core','tasks','accounts','attendance','workforce','photo_intel','permits','estimate','fin','resource','data_transfer','estimator','analytics']
+with connection.cursor() as cursor:
+    placeholders = ','.join(['%s'] * len(apps))
+    cursor.execute(f'DELETE FROM django_migrations WHERE app IN ({placeholders})', apps)
+    print(f'Cleared stale migration records for {len(apps)} apps.')
+\"
+    # 2. Re-apply history using --fake-initial
+    echo '==> Re-applying migrations with --fake-initial...'
+    docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend python manage.py migrate --noinput --fake-initial
   fi
 
   echo '==> Collect static files'
