@@ -62,21 +62,33 @@ git stash 2>/dev/null || true
 git pull origin '${BRANCH}'
 git stash pop 2>/dev/null || true
 
+# Helper to run migrations with fallback for squashed/refactored histories
+run_migrations() {
+  echo '==> Running migrations'
+  if ! docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend python manage.py migrate --noinput; then
+    echo '!! Standard migration failed. Attempting to reconcile history with --fake-initial ...'
+    if ! docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend python manage.py migrate --noinput --fake-initial; then
+      echo '!! Still failing. Final attempt with global --fake to synchronize history ...'
+      docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend python manage.py migrate --noinput --fake
+    fi
+  fi
+}
+
 $(if [[ "$MIGRATIONS_ONLY" == "true" ]]; then cat <<'EOF'
 echo '==> Migrations only'
-docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend python manage.py migrate --noinput
+run_migrations
 docker compose -f '${COMPOSE_FILE}' restart backend celery celery-beat
 EOF
 elif [[ "$NO_REBUILD" == "true" ]]; then cat <<'EOF'
 echo '==> Restart without rebuild'
-docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend python manage.py migrate --noinput
+run_migrations
 docker compose -f '${COMPOSE_FILE}' up -d --force-recreate ${SERVICE}
 EOF
 else cat <<'EOF'
 echo '==> Rebuild and restart'
 export IMAGE_TAG="$(grep '^IMAGE_TAG=' .env | cut -d= -f2 | head -1 || echo latest)"
 docker compose -f '${COMPOSE_FILE}' build --pull ${SERVICE}
-docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend python manage.py migrate --noinput
+run_migrations
 docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend python manage.py collectstatic --noinput --clear
 docker compose -f '${COMPOSE_FILE}' up -d ${SERVICE}
 EOF

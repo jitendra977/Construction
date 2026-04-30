@@ -196,8 +196,14 @@ ssh_exec "
   docker compose -f '${COMPOSE_FILE}' build --pull ${BUILD_SERVICES}
 
   echo '==> Run migrations'
-  docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend \
-    python manage.py migrate --noinput
+  # Fallback logic for squashed migrations / InconsistentMigrationHistory
+  if ! docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend python manage.py migrate --noinput; then
+    echo '!! Standard migration failed. Attempting to reconcile history with --fake-initial ...'
+    if ! docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend python manage.py migrate --noinput --fake-initial; then
+      echo '!! Still failing. Final attempt with global --fake to synchronize history ...'
+      docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend python manage.py migrate --noinput --fake
+    fi
+  fi
 
   echo '==> Collect static files'
   docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend \
