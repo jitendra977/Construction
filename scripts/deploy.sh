@@ -186,9 +186,9 @@ ssh_exec "
     echo \"IMAGE_TAG_PREV=\$PREV\" >> .env
   fi
   if grep -q '^IMAGE_TAG=' .env 2>/dev/null; then
-    sed -i 's|^IMAGE_TAG=.*|IMAGE_TAG=${IMAGE_TAG}' .env
+    sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=${IMAGE_TAG}|" .env
   else
-    echo 'IMAGE_TAG=${IMAGE_TAG}' >> .env
+    echo "IMAGE_TAG=${IMAGE_TAG}" >> .env
   fi
 
   echo '==> Build images (tag: ${IMAGE_TAG})'
