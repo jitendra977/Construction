@@ -483,6 +483,59 @@ function ManagementTab({ projectId }) {
                     );
                 })
             )}
+
+            {/* ── Nepali Note Section (Project Management) ── */}
+            <div style={{ marginTop: 60, padding: 30, background: 'linear-gradient(135deg, #fff 0%, #f9fafb 100%)', borderRadius: 24, border: '1px solid var(--t-border)', boxShadow: '0 10px 30px rgba(0,0,0,0.02)' }}>
+                <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+                    <div style={{ width: 48, height: 48, borderRadius: 16, background: '#f97316', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 24, flexShrink: 0 }}>📋</div>
+                    <div style={{ flex: 1 }}>
+                        <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 900, color: 'var(--t-text)' }}>परियोजना व्यवस्थापन निर्देशिका (Complete Project Management Guide)</h3>
+                        <p style={{ margin: 0, fontSize: 13, color: 'var(--t-text3)', lineHeight: 1.6, fontWeight: 600 }}>
+                            यस सेक्सनको बारेमा सम्पूर्ण जानकारी यहाँ उपलब्ध छ:
+                        </p>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 30, marginTop: 24 }}>
+                            {/* What & Why */}
+                            <div style={{ background: '#fff', padding: 20, borderRadius: 16, border: '1px solid var(--t-border)' }}>
+                                <div style={{ marginBottom: 16 }}>
+                                    <div style={{ fontSize: 12, fontWeight: 900, color: '#f97316', marginBottom: 4 }}>📌 यो के हो? (What is this?)</div>
+                                    <p style={{ margin: 0, fontSize: 11, color: 'var(--t-text3)', lineHeight: 1.5 }}>
+                                        यो परियोजनामा काम गर्ने इन्जिनियर, म्यानेजर, र अन्य प्राविधिक कर्मचारीहरूको विवरण र अधिकार (Permissions) राख्ने ठाउँ हो।
+                                    </p>
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: 12, fontWeight: 900, color: '#3b82f6', marginBottom: 4 }}>❓ किन प्रयोग गर्ने? (Why use it?)</div>
+                                    <p style={{ margin: 0, fontSize: 11, color: 'var(--t-text3)', lineHeight: 1.5 }}>
+                                        कसले कुन काम हेर्ने भन्ने स्पष्ट पार्न, बजेटको सुरक्षा गर्न र कामको जिम्मेवारी तोक्न यसको प्रयोग गरिन्छ। यसले काममा हुने अलमल घटाउँछ।
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* When & Who */}
+                            <div style={{ background: '#fff', padding: 20, borderRadius: 16, border: '1px solid var(--t-border)' }}>
+                                <div style={{ marginBottom: 16 }}>
+                                    <div style={{ fontSize: 12, fontWeight: 900, color: '#22c55e', marginBottom: 4 }}>⏰ कहिले प्रयोग गर्ने? (When to use it?)</div>
+                                    <p style={{ margin: 0, fontSize: 11, color: 'var(--t-text3)', lineHeight: 1.5 }}>
+                                        नयाँ परियोजना सुरु गर्दा, नयाँ इन्जिनियर नियुक्त गर्दा, वा कसैको जिम्मेवारी परिवर्तन गर्नुपर्दा यो सेक्सन प्रयोग गर्नुहोस्।
+                                    </p>
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: 12, fontWeight: 900, color: '#ef4444', marginBottom: 4 }}>👤 कसले प्रयोग गर्ने? (Who can use it?)</div>
+                                    <p style={{ margin: 0, fontSize: 11, color: 'var(--t-text3)', lineHeight: 1.5 }}>
+                                        यो अधिकार मात्र 'Super Admin' र परियोजनाको 'Owner' सँग हुन्छ। सामान्य कर्मचारीले अरूको अधिकार परिवर्तन गर्न सक्दैनन्।
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ marginTop: 20, padding: '12px 16px', background: '#f0f9ff', borderRadius: 12, border: '1px solid #bae6fd' }}>
+                            <p style={{ margin: 0, fontSize: 11, color: '#0369a1', fontWeight: 700 }}>
+                                💡 सल्लाह: यदि कर्मचारीले बजेट सम्बन्धी काम गर्नु पर्दैन भने, उनीहरूलाई 'View Finance' को अधिकार मात्र दिनुहोस्।
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }

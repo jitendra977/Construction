@@ -149,6 +149,33 @@ export default function AccountsDashboard() {
                     ))}
                 </div>
             </div>
+
+            {/* ── Nepali Note Section (Office Management) ── */}
+            <div style={{ marginTop: 40, padding: 30, background: 'linear-gradient(135deg, #fff 0%, #f8fafc 100%)', borderRadius: 24, border: '1px solid var(--t-border)', boxShadow: '0 10px 30px rgba(0,0,0,0.02)' }}>
+                <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+                    <div style={{ width: 48, height: 48, borderRadius: 16, background: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 24, flexShrink: 0 }}>🏢</div>
+                    <div>
+                        <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 900, color: 'var(--t-text)' }}>कार्यालय व्यवस्थापन निर्देशिका (Office Guide)</h3>
+                        <p style={{ margin: 0, fontSize: 13, color: 'var(--t-text3)', lineHeight: 1.6, fontWeight: 600 }}>
+                            यो सेक्सनबाट तपाइँ आफ्नो मुख्य कार्यालयका कर्मचारी (इन्जिनियर, एकाउन्टेन्ट, म्यानेजर) हरूको खाता र अनुमति व्यवस्थापन गर्न सक्नुहुन्छ:
+                        </p>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20, marginTop: 24 }}>
+                            <div>
+                                <div style={{ fontSize: 12, fontWeight: 900, color: '#6366f1', marginBottom: 6 }}>👤 प्रयोगकर्ता (Users)</div>
+                                <p style={{ margin: 0, fontSize: 11, color: 'var(--t-text3)', lineHeight: 1.5 }}>नयाँ इन्जिनियर वा एकाउन्टेन्टलाई प्रणालीमा निम्तो दिनुहोस्। उनीहरूको प्रोफाइल र इमेल यहाँबाट अपडेट गर्न सकिन्छ।</p>
+                            </div>
+                            <div>
+                                <div style={{ fontSize: 12, fontWeight: 900, color: '#f59e0b', marginBottom: 6 }}>🛡️ अनुमति (Roles & Permissions)</div>
+                                <p style={{ margin: 0, fontSize: 11, color: 'var(--t-text3)', lineHeight: 1.5 }}>कुन कर्मचारीले के हेर्न वा सच्याउन पाउने भन्ने कुरा 'Roles' बाट तय गर्नुहोस्। यो सुरक्षाको लागि महत्त्वपूर्ण छ।</p>
+                            </div>
+                            <div>
+                                <div style={{ fontSize: 12, fontWeight: 900, color: '#3b82f6', marginBottom: 6 }}>📋 क्रियाकलाप लग (Activity Logs)</div>
+                                <p style={{ margin: 0, fontSize: 11, color: 'var(--t-text3)', lineHeight: 1.5 }}>प्रणालीमा कसले, कहिले र के परिवर्तन गर्यो भन्ने कुरा 'Activity' मा गएर हेर्न सकिन्छ। यसले पारदर्शिता बढाउँछ।</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }

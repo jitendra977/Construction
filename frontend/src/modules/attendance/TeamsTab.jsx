@@ -130,6 +130,52 @@ export default function TeamsTab({ projectId }) {
         </Modal>
       )}
 
+      {/* ── Nepali Note Section (Workforce Teams) ── */}
+      <div style={{ marginTop: 60, padding: 30, background: 'linear-gradient(135deg, #fff 0%, #f9fafb 100%)', borderRadius: 24, border: '1px solid var(--t-border)', boxShadow: '0 10px 30px rgba(0,0,0,0.02)' }}>
+          <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+              <div style={{ width: 48, height: 48, borderRadius: 16, background: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 24, flexShrink: 0 }}>👥</div>
+              <div style={{ flex: 1 }}>
+                  <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 900, color: 'var(--t-text)' }}>कामदार टोली निर्देशिका (Workforce Team Guide)</h3>
+                  <p style={{ margin: 0, fontSize: 13, color: 'var(--t-text3)', lineHeight: 1.6, fontWeight: 600 }}>
+                      कामदारहरूलाई विभिन्न टोलीमा विभाजन गरेर कामलाई अझ प्रभावकारी बनाउनुहोस्:
+                  </p>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 30, marginTop: 24 }}>
+                      {/* What & Why */}
+                      <div style={{ background: '#fff', padding: 20, borderRadius: 16, border: '1px solid var(--t-border)' }}>
+                          <div style={{ marginBottom: 16 }}>
+                              <div style={{ fontSize: 12, fontWeight: 900, color: '#10b981', marginBottom: 4 }}>📌 यो के हो? (What is this?)</div>
+                              <p style={{ margin: 0, fontSize: 11, color: 'var(--t-text3)', lineHeight: 1.5 }}>
+                                  यो धेरै कामदारहरूलाई एउटा समूहमा (टोली) राख्ने ठाउँ हो। जस्तै: 'गारो लगाउने टोली' वा 'ढलान गर्ने टोली'।
+                              </p>
+                          </div>
+                          <div>
+                              <div style={{ fontSize: 12, fontWeight: 900, color: '#3b82f6', marginBottom: 4 }}>❓ किन प्रयोग गर्ने? (Why use it?)</div>
+                              <p style={{ margin: 0, fontSize: 11, color: 'var(--t-text3)', lineHeight: 1.5 }}>
+                                  टोली बनाउँदा एकैपटक धेरैको हाजिरी गर्न सजिलो हुन्छ र कुन टोलीले कति काम गर्यो भन्ने कुराको स्पष्ट हिसाब रहन्छ।
+                              </p>
+                          </div>
+                      </div>
+
+                      {/* When & Who */}
+                      <div style={{ background: '#fff', padding: 20, borderRadius: 16, border: '1px solid var(--t-border)' }}>
+                          <div style={{ marginBottom: 16 }}>
+                              <div style={{ fontSize: 12, fontWeight: 900, color: '#f59e0b', marginBottom: 4 }}>⏰ कहिले प्रयोग गर्ने? (When to use it?)</div>
+                              <p style={{ margin: 0, fontSize: 11, color: 'var(--t-text3)', lineHeight: 1.5 }}>
+                                  कुनै नयाँ कामको चरण (Phase) सुरु गर्दा वा धेरै कामदारहरूलाई एउटै जिम्मेवारी सुम्पिँदा टोली बनाउनुहोस्।
+                              </p>
+                          </div>
+                          <div>
+                              <div style={{ fontSize: 12, fontWeight: 900, color: '#6366f1', marginBottom: 4 }}>👤 कसले प्रयोग गर्ने? (Who can use it?)</div>
+                              <p style={{ margin: 0, fontSize: 11, color: 'var(--t-text3)', lineHeight: 1.5 }}>
+                                  यो सेक्सन मुख्य रूपमा साइट सुपरभाइजर र प्रोजेक्ट म्यानेजरहरूले कामदार परिचालन गर्नका लागि प्रयोग गर्छन्।
+                              </p>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </div>
     </div>
   );
 }

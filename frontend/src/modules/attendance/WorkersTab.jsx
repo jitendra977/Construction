@@ -313,7 +313,35 @@ export default function WorkersTab({ projectId }) {
           onClose={() => setShowIDCard(false)} 
         />
       )}
-      {showForm && <StaffFormSheet editingId={editingId} form={form} setForm={setForm} onSave={handleSave} onClose={() => setShowForm(false)} saving={saving} />}
+      {showForm && <StaffFormSheet editingId={editingId} form={form} setForm={setForm} onSave={handleSave} onClose={() => setShowForm(false)} saving={saving} allTeams={allTeams} />}
+
+      {/* ── Nepali Note Section ── */}
+      <div style={{ marginTop: 60, padding: 30, background: 'linear-gradient(135deg, #fff 0%, #f8fafc 100%)', borderRadius: 24, border: '1px solid var(--t-border)', boxShadow: '0 10px 30px rgba(0,0,0,0.02)' }}>
+        <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+          <div style={{ width: 48, height: 48, borderRadius: 16, background: '#f97316', display: 'flex', alignItems: 'center', justifyCenter: 'center', color: '#fff', fontSize: 24, flexShrink: 0, justifyContent: 'center' }}>📝</div>
+          <div>
+            <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 900, color: 'var(--t-text)' }}>विशेष सूचना (System Note)</h3>
+            <p style={{ margin: 0, fontSize: 13, color: 'var(--t-text3)', lineHeight: 1.6, fontWeight: 600 }}>
+              यो 'Workers Management' प्रणाली प्रयोग गरी तपाइँ आफ्नो निर्माण कार्यलाई अझ व्यवस्थित बनाउन सक्नुहुन्छ। 
+              यहाँ ध्यान दिनुपर्ने मुख्य कुराहरू:
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, marginTop: 24 }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 900, color: '#f97316', marginBottom: 6 }}>📅 हाजिरी (Attendance)</div>
+                <p style={{ margin: 0, fontSize: 11, color: 'var(--t-text3)', lineHeight: 1.5 }}>QR कोड स्क्यान गरेर वा म्यानुअल रूपमा हाजिरी जनाउन सकिन्छ। हाजिरी नभई तलब हिसाब हुँदैन।</p>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 900, color: '#3b82f6', marginBottom: 6 }}>💰 ज्याला (Wages)</div>
+                <p style={{ margin: 0, fontSize: 11, color: 'var(--t-text3)', lineHeight: 1.5 }}>हरेक कामदारको 'Daily Rate' मिलाउनुहोस्। यसले दैनिक खर्चको हिसाब राख्न मद्दत गर्छ।</p>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 900, color: '#22c55e', marginBottom: 6 }}>👥 टोली (Teams)</div>
+                <p style={{ margin: 0, fontSize: 11, color: 'var(--t-text3)', lineHeight: 1.5 }}>कामदारलाई टोलीमा बाँड्नुहोस् (जस्तै: गारो लगाउने टोली)। यसले कामको निगरानी गर्न सजिलो बनाउँछ।</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -439,7 +467,7 @@ function PersonCard({ p, onEdit, onQR, onHistory, onIDCard }) {
   );
 }
 
-function StaffFormSheet({ editingId, form, setForm, onSave, onClose, saving }) {
+function StaffFormSheet({ editingId, form, setForm, onSave, onClose, saving, allTeams }) {
   const set = (f, v) => setForm(prev => ({ ...prev, [f]: v }));
   
   const sectionTitleStyle = { fontSize:13, fontWeight:900, marginBottom:16, color:'var(--t-text)', display:'flex', alignItems:'center', gap:8 };
