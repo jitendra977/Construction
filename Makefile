@@ -204,8 +204,9 @@ local-frontend: ## Dev — Local frontend only
 VENV        := backend/venv
 VENV_PYTHON := $(VENV)/bin/python
 
-.PHONY: mm
-mm: ## Dev — makemigrations via local venv (optional: APP=attendance)
+.PHONY: makemigrations-local mm
+makemigrations-local: ## Dev — makemigrations via local venv (optional: APP=attendance)
+mm: makemigrations-local
 	@bash -c '\
 	  if [ ! -f "$(VENV_PYTHON)" ]; then \
 	    echo "❌  No venv found. Run: make local-setup first."; exit 1; \
@@ -217,8 +218,9 @@ mm: ## Dev — makemigrations via local venv (optional: APP=attendance)
 	  echo "✅  Migration files created." \
 	'
 
-.PHONY: migrate-local
+.PHONY: migrate-local ml
 migrate-local: ## Dev — migrate via local venv (optional: APP=attendance)
+ml: migrate-local
 	@bash -c '\
 	  if [ ! -f "$(VENV_PYTHON)" ]; then \
 	    echo "❌  No venv found. Run: make local-setup first."; exit 1; \
@@ -229,6 +231,9 @@ migrate-local: ## Dev — migrate via local venv (optional: APP=attendance)
 	  python manage.py migrate $(APP) --noinput && \
 	  echo "✅  Migrations applied." \
 	'
+
+.PHONY: m-local
+m-local: makemigrations-local migrate-local ## Dev — Full local sync: makemigrations + migrate
 
 .PHONY: showmigrations-local
 showmigrations-local: ## Dev — show migration status via local venv

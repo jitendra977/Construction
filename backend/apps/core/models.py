@@ -167,6 +167,7 @@ class ConstructionPhase(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     order = models.PositiveIntegerField(default=0, help_text="Order of execution")
     description = models.TextField(blank=True)
+    technical_spec = models.TextField(blank=True, help_text="Engineer's instructions on how to finish this phase")
     estimated_budget = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
 
     # Municipal Permit Tracking

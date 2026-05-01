@@ -6,6 +6,7 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { useConstruction } from '../../context/ConstructionContext';
+import { Link } from 'react-router-dom';
 import workforceService from '../../services/workforceService';
 import attendanceService from '../../services/attendanceService';
 import { dashboardService } from '../../services/api';
@@ -1175,7 +1176,7 @@ function AssignmentsTab({ projectId }) {
                         <thead>
                             <tr style={{ borderBottom: '2px solid var(--t-border)', color: 'var(--t-text-muted)', textAlign: 'left' }}>
                                 <th style={{ padding: '8px 10px' }}>Worker</th>
-                                <th style={{ padding: '8px 10px' }}>Project</th>
+                                <th style={{ padding: '8px 10px' }}>Phase / Task</th>
                                 <th style={{ padding: '8px 10px' }}>Start</th>
                                 <th style={{ padding: '8px 10px' }}>End</th>
                                 <th style={{ padding: '8px 10px' }}>Est. Days</th>
@@ -1187,7 +1188,22 @@ function AssignmentsTab({ projectId }) {
                             {items.map(a => (
                                 <tr key={a.id} style={{ borderBottom: '1px solid var(--t-border)' }}>
                                     <td style={{ padding: '8px 10px', fontWeight: 600 }}>{a.worker_name || a.worker}</td>
-                                    <td style={{ padding: '8px 10px', color: 'var(--t-text-muted)' }}>{a.project_name || a.project}</td>
+                                    <td style={{ padding: '8px 10px' }}>
+                                        <div style={{ fontSize: 12, fontWeight: 700 }}>
+                                            {a.phase ? (
+                                                <Link to={`/dashboard/desktop/phases?phase=${a.phase}`} style={{ color: 'var(--t-primary)', textDecoration: 'none' }}>
+                                                    {a.phase_name}
+                                                </Link>
+                                            ) : '—'}
+                                        </div>
+                                        <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>
+                                            {a.task ? (
+                                                <Link to={`/dashboard/desktop/phases?task=${a.task}`} style={{ color: 'var(--t-text-muted)', textDecoration: 'none' }}>
+                                                    {a.task_name}
+                                                </Link>
+                                            ) : '—'}
+                                        </div>
+                                    </td>
                                     <td style={{ padding: '8px 10px', fontSize: 12 }}>{a.start_date}</td>
                                     <td style={{ padding: '8px 10px', fontSize: 12 }}>{a.end_date || '—'}</td>
                                     <td style={{ padding: '8px 10px' }}>{a.estimated_days ?? '—'}</td>
@@ -1203,6 +1219,32 @@ function AssignmentsTab({ projectId }) {
                     </table>
                 </div>
             )}
+
+            {/* Nepali Guide Note */}
+            <div style={{ marginTop: 32, padding: 20, background: 'rgba(59,130,246,0.05)', borderRadius: 12, border: '1px solid rgba(59,130,246,0.1)' }}>
+                <h4 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 800, color: 'var(--t-primary)' }}>📌 काम बाँडफाँड (Assignments) मार्गनिर्देशन</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+                    <div>
+                        <div style={{ fontWeight: 800, fontSize: 12, color: 'var(--t-text)', marginBottom: 4 }}>🤔 के हो? (What)</div>
+                        <div style={{ fontSize: 12, color: 'var(--t-text-muted)', lineHeight: 1.5 }}>कामदारहरूलाई प्रोजेक्टको निश्चित चरण (Phase) वा काम (Task) मा तोक्ने प्रक्रिया हो।</div>
+                    </div>
+                    <div>
+                        <div style={{ fontWeight: 800, fontSize: 12, color: 'var(--t-text)', marginBottom: 4 }}>💡 किन? (Why)</div>
+                        <div style={{ fontSize: 12, color: 'var(--t-text-muted)', lineHeight: 1.5 }}>कुन फेजमा कति जनशक्ति खपत भयो र अनुमानित समयभित्र काम सकियो कि नाइँ भनेर हेर्न।</div>
+                    </div>
+                    <div>
+                        <div style={{ fontWeight: 800, fontSize: 12, color: 'var(--t-text)', marginBottom: 4 }}>⏰ कहिले? (When)</div>
+                        <div style={{ fontSize: 12, color: 'var(--t-text-muted)', lineHeight: 1.5 }}>नयाँ काम सुरु गर्दा वा कामदारलाई अर्को प्रोजेक्टमा पठाउँदा यो अपडेट गर्नुपर्छ।</div>
+                    </div>
+                    <div>
+                        <div style={{ fontWeight: 800, fontSize: 12, color: 'var(--t-text)', marginBottom: 4 }}>👤 कसले? (Who)</div>
+                        <div style={{ fontSize: 12, color: 'var(--t-text-muted)', lineHeight: 1.5 }}>सुपरभाइजर वा म्यानेजरले यहाँबाट कामदारको ड्युटी तोक्न सक्छन्।</div>
+                    </div>
+                </div>
+                <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px dashed var(--t-border)', fontSize: 12, color: 'var(--t-text-muted)' }}>
+                    🛠️ **कसरी (How):** 'New Assignment' बटन थिच्नुहोस्, कामदार र फेज छान्नुहोस्, र सुरु हुने मिति तय गर्नुहोस्। कामदारले हाजिरी गर्दा यो स्वतः गणना हुनेछ।
+                </div>
+            </div>
         </div>
     );
 }

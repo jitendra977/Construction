@@ -1460,16 +1460,105 @@ def person_update(request, worker_id):
         return Response({"error": "Worker not found."}, status=404)
 
     worker_fields = []
-    for field in ("name", "trade", "worker_type", "phone", "notes", "joined_date", "is_active"):
+    # Identify which fields are present in request
+    if "name" in request.data:
+        new_name = str(request.data["name"]).strip()
+        if not new_name:
+            return Response({"error": "Name cannot be empty."}, status=400)
+        if new_name != worker.name:
+            if AttendanceWorker.objects.filter(project_id=worker.project_id, name=new_name).exclude(pk=worker.pk).exists():
+                return Response({"error": f"A worker named '{new_name}' already exists."}, status=400)
+        worker.name = new_name
+        worker_fields.append("name")
+
+    for field in ("trade", "worker_type", "phone", "notes"):
         if field in request.data:
-            setattr(worker, field, request.data[field])
+            val = request.data[field]
+            if isinstance(val, str):
+                val = val.strip()
+            setattr(worker, field, val)
             worker_fields.append(field)
+
+
+    if "is_active" in request.data:
+        val = request.data["is_active"]
+        if isinstance(val, str):
+            worker.is_active = val.lower() == "true"
+        else:
+            worker.is_active = bool(val)
+        worker_fields.append("is_active")
+
+
+    # Date field handling
+    if "joined_date" in request.data:
+        val = request.data["joined_date"]
+        worker.joined_date = val if (val and str(val).strip()) else None
+        worker_fields.append("joined_date")
+    # Decimal field handling
     if "daily_rate" in request.data:
-        worker.daily_rate = Decimal(str(request.data["daily_rate"]))
+        val = request.data["daily_rate"]
+        if val and str(val).strip():
+            try:
+                worker.daily_rate = Decimal(str(val))
+            except Exception:
+                worker.daily_rate = Decimal("0")
+        else:
+            worker.daily_rate = Decimal("0")
         worker_fields.append("daily_rate")
 
     if worker_fields:
-        worker.save(update_fields=worker_fields)
+        try:
+            worker.save(update_fields=worker_fields)
+        except Exception as e:
+            return Response({"error": f"Database error: {str(e)}"}, status=500)
+
+    # Today's Attendance Handling
+    if "today_status" in request.data:
+        status = request.data["today_status"]
+        if status in ("PRESENT", "ABSENT", "HALF_DAY", "HOLIDAY", "LEAVE"):
+            from datetime import date
+            DailyAttendance.objects.update_or_create(
+                worker=worker,
+                date=date.today(),
+                defaults={"status": status, "project_id": worker.project_id}
+            )
+        elif status == "NOT_MARKED":
+            from datetime import date
+            DailyAttendance.objects.filter(worker=worker, date=date.today()).delete()
+
+    # Team Assignment Handling
+    if "team_id" in request.data:
+        from apps.workforce.models import Team, WorkforceMember
+        from datetime import date
+        team_id = request.data["team_id"]
+
+        # Ensure WorkforceMember exists
+        member, created = WorkforceMember.objects.get_or_create(
+            attendance_worker=worker,
+            defaults={
+                "current_project": worker.project,
+                "worker_type": "LABOUR" if worker.worker_type == "LABOUR" else "STAFF",
+                "join_date": worker.joined_date or date.today(),
+                "status": "ACTIVE" if worker.is_active else "INACTIVE",
+            }
+        )
+        if created:
+             name_parts = worker.name.strip().split(' ', 1)
+             member.first_name = name_parts[0]
+             member.last_name = name_parts[1] if len(name_parts) > 1 else ""
+             member.save()
+
+        # Update Team (single team assignment)
+        for t in Team.objects.filter(project=worker.project, members=member):
+            t.members.remove(member)
+
+        if team_id and str(team_id).strip():
+            try:
+                new_team = Team.objects.get(pk=team_id, project=worker.project)
+                new_team.members.add(member)
+            except (Team.DoesNotExist, ValueError):
+                pass
+
 
     # Push identity changes to linked contractor (skip signal — direct update)
     if worker.contractor_id and worker.contractor:

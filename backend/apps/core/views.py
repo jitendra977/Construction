@@ -10,9 +10,15 @@ from apps.core.mixins import ProjectScopedMixin
 
 from apps.tasks.models import Task
 from apps.tasks.serializers import TaskSerializer
-from apps.resources.models import Material, Contractor, MaterialTransaction, Document
+from apps.resource.models import Material, Supplier, StockMovement as MaterialTransaction
+from apps.resources.models import Document
+from apps.workforce.models import WorkforceMember as Contractor
 from apps.accounting.models.payables import Vendor
-from apps.resources.serializers import MaterialSerializer, ContractorSerializer, SupplierSerializer, MaterialTransactionSerializer, DocumentSerializer
+from apps.resource.serializers.material import MaterialSerializer
+from apps.resource.serializers.supplier import SupplierSerializer
+from apps.resource.serializers.purchase import StockMovementSerializer as MaterialTransactionSerializer
+from apps.workforce.serializers.member_serializers import WorkforceMemberListSerializer as ContractorSerializer
+from apps.resources.serializers import DocumentSerializer
 from apps.permits.models import PermitStep
 from apps.permits.serializers import PermitStepSerializer
 
@@ -292,8 +298,8 @@ class DashboardDataView(APIView):
             floors = Floor.objects.filter(project=project).prefetch_related('rooms')
             
             # 2. Resources (Using direct project link I just added)
-            materials = Material.objects.filter(project=project).select_related('budget_category', 'supplier')
-            transactions = MaterialTransaction.objects.filter(material__project=project).select_related('material', 'supplier')
+            materials = Material.objects.filter(project=project)
+            transactions = MaterialTransaction.objects.filter(project=project).select_related('material')
             permits = PermitStep.objects.filter(project=project).prefetch_related('documents')
             
             # 3. Finance (Using direct project link I just added)
@@ -308,16 +314,16 @@ class DashboardDataView(APIView):
             tasks = Task.objects.prefetch_related('updates', 'media').all()
             expenses = Expense.objects.select_related('category', 'phase', 'supplier', 'contractor', 'funding_source').prefetch_related('payments').all()
             floors = Floor.objects.prefetch_related('rooms').all()
-            materials = Material.objects.select_related('budget_category', 'supplier').all()
+            materials = Material.objects.all()
             budget_categories = BudgetCategory.objects.prefetch_related('expenses').all()
-            transactions = MaterialTransaction.objects.select_related('material', 'supplier').all()
+            transactions = MaterialTransaction.objects.select_related('material').all()
             funding = FundingSource.objects.prefetch_related('transactions').all()
             phase_allocations = PhaseBudgetAllocation.objects.select_related('category', 'phase').all()
             accounts = Account.objects.all()
 
-        contractors = Contractor.objects.all() # Contractors might be global/shared
-        suppliers = Vendor.objects.all()       # Suppliers might be global/shared
-        permits = PermitStep.objects.prefetch_related('documents').all() # Permits likely global configuration or filtered later
+        contractors = Contractor.objects.filter(current_project=project) if project else Contractor.objects.all()
+        suppliers = Supplier.objects.filter(project=project) if project else Supplier.objects.all()
+        permits = PermitStep.objects.prefetch_related('documents').all()
 
         # Admins see all guides, regular users only active ones
         if getattr(request.user, 'is_system_admin', False):

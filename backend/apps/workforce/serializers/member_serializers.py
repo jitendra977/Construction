@@ -60,6 +60,7 @@ class WorkforceMemberListSerializer(serializers.ModelSerializer):
     without a separate API call.
     """
     full_name      = serializers.ReadOnlyField()
+    name           = serializers.ReadOnlyField(source='full_name')
     role_name      = serializers.ReadOnlyField(source='role.title')
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     project_name   = serializers.ReadOnlyField(source='current_project.name')
@@ -79,7 +80,7 @@ class WorkforceMemberListSerializer(serializers.ModelSerializer):
     class Meta:
         model = WorkforceMember
         fields = [
-            'id', 'employee_id', 'full_name', 'photo', 'phone',
+            'id', 'employee_id', 'full_name', 'name', 'photo', 'phone',
             'worker_type', 'role', 'role_name', 'status', 'status_display',
             'current_project', 'project_name',
             # Attendance live data

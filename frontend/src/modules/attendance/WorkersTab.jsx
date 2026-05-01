@@ -21,7 +21,7 @@ const TRADE_ICONS = {
 };
 
 const EMPTY_FORM = {
-  name:'', trade:'MASON', worker_type:'LABOUR',
+  name:'', trade:'MASON', worker_type:'LABOUR', team_id: '',
   daily_rate:'', overtime_rate_per_hour:'', phone:'', joined_date:'', notes:'',
   role_attendance: true, role_payment: false, contractor_role: 'LABOUR'
 };
@@ -118,6 +118,7 @@ function QRBadgeModal({ worker, onClose }) {
 export default function WorkersTab({ projectId }) {
   const [persons,    setPersons]    = useState([]);
   const [orphans,    setOrphans]    = useState([]);
+  const [allTeams,   setAllTeams]   = useState([]);
   const [summary,    setSummary]    = useState(null);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState('');
@@ -144,6 +145,9 @@ export default function WorkersTab({ projectId }) {
       setPersons(data.persons || []);
       setOrphans(data.orphan_contractors || []);
       setSummary(data.summary);
+      
+      const teamData = await workforceService.getTeams({ project: projectId });
+      setAllTeams(teamData.results || teamData || []);
     } catch { setError('Connection lost. Please try again.'); }
     finally  { setLoading(false); }
   }, [projectId]);
@@ -203,7 +207,13 @@ export default function WorkersTab({ projectId }) {
             {list.map(p => (
               <PersonRow 
                 key={p.worker_id} p={p} 
-                onEdit={() => { setEditingId(p.worker_id); setForm(p); setShowForm(true); }} 
+                onEdit={() => { 
+                  const p_teams = p.teams || [];
+                  const team_id = p_teams.length > 0 ? p_teams[0].id : '';
+                  setEditingId(p.worker_id); 
+                  setForm({ ...p, team_id }); 
+                  setShowForm(true); 
+                }} 
                 onQR={() => setQrPerson(p)} 
                 onHistory={() => { setSelectedWorker(p); setShowHistory(true); }} 
                 onIDCard={() => { setSelectedWorker(p); setShowIDCard(true); }}
@@ -310,6 +320,31 @@ export default function WorkersTab({ projectId }) {
 
 // ── Components ───────────────────────────────────────────────────────────────
 
+function Field({ label, children }) {
+  return (
+    <div style={{ flex:1 }}>
+      <label style={{ display:'block', fontSize:10, fontWeight:800, color:'var(--t-text3)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6, marginLeft:4 }}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function RoleToggle({ icon, title, desc, checked, onChange }) {
+  return (
+    <div onClick={() => onChange(!checked)} style={{ display:'flex', gap:12, alignItems:'center', padding:12, borderRadius:16, border:`1px solid ${checked?'var(--t-primary)':'var(--t-border)'}`, background:checked?'var(--t-primary)05':'transparent', cursor:'pointer', transition:'0.2s' }}>
+      <div style={{ width:36, height:36, borderRadius:10, background:'var(--t-bg)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, border:'1px solid var(--t-border)' }}>{icon}</div>
+      <div style={{ flex:1 }}>
+        <div style={{ fontSize:13, fontWeight:900, color:'var(--t-text)' }}>{title}</div>
+        <div style={{ fontSize:11, color:'var(--t-text3)', fontWeight:600 }}>{desc}</div>
+      </div>
+      <div style={{ width:40, height:22, borderRadius:20, background:checked?'#f97316':'#e2e8f0', position:'relative', transition:'0.3s' }}>
+        <div style={{ position:'absolute', top:3, left:checked?21:3, width:16, height:16, borderRadius:'50%', background:'#fff', transition:'0.3s', boxShadow:'0 2px 4px rgba(0,0,0,0.1)' }} />
+      </div>
+    </div>
+  );
+}
+
+
 function SummaryCard({ label, value, color, icon }) {
   return (
     <Card style={{ padding:20, borderLeft: `4px solid ${color}` }}>
@@ -408,40 +443,23 @@ function StaffFormSheet({ editingId, form, setForm, onSave, onClose, saving }) {
   const set = (f, v) => setForm(prev => ({ ...prev, [f]: v }));
   
   const sectionTitleStyle = { fontSize:13, fontWeight:900, marginBottom:16, color:'var(--t-text)', display:'flex', alignItems:'center', gap:8 };
-  const inputStyle = { width:'100%', padding:'12px 14px', borderRadius:14, border:'1px solid var(--t-border)', background:'var(--t-surface)', color:'var(--t-text)', fontSize:14, outline:'none', fontWeight:600 };
   
-  const Field = ({ label, children }) => (
-    <div style={{ flex:1 }}>
-      <label style={{ display:'block', fontSize:10, fontWeight:800, color:'var(--t-text3)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6, marginLeft:4 }}>{label}</label>
-      {children}
-    </div>
-  );
-
-  const RoleToggle = ({ icon, title, desc, checked, onChange }) => (
-    <div onClick={() => onChange(!checked)} style={{ display:'flex', gap:12, alignItems:'center', padding:12, borderRadius:16, border:`1px solid ${checked?'var(--t-primary)':'var(--t-border)'}`, background:checked?'var(--t-primary)05':'transparent', cursor:'pointer', transition:'0.2s' }}>
-      <div style={{ width:36, height:36, borderRadius:10, background:'var(--t-bg)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, border:'1px solid var(--t-border)' }}>{icon}</div>
-      <div style={{ flex:1 }}>
-        <div style={{ fontSize:13, fontWeight:900, color:'var(--t-text)' }}>{title}</div>
-        <div style={{ fontSize:11, color:'var(--t-text3)', fontWeight:600 }}>{desc}</div>
-      </div>
-      <div style={{ width:40, height:22, borderRadius:20, background:checked?'#f97316':'#e2e8f0', position:'relative', transition:'0.3s' }}>
-        <div style={{ position:'absolute', top:3, left:checked?21:3, width:16, height:16, borderRadius:'50%', background:'#fff', transition:'0.3s', boxShadow:'0 2px 4px rgba(0,0,0,0.1)' }} />
-      </div>
-    </div>
-  );
 
   return (
     <div style={{ position:'fixed', inset:0, zIndex:300, display:'flex', justifyContent:'flex-end', background:'rgba(0,0,0,0.4)', backdropFilter:'blur(8px)' }}>
-      <style>{`
-        .form-section { padding: 30px; border-bottom: 1px solid var(--t-border); }
-        .form-section:last-child { border-bottom: none; }
-      `}</style>
 
       <div style={{ width:480, background:'var(--t-bg)', height:'100%', display:'flex', flexDirection:'column', boxShadow:'-20px 0 60px rgba(0,0,0,0.2)' }}>
         {/* Header */}
         <div style={{ padding:'24px 30px', borderBottom:'1px solid var(--t-border)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div>
-            <h2 style={{ margin:0, fontWeight:900, fontSize:22 }}>{editingId ? 'Edit Profile' : 'Register New Staff'}</h2>
+            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+              <h2 style={{ margin:0, fontWeight:900, fontSize:22 }}>{editingId ? 'Edit Profile' : 'Register New Staff'}</h2>
+              {editingId && form.today_status && (
+                <Badge color={form.today_status === 'PRESENT' ? '#22c55e' : form.today_status === 'ABSENT' ? '#ef4444' : '#94a3b8'}>
+                  {form.today_status}
+                </Badge>
+              )}
+            </div>
             <p style={{ margin:'4px 0 0', fontSize:12, color:'var(--t-text3)', fontWeight:600 }}>Manage workforce identity & roles.</p>
           </div>
           <button onClick={onClose} style={{ background:'var(--t-bg)', border:'1px solid var(--t-border)', width:36, height:36, borderRadius:12, cursor:'pointer', fontSize:18 }}>✕</button>
@@ -453,14 +471,14 @@ function StaffFormSheet({ editingId, form, setForm, onSave, onClose, saving }) {
             <h3 style={sectionTitleStyle}>👤 Identity</h3>
             <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
               <Field label="Full Name">
-                <input style={inputStyle} value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Ram Bahadur Tamang" />
+                <input className="premium-input" value={form.name || ''} onChange={e => set('name', e.target.value)} placeholder="e.g. Ram Bahadur Tamang" />
               </Field>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
                 <Field label="Phone Number">
-                  <input style={inputStyle} value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="98XXXXXXXX" />
+                  <input className="premium-input" value={form.phone || ''} onChange={e => set('phone', e.target.value)} placeholder="98XXXXXXXX" />
                 </Field>
                 <Field label="Staff Type">
-                  <select style={inputStyle} value={form.worker_type} onChange={e => set('worker_type', e.target.value)}>
+                  <select className="premium-input" value={form.worker_type || 'LABOUR'} onChange={e => set('worker_type', e.target.value)}>
                     <option value="LABOUR">Daily Labour</option>
                     <option value="STAFF">Internal Staff</option>
                   </select>
@@ -473,19 +491,37 @@ function StaffFormSheet({ editingId, form, setForm, onSave, onClose, saving }) {
           <div className="form-section" style={{ background:'rgba(249,115,22,0.02)' }}>
             <h3 style={sectionTitleStyle}>🏗️ Work & Pay</h3>
             <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-              <Field label="Primary Trade">
-                <select style={inputStyle} value={form.trade} onChange={e => set('trade', e.target.value)}>
-                  {TRADES.map(t => <option key={t} value={t}>{TRADE_ICONS[t]} {t}</option>)}
-                </select>
-              </Field>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
-                <Field label="Daily Wage (NPR)">
-                  <input style={inputStyle} type="number" value={form.daily_rate} onChange={e => set('daily_rate', e.target.value)} />
+                <Field label="Primary Trade">
+                  <select className="premium-input" value={form.trade || 'MASON'} onChange={e => set('trade', e.target.value)}>
+                    {TRADES.map(t => <option key={t} value={t}>{TRADE_ICONS[t]} {t}</option>)}
+                  </select>
                 </Field>
-                <Field label="Joined Date">
-                  <input style={inputStyle} type="date" value={form.joined_date} onChange={e => set('joined_date', e.target.value)} />
+                <Field label="Mark Today's Status">
+                  <select className="premium-input" style={{ fontWeight:700, color:form.today_status==='PRESENT'?'#16a34a':form.today_status==='ABSENT'?'#dc2626':'inherit' }} value={form.today_status || 'NOT_MARKED'} onChange={e => set('today_status', e.target.value)}>
+                    <option value="NOT_MARKED">Not Marked</option>
+                    <option value="PRESENT">✅ Present</option>
+                    <option value="ABSENT">❌ Absent</option>
+                    <option value="HALF_DAY">⏳ Half Day</option>
+                    <option value="HOLIDAY">🏖️ Holiday</option>
+                    <option value="LEAVE">🤒 Leave</option>
+                  </select>
                 </Field>
               </div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+                <Field label="Daily Wage (NPR)">
+                  <input className="premium-input" type="number" value={form.daily_rate || ''} onChange={e => set('daily_rate', e.target.value)} placeholder="0.00" />
+                </Field>
+                <Field label="Joined Date">
+                  <input className="premium-input" type="date" value={form.joined_date || ''} onChange={e => set('joined_date', e.target.value)} />
+                </Field>
+              </div>
+              <Field label="Team Assignment">
+                <select className="premium-input" value={form.team_id || ''} onChange={e => set('team_id', e.target.value)}>
+                  <option value="">No Team (Unassigned)</option>
+                  {allTeams.map(t => <option key={t.id} value={t.id}>👥 {t.name}</option>)}
+                </select>
+              </Field>
             </div>
           </div>
 
@@ -506,7 +542,7 @@ function StaffFormSheet({ editingId, form, setForm, onSave, onClose, saving }) {
 
           <div className="form-section">
              <Field label="Internal Notes">
-               <textarea style={{...inputStyle, height:80, resize:'none'}} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Skills, equipment provided..." />
+               <textarea className="premium-input" style={{height:100, resize:'none'}} value={form.notes || ''} onChange={e => set('notes', e.target.value)} placeholder="Skills, equipment provided..." />
              </Field>
           </div>
         </div>
@@ -524,3 +560,4 @@ function StaffFormSheet({ editingId, form, setForm, onSave, onClose, saving }) {
     </div>
   );
 }
+

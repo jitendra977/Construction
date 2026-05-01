@@ -102,6 +102,7 @@ class ResourceService:
             expense_type='MATERIAL',
             category=category,
             phase=txn.phase,
+            project=txn.phase.project if txn.phase else None,
             material=txn.material,
             quantity=txn.quantity,
             unit_price=txn.unit_price if not is_usage else txn.material.avg_cost_per_unit,

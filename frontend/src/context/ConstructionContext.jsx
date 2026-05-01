@@ -510,6 +510,16 @@ export const ConstructionProvider = ({ children }) => {
         }
     }, [fetchData]);
 
+    const updateExpense = useCallback(async (expenseId, data) => {
+        try {
+            await dashboardService.updateExpense(expenseId, data);
+            await fetchData(true);
+        } catch (error) {
+            console.error("Failed to update expense", error);
+            throw error;
+        }
+    }, [fetchData]);
+
     const updateProfile = useCallback(async (userData) => {
         setLoading(true);
         try {
@@ -582,6 +592,7 @@ export const ConstructionProvider = ({ children }) => {
         deletePermitStep,
         createExpense,
         deleteExpense,
+        updateExpense,
         createMaterialTransaction,
         updateProfile,
         updateGuideProgress,

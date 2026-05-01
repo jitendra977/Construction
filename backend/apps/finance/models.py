@@ -17,6 +17,7 @@ from django.db.models import Sum, Q
 
 from apps.core.models import ConstructionPhase
 from apps.resources.models import Document
+from apps.resource.models import Material, Worker, Supplier
 from simple_history.models import HistoricalRecords
 
 
@@ -477,12 +478,12 @@ class Expense(models.Model):
     category = models.ForeignKey(BudgetCategory, on_delete=models.SET_NULL, null=True, blank=True, related_name="expenses")
     phase = models.ForeignKey(ConstructionPhase, on_delete=models.SET_NULL, null=True, blank=True, related_name="expenses")
 
-    material = models.ForeignKey("resources.Material", on_delete=models.SET_NULL, null=True, blank=True, related_name="expenses")
+    material = models.ForeignKey("resource.Material", on_delete=models.SET_NULL, null=True, blank=True, related_name="expenses")
     quantity = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     unit_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
 
-    supplier = models.ForeignKey("accounting.Vendor", on_delete=models.SET_NULL, null=True, blank=True, related_name="expenses")
-    contractor = models.ForeignKey("resources.Contractor", on_delete=models.SET_NULL, null=True, blank=True, related_name="expenses")
+    supplier = models.ForeignKey("resource.Supplier", on_delete=models.SET_NULL, null=True, blank=True, related_name="expenses")
+    contractor = models.ForeignKey("resource.Worker", on_delete=models.SET_NULL, null=True, blank=True, related_name="expenses")
     funding_source = models.ForeignKey(FundingSource, on_delete=models.SET_NULL, null=True, blank=True, related_name="expenses")
     task = models.ForeignKey("tasks.Task", on_delete=models.SET_NULL, null=True, blank=True, related_name="expenses")
 
@@ -532,6 +533,14 @@ class Expense(models.Model):
                 self.category = self.task.category
             if not self.phase and getattr(self.task, "phase", None):
                 self.phase = self.task.phase
+        
+        # Inherit project from phase or task if not set
+        if not self.project:
+            if self.phase and self.phase.project:
+                self.project = self.phase.project
+            elif self.task and self.task.phase and self.task.phase.project:
+                self.project = self.task.phase.project
+                
         super().save(*args, **kwargs)
 
 

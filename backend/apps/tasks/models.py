@@ -21,6 +21,7 @@ class Task(models.Model):
 
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
+    technical_requirement = models.TextField(blank=True, help_text="Specific technical steps or requirements for this task")
     
     category = models.ForeignKey('finance.BudgetCategory', on_delete=models.PROTECT, null=True, blank=True, related_name='tasks', help_text="Finance category this task belongs to")
     phase = models.ForeignKey(ConstructionPhase, on_delete=models.CASCADE, related_name='tasks')

@@ -38,6 +38,18 @@ class WorkerAssignment(models.Model):
         on_delete=models.CASCADE,
         related_name='worker_assignments',
     )
+    phase = models.ForeignKey(
+        'core.ConstructionPhase',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='worker_assignments',
+    )
+    task = models.ForeignKey(
+        'tasks.Task',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='worker_assignments',
+    )
 
     # ── Schedule ──────────────────────────────────────────────
     start_date = models.DateField()
@@ -68,8 +80,10 @@ class WorkerAssignment(models.Model):
             'Sum of effective_days (Present=1, Half-Day=0.5).'
         ),
     )
+    estimated_hours = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    actual_hours    = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     overtime_hours = models.DecimalField(
-        max_digits=6, decimal_places=2,
+        max_digits=10, decimal_places=2,
         default=0,
         help_text=_('Total overtime hours pulled from DailyAttendance records.'),
     )

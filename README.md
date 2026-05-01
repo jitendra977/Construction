@@ -40,6 +40,9 @@ make help          # show all commands
 |---------|-------------|
 | `make local` | Start backend + frontend with hot reload |
 | `make local-setup` | First-time: create venv + install all deps |
+| `make m-local` | **Full local sync: makemigrations + migrate** |
+| `make mm` | Create new migration files (local venv) |
+| `make ml` | Apply migrations (local venv) |
 | `make local-backend` | Backend only |
 | `make local-frontend` | Frontend only |
 

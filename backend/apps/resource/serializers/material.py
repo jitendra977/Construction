@@ -5,11 +5,13 @@ from ..models.material import Material
 class MaterialSerializer(serializers.ModelSerializer):
     is_low_stock = serializers.BooleanField(read_only=True)
 
+    avg_cost_per_unit = serializers.DecimalField(source="unit_price", max_digits=15, decimal_places=2, read_only=True)
+
     class Meta:
         model  = Material
         fields = [
             "id", "project", "name", "category", "unit",
-            "unit_price", "stock_qty", "reorder_level",
+            "unit_price", "avg_cost_per_unit", "stock_qty", "reorder_level",
             "description", "is_active", "is_low_stock",
             "created_at", "updated_at",
         ]

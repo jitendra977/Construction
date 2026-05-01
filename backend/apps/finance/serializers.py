@@ -302,6 +302,7 @@ class ExpenseSerializer(serializers.ModelSerializer):
     supplier_photo = serializers.ImageField(source="supplier.photo", read_only=True)
     funding_source_name = serializers.CharField(source="funding_source.name", read_only=True)
     task_name = serializers.CharField(source="task.title", read_only=True)
+    material_name = serializers.CharField(source="material.name", read_only=True)
     payments = PaymentSerializer(many=True, read_only=True)
     total_paid = serializers.SerializerMethodField()
     balance_due = serializers.SerializerMethodField()

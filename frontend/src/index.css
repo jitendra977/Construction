@@ -356,3 +356,43 @@
   }
 }
 
+
+/* ── Premium Form Inputs ────────────────────────────────────────────────── */
+.premium-input {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 2px solid var(--t-border, #e2e8f0);
+  background: var(--t-bg, #fff) !important;
+  color: var(--t-text, #1e293b);
+  font-size: 14px;
+  font-weight: 600;
+  outline: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.premium-input:focus {
+  border-color: #f97316 !important;
+  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.1), 0 4px 12px rgba(0,0,0,0.05);
+  background: #fff !important;
+}
+
+.premium-input::placeholder {
+  color: var(--t-text3, #94a3b8);
+  font-weight: 500;
+}
+
+/* Remove arrows from number inputs */
+.premium-input[type="number"]::-webkit-inner-spin-button,
+.premium-input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.premium-input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Form Sections */
+.form-section { padding: 30px; border-bottom: 1px solid var(--t-border); }
+.form-section:last-child { border-bottom: none; }

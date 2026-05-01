@@ -18,6 +18,7 @@ class AttendanceWorkerSerializer(serializers.ModelSerializer):
     account_email      = serializers.SerializerMethodField()
     account_username   = serializers.SerializerMethodField()
     account_name       = serializers.SerializerMethodField()
+    workforce_id       = serializers.SerializerMethodField()
 
     # ── Linked Contractor (resources.Contractor) ───────────────────────────────
     contractor_id      = serializers.IntegerField(source="contractor.id",   read_only=True, default=None)

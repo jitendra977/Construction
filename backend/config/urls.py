@@ -26,7 +26,8 @@ from apps.core.views import HouseProjectViewSet, ConstructionPhaseViewSet, RoomV
 from apps.core.gallery_views import GalleryViewSet
 from apps.tasks.views import TaskViewSet, TaskUpdateViewSet, TaskMediaViewSet
 
-from apps.resources.views import ContractorViewSet, MaterialViewSet, DocumentViewSet, SupplierViewSet, MaterialTransactionViewSet, WastageAlertViewSet, WastageThresholdViewSet
+from apps.resources.views import ContractorViewSet, MaterialViewSet, DocumentViewSet, SupplierViewSet, WastageAlertViewSet, WastageThresholdViewSet
+from apps.resource.views.transactions import MaterialTransactionViewSet as NewMaterialTransactionViewSet
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet)
@@ -42,7 +43,7 @@ router.register(r'task-media', TaskMediaViewSet)
 router.register(r'contractors', ContractorViewSet)
 router.register(r'suppliers', SupplierViewSet)
 router.register(r'materials', MaterialViewSet)
-router.register(r'material-transactions', MaterialTransactionViewSet)
+
 router.register(r'documents', DocumentViewSet)
 router.register(r'gallery', GalleryViewSet, basename='gallery')
 router.register(r'wastage-alerts', WastageAlertViewSet, basename='wastage-alerts')
@@ -75,6 +76,7 @@ urlpatterns = [
 
     # ── Resource Module ──────────────────────────────────────────────────────
     path('api/v1/resource/', include('apps.resource.urls')),
+    path('api/v1/material-transactions/', NewMaterialTransactionViewSet.as_view(), name='material-transactions'),
 
     # ── Data Transfer (import / export) ──────────────────────────────────────
     path('api/v1/data-transfer/', include('apps.data_transfer.urls')),

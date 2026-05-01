@@ -17,7 +17,7 @@ class MaterialViewSet(viewsets.ModelViewSet):
     serializer_class = MaterialSerializer
 
     def get_queryset(self):
-        qs  = Material.objects.all().order_by("name")
+        qs = Material.objects.all().order_by("name")
         pid = self.request.query_params.get("project")
         if pid:
             qs = qs.filter(project_id=pid)

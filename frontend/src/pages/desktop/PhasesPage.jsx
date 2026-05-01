@@ -9,16 +9,18 @@
 import React, { useState } from 'react';
 import { useConstruction } from '../../context/ConstructionContext';
 import { usePlatformBase } from '../../shared/utils/platformNav';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import ManagementTabs from '../../components/desktop/manage/ManagementTabs';
 import PhasesTab from '../../components/desktop/manage/PhasesTab';
 import PhaseDetailPanel from '../../components/desktop/manage/PhaseDetailPanel';
 import TaskDetailPanel from '../../components/desktop/manage/TaskDetailPanel';
+import { useEffect } from 'react';
 
 export default function PhasesPage() {
     const { dashboardData } = useConstruction();
     const base     = usePlatformBase();
     const navigate = useNavigate();
+    const location = useLocation();
 
     const phases    = dashboardData?.phases || [];
     const tasks     = dashboardData?.tasks  || [];
@@ -29,6 +31,21 @@ export default function PhasesPage() {
     // view: { type:'list' } | { type:'phase', phase } | { type:'task', taskId, fromPhase }
     const [view,   setView]   = useState({ type: 'list' });
     const [search, setSearch] = useState('');
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const phaseId = params.get('phase');
+        const taskId = params.get('task');
+
+        if (taskId) {
+            setView({ type: 'task', taskId: parseInt(taskId) });
+        } else if (phaseId) {
+            const targetPhase = phases.find(p => p.id === parseInt(phaseId));
+            if (targetPhase) {
+                setView({ type: 'phase', phase: targetPhase });
+            }
+        }
+    }, [location.search, phases.length]);
 
     const goPhase = (phase)             => setView({ type: 'phase', phase });
     const goTask  = (task, fromPhase)   => setView({ type: 'task', taskId: task.id, fromPhase: fromPhase || null });

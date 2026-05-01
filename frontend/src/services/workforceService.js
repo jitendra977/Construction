@@ -130,6 +130,11 @@ const workforceService = {
     createEmergencyContact:(data)       => api.post('emergency-contacts/', data).then(r => r.data),
     updateEmergencyContact:(id, data)   => api.patch(`emergency-contacts/${id}/`, data).then(r => r.data),
     deleteEmergencyContact:(id)         => api.delete(`emergency-contacts/${id}/`).then(r => r.data),
+
+    // ── Teams ─────────────────────────────────────────────────────────────────
+    getTeams:         (params = {}) => api.get('teams/', { params }).then(r => r.data),
+    addTeamMembers:   (id, memberIds) => api.post(`teams/${id}/add_members/`, { member_ids: memberIds }).then(r => r.data),
+    removeTeamMembers:(id, memberIds) => api.post(`teams/${id}/remove_members/`, { member_ids: memberIds }).then(r => r.data),
 };
 
 export default workforceService;

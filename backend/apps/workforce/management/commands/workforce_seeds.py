@@ -477,26 +477,58 @@ class Command(BaseCommand):
 
     # ── Step 6: Assignments ───────────────────────────────────────────────────
     def _seed_assignments(self, members, project, admin):
+        from apps.core.models import ConstructionPhase
+        from apps.tasks.models import Task
+
         created = 0
         today   = date.today()
+        phases  = list(ConstructionPhase.objects.filter(project=project))
+        tasks   = list(Task.objects.filter(phase__project=project))
+
         for member in members:
-            if WorkerAssignment.objects.filter(worker=member, project=project).exists():
+            assignment = WorkerAssignment.objects.filter(worker=member, project=project).first()
+            
+            if assignment and assignment.phase and assignment.task:
                 continue
+                
             start  = member.join_date
             end    = start + timedelta(days=random.randint(90, 365))
             status = 'active' if end >= today else 'completed'
-            WorkerAssignment.objects.create(
-                worker=member,
-                project=project,
-                start_date=start,
-                end_date=end if status == 'completed' else None,
-                status=status,
-                estimated_days=Decimal(str(random.randint(60, 300))),
-                actual_days=Decimal(str(random.randint(50, 260))) if status == 'completed' else None,
-                assigned_by=admin,
-            )
-            created += 1
-        self.ok(f'{created} assignments')
+
+            phase  = random.choice(phases) if phases else None
+            # Filter tasks by phase if possible
+            phase_tasks = [t for t in tasks if t.phase == phase] if phase else tasks
+            task = random.choice(phase_tasks) if phase_tasks else None
+
+            est_days = Decimal(str(random.randint(5, 20)))
+            act_days = est_days + Decimal(str(random.uniform(-2, 5))) if status == 'completed' else None
+
+            if assignment:
+                # Update existing assignment that's missing phase/task
+                assignment.phase = phase
+                assignment.task = task
+                if not assignment.estimated_hours:
+                    assignment.estimated_hours = est_days * 8
+                assignment.save()
+                created += 1
+            else:
+                # Create new
+                WorkerAssignment.objects.create(
+                    worker=member,
+                    project=project,
+                    phase=phase,
+                    task=task,
+                    start_date=start,
+                    end_date=end if status == 'completed' else None,
+                    status=status,
+                    estimated_days=est_days,
+                    actual_days=act_days,
+                    estimated_hours=est_days * 8,
+                    actual_hours=act_days * 8 if act_days else 0,
+                    assigned_by=admin,
+                )
+                created += 1
+        self.ok(f'{created} assignments created or updated (with phase/task links)')
 
     # ── Step 7: Payroll Records ───────────────────────────────────────────────
     def _seed_payroll(self, members, project, admin):
