@@ -80,6 +80,27 @@ INSTALLED_APPS = [
     'apps.workforce',
 ]
 
+# Explicitly map migration folders for nested apps to prevent loader errors
+MIGRATION_MODULES = {
+    'accounts': 'apps.accounts.migrations',
+    'core': 'apps.core.migrations',
+    'attendance': 'apps.attendance.migrations',
+    'workforce': 'apps.workforce.migrations',
+    'tasks': 'apps.tasks.migrations',
+    'finance': 'apps.finance.migrations',
+    'accounting': 'apps.accounting.migrations',
+    'resources': 'apps.resources.migrations',
+    'fin': 'apps.fin.migrations',
+    'resource': 'apps.resource.migrations',
+    'analytics': 'apps.analytics.migrations',
+    'assistant': 'apps.assistant.migrations',
+    'permits': 'apps.permits.migrations',
+    'photo_intel': 'apps.photo_intel.migrations',
+    'data_transfer': 'apps.data_transfer.migrations',
+    'estimator': 'apps.estimator.migrations',
+    'estimate': 'apps.estimate.migrations',
+}
+
 # ─── Photo Intelligence (HCMS-2) ──────────────────────────────────────
 # Swap to 'google_vision' or 'openai_vision' to call an external vision
 # API. Falls back to the heuristic analyzer automatically when credentials
