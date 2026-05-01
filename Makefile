@@ -92,6 +92,18 @@ dry-run: ## Deploy — preview push without making changes
 migrate-remote: ## Deploy — run migrations on VPS only
 	@bash scripts/update.sh --migrations-only
 
+.PHONY: server-shell
+server-shell: ## Maintenance — open production Django shell on VPS
+	@ssh -t $${VPS_USER:-nishanaweb}@$${VPS_HOST:-nishanaweb.cloud} "cd /home/\$${VPS_USER:-nishanaweb}/project/Construction && docker compose -f docker-compose.prod.yml exec backend python manage.py shell"
+
+.PHONY: server-logs
+server-logs: ## Maintenance — tail production backend logs on VPS
+	@ssh -t $${VPS_USER:-nishanaweb}@$${VPS_HOST:-nishanaweb.cloud} "cd /home/\$${VPS_USER:-nishanaweb}/project/Construction && docker compose -f docker-compose.prod.yml logs -f backend"
+
+.PHONY: server-db-heal
+server-db-heal: ## DB — Force-add missing columns to production DB
+	@ssh -t $${VPS_USER:-nishanaweb}@$${VPS_HOST:-nishanaweb.cloud} "cd /home/\$${VPS_USER:-nishanaweb}/project/Construction && docker compose -f docker-compose.prod.yml exec backend python manage.py shell -c \"from django.db import connection; cursor = connection.cursor(); cursor.execute('ALTER TABLE core_constructionphase ADD COLUMN IF NOT EXISTS technical_spec text DEFAULT \\'\\';'); print('✅ Column technical_spec added!')\""
+
 # ════════════════════════════════════════════════════════════
 #  🐳 DOCKER — LOCAL
 # ════════════════════════════════════════════════════════════
