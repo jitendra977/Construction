@@ -5,7 +5,7 @@
  */
 import React, { useState } from 'react';
 import { useResource } from '../context/ResourceContext';
-import WorkersTab from '../../attendance/WorkersTab';
+import WorkforceMembersView from '../../workforce/components/WorkforceMembersView';
 import TeamsTab   from '../../attendance/TeamsTab';
 
 export default function LaborPage() {
@@ -59,7 +59,7 @@ export default function LaborPage() {
       {/* Main Content Area */}
       <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
         {activeTab === 'STAFF' ? (
-          <WorkersTab projectId={projectId} />
+          <WorkforceMembersView projectId={projectId} hideProjectFilter={true} />
         ) : (
           <TeamsTab projectId={projectId} />
         )}

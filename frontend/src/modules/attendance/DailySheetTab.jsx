@@ -328,7 +328,7 @@ function WorkerCard({ worker, rec, onChange, lateScans, projSettings }) {
                         </label>
                         <input
                             type="time"
-                            value={rec.check_in || ''}
+                            value={(rec.check_in || '').slice(0, 5)}
                             onChange={e => onChange({ ...rec, check_in: e.target.value || '' })}
                             style={{
                                 width: '100%', padding: '5px 8px', borderRadius: 7, boxSizing: 'border-box',
@@ -345,7 +345,7 @@ function WorkerCard({ worker, rec, onChange, lateScans, projSettings }) {
                         </label>
                         <input
                             type="time"
-                            value={rec.check_out || ''}
+                            value={(rec.check_out || '').slice(0, 5)}
                             onChange={e => onChange({ ...rec, check_out: e.target.value || '' })}
                             style={{
                                 width: '100%', padding: '5px 8px', borderRadius: 7, boxSizing: 'border-box',
@@ -1311,7 +1311,7 @@ function DesktopDailySheet({ projectId, onAlertCount }) {
                                         </td>
                                         {/* Check-in */}
                                         <td style={{ padding: '8px 12px' }}>
-                                            <input type="time" value={rec.check_in || ''}
+                                            <input type="time" value={(rec.check_in || '').slice(0, 5)}
                                                 onChange={e => changeRec(w.id, 'check_in', e.target.value || '')}
                                                 style={{
                                                     width: 90, padding: '4px 6px', borderRadius: 6, fontSize: 12,
@@ -1323,7 +1323,7 @@ function DesktopDailySheet({ projectId, onAlertCount }) {
                                         </td>
                                         {/* Check-out */}
                                         <td style={{ padding: '8px 12px' }}>
-                                            <input type="time" value={rec.check_out || ''}
+                                            <input type="time" value={(rec.check_out || '').slice(0, 5)}
                                                 onChange={e => changeRec(w.id, 'check_out', e.target.value || '')}
                                                 style={{
                                                     width: 90, padding: '4px 6px', borderRadius: 6, fontSize: 12,

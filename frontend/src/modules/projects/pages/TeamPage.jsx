@@ -12,7 +12,7 @@ import api from '../services/projectsApi';
 import attendanceService from '../../../services/attendanceService';
 import workforceService from '../../../services/workforceService';
 import TeamsTab from '../../attendance/TeamsTab';
-import WorkersTab from '../../attendance/WorkersTab';
+import WorkforceMembersView from '../../workforce/components/WorkforceMembersView';
 
 // ── Role config ───────────────────────────────────────────────────────────────
 export const ROLE_CONFIG = {
@@ -484,6 +484,44 @@ function ManagementTab({ projectId }) {
                 })
             )}
 
+        </div>
+    );
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
+export default function TeamPage() {
+    const { id }      = useParams();
+    const { project } = useOutletContext() || {};
+    const projectId   = project?.id || id;
+    const [tab, setTab] = useState('MANAGEMENT');
+
+    const tabs = [
+        { id: 'MANAGEMENT', label: 'Office & Management', icon: '🏢' },
+        { id: 'TEAMS',      label: 'Workforce Teams',     icon: '👥' },
+        { id: 'WORKERS',    label: 'Individual Workers',  icon: '👷' },
+    ];
+
+    return (
+        <div style={{ padding:'0 0 60px', maxWidth:920, margin:'0 auto' }}>
+
+            {/* Tabs */}
+            <div style={{ display:'flex', gap:4, marginBottom:24, borderBottom:'2px solid var(--t-border)', paddingBottom:0 }}>
+                {tabs.map(t => (
+                    <button key={t.id} onClick={() => setTab(t.id)} style={{
+                        padding:'10px 16px', border:'none', background:'transparent', fontSize:13, fontWeight:800,
+                        cursor:'pointer', display:'flex', alignItems:'center', gap:6,
+                        color: tab === t.id ? '#f97316' : 'var(--t-text3)',
+                        borderBottom: tab === t.id ? '2px solid #f97316' : '2px solid transparent',
+                        marginBottom: -2, transition:'color 0.15s',
+                    }}>
+                        <span>{t.icon}</span>{t.label}
+                    </button>
+                ))}
+            </div>
+
+            {tab === 'MANAGEMENT' && <ManagementTab projectId={projectId} />}
+            {tab === 'TEAMS'      && <TeamsTab      projectId={projectId} />}
+            {tab === 'WORKERS'    && <WorkforceMembersView projectId={projectId} hideProjectFilter={true} />}
             {/* ── Nepali Note Section (Project Management) ── */}
             <div style={{ marginTop: 60, padding: 30, background: 'linear-gradient(135deg, #fff 0%, #f9fafb 100%)', borderRadius: 24, border: '1px solid var(--t-border)', boxShadow: '0 10px 30px rgba(0,0,0,0.02)' }}>
                 <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
@@ -536,44 +574,6 @@ function ManagementTab({ projectId }) {
                     </div>
                 </div>
             </div>
-        </div>
-    );
-}
-
-// ── Main Page ─────────────────────────────────────────────────────────────────
-export default function TeamPage() {
-    const { id }      = useParams();
-    const { project } = useOutletContext() || {};
-    const projectId   = project?.id || id;
-    const [tab, setTab] = useState('MANAGEMENT');
-
-    const tabs = [
-        { id: 'MANAGEMENT', label: 'Office & Management', icon: '🏢' },
-        { id: 'TEAMS',      label: 'Workforce Teams',     icon: '👥' },
-        { id: 'WORKERS',    label: 'Individual Workers',  icon: '👷' },
-    ];
-
-    return (
-        <div style={{ padding:'0 0 60px', maxWidth:920, margin:'0 auto' }}>
-
-            {/* Tabs */}
-            <div style={{ display:'flex', gap:4, marginBottom:24, borderBottom:'2px solid var(--t-border)', paddingBottom:0 }}>
-                {tabs.map(t => (
-                    <button key={t.id} onClick={() => setTab(t.id)} style={{
-                        padding:'10px 16px', border:'none', background:'transparent', fontSize:13, fontWeight:800,
-                        cursor:'pointer', display:'flex', alignItems:'center', gap:6,
-                        color: tab === t.id ? '#f97316' : 'var(--t-text3)',
-                        borderBottom: tab === t.id ? '2px solid #f97316' : '2px solid transparent',
-                        marginBottom: -2, transition:'color 0.15s',
-                    }}>
-                        <span>{t.icon}</span>{t.label}
-                    </button>
-                ))}
-            </div>
-
-            {tab === 'MANAGEMENT' && <ManagementTab projectId={projectId} />}
-            {tab === 'TEAMS'      && <TeamsTab      projectId={projectId} />}
-            {tab === 'WORKERS'    && <WorkersTab    projectId={projectId} />}
         </div>
     );
 }

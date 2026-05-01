@@ -11,6 +11,32 @@ import workforceService from '../../services/workforceService';
 import attendanceService from '../../services/attendanceService';
 import { dashboardService } from '../../services/api';
 import IDCardModal from './components/IDCardModal';
+import MemberDrawer, { StatusBadge, TypeBadge, Spinner } from './components/MemberDrawer';
+import WorkforceMembersView from './components/WorkforceMembersView';
+
+// ── Constants ────────────────────────────────────────────────────────────────
+const TABS = [
+    { id: 'MEMBERS',     label: 'Members',      short: 'Staff',   icon: '👥' },
+    { id: 'PAYROLL',     label: 'Payroll',      short: 'Wage',    icon: '💰' },
+    { id: 'ASSIGNMENTS', label: 'Assignments',  short: 'Tasks',   icon: '🏗️' },
+    { id: 'EVALUATIONS', label: 'Evaluations',  short: 'Stats',   icon: '📈' },
+    { id: 'SAFETY',      label: 'Safety',       short: 'Safe',    icon: '🦺' },
+];
+
+const STATUS_MAP = {
+    ACTIVE:      { bg: '#d1fae5', color: '#065f46', label: 'Active' },
+    ON_LEAVE:    { bg: '#fef3c7', color: '#92400e', label: 'On Leave' },
+    INACTIVE:    { bg: '#f3f4f6', color: '#6b7280', label: 'Inactive' },
+    SUSPENDED:   { bg: '#fee2e2', color: '#991b1b', label: 'Suspended' },
+    BLACKLISTED: { bg: '#1f2937', color: '#f9fafb', label: 'Blacklisted' },
+};
+
+const TYPE_COLORS = {
+    LABOUR:        { bg: '#dbeafe', color: '#1e40af' },
+    STAFF:         { bg: '#ede9fe', color: '#5b21b6' },
+    SUBCONTRACTOR: { bg: '#fef3c7', color: '#92400e' },
+    FREELANCE:     { bg: '#d1fae5', color: '#065f46' },
+};
 
 // ── Mobile detection ──────────────────────────────────────────────────────────
 function useIsMobile() {
@@ -23,120 +49,6 @@ function useIsMobile() {
     return mobile;
 }
 
-// ── Tab definitions ───────────────────────────────────────────────────────────
-const TABS = [
-    { id: 'members',     label: 'Members',     icon: '👷', short: 'Members'  },
-    { id: 'payroll',     label: 'Payroll',     icon: '💰', short: 'Payroll'  },
-    { id: 'assignments', label: 'Assignments', icon: '📌', short: 'Assign'   },
-    { id: 'evaluations', label: 'Evaluations', icon: '⭐', short: 'Evals'    },
-    { id: 'safety',      label: 'Safety',      icon: '🦺', short: 'Safety'   },
-];
-
-// ── Reusable helpers ──────────────────────────────────────────────────────────
-const StatusBadge = ({ status }) => {
-    const map = {
-        ACTIVE:      { bg: '#d1fae5', color: '#065f46', label: 'Active' },
-        ON_LEAVE:    { bg: '#fef3c7', color: '#92400e', label: 'On Leave' },
-        INACTIVE:    { bg: '#f3f4f6', color: '#6b7280', label: 'Inactive' },
-        SUSPENDED:   { bg: '#fee2e2', color: '#991b1b', label: 'Suspended' },
-        BLACKLISTED: { bg: '#1f2937', color: '#f9fafb', label: 'Blacklisted' },
-        TERMINATED:  { bg: '#fee2e2', color: '#991b1b', label: 'Terminated' },
-    };
-    const s = map[status] || { bg: '#f3f4f6', color: '#374151', label: status };
-    return (
-        <span style={{
-            display: 'inline-block', padding: '2px 8px', borderRadius: 99,
-            fontSize: 11, fontWeight: 700,
-            background: s.bg, color: s.color,
-        }}>{s.label}</span>
-    );
-};
-
-const TypeBadge = ({ type }) => {
-    const map = {
-        LABOUR:        { bg: '#dbeafe', color: '#1e40af' },
-        STAFF:         { bg: '#ede9fe', color: '#5b21b6' },
-        SUBCONTRACTOR: { bg: '#fef3c7', color: '#92400e' },
-        FREELANCE:     { bg: '#d1fae5', color: '#065f46' },
-    };
-    const s = map[type] || { bg: '#f3f4f6', color: '#374151' };
-    return (
-        <span style={{
-            display: 'inline-block', padding: '2px 8px', borderRadius: 99,
-            fontSize: 11, fontWeight: 600, background: s.bg, color: s.color,
-        }}>{type}</span>
-    );
-};
-
-const Spinner = () => (
-    <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
-        <div style={{
-            width: 36, height: 36, borderRadius: '50%',
-            border: '3px solid var(--t-border)',
-            borderTopColor: 'var(--t-primary)',
-            animation: 'spin 0.8s linear infinite',
-        }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
-);
-
-const EmptyState = ({ icon, title, subtitle }) => (
-    <div style={{ textAlign: 'center', padding: '64px 24px', color: 'var(--t-text-muted)' }}>
-        <div style={{ fontSize: 48, marginBottom: 12 }}>{icon}</div>
-        <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--t-text)', marginBottom: 6 }}>{title}</div>
-        <div style={{ fontSize: 13 }}>{subtitle}</div>
-    </div>
-);
-
-// ── Summary Stats Bar ─────────────────────────────────────────────────────────
-function StatsBar({ stats }) {
-    if (!stats) return null;
-    const cards = [
-        { label: 'Total',    value: stats.total,    color: 'var(--t-primary)' },
-        { label: 'Active',   value: stats.active,   color: '#10b981' },
-        { label: 'On Leave', value: stats.on_leave, color: '#f59e0b' },
-        { label: 'Staff',    value: stats.staff,    color: '#6366f1' },
-        { label: 'Labour',   value: stats.labour,   color: '#0ea5e9' },
-        { label: 'Linked',   value: stats.linked,   color: '#14b8a6' },
-    ];
-    return (
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 20 }}>
-            {cards.map(c => (
-                <div key={c.label} style={{
-                    flex: '1 1 80px',
-                    background: 'var(--t-surface)',
-                    border: '1px solid var(--t-border)',
-                    borderRadius: 10, padding: '10px 14px',
-                    minWidth: 80,
-                }}>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: c.color }}>{c.value ?? '—'}</div>
-                    <div style={{ fontSize: 11, color: 'var(--t-text-muted)', marginTop: 2 }}>{c.label}</div>
-                </div>
-            ))}
-        </div>
-    );
-}
-
-// ── Today attendance dot ──────────────────────────────────────────────────────
-const TODAY_COLORS = {
-    PRESENT:    { bg: '#22c55e', label: 'Present' },
-    HALF_DAY:   { bg: '#f59e0b', label: 'Half Day' },
-    ABSENT:     { bg: '#ef4444', label: 'Absent' },
-    LEAVE:      { bg: '#6366f1', label: 'Leave' },
-    HOLIDAY:    { bg: '#06b6d4', label: 'Holiday' },
-    NOT_MARKED: { bg: '#d1d5db', label: '—' },
-};
-
-const TodayDot = ({ status, checkIn, checkOut }) => {
-    const s = TODAY_COLORS[status] || TODAY_COLORS.NOT_MARKED;
-    const time = checkIn ? `${checkIn}${checkOut ? ' → ' + checkOut : ' (in)'}` : '';
-    return (
-        <span title={`${s.label}${time ? ' · ' + time : ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.bg, flexShrink: 0, display: 'inline-block' }} />
-            <span style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>{time || s.label}</span>
-        </span>
-    );
-};
 
 // ── Create Portal Account Modal ───────────────────────────────────────────────
 function CreateAccountModal({ member, onClose }) {
@@ -345,504 +257,6 @@ function CreateAccountModal({ member, onClose }) {
                     </>
                 )}
             </div>
-        </div>
-    );
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// MEMBERS TAB — Full CRUD
-// ═══════════════════════════════════════════════════════════════════
-
-// ── Delete confirmation modal ─────────────────────────────────────────────────
-function DeleteConfirmModal({ member, onConfirm, onCancel, deleting }) {
-    return (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-            <div style={{ background: 'var(--t-bg)', borderRadius: 16, padding: 28, maxWidth: 400, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.35)' }}>
-                <div style={{ fontSize: 36, marginBottom: 12, textAlign: 'center' }}>⚠️</div>
-                <h3 style={{ margin: '0 0 8px', fontWeight: 900, fontSize: 17, textAlign: 'center' }}>Delete Member?</h3>
-                <p style={{ margin: '0 0 6px', fontSize: 13, color: 'var(--t-text-muted)', textAlign: 'center' }}>
-                    <strong>{member.full_name}</strong> ({member.employee_id})
-                </p>
-                <p style={{ margin: '0 0 24px', fontSize: 12, color: '#ef4444', textAlign: 'center' }}>
-                    This action cannot be undone. All assignments, payroll records, and evaluations linked to this member will also be deleted.
-                </p>
-                <div style={{ display: 'flex', gap: 10 }}>
-                    <button onClick={onCancel} style={{ flex: 1, padding: '11px', borderRadius: 10, border: '1px solid var(--t-border)', background: 'transparent', color: 'var(--t-text)', fontWeight: 700, cursor: 'pointer' }}>Cancel</button>
-                    <button onClick={onConfirm} disabled={deleting} style={{ flex: 1, padding: '11px', borderRadius: 10, border: 'none', background: '#ef4444', color: '#fff', fontWeight: 800, cursor: deleting ? 'not-allowed' : 'pointer', opacity: deleting ? 0.7 : 1 }}>
-                        {deleting ? 'Deleting…' : 'Delete'}
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-// ── Field helpers for the drawer ──────────────────────────────────────────────
-const DrawerField = ({ label, children, span }) => (
-    <div style={{ gridColumn: span === 2 ? '1 / -1' : undefined }}>
-        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 5 }}>{label}</label>
-        {children}
-    </div>
-);
-
-const inputStyle = {
-    display: 'block', width: '100%', padding: '8px 11px', borderRadius: 8,
-    border: '1px solid var(--t-border)', background: 'var(--t-surface)',
-    color: 'var(--t-text)', fontSize: 13, boxSizing: 'border-box',
-};
-
-const DrawerSection = ({ title, children }) => (
-    <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--t-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14, paddingBottom: 6, borderBottom: '1px solid var(--t-border)' }}>
-            {title}
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            {children}
-        </div>
-    </div>
-);
-
-// ── Member Drawer (Add / Edit slide panel) ────────────────────────────────────
-function MemberDrawer({ member, onClose, onSaved, onDeleted }) {
-    const isEdit = !!member;
-    const BLANK  = { join_date: new Date().toISOString().slice(0, 10), worker_type: 'LABOUR', status: 'ACTIVE', gender: '' };
-    const [data, setData]         = useState(BLANK);
-    const [fetching, setFetching] = useState(isEdit); // loading full profile
-    const [roles, setRoles]       = useState([]);
-    const [saving, setSaving]     = useState(false);
-    const [deleting, setDeleting] = useState(false);
-    const [showDel, setShowDel]   = useState(false);
-    const [error, setError]       = useState('');
-
-    const set = (k, v) => setData(p => ({ ...p, [k]: v }));
-
-    // Load roles list + full member profile in parallel
-    useEffect(() => {
-        const calls = [
-            workforceService.getRoles().then(d => setRoles(Array.isArray(d) ? d : (d.results || []))).catch(() => {}),
-        ];
-        if (isEdit) {
-            calls.push(
-                workforceService.getMember(member.id)
-                    .then(full => setData(full))
-                    .catch(() => setError('Failed to load member details.'))
-                    .finally(() => setFetching(false))
-            );
-        }
-        Promise.all(calls);
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-    const handleSave = async () => {
-        setSaving(true); setError('');
-        try {
-            if (isEdit) {
-                await workforceService.updateMember(member.id, data);
-            } else {
-                await workforceService.createMember(data);
-            }
-            onSaved();
-        } catch (e) {
-            setError(e?.response?.data?.detail || JSON.stringify(e?.response?.data) || 'Save failed.');
-        } finally { setSaving(false); }
-    };
-
-    const handleDelete = async () => {
-        setDeleting(true);
-        try {
-            await workforceService.deleteMember(member.id);
-            onDeleted();
-        } catch (e) {
-            setError(e?.response?.data?.detail || 'Delete failed.');
-            setDeleting(false);
-            setShowDel(false);
-        }
-    };
-
-    return (
-        <>
-            {/* Backdrop */}
-            <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 290, background: 'rgba(0,0,0,0.45)' }} />
-
-            {/* Drawer panel */}
-            <div style={{
-                position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 300,
-                width: '100%', maxWidth: 560,
-                background: 'var(--t-bg)',
-                borderLeft: '1px solid var(--t-border)',
-                boxShadow: '-12px 0 60px rgba(0,0,0,0.25)',
-                display: 'flex', flexDirection: 'column',
-                overflowY: 'hidden',
-            }}>
-                {/* Drawer header */}
-                <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--t-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-                    <div>
-                        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 900 }}>
-                            {isEdit ? `Edit Member` : 'Add Workforce Member'}
-                        </h2>
-                        {isEdit && <div style={{ fontSize: 12, color: 'var(--t-text-muted)', marginTop: 2, fontFamily: 'monospace' }}>{member.employee_id}</div>}
-                    </div>
-                    <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid var(--t-border)', background: 'var(--t-surface)', color: 'var(--t-text3)', cursor: 'pointer', fontSize: 16 }}>✕</button>
-                </div>
-
-                {/* Scrollable body */}
-                <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
-
-                    {fetching ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                            {[1,2,3,4,5,6].map(i => (
-                                <div key={i} style={{ height: 38, borderRadius: 8, background: 'var(--t-surface)', animation: 'pulse 1.2s ease-in-out infinite', opacity: 0.6 }} />
-                            ))}
-                            <style>{`@keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:.9} }`}</style>
-                        </div>
-                    ) : (<>
-
-                    {/* ── Personal Info ── */}
-                    <DrawerSection title="👤 Personal Info">
-                        <DrawerField label="First Name *">
-                            <input style={inputStyle} value={data.first_name || ''} onChange={e => set('first_name', e.target.value)} placeholder="First name" />
-                        </DrawerField>
-                        <DrawerField label="Last Name *">
-                            <input style={inputStyle} value={data.last_name || ''} onChange={e => set('last_name', e.target.value)} placeholder="Last name" />
-                        </DrawerField>
-                        <DrawerField label="Gender">
-                            <select style={inputStyle} value={data.gender || ''} onChange={e => set('gender', e.target.value)}>
-                                <option value="">— select —</option>
-                                <option value="M">Male</option>
-                                <option value="F">Female</option>
-                                <option value="O">Other</option>
-                            </select>
-                        </DrawerField>
-                        <DrawerField label="Date of Birth">
-                            <input style={inputStyle} type="date" value={data.date_of_birth || ''} onChange={e => set('date_of_birth', e.target.value)} />
-                        </DrawerField>
-                        <DrawerField label="Nationality">
-                            <input style={inputStyle} value={data.nationality || ''} onChange={e => set('nationality', e.target.value)} placeholder="e.g. Nepali" />
-                        </DrawerField>
-                        <DrawerField label="Language">
-                            <input style={inputStyle} value={data.language || ''} onChange={e => set('language', e.target.value)} placeholder="e.g. Nepali, Hindi" />
-                        </DrawerField>
-                    </DrawerSection>
-
-                    {/* ── Contact ── */}
-                    <DrawerSection title="📞 Contact">
-                        <DrawerField label="Phone *">
-                            <input style={inputStyle} type="tel" value={data.phone || ''} onChange={e => set('phone', e.target.value)} placeholder="Primary phone" />
-                        </DrawerField>
-                        <DrawerField label="Alt Phone">
-                            <input style={inputStyle} type="tel" value={data.phone_alt || ''} onChange={e => set('phone_alt', e.target.value)} placeholder="Secondary phone" />
-                        </DrawerField>
-                        <DrawerField label="Email" span={2}>
-                            <input style={inputStyle} type="email" value={data.email || ''} onChange={e => set('email', e.target.value)} placeholder="Email address" />
-                        </DrawerField>
-                        <DrawerField label="Address" span={2}>
-                            <textarea style={{ ...inputStyle, resize: 'vertical', minHeight: 64 }} value={data.address || ''} onChange={e => set('address', e.target.value)} placeholder="Full address" rows={2} />
-                        </DrawerField>
-                    </DrawerSection>
-
-                    {/* ── Employment ── */}
-                    <DrawerSection title="💼 Employment">
-                        <DrawerField label="Join Date *">
-                            <input style={inputStyle} type="date" value={data.join_date || ''} onChange={e => set('join_date', e.target.value)} />
-                        </DrawerField>
-                        <DrawerField label="End Date">
-                            <input style={inputStyle} type="date" value={data.end_date || ''} onChange={e => set('end_date', e.target.value)} />
-                        </DrawerField>
-                        <DrawerField label="Worker Type *">
-                            <select style={inputStyle} value={data.worker_type || 'LABOUR'} onChange={e => set('worker_type', e.target.value)}>
-                                <option value="LABOUR">Labour</option>
-                                <option value="STAFF">Staff</option>
-                                <option value="SUBCONTRACTOR">Subcontractor</option>
-                                <option value="FREELANCE">Freelance</option>
-                            </select>
-                        </DrawerField>
-                        <DrawerField label="Role / Trade">
-                            <select style={inputStyle} value={data.role || ''} onChange={e => set('role', e.target.value || null)}>
-                                <option value="">— no role —</option>
-                                {roles.map(r => <option key={r.id} value={r.id}>{r.title}</option>)}
-                            </select>
-                        </DrawerField>
-                    </DrawerSection>
-
-                    {/* ── Status ── */}
-                    <DrawerSection title="🏷️ Status">
-                        <DrawerField label="Employment Status">
-                            <select style={inputStyle} value={data.status || 'ACTIVE'} onChange={e => set('status', e.target.value)}>
-                                <option value="ACTIVE">Active</option>
-                                <option value="ON_LEAVE">On Leave</option>
-                                <option value="INACTIVE">Inactive</option>
-                                <option value="SUSPENDED">Suspended</option>
-                                <option value="BLACKLISTED">Blacklisted</option>
-                                <option value="TERMINATED">Terminated</option>
-                            </select>
-                        </DrawerField>
-                    </DrawerSection>
-
-                    {error && <div style={{ color: '#ef4444', fontSize: 12, padding: '8px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', marginBottom: 16 }}>{error}</div>}
-
-                    </>)}
-                </div>
-
-                {/* Drawer footer */}
-                <div style={{ padding: '14px 24px', borderTop: '1px solid var(--t-border)', flexShrink: 0, display: 'flex', gap: 10, alignItems: 'center', background: 'var(--t-bg)' }}>
-                    {isEdit && (
-                        <button onClick={() => setShowDel(true)} style={{ padding: '9px 14px', borderRadius: 9, border: '1px solid #fca5a5', background: '#fff5f5', color: '#dc2626', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>
-                            🗑 Delete
-                        </button>
-                    )}
-                    <div style={{ flex: 1 }} />
-                    <button onClick={onClose} style={{ padding: '9px 18px', borderRadius: 9, border: '1px solid var(--t-border)', background: 'transparent', color: 'var(--t-text)', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}>Cancel</button>
-                    <button onClick={handleSave} disabled={saving || fetching} style={{
-                        padding: '9px 22px', borderRadius: 9, border: 'none',
-                        background: (saving || fetching) ? '#9ca3af' : 'var(--t-primary)',
-                        color: '#fff', fontWeight: 800, cursor: (saving || fetching) ? 'not-allowed' : 'pointer', fontSize: 13,
-                    }}>{saving ? 'Saving…' : fetching ? 'Loading…' : isEdit ? 'Save Changes' : 'Create Member'}</button>
-                </div>
-            </div>
-
-            {showDel && (
-                <DeleteConfirmModal
-                    member={member}
-                    onConfirm={handleDelete}
-                    onCancel={() => setShowDel(false)}
-                    deleting={deleting}
-                />
-            )}
-        </>
-    );
-}
-
-// ── Members Tab ───────────────────────────────────────────────────────────────
-function MembersTab({ projectId }) {
-    const [members, setMembers]     = useState([]);
-    const [stats, setStats]         = useState(null);
-    const [loading, setLoading]     = useState(true);
-    const [search, setSearch]       = useState('');
-    const [statusFilter, setStatus] = useState('');
-    const [typeFilter, setType]     = useState('');
-    const [drawer, setDrawer]       = useState(null); // null | 'new' | <member obj>
-    const [importing, setImporting] = useState(false);
-    const [importResult, setImportResult] = useState(null);
-    const [error, setError]         = useState('');
-    const [showIDCard, setShowIDCard]       = useState(false);
-    const [idCardMemberId, setIdCardMemberId] = useState(null);
-    const [portalTarget, setPortalTarget]   = useState(null);
-
-    const load = useCallback(async () => {
-        setLoading(true); setError('');
-        try {
-            const params = {};
-            if (projectId)    params.current_project = projectId;
-            if (statusFilter) params.status          = statusFilter;
-            if (typeFilter)   params.worker_type     = typeFilter;
-            if (search)       params.search          = search;
-
-            const [m, s] = await Promise.all([
-                workforceService.getMembers(params),
-                workforceService.getSummaryStats(projectId),
-            ]);
-            setMembers(Array.isArray(m) ? m : (m.results || []));
-            setStats(s);
-        } catch {
-            setError('Failed to load workforce members.');
-        } finally { setLoading(false); }
-    }, [projectId, statusFilter, typeFilter, search]);
-
-    useEffect(() => { load(); }, [load]);
-
-    const handleImport = async (dryRun = false) => {
-        setImporting(true); setError(''); setImportResult(null);
-        try {
-            const body = { dry_run: dryRun };
-            if (projectId) body.project = projectId;
-            const result = await workforceService.seedFromAttendance(body);
-            setImportResult(result);
-            if (!dryRun) load();
-        } catch (e) {
-            setError(e?.response?.data?.detail || 'Import failed.');
-        } finally { setImporting(false); }
-    };
-
-    const handleQuickStatus = async (member, newStatus) => {
-        try {
-            await workforceService.updateMember(member.id, { status: newStatus });
-            load();
-        } catch { /* ignore */ }
-    };
-
-    return (
-        <div>
-            <StatsBar stats={stats} />
-
-            {/* Import from Attendance banner */}
-            {stats && stats.unlinked > 0 && !importResult && (
-                <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 10, padding: '12px 16px', marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-                    <div>
-                        <strong style={{ fontSize: 13 }}>👷 {stats.unlinked} attendance worker{stats.unlinked !== 1 ? 's' : ''} not yet in Workforce</strong>
-                        <div style={{ fontSize: 12, color: '#92400e', marginTop: 2 }}>Import them to create full profiles with payroll, skills and documents.</div>
-                    </div>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={() => handleImport(true)} disabled={importing} style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #fcd34d', background: '#fff', color: '#92400e', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Preview</button>
-                        <button onClick={() => handleImport(false)} disabled={importing} style={{ padding: '6px 14px', borderRadius: 7, border: 'none', background: '#f59e0b', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{importing ? 'Importing…' : '⬆ Import All'}</button>
-                    </div>
-                </div>
-            )}
-
-            {/* Import result */}
-            {importResult && (
-                <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 10, padding: '12px 16px', marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                        {importResult.dry_run
-                            ? <><strong>Preview:</strong> {importResult.would_create} workers would be created</>
-                            : <><strong>✓ Done:</strong> {importResult.created} workers imported successfully</>
-                        }
-                        {importResult.errors?.length > 0 && (
-                            <div style={{ color: '#ef4444', fontSize: 12, marginTop: 4 }}>
-                                {importResult.errors.length} error(s): {importResult.errors.map(e => e.worker).join(', ')}
-                            </div>
-                        )}
-                    </div>
-                    <button onClick={() => setImportResult(null)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #86efac', background: 'transparent', cursor: 'pointer', fontSize: 12 }}>Dismiss</button>
-                </div>
-            )}
-
-            {/* Controls */}
-            <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name / ID / phone…"
-                    style={{ flex: 1, minWidth: 200, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--t-border)', background: 'var(--t-surface)', color: 'var(--t-text)', fontSize: 13 }} />
-                <select value={statusFilter} onChange={e => setStatus(e.target.value)}
-                    style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--t-border)', background: 'var(--t-surface)', color: 'var(--t-text)', fontSize: 13 }}>
-                    <option value="">All Statuses</option>
-                    <option value="ACTIVE">Active</option>
-                    <option value="ON_LEAVE">On Leave</option>
-                    <option value="INACTIVE">Inactive</option>
-                    <option value="SUSPENDED">Suspended</option>
-                    <option value="TERMINATED">Terminated</option>
-                </select>
-                <select value={typeFilter} onChange={e => setType(e.target.value)}
-                    style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--t-border)', background: 'var(--t-surface)', color: 'var(--t-text)', fontSize: 13 }}>
-                    <option value="">All Types</option>
-                    <option value="LABOUR">Labour</option>
-                    <option value="STAFF">Staff</option>
-                    <option value="SUBCONTRACTOR">Subcontractor</option>
-                    <option value="FREELANCE">Freelance</option>
-                </select>
-                <button onClick={() => setDrawer('new')} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: 'var(--t-primary)', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>
-                    + Add Member
-                </button>
-            </div>
-
-            {error && <div style={{ color: '#ef4444', marginBottom: 12, fontSize: 13 }}>{error}</div>}
-
-            {loading ? <Spinner /> : members.length === 0 ? (
-                <EmptyState icon="👷" title="No members found" subtitle="Add your first workforce member or import from attendance." />
-            ) : (
-                <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                        <thead>
-                            <tr style={{ borderBottom: '2px solid var(--t-border)', color: 'var(--t-text-muted)', textAlign: 'left', background: 'var(--t-surface)' }}>
-                                <th style={{ padding: '9px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>ID</th>
-                                <th style={{ padding: '9px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Name</th>
-                                <th style={{ padding: '9px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Role / Trade</th>
-                                <th style={{ padding: '9px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Type</th>
-                                <th style={{ padding: '9px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Status</th>
-                                <th style={{ padding: '9px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Today</th>
-                                <th style={{ padding: '9px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Rate/day</th>
-                                <th style={{ padding: '9px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Contact</th>
-                                <th style={{ padding: '9px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {members.map((m, i) => (
-                                <tr key={m.id} style={{ borderBottom: '1px solid var(--t-border)', background: i % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.015)' }}>
-                                    <td style={{ padding: '9px 10px', fontFamily: 'monospace', fontSize: 11, color: 'var(--t-text-muted)', whiteSpace: 'nowrap' }}>{m.employee_id}</td>
-                                    <td style={{ padding: '9px 10px' }}>
-                                        <div style={{ fontWeight: 700 }}>{m.full_name || '—'}</div>
-                                        {m.date_of_birth && <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>DOB: {m.date_of_birth}</div>}
-                                    </td>
-                                    <td style={{ padding: '9px 10px', color: 'var(--t-text-muted)', fontSize: 12 }}>{m.role_name || '—'}</td>
-                                    <td style={{ padding: '9px 10px' }}><TypeBadge type={m.worker_type} /></td>
-                                    <td style={{ padding: '9px 10px' }}>
-                                        {/* Inline quick-status dropdown */}
-                                        <div style={{ position: 'relative', display: 'inline-block' }}>
-                                            <select
-                                                value={m.status}
-                                                onChange={e => handleQuickStatus(m, e.target.value)}
-                                                title="Change status"
-                                                style={{
-                                                    appearance: 'none', WebkitAppearance: 'none',
-                                                    padding: '2px 22px 2px 8px', borderRadius: 99, fontSize: 11, fontWeight: 700,
-                                                    border: 'none', cursor: 'pointer', outline: 'none',
-                                                    background: ({ ACTIVE: '#d1fae5', ON_LEAVE: '#fef3c7', INACTIVE: '#f3f4f6', SUSPENDED: '#fee2e2', BLACKLISTED: '#1f2937', TERMINATED: '#fee2e2' })[m.status] || '#f3f4f6',
-                                                    color: ({ ACTIVE: '#065f46', ON_LEAVE: '#92400e', INACTIVE: '#6b7280', SUSPENDED: '#991b1b', BLACKLISTED: '#f9fafb', TERMINATED: '#991b1b' })[m.status] || '#374151',
-                                                }}>
-                                                <option value="ACTIVE">Active</option>
-                                                <option value="ON_LEAVE">On Leave</option>
-                                                <option value="INACTIVE">Inactive</option>
-                                                <option value="SUSPENDED">Suspended</option>
-                                                <option value="BLACKLISTED">Blacklisted</option>
-                                                <option value="TERMINATED">Terminated</option>
-                                            </select>
-                                            <span style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', fontSize: 8, pointerEvents: 'none' }}>▼</span>
-                                        </div>
-                                    </td>
-                                    <td style={{ padding: '9px 10px' }}>
-                                        <TodayDot status={m.today_status || 'NOT_MARKED'} checkIn={m.today_check_in} checkOut={m.today_check_out} />
-                                    </td>
-                                    <td style={{ padding: '9px 10px', fontSize: 12 }}>
-                                        {m.daily_rate ? `NPR ${Number(m.daily_rate).toLocaleString()}` : <span style={{ color: '#d1d5db' }}>—</span>}
-                                    </td>
-                                    <td style={{ padding: '9px 10px', fontSize: 12, color: 'var(--t-text-muted)' }}>
-                                        {m.phone || '—'}
-                                    </td>
-                                    <td style={{ padding: '9px 10px' }}>
-                                        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                                            <button onClick={() => setDrawer(m)}
-                                                title="Edit member"
-                                                style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--t-border)', background: 'transparent', color: 'var(--t-text)', cursor: 'pointer', fontSize: 12 }}>
-                                                ✏️ Edit
-                                            </button>
-                                            <button onClick={() => { setIdCardMemberId(m.id); setShowIDCard(true); }}
-                                                title="View Worker ID Card"
-                                                style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #3b82f6', background: '#eff6ff', color: '#1d4ed8', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                                                🪪 ID
-                                            </button>
-                                            <button onClick={() => setPortalTarget(m)}
-                                                title={m.account ? 'Portal account exists' : 'Create worker portal account'}
-                                                style={{
-                                                    padding: '4px 10px', borderRadius: 6,
-                                                    border: `1px solid ${m.account ? '#86efac' : '#f97316'}`,
-                                                    background: m.account ? '#f0fdf4' : '#fff7ed',
-                                                    color: m.account ? '#065f46' : '#c2410c',
-                                                    cursor: 'pointer', fontSize: 12, fontWeight: 700,
-                                                }}>
-                                                {m.account ? '✅ Portal' : '📱 Portal'}
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            )}
-
-            {/* Member Add/Edit Drawer */}
-            {drawer !== null && (
-                <MemberDrawer
-                    member={drawer === 'new' ? null : drawer}
-                    onClose={() => setDrawer(null)}
-                    onSaved={() => { setDrawer(null); load(); }}
-                    onDeleted={() => { setDrawer(null); load(); }}
-                />
-            )}
-
-            {showIDCard && idCardMemberId && (
-                <IDCardModal badgeUrl={workforceService.getBadgeUrl(idCardMemberId)} onClose={() => setShowIDCard(false)} />
-            )}
-
-            {portalTarget && (
-                <CreateAccountModal member={portalTarget} onClose={() => { setPortalTarget(null); load(); }} />
-            )}
         </div>
     );
 }
@@ -1407,15 +821,15 @@ function SafetyTab({ projectId }) {
 export default function WorkforceHub() {
     const { activeProjectId } = useConstruction();
     const isMobile = useIsMobile();
-    const [activeTab, setActiveTab] = useState('members');
+    const [activeTab, setActiveTab] = useState('MEMBERS');
 
     const renderTab = () => {
         switch (activeTab) {
-            case 'members':     return <MembersTab     projectId={activeProjectId} />;
-            case 'payroll':     return <PayrollTab     projectId={activeProjectId} />;
-            case 'assignments': return <AssignmentsTab projectId={activeProjectId} />;
-            case 'evaluations': return <EvaluationsTab projectId={activeProjectId} />;
-            case 'safety':      return <SafetyTab      projectId={activeProjectId} />;
+            case 'MEMBERS':     return <WorkforceMembersView projectId={activeProjectId} />;
+            case 'PAYROLL':     return <PayrollTab     projectId={activeProjectId} />;
+            case 'ASSIGNMENTS': return <AssignmentsTab projectId={activeProjectId} />;
+            case 'EVALUATIONS': return <EvaluationsTab projectId={activeProjectId} />;
+            case 'SAFETY':      return <SafetyTab      projectId={activeProjectId} />;
             default:            return null;
         }
     };
@@ -1447,6 +861,18 @@ export default function WorkforceHub() {
 
                 <div style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)', borderRadius: 14, padding: 24 }}>
                     {renderTab()}
+                </div>
+
+                {/* ── Nepali Note Section (Workforce Hub - Desktop) ── */}
+                <div style={{ marginTop: 40, padding: 30, background: '#f8fafc', borderRadius: 24, border: '1px solid var(--t-border)', display: 'flex', gap: 24, alignItems: 'center' }}>
+                    <div style={{ fontSize: 48 }}>👷</div>
+                    <div>
+                        <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 900, color: '#f97316' }}>कामदार व्यवस्थापन निर्देशिका (Workforce Management Guide)</h3>
+                        <p style={{ margin: 0, fontSize: 14, color: 'var(--t-text3)', lineHeight: 1.6, fontWeight: 600 }}>
+                            यो 'Workforce Hub' बाट तपाइँले आफ्नो कम्पनीका सबै कामदारहरूको रेकर्ड, तलब, र कार्यसम्पादन एकै ठाउँबाट हेर्न सक्नुहुन्छ। 
+                            नयाँ कामदार थप्न 'Members' ट्याबमा गएर 'Add Member' थिच्नुहोस्।
+                        </p>
+                    </div>
                 </div>
             </div>
         );
@@ -1484,6 +910,20 @@ export default function WorkforceHub() {
                         {t.short}
                     </button>
                 ))}
+            </div>
+
+            {/* ── Nepali Note Section (Workforce Hub) ── */}
+            <div style={{ margin: '30px 16px 100px', padding: 24, background: '#f8fafc', borderRadius: 20, border: '1px solid var(--t-border)' }}>
+                <h3 style={{ margin: '0 0 10px', fontSize: 16, fontWeight: 900, color: '#f97316' }}>👷 कामदार व्यवस्थापन निर्देशिका (Workforce Guide)</h3>
+                <p style={{ margin: 0, fontSize: 12, color: 'var(--t-text3)', lineHeight: 1.5, fontWeight: 600 }}>
+                    यहाँबाट तपाइँले सम्पूर्ण परियोजनाका कामदारहरूलाई एकै ठाउँबाट व्यवस्थापन गर्न सक्नुहुन्छ:
+                </p>
+                <ul style={{ margin: '15px 0 0', paddingLeft: 20, fontSize: 11, color: 'var(--t-text3)', lineHeight: 1.8 }}>
+                    <li><strong>नयाँ दर्ता:</strong> '+ Add Member' बटन थिचेर नयाँ कामदार थप्नुहोस्।</li>
+                    <li><strong>हाजिरी:</strong> कामदारको प्रोफाइलमा गएर दैनिक हाजिरी र 'QR Code' हेर्न सकिन्छ।</li>
+                    <li><strong>तलब विवरण:</strong> 'Payroll' सेक्सनमा गएर कामदारको मासिक वा दैनिक भुक्तानी हिसाब गर्नुहोस्।</li>
+                    <li><strong>प्रमाणपत्र:</strong> कामदारको 'ID Card' र अन्य कागजातहरू यहाँबाट प्रिन्ट गर्न सकिन्छ।</li>
+                </ul>
             </div>
         </div>
     );

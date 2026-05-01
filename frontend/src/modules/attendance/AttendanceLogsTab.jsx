@@ -139,8 +139,8 @@ export default function AttendanceLogsTab({ projectId }) {
 function EditRecordForm({ record, onDone }) {
   const [form, setForm] = useState({
     status: record.status,
-    check_in: record.check_in || '',
-    check_out: record.check_out || '',
+    check_in: (record.check_in || '').slice(0, 5),
+    check_out: (record.check_out || '').slice(0, 5),
     overtime_hours: record.overtime_hours || 0,
     note: record.note || ''
   });

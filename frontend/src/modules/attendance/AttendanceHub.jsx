@@ -218,7 +218,7 @@ export default function AttendanceHub() {
     const activeProject = projects?.find(p => p.id === activeProjectId);
 
     // ── Tab content ────────────────────────────────────────────────────────────
-    const TabContent = () => (
+    const tabContent = (
         <>
             {activeTab === 'daily'    && <DailySheetTab    projectId={activeProjectId} onAlertCount={setAlertCount} />}
             {activeTab === 'monthly'  && <MonthlyReportTab  projectId={activeProjectId} />}
@@ -263,7 +263,7 @@ export default function AttendanceHub() {
 
                 {/* Full-bleed content — no card wrapper on mobile */}
                 <div style={{ padding: '12px 12px 0' }}>
-                    <TabContent />
+                    {tabContent}
                 </div>
 
                 {/* Bottom pill tab bar */}
@@ -339,7 +339,7 @@ export default function AttendanceHub() {
 
                 {/* Content card */}
                 <div style={{ background: 'var(--t-surface)', borderRadius: 16, border: '1px solid var(--t-border)', padding: '12px' }}>
-                    <TabContent />
+                    {tabContent}
                 </div>
             </div>
 

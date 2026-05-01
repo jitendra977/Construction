@@ -21,14 +21,14 @@ class WorkerDocumentInline(admin.TabularInline):
 
 @admin.register(WorkforceMember)
 class WorkforceMemberAdmin(admin.ModelAdmin):
-    list_display = ['employee_id', 'first_name', 'last_name', 'worker_type', 'role', 'status', 'current_project']
+    list_display = ['employee_id', '_first_name', '_last_name', 'worker_type', 'role', 'status', 'current_project']
     list_filter = ['worker_type', 'status', 'gender', 'current_project']
-    search_fields = ['first_name', 'last_name', 'employee_id', 'phone']
+    search_fields = ['_first_name', '_last_name', 'employee_id', '_phone']
     inlines = [EmergencyContactInline, WorkerSkillInline, WorkerDocumentInline]
     readonly_fields = ['employee_id', 'created_at', 'updated_at']
     fieldsets = [
-        ('Identity', {'fields': ['employee_id', 'account', ('first_name', 'last_name'), 'gender', 'date_of_birth', 'photo', 'nationality', 'language']}),
-        ('Contact', {'fields': [('phone', 'phone_alt'), 'email', 'address']}),
+        ('Identity', {'fields': ['employee_id', 'account', ('_first_name', '_last_name'), 'gender', 'date_of_birth', '_photo', 'nationality', 'language']}),
+        ('Contact', {'fields': [('_phone', 'phone_alt'), '_email', 'address']}),
         ('Classification', {'fields': ['worker_type', 'role', 'status', 'current_project']}),
         ('Employment', {'fields': ['join_date', 'end_date']}),
         ('Metadata', {'fields': ['created_by', 'created_at', 'updated_at']}),
@@ -56,31 +56,31 @@ class SkillAdmin(admin.ModelAdmin):
 class WorkerContractAdmin(admin.ModelAdmin):
     list_display = ['worker', 'contract_type', 'status', 'start_date', 'end_date', 'wage_amount']
     list_filter = ['contract_type', 'status']
-    search_fields = ['worker__first_name', 'worker__last_name']
+    search_fields = ['worker___first_name', 'worker___last_name']
 
 @admin.register(PayrollRecord)
 class PayrollRecordAdmin(admin.ModelAdmin):
     list_display = ['worker', 'period_start', 'period_end', 'status', 'net_pay']
     list_filter = ['status']
-    search_fields = ['worker__first_name', 'worker__last_name']
+    search_fields = ['worker___first_name', 'worker___last_name']
 
 @admin.register(SafetyRecord)
 class SafetyRecordAdmin(admin.ModelAdmin):
     list_display = ['worker', 'incident_type', 'severity', 'status', 'incident_date']
     list_filter = ['incident_type', 'severity', 'status']
-    search_fields = ['worker__first_name', 'worker__last_name', 'description']
+    search_fields = ['worker___first_name', 'worker___last_name', 'description']
 
 @admin.register(WorkerAssignment)
 class WorkerAssignmentAdmin(admin.ModelAdmin):
     list_display = ['worker', 'project', 'start_date', 'end_date', 'status']
     list_filter = ['status', 'project']
-    search_fields = ['worker__first_name', 'worker__last_name']
+    search_fields = ['worker___first_name', 'worker___last_name']
 
 @admin.register(WorkerEvaluation)
 class WorkerEvaluationAdmin(admin.ModelAdmin):
     list_display = ['worker', 'project', 'eval_date', 'recommendation', 'overall_score']
     list_filter = ['recommendation', 'project']
-    search_fields = ['worker__first_name', 'worker__last_name']
+    search_fields = ['worker___first_name', 'worker___last_name']
 
 # Register remaining models with basic admin
 admin.site.register(WageStructure)

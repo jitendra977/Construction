@@ -233,10 +233,10 @@ export default function SettingsTab({ projectId }) {
             <SectionCard title="Working Hours" icon="🕐">
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                     <Row label="Shift Start">
-                        <Input type="time" value={settings.shift_start} onChange={v => setSettings(s => ({ ...s, shift_start: v }))} />
+                        <Input type="time" value={(settings.shift_start || '').slice(0, 5)} onChange={v => setSettings(s => ({ ...s, shift_start: v }))} />
                     </Row>
                     <Row label="Shift End">
-                        <Input type="time" value={settings.shift_end} onChange={v => setSettings(s => ({ ...s, shift_end: v }))} />
+                        <Input type="time" value={(settings.shift_end || '').slice(0, 5)} onChange={v => setSettings(s => ({ ...s, shift_end: v }))} />
                     </Row>
                     <Row label="Break (minutes)" hint="Unpaid lunch break deducted from worked hours">
                         <Input type="number" min={0} max={240} value={settings.break_minutes}
@@ -335,19 +335,19 @@ export default function SettingsTab({ projectId }) {
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 4 }}>
                         <Row label="Check-In Window Opens">
-                            <Input type="time" value={scanWin?.checkin_start || ''}
+                            <Input type="time" value={(scanWin?.checkin_start || '').slice(0, 5)}
                                 onChange={v => setScanWin(w => ({ ...w, checkin_start: v }))} />
                         </Row>
                         <Row label="Check-In Window Closes">
-                            <Input type="time" value={scanWin?.checkin_end || ''}
+                            <Input type="time" value={(scanWin?.checkin_end || '').slice(0, 5)}
                                 onChange={v => setScanWin(w => ({ ...w, checkin_end: v }))} />
                         </Row>
                         <Row label="Check-Out Window Opens">
-                            <Input type="time" value={scanWin?.checkout_start || ''}
+                            <Input type="time" value={(scanWin?.checkout_start || '').slice(0, 5)}
                                 onChange={v => setScanWin(w => ({ ...w, checkout_start: v }))} />
                         </Row>
                         <Row label="Check-Out Window Closes">
-                            <Input type="time" value={scanWin?.checkout_end || ''}
+                            <Input type="time" value={(scanWin?.checkout_end || '').slice(0, 5)}
                                 onChange={v => setScanWin(w => ({ ...w, checkout_end: v }))} />
                         </Row>
                         <Row label="Late Threshold (min)" hint="Minutes after check-in opens before scan is marked LATE">

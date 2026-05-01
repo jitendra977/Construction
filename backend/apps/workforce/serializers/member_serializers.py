@@ -52,6 +52,22 @@ class WorkforceMemberSerializer(serializers.ModelSerializer):
         last_eval = obj.evaluations.order_by('-eval_date').first()
         return last_eval.overall_score if last_eval else None
 
+    def create(self, validated_data):
+        # Explicitly map properties to underscore fields for the model constructor
+        validated_data['_first_name'] = validated_data.pop('first_name', '')
+        validated_data['_last_name']  = validated_data.pop('last_name', '')
+        validated_data['_email']      = validated_data.pop('email', '')
+        validated_data['_phone']      = validated_data.pop('phone', '')
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        # Explicitly map properties to underscore fields for the model instance
+        if 'first_name' in validated_data: instance._first_name = validated_data.pop('first_name')
+        if 'last_name' in validated_data:  instance._last_name  = validated_data.pop('last_name')
+        if 'email' in validated_data:      instance._email      = validated_data.pop('email')
+        if 'phone' in validated_data:      instance._phone      = validated_data.pop('phone')
+        return super().update(instance, validated_data)
+
 class WorkforceMemberListSerializer(serializers.ModelSerializer):
     """
     Slimmed-down serializer for high-performance list views.

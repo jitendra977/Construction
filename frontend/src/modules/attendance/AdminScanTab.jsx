@@ -27,6 +27,10 @@ function fmt24(t) {
     return String(t).slice(0, 5);
 }
 
+function fmtInput(t) {
+    return t ? String(t).slice(0, 5) : '';
+}
+
 function fmtDateTime(iso) {
     if (!iso) return '—';
     const d = new Date(iso);
@@ -218,22 +222,22 @@ function TimeWindowSection({ projectId }) {
                     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
                         <div>
                             <label style={labelStyle}>Check-in Opens</label>
-                            <input type="time" style={fieldStyle} value={fmt24(draft.checkin_start)}
+                            <input type="time" style={fieldStyle} value={fmtInput(draft.checkin_start)}
                                 onChange={e => set('checkin_start', e.target.value)} />
                         </div>
                         <div>
                             <label style={labelStyle}>Check-in Closes</label>
-                            <input type="time" style={fieldStyle} value={fmt24(draft.checkin_end)}
+                            <input type="time" style={fieldStyle} value={fmtInput(draft.checkin_end)}
                                 onChange={e => set('checkin_end', e.target.value)} />
                         </div>
                         <div>
                             <label style={labelStyle}>Check-out Opens</label>
-                            <input type="time" style={fieldStyle} value={fmt24(draft.checkout_start)}
+                            <input type="time" style={fieldStyle} value={fmtInput(draft.checkout_start)}
                                 onChange={e => set('checkout_start', e.target.value)} />
                         </div>
                         <div>
                             <label style={labelStyle}>Check-out Closes</label>
-                            <input type="time" style={fieldStyle} value={fmt24(draft.checkout_end)}
+                            <input type="time" style={fieldStyle} value={fmtInput(draft.checkout_end)}
                                 onChange={e => set('checkout_end', e.target.value)} />
                         </div>
                     </div>
@@ -749,13 +753,13 @@ function WorkerWindowsSection({ projectId }) {
                             <div style={{ animation: 'fadeIn 0.18s ease' }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
                                     <div><label style={labelStyle}>Check-in Opens</label>
-                                        <input type="time" style={fieldStyle} value={draft.custom_checkin_start || ''} onChange={e => setDraft(d => ({ ...d, custom_checkin_start: e.target.value }))} /></div>
+                                        <input type="time" style={fieldStyle} value={fmtInput(draft.custom_checkin_start)} onChange={e => setDraft(d => ({ ...d, custom_checkin_start: e.target.value }))} /></div>
                                     <div><label style={labelStyle}>Check-in Closes</label>
-                                        <input type="time" style={fieldStyle} value={draft.custom_checkin_end || ''} onChange={e => setDraft(d => ({ ...d, custom_checkin_end: e.target.value }))} /></div>
+                                        <input type="time" style={fieldStyle} value={fmtInput(draft.custom_checkin_end)} onChange={e => setDraft(d => ({ ...d, custom_checkin_end: e.target.value }))} /></div>
                                     <div><label style={labelStyle}>Check-out Opens</label>
-                                        <input type="time" style={fieldStyle} value={draft.custom_checkout_start || ''} onChange={e => setDraft(d => ({ ...d, custom_checkout_start: e.target.value }))} /></div>
+                                        <input type="time" style={fieldStyle} value={fmtInput(draft.custom_checkout_start)} onChange={e => setDraft(d => ({ ...d, custom_checkout_start: e.target.value }))} /></div>
                                     <div><label style={labelStyle}>Check-out Closes</label>
-                                        <input type="time" style={fieldStyle} value={draft.custom_checkout_end || ''} onChange={e => setDraft(d => ({ ...d, custom_checkout_end: e.target.value }))} /></div>
+                                        <input type="time" style={fieldStyle} value={fmtInput(draft.custom_checkout_end)} onChange={e => setDraft(d => ({ ...d, custom_checkout_end: e.target.value }))} /></div>
                                 </div>
                                 {/* Preview */}
                                 <div style={{ padding: '8px 12px', borderRadius: 8, background: 'var(--t-surface2)', border: '1px solid var(--t-border)', fontSize: 11, color: 'var(--t-text3)', marginBottom: 14, display: 'flex', gap: 16 }}>
