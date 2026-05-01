@@ -104,6 +104,27 @@ server-logs: ## Maintenance — tail production backend logs on VPS
 server-db-heal: ## DB — Force-add missing columns to production DB
 	@ssh -t $${VPS_USER:-nishanaweb}@$${VPS_HOST:-nishanaweb.cloud} "cd /home/\$${VPS_USER:-nishanaweb}/project/Construction && docker compose -f docker-compose.prod.yml exec backend python manage.py shell -c \"from django.db import connection; cursor = connection.cursor(); cursor.execute('ALTER TABLE core_constructionphase ADD COLUMN IF NOT EXISTS technical_spec text DEFAULT \\'\\';'); print('✅ Column technical_spec added!')\""
 
+.PHONY: server-db-reset
+server-db-reset: ## DB — WIPE and REBUILD production database (DESTRUCTIVE)
+	@echo "⚠️  WARNING: This will DELETE all data on the PRODUCTION server. Ctrl+C to cancel."
+	@sleep 5
+	@ssh -t $${VPS_USER:-nishanaweb}@$${VPS_HOST:-nishanaweb.cloud} "cd /home/\$${VPS_USER:-nishanaweb}/project/Construction && \
+	  docker compose -f docker-compose.prod.yml stop backend celery celery-beat && \
+	  docker compose -f docker-compose.prod.yml exec db psql -U $${DB_USER:-constructpro} -d postgres -c 'DROP DATABASE IF EXISTS $${DB_NAME:-constructpro};' && \
+	  docker compose -f docker-compose.prod.yml exec db psql -U $${DB_USER:-constructpro} -d postgres -c 'CREATE DATABASE $${DB_NAME:-constructpro};' && \
+	  docker compose -f docker-compose.prod.yml run --rm backend python manage.py migrate --noinput && \
+	  docker compose -f docker-compose.prod.yml start backend celery celery-beat"
+
+.PHONY: server-admin-fix
+server-admin-fix: ## Maintenance — Create or update production Superuser (interactive)
+	@ssh -t $${VPS_USER:-nishanaweb}@$${VPS_HOST:-nishanaweb.cloud} "cd /home/\$${VPS_USER:-nishanaweb}/project/Construction && \
+	  docker compose -f docker-compose.prod.yml exec backend python manage.py createsuperuser"
+
+.PHONY: server-admin-password
+server-admin-password: ## Maintenance — Change password for a production user
+	@ssh -t $${VPS_USER:-nishanaweb}@$${VPS_HOST:-nishanaweb.cloud} "cd /home/\$${VPS_USER:-nishanaweb}/project/Construction && \
+	  docker compose -f docker-compose.prod.yml exec backend python manage.py changepassword admin@gmail.com"
+
 # ════════════════════════════════════════════════════════════
 #  🐳 DOCKER — LOCAL
 # ════════════════════════════════════════════════════════════

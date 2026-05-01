@@ -36,13 +36,24 @@ def _category_filter(pid):
     return {'category__project_id': pid}
 
 
+# ── EXPORT PLAN ────────────────────────────────────────────────
+# (app_label, model_name, filter_function)
+# Ordered by dependency (projects first, then floors, then rooms, etc.)
 EXPORT_PLAN = [
-    # Core
-    ('core',      'HouseProject',          lambda pid: {'id': pid}),
-    ('core',      'ConstructionPhase',      _project_filter),
-    ('core',      'Floor',                  _project_filter),
-    ('core',      'Room',                   lambda pid: {'floor__project_id': pid}),
-    ('core',      'ProjectMember',          _project_filter),
+    # 1. Base Project
+    ('core', 'HouseProject', lambda pid: {'id': pid}),
+    
+    # 2. Users (Crucial for foreign keys)
+    # We export all users who are members of this project
+    ('accounts', 'User', lambda pid: {
+        'id__in': __import__('django.apps').apps.get_model('core', 'ProjectMember').objects.filter(project_id=pid).values_list('user_id', flat=True)
+    }),
+
+    # 3. Project Structure
+    ('core', 'ProjectMember', lambda pid: {'project_id': pid}),
+    ('core', 'ConstructionPhase', lambda pid: {'project_id': pid}),
+    ('core', 'Floor', lambda pid: {'project_id': pid}),
+    ('core', 'Room', lambda pid: {'floor__project_id': pid}),
 
     # Tasks
     ('tasks',     'Task',                   _phase_filter),
