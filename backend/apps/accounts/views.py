@@ -616,9 +616,12 @@ class WorkerLoginView(APIView):
 
     def post(self, request):
         from rest_framework_simplejwt.tokens import RefreshToken
-        from django.contrib.auth import authenticate
+        from django.contrib.auth import authenticate, get_user_model
+        import re
 
+        User = get_user_model()
         phone = (request.data.get('phone') or '').strip()
+        phone = re.sub(r'[^\d\+]', '', phone)
         pin   = (request.data.get('pin')   or '').strip()
 
         if not phone or not pin:
@@ -627,7 +630,12 @@ class WorkerLoginView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        user = authenticate(request, username=phone, password=pin)
+        try:
+            target_email = User.objects.get(username=phone).email
+            user = authenticate(request, username=target_email, password=pin)
+        except User.DoesNotExist:
+            user = None
+
         if not user:
             return Response(
                 {'error': 'Invalid phone number or PIN.'},
@@ -644,12 +652,14 @@ class WorkerLoginView(APIView):
         member  = user.workforce_profile
 
         return Response({
-            'access':      str(refresh.access_token),
-            'refresh':     str(refresh),
-            'employee_id': member.employee_id,
-            'full_name':   member.full_name,
-            'role':        member.role.title if member.role else member.worker_type,
-            'project_id':  str(member.current_project_id) if member.current_project_id else None,
+            'access':  str(refresh.access_token),
+            'refresh': str(refresh),
+            'worker': {
+                'employee_id': member.employee_id,
+                'full_name':   member.full_name,
+                'role':        member.role.title if member.role else member.worker_type,
+                'project_id':  str(member.current_project_id) if member.current_project_id else None,
+            }
         })
 
 
@@ -670,6 +680,17 @@ class WorkerMeView(APIView):
         member = user.workforce_profile
         today  = timezone.localdate()
 
+        # Parse ?month=YYYY-MM or default to current month
+        month_str = request.query_params.get('month')
+        if month_str:
+            try:
+                import datetime
+                target_year, target_month = map(int, month_str.split('-'))
+            except Exception:
+                target_year, target_month = today.year, today.month
+        else:
+            target_year, target_month = today.year, today.month
+
         # Today's attendance via the linked AttendanceWorker
         today_att = None
         if member.attendance_worker:
@@ -685,20 +706,56 @@ class WorkerMeView(APIView):
                     'daily_rate': str(att.daily_rate_snapshot),
                 }
 
-        # Last 7 days attendance summary
+        # Monthly attendance summary and payroll
         from apps.attendance.models import DailyAttendance
         from datetime import timedelta
-        week_att = []
+        import calendar
+        month_att = []
+        payroll = {'total_days': 0, 'total_wage': 0.0, 'total_ot': 0.0}
+
         if member.attendance_worker:
+            # Get first and last day of the target month
+            _, last_day = calendar.monthrange(target_year, target_month)
+            start_date = timezone.datetime(target_year, target_month, 1).date()
+            end_date   = timezone.datetime(target_year, target_month, last_day).date()
+
             records = DailyAttendance.objects.filter(
                 worker=member.attendance_worker,
-                date__gte=today - timedelta(days=7),
-            ).order_by('-date')
-            week_att = [
-                {'date': str(r.date), 'status': r.status,
-                 'check_in': str(r.check_in) if r.check_in else None}
-                for r in records
-            ]
+                date__gte=start_date,
+                date__lte=end_date,
+            ).order_by('-date').prefetch_related('scan_logs')
+
+            for r in records:
+                # Determine scan method from logs
+                logs_data = []
+                scan_method = 'Manual'
+                for log in r.scan_logs.all():
+                    if log.scan_status == 'VALID':
+                        scan_method = 'QR Scan'
+                    logs_data.append({
+                        'time': log.scanned_at.strftime('%H:%M'),
+                        'type': log.get_scan_type_display(),
+                        'status': log.scan_status,
+                        'is_late': log.is_late,
+                        'is_early': log.is_early,
+                        'note': log.note,
+                    })
+
+                month_att.append({
+                    'date': str(r.date), 'status': r.status,
+                    'check_in': str(r.check_in) if r.check_in else None,
+                    'check_out': str(r.check_out) if r.check_out else None,
+                    'wage': float(r.wage_earned),
+                    'ot': float(r.overtime_hours),
+                    'daily_rate': float(r.daily_rate_snapshot),
+                    'scan_method': scan_method,
+                    'logs': logs_data,
+                    'is_late': r.scan_logs.filter(scan_type='CHECK_IN', is_late=True).exists(),
+                    'is_early': r.scan_logs.filter(scan_type='CHECK_OUT', is_early=True).exists(),
+                })
+                payroll['total_days'] += 1 if r.status in ['PRESENT', 'HALF_DAY'] else 0
+                payroll['total_wage'] += float(r.wage_earned)
+                payroll['total_ot']   += float(r.overtime_hours)
 
         # Teams they belong to
         teams = list(
@@ -715,8 +772,132 @@ class WorkerMeView(APIView):
             'project':       member.current_project.name if member.current_project else None,
             'join_date':     str(member.join_date),
             'today':         today_att,
-            'week':          week_att,
+            'history':       month_att,
+            'payroll':       payroll,
+            'target_month':  f"{target_year}-{target_month:02d}",
             'teams':         teams,
+        })
+
+
+class WorkerQRView(APIView):
+    """
+    GET /api/v1/worker/qr/
+    Returns the worker's QR badge image as a base64 string.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        import io, base64, json, logging
+        logger = logging.getLogger(__name__)
+
+        user = request.user
+        if not hasattr(user, 'workforce_profile'):
+            return Response({'error': 'No workforce profile linked.'}, status=404)
+
+        member = user.workforce_profile
+        if not member.attendance_worker:
+            return Response({'error': 'No attendance worker linked to this profile.'}, status=404)
+
+        worker = member.attendance_worker
+
+        payload_str = json.dumps({
+            'type': 'hcms_attendance',
+            'worker_id': worker.id,
+            'project_id': worker.project_id,
+            'token': str(worker.qr_token),
+        }, separators=(',', ':'))
+
+        try:
+            import qrcode
+            qr = qrcode.QRCode(version=None, error_correction=qrcode.constants.ERROR_CORRECT_H, box_size=10, border=4)
+            qr.add_data(payload_str)
+            qr.make(fit=True)
+            img = qr.make_image(fill_color='#1a1a2e', back_color='white')
+            buf = io.BytesIO()
+            img.save(buf, format='PNG')
+            b64 = base64.b64encode(buf.getvalue()).decode()
+            data_url = f'data:image/png;base64,{b64}'
+        except Exception as e:
+            logger.error('QR gen failed for worker %s: %s', worker.id, e)
+            return Response({'error': 'QR generation failed. Is qrcode installed?'}, status=500)
+
+        return Response({
+            'qr_image':   data_url,
+            'qr_payload': payload_str,
+            'qr_token':   str(worker.qr_token),
+        })
+
+
+class WorkerQRLoginView(APIView):
+    """
+    POST /api/v1/worker/qr-login/
+    Body: { "qr_data": "<JSON string encoded inside QR code>" }
+
+    Decodes the QR payload, validates the worker's token, and returns JWT
+    tokens so the worker is logged in without typing a phone/PIN.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        import json
+        from apps.attendance.models import AttendanceWorker
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        raw = (request.data.get('qr_data') or '').strip()
+        if not raw:
+            return Response({'error': 'No QR data received.'}, status=400)
+
+        # 1. Parse JSON
+        try:
+            payload = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            return Response({'error': 'Invalid QR code format. Not a valid HCMS badge.'}, status=400)
+
+        # 2. Check Type
+        if payload.get('type') != 'hcms_attendance':
+            return Response({'error': 'This QR code is for a different system. Use your HCMS Worker Badge.'}, status=400)
+
+        # 3. Find Worker
+        try:
+            worker = AttendanceWorker.objects.select_related(
+                'project', 'linked_user', 'project_member__user'
+            ).get(
+                pk=payload.get('worker_id'),
+                qr_token=payload.get('token'),
+                is_active=True,
+            )
+        except AttendanceWorker.DoesNotExist:
+            return Response({'error': 'Invalid, revoked, or expired QR Badge.'}, status=404)
+        except Exception as e:
+            return Response({'error': f'Auth failed: {str(e)}'}, status=500)
+
+        # 4. Resolve User Account
+        # Priority: linked_user > project_member.user
+        user = worker.linked_user
+        if not user and worker.project_member:
+            user = worker.project_member.user
+        
+        if not user:
+            return Response({
+                'error': 'This badge is valid for attendance, but you do not have a portal account yet. Please contact your site manager to "Create Portal Account".'
+            }, status=403)
+
+        if not hasattr(user, 'workforce_profile'):
+            return Response({'error': 'Your account is not fully configured as a workforce profile.'}, status=403)
+
+        # 5. Success -> Issue JWT
+        member = user.workforce_profile
+        refresh = RefreshToken.for_user(user)
+
+        return Response({
+            'access':  str(refresh.access_token),
+            'refresh': str(refresh),
+            'worker': {
+                'employee_id': member.employee_id,
+                'full_name':   member.full_name,
+                'role':        member.role.title if member.role else member.worker_type,
+                'project_id':  str(member.current_project_id) if member.current_project_id else None,
+            }
         })
 
 
@@ -812,8 +993,10 @@ class WorkerCheckinView(APIView):
             scan_type=scan_type,
             scan_status='VALID',
             scanned_at=now,
+            scanned_by=user,
             is_late=is_late,
             is_early=is_early,
+            note='Manual check-in via portal',
         )
 
         return Response({
@@ -823,6 +1006,151 @@ class WorkerCheckinView(APIView):
             'is_late':   is_late,
             'is_early':  is_early,
             'message':   f'{"Check-in" if scan_type == "CHECK_IN" else "Check-out"} recorded at {now.strftime("%H:%M")}.',
+        })
+
+
+class WorkerQRCheckinView(APIView):
+    """
+    POST /api/v1/worker/qr-checkin/
+    Body: { "qr_data": "<JSON string scanned from QR code>" }
+
+    Secure self-check-in via QR. The worker scans their OWN QR badge.
+    - Validates QR belongs to the authenticated user's attendance worker.
+    - Rejects any QR code that belongs to a different worker.
+    - Performs CHECK_IN or CHECK_OUT based on today's attendance state.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from apps.attendance.models import AttendanceWorker, DailyAttendance, ScanTimeWindow, QRScanLog
+        from django.utils import timezone as tz
+        import datetime as dt
+
+        user = request.user
+        if not hasattr(user, 'workforce_profile'):
+            return Response({'error': 'No workforce profile found.'}, status=404)
+        
+        member = user.workforce_profile
+        my_worker = getattr(member, 'attendance_worker', None)
+        if not my_worker:
+            return Response({'error': 'No attendance profile linked to your account.'}, status=404)
+
+        payload_str = request.data.get('qr_data')
+        if not payload_str:
+            return Response({'error': 'No QR data provided.'}, status=400)
+
+        # 1. Parse and validate QR payload
+        try:
+            import json
+            payload = json.loads(payload_str)
+        except:
+            return Response({'error': 'Invalid QR data format.'}, status=400)
+
+        if payload.get('type') != 'hcms_attendance':
+            return Response({'error': 'Not a valid attendance QR code.'}, status=400)
+
+        # 2. Security Check: Must be YOUR QR badge
+        scanned_worker_id = payload.get('worker_id')
+        scanned_token     = payload.get('token')
+
+        if str(scanned_worker_id) != str(my_worker.id) or str(scanned_token) != str(my_worker.qr_token):
+            return Response({
+                'error': 'This QR code does not belong to your account.',
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        # 3. Perform check-in / check-out
+        project      = my_worker.project
+        now          = tz.now()
+        today        = tz.localdate()
+        current_time = now.time().replace(second=0, microsecond=0)
+
+        # Determine scan type
+        att_today = DailyAttendance.objects.filter(worker=my_worker, date=today).first()
+        if att_today and att_today.check_in and att_today.check_out:
+            return Response({'error': 'You have already checked in and out today.'}, status=400)
+        
+        scan_type = 'CHECK_OUT' if (att_today and att_today.check_in) else 'CHECK_IN'
+
+        # ── Enforce Cooling Periods ───────────────────────────────────────────
+        last_log = QRScanLog.objects.filter(worker=my_worker, scanned_at__date=today).order_by('-scanned_at').first()
+        if last_log:
+            diff_seconds = (now - last_log.scanned_at).total_seconds()
+            
+            # 1. Generic 1-minute anti-spam
+            if diff_seconds < 60:
+                return Response({
+                    'error': f'Slow down! Please wait {int(60 - diff_seconds)}s before scanning again.'
+                }, status=400)
+            
+            # 2. 5-minute gap between IN and OUT
+            if scan_type == 'CHECK_OUT' and last_log.scan_type == 'CHECK_IN':
+                if diff_seconds < 300:
+                    return Response({
+                        'error': f'Check-out is only allowed 5 minutes after check-in. Please wait {int((300 - diff_seconds)/60)}m {int((300 - diff_seconds)%60)}s.'
+                    }, status=400)
+        # ──────────────────────────────────────────────────────────────────────
+
+        # Check time window
+        window = ScanTimeWindow.objects.filter(project=project, is_active=True).first()
+        is_late = is_early = False
+        if window:
+            if scan_type == 'CHECK_IN':
+                if not (window.checkin_start <= current_time <= window.checkin_end):
+                    return Response({
+                        'error': f'Check-in window is {window.checkin_start.strftime("%H:%M")} – {window.checkin_end.strftime("%H:%M")}.'
+                    }, status=400)
+                
+                late_threshold = (dt.datetime.combine(today, window.checkin_start) + dt.timedelta(minutes=window.late_threshold_minutes or 30)).time()
+                is_late = current_time > late_threshold
+            else:
+                if not (window.checkout_start <= current_time <= window.checkout_end):
+                    return Response({
+                        'error': f'Check-out window is {window.checkout_start.strftime("%H:%M")} – {window.checkout_end.strftime("%H:%M")}.'
+                    }, status=400)
+                is_early = current_time < window.checkout_start
+
+        # Create or update today's attendance
+        att, created = DailyAttendance.objects.get_or_create(
+            worker=my_worker, date=today,
+            defaults={
+                'project': project,
+                'status':  'PRESENT',
+                'daily_rate_snapshot': my_worker.daily_rate,
+                'overtime_rate_snapshot': my_worker.effective_overtime_rate(),
+            },
+        )
+
+        if scan_type == 'CHECK_IN':
+            if att.check_in:
+                return Response({'error': 'Already checked in today.'}, status=400)
+            att.check_in = now.time()
+            att.save(update_fields=['check_in', 'status'])
+        else:
+            if att.check_out:
+                return Response({'error': 'Already checked out today.'}, status=400)
+            att.check_out = now.time()
+            att.save(update_fields=['check_out'])
+
+        # Log the QR scan
+        QRScanLog.objects.create(
+            worker=my_worker,
+            attendance=att,
+            scan_type=scan_type,
+            scan_status='VALID',
+            scanned_at=now,
+            scanned_by=user,
+            is_late=is_late,
+            is_early=is_early,
+            note='Self-scan via worker portal',
+        )
+
+        return Response({
+            'status':    'ok',
+            'scan_type': scan_type,
+            'time':      now.strftime('%H:%M'),
+            'is_late':   is_late,
+            'is_early':  is_early,
+            'message':   f'{"✅ Checked in" if scan_type == "CHECK_IN" else "👋 Checked out"} at {now.strftime("%H:%M")}.',
         })
 
 

@@ -80,7 +80,7 @@ class WorkforceMemberListSerializer(serializers.ModelSerializer):
     class Meta:
         model = WorkforceMember
         fields = [
-            'id', 'employee_id', 'full_name', 'name', 'photo', 'phone',
+            'id', 'account', 'employee_id', 'full_name', 'name', 'photo', 'phone',
             'worker_type', 'role', 'role_name', 'status', 'status_display',
             'current_project', 'project_name',
             # Attendance live data

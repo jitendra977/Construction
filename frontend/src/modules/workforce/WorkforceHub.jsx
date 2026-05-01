@@ -151,46 +151,48 @@ function CreateAccountModal({ member, onClose }) {
     const [emailStatus, setEmailStatus]   = useState(null); // null | 'sent' | 'failed'
     const [emailError, setEmailError]     = useState('');
 
-    // Pre-fill member email when result arrives
-    const memberEmail = result?.email && !result.email.endsWith('@worker.local') ? result.email : '';
+    const [sendEmail, setSendEmail]       = useState(false);
 
-    const handleCreate = async () => {
-        setLoading(true); setError('');
+    // Pre-fill member email when result arrives or from member object
+    const memberEmail = member.email && !member.email.endsWith('@worker.local') ? member.email : '';
+
+    const executeAction = async (actionFn, actionName) => {
+        if (sendEmail) {
+            const resolvedEmail = emailDest === 'member' ? memberEmail : customEmail.trim();
+            if (!resolvedEmail) {
+                setEmailError('Please enter a valid email address.');
+                return;
+            }
+        }
+        
+        setLoading(true); setError(''); setEmailError('');
         try {
-            const data = await workforceService.createAccount(member.id, pin ? { pin } : {});
+            const data = await actionFn(member.id, pin ? { pin } : {});
             setResult(data);
-            // Auto-select member email if available
-            setEmailDest(memberEmail || data.email && !data.email.endsWith('@worker.local') ? 'member' : 'custom');
+            
+            if (sendEmail) {
+                const resolvedEmail = emailDest === 'member' ? (memberEmail || data.email) : customEmail.trim();
+                setSending(true);
+                try {
+                    await workforceService.sendPortalCredentials(member.id, {
+                        recipient_email: resolvedEmail,
+                        pin:             data.pin,
+                        portal_url:      `${window.location.origin}/worker`,
+                        project_name:    member.project_name || 'Construction Site',
+                    });
+                    setEmailStatus('sent');
+                } catch (e) {
+                    setEmailStatus('failed');
+                    setEmailError(e?.response?.data?.error || 'Email delivery failed. Check server email settings.');
+                } finally { setSending(false); }
+            }
         } catch (e) {
-            setError(e?.response?.data?.error || 'Failed to create account.');
+            setError(e?.response?.data?.error || `Failed to ${actionName}.`);
         } finally { setLoading(false); }
     };
 
-    const handleSendEmail = async () => {
-        if (!result) return;
-        const resolvedEmail = emailDest === 'member'
-            ? (result.email && !result.email.endsWith('@worker.local') ? result.email : '')
-            : customEmail.trim();
-
-        if (!resolvedEmail) {
-            setEmailError('Please enter a valid email address.');
-            return;
-        }
-
-        setSending(true); setEmailError('');
-        try {
-            await workforceService.sendPortalCredentials(member.id, {
-                recipient_email: resolvedEmail,
-                pin:             result.pin,
-                portal_url:      `${window.location.origin}/worker`,
-                project_name:    member.project_name || 'Construction Site',
-            });
-            setEmailStatus('sent');
-        } catch (e) {
-            setEmailStatus('failed');
-            setEmailError(e?.response?.data?.error || 'Email delivery failed. Check server email settings.');
-        } finally { setSending(false); }
-    };
+    const handleCreate = () => executeAction(workforceService.createAccount, 'create account');
+    const handleReset  = () => executeAction(workforceService.resetPin, 'reset PIN');
 
     const fieldStyle = {
         width: '100%', padding: '9px 12px', borderRadius: 10,
@@ -198,46 +200,118 @@ function CreateAccountModal({ member, onClose }) {
         color: 'var(--t-text)', fontSize: 13, boxSizing: 'border-box',
     };
 
+    const renderEmailConfig = () => (
+        <div style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
+                <input type="checkbox" checked={sendEmail} onChange={e => setSendEmail(e.target.checked)} style={{ width: 16, height: 16, cursor: 'pointer' }} />
+                ✉️ Send credentials via email
+            </label>
+            {sendEmail && (
+                <div style={{ marginTop: 12 }}>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                        {[
+                            { val: 'member', label: `Member's email`, sub: memberEmail || 'Not set', disabled: !memberEmail },
+                            { val: 'custom', label: 'Custom address', sub: 'Enter any email' },
+                        ].map(opt => (
+                            <button key={opt.val} onClick={() => !opt.disabled && setEmailDest(opt.val)}
+                                disabled={opt.disabled}
+                                style={{
+                                    flex: 1, padding: '10px 8px', borderRadius: 9, cursor: opt.disabled ? 'not-allowed' : 'pointer',
+                                    border: `2px solid ${emailDest === opt.val ? '#3b82f6' : 'var(--t-border)'}`,
+                                    background: emailDest === opt.val ? '#eff6ff' : 'var(--t-surface)',
+                                    opacity: opt.disabled ? 0.45 : 1,
+                                    textAlign: 'left',
+                                }}>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: emailDest === opt.val ? '#1d4ed8' : 'var(--t-text)' }}>{opt.label}</div>
+                                <div style={{ fontSize: 11, color: 'var(--t-text-muted)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opt.sub}</div>
+                            </button>
+                        ))}
+                    </div>
+                    {emailDest === 'custom' && (
+                        <input
+                            type="email"
+                            value={customEmail}
+                            onChange={e => setCustomEmail(e.target.value)}
+                            placeholder="Recipient email address"
+                            style={{ ...fieldStyle, marginBottom: 12 }}
+                        />
+                    )}
+                    {emailError && <div style={{ color: '#ef4444', fontSize: 12 }}>{emailError}</div>}
+                </div>
+            )}
+        </div>
+    );
+
     return (
         <div style={{ position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
             <div style={{ background: 'var(--t-bg)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 460, boxShadow: '0 20px 60px rgba(0,0,0,0.3)', maxHeight: '90vh', overflowY: 'auto' }}>
-                <h3 style={{ margin: '0 0 4px', fontWeight: 900, fontSize: 17 }}>📱 Create Worker Portal Account</h3>
+                <h3 style={{ margin: '0 0 4px', fontWeight: 900, fontSize: 17 }}>📱 {member.account ? 'Manage Worker Portal Account' : 'Create Worker Portal Account'}</h3>
                 <p style={{ margin: '0 0 20px', fontSize: 12, color: 'var(--t-text-muted)' }}>
                     {member.full_name} — {member.employee_id}
                 </p>
 
-                {/* ── STEP 1: Create account ── */}
+                {/* ── STEP 1: Create or Reset account ── */}
                 {!result ? (
-                    <>
-                        <div style={{ marginBottom: 14 }}>
-                            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 6 }}>
-                                PIN (4-6 digits — leave blank to auto-generate)
-                            </label>
-                            <input
-                                type="text" inputMode="numeric" maxLength={6}
-                                value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, ''))}
-                                placeholder="Auto-generate"
-                                style={{ ...fieldStyle, fontSize: 16, letterSpacing: '0.25em' }}
-                            />
-                        </div>
-                        <p style={{ margin: '0 0 18px', fontSize: 11, color: 'var(--t-text-muted)' }}>
-                            Phone <strong>{member.phone || '(none set)'}</strong> will be the username. PIN is shown only once.
-                        </p>
-                        {error && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 12 }}>{error}</div>}
-                        <div style={{ display: 'flex', gap: 10 }}>
-                            <button onClick={handleCreate} disabled={loading || !member.phone} style={{
-                                flex: 1, padding: '10px', borderRadius: 10, border: 'none',
-                                background: loading ? '#9ca3af' : '#f97316', color: '#fff', fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer',
-                            }}>{loading ? 'Creating…' : 'Create Account'}</button>
-                            <button onClick={onClose} style={{ padding: '10px 18px', borderRadius: 10, border: '1px solid var(--t-border)', background: 'transparent', color: 'var(--t-text)', cursor: 'pointer' }}>Cancel</button>
-                        </div>
-                        {!member.phone && <p style={{ margin: '10px 0 0', fontSize: 11, color: '#ef4444' }}>No phone number set. Edit the member first.</p>}
-                    </>
+                    member.account ? (
+                        <>
+                            <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 12, padding: 16, marginBottom: 20 }}>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: '#065f46', marginBottom: 4 }}>✅ Portal account exists</div>
+                                <div style={{ fontSize: 12, color: '#065f46', opacity: 0.8 }}>Username: <strong>{member.phone || '(hidden)'}</strong></div>
+                            </div>
+                            <div style={{ marginBottom: 14 }}>
+                                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 6 }}>
+                                    New PIN (4-6 digits — leave blank to auto-generate)
+                                </label>
+                                <input
+                                    type="text" inputMode="numeric" maxLength={6}
+                                    value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, ''))}
+                                    placeholder="Auto-generate"
+                                    style={{ ...fieldStyle, fontSize: 16, letterSpacing: '0.25em' }}
+                                />
+                            </div>
+                            {renderEmailConfig()}
+                            {error && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 12 }}>{error}</div>}
+                            <div style={{ display: 'flex', gap: 10 }}>
+                                <button onClick={handleReset} disabled={loading || sending} style={{
+                                    flex: 1, padding: '10px', borderRadius: 10, border: 'none',
+                                    background: (loading || sending) ? '#9ca3af' : '#dc2626', color: '#fff', fontWeight: 800, cursor: (loading || sending) ? 'not-allowed' : 'pointer',
+                                }}>{(loading || sending) ? 'Processing…' : 'Reset PIN'}</button>
+                                <button onClick={onClose} style={{ padding: '10px 18px', borderRadius: 10, border: '1px solid var(--t-border)', background: 'transparent', color: 'var(--t-text)', cursor: 'pointer' }}>Cancel</button>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div style={{ marginBottom: 14 }}>
+                                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 6 }}>
+                                    PIN (4-6 digits — leave blank to auto-generate)
+                                </label>
+                                <input
+                                    type="text" inputMode="numeric" maxLength={6}
+                                    value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, ''))}
+                                    placeholder="Auto-generate"
+                                    style={{ ...fieldStyle, fontSize: 16, letterSpacing: '0.25em' }}
+                                />
+                            </div>
+                            <p style={{ margin: '0 0 18px', fontSize: 11, color: 'var(--t-text-muted)' }}>
+                                Phone <strong>{member.phone || '(none set)'}</strong> will be the username. PIN is shown only once.
+                            </p>
+                            {renderEmailConfig()}
+                            {error && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 12 }}>{error}</div>}
+                            <div style={{ display: 'flex', gap: 10 }}>
+                                <button onClick={handleCreate} disabled={loading || sending || !member.phone} style={{
+                                    flex: 1, padding: '10px', borderRadius: 10, border: 'none',
+                                    background: (loading || sending) ? '#9ca3af' : '#f97316', color: '#fff', fontWeight: 800, cursor: (loading || sending) ? 'not-allowed' : 'pointer',
+                                }}>{(loading || sending) ? 'Processing…' : 'Create Account'}</button>
+                                <button onClick={onClose} style={{ padding: '10px 18px', borderRadius: 10, border: '1px solid var(--t-border)', background: 'transparent', color: 'var(--t-text)', cursor: 'pointer' }}>Cancel</button>
+                            </div>
+                            {!member.phone && <p style={{ margin: '10px 0 0', fontSize: 11, color: '#ef4444' }}>No phone number set. Edit the member first.</p>}
+                        </>
+                    )
                 ) : (
                     <>
                         {/* ── STEP 2: Show credentials ── */}
                         <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 12, padding: 16, marginBottom: 20 }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: '#065f46', marginBottom: 12 }}>✅ Account created!</div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: '#065f46', marginBottom: 12 }}>✅ {member.account ? 'PIN reset successfully!' : 'Account created!'}</div>
                             {[
                                 { label: 'Employee ID',      value: result.employee_id },
                                 { label: 'Username (phone)', value: result.username },
@@ -256,74 +330,16 @@ function CreateAccountModal({ member, onClose }) {
                             ))}
                         </div>
 
-                        {/* ── STEP 3: Send via email ── */}
-                        <div style={{ border: '1px solid var(--t-border)', borderRadius: 12, padding: 16, marginBottom: 16 }}>
-                            <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--t-text)', marginBottom: 12 }}>
-                                ✉️ Send credentials via email
+                        {sendEmail && emailStatus === 'sent' && (
+                            <div style={{ background: '#eff6ff', border: '1px solid #93c5fd', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#1e40af', fontWeight: 700, marginBottom: 16 }}>
+                                ✉️ Email sent successfully!
                             </div>
-
-                            {emailStatus === 'sent' ? (
-                                <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#065f46', fontWeight: 700 }}>
-                                    ✅ Email sent successfully!
-                                </div>
-                            ) : (
-                                <>
-                                    {/* Destination choice */}
-                                    <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                                        {[
-                                            { val: 'member', label: `Member's email`, sub: memberEmail || 'Not set', disabled: !memberEmail },
-                                            { val: 'custom', label: 'Custom address', sub: 'Enter any email' },
-                                        ].map(opt => (
-                                            <button key={opt.val} onClick={() => !opt.disabled && setEmailDest(opt.val)}
-                                                disabled={opt.disabled}
-                                                style={{
-                                                    flex: 1, padding: '10px 8px', borderRadius: 9, cursor: opt.disabled ? 'not-allowed' : 'pointer',
-                                                    border: `2px solid ${emailDest === opt.val ? '#3b82f6' : 'var(--t-border)'}`,
-                                                    background: emailDest === opt.val ? '#eff6ff' : 'var(--t-surface)',
-                                                    opacity: opt.disabled ? 0.45 : 1,
-                                                    textAlign: 'left',
-                                                }}>
-                                                <div style={{ fontSize: 12, fontWeight: 700, color: emailDest === opt.val ? '#1d4ed8' : 'var(--t-text)' }}>{opt.label}</div>
-                                                <div style={{ fontSize: 11, color: 'var(--t-text-muted)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opt.sub}</div>
-                                            </button>
-                                        ))}
-                                    </div>
-
-                                    {/* Custom email input */}
-                                    {emailDest === 'custom' && (
-                                        <input
-                                            type="email"
-                                            value={customEmail}
-                                            onChange={e => setCustomEmail(e.target.value)}
-                                            placeholder="Recipient email address"
-                                            style={{ ...fieldStyle, marginBottom: 12 }}
-                                        />
-                                    )}
-                                    {emailDest === 'member' && memberEmail && (
-                                        <div style={{ padding: '7px 10px', borderRadius: 8, background: 'var(--t-surface)', border: '1px solid var(--t-border)', fontSize: 13, color: 'var(--t-text)', marginBottom: 12 }}>
-                                            📧 {memberEmail}
-                                        </div>
-                                    )}
-
-                                    {(emailError || emailStatus === 'failed') && (
-                                        <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 10 }}>{emailError || 'Send failed.'}</div>
-                                    )}
-
-                                    <button onClick={handleSendEmail} disabled={sending}
-                                        style={{
-                                            width: '100%', padding: '10px', borderRadius: 10, border: 'none',
-                                            background: sending ? '#9ca3af' : '#3b82f6',
-                                            color: '#fff', fontWeight: 800, cursor: sending ? 'not-allowed' : 'pointer', fontSize: 13,
-                                        }}>
-                                        {sending ? 'Sending…' : '📧 Send Email'}
-                                    </button>
-
-                                    <p style={{ margin: '8px 0 0', fontSize: 11, color: 'var(--t-text-muted)', textAlign: 'center' }}>
-                                        Sends a PIN credentials email. Only possible now — PIN is not stored.
-                                    </p>
-                                </>
-                            )}
-                        </div>
+                        )}
+                        {sendEmail && emailStatus === 'failed' && (
+                            <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#991b1b', fontWeight: 700, marginBottom: 16 }}>
+                                ❌ Failed to auto-send email. {emailError}
+                            </div>
+                        )}
 
                         <button onClick={onClose} style={{ width: '100%', padding: 10, borderRadius: 10, border: 'none', background: 'var(--t-primary)', color: '#fff', fontWeight: 800, cursor: 'pointer' }}>Done</button>
                     </>

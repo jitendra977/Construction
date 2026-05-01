@@ -67,8 +67,11 @@ accounts_urlpatterns = [
 
 # ── Worker portal urls (/api/v1/worker/) ─────────────────────────────────────
 worker_urlpatterns = [
-    path('login/',   views.WorkerLoginView.as_view(),   name='worker-login'),
-    path('me/',      views.WorkerMeView.as_view(),      name='worker-me'),
-    path('checkin/', views.WorkerCheckinView.as_view(), name='worker-checkin'),
-    path('my-team/', views.WorkerMyTeamView.as_view(),  name='worker-my-team'),
+    path('login/',      views.WorkerLoginView.as_view(),     name='worker-login'),
+    path('qr-login/',   views.WorkerQRLoginView.as_view(),   name='worker-qr-login'),
+    path('me/',         views.WorkerMeView.as_view(),        name='worker-me'),
+    path('checkin/',    views.WorkerCheckinView.as_view(),   name='worker-checkin'),
+    path('qr-checkin/', views.WorkerQRCheckinView.as_view(), name='worker-qr-checkin'),
+    path('my-team/',    views.WorkerMyTeamView.as_view(),    name='worker-my-team'),
+    path('qr/',         views.WorkerQRView.as_view(),        name='worker-qr'),
 ]

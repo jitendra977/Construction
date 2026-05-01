@@ -61,6 +61,10 @@ const workforceService = {
     createAccount: (id, data = {}) =>
         api.post(`members/${id}/create_account/`, data).then(r => r.data),
 
+    resetPin: (id, data = {}) =>
+        api.post(`members/${id}/reset_pin/`, data).then(r => r.data),
+
+
     // Link / unlink attendance record
     linkAttendance:   (id, attendanceWorkerId) =>
         api.post(`members/${id}/link_attendance/`, { attendance_worker_id: attendanceWorkerId }).then(r => r.data),

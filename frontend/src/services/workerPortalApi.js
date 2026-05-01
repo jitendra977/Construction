@@ -65,6 +65,25 @@ const workerPortalApi = {
         return data;
     },
 
+    /**
+     * Login via QR code scan.
+     * POST /api/v1/worker/qr-login/
+     * Body: { qr_data: "<JSON string from QR code>" }
+     */
+    qrLogin: async (qrData) => {
+        const { data } = await axios.post(`${API_URL}/worker/qr-login/`, { qr_data: qrData });
+        localStorage.setItem(PORTAL_ACCESS_KEY,  data.access);
+        localStorage.setItem(PORTAL_REFRESH_KEY, data.refresh);
+        localStorage.setItem(PORTAL_USER_KEY,    JSON.stringify(data.worker));
+        return data;
+    },
+
+    /**
+     * POST /api/v1/worker/qr-checkin/
+     * Self-check-in by scanning OWN QR badge (authenticated).
+     */
+    qrCheckin: (qrData) => portalApi.post('qr-checkin/', { qr_data: qrData }).then(r => r.data),
+
     /** Remove portal session from localStorage */
     logout: () => {
         localStorage.removeItem(PORTAL_ACCESS_KEY);
@@ -86,7 +105,17 @@ const workerPortalApi = {
      * GET /api/v1/worker/me/
      * Returns own profile + today's attendance + week summary + teams.
      */
-    getMe: () => portalApi.get('me/').then(r => r.data),
+    getMe: (month = null) => {
+        let url = 'me/';
+        if (month) url += `?month=${month}`;
+        return portalApi.get(url).then(r => r.data);
+    },
+
+    /**
+     * GET /api/v1/worker/qr/
+     * Returns the worker's QR badge base64 image and token.
+     */
+    getMyQR: () => portalApi.get('qr/').then(r => r.data),
 
     /**
      * POST /api/v1/worker/checkin/

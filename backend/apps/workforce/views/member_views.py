@@ -145,7 +145,10 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        phone = (request.data.get('phone') or member.phone or '').strip().replace(' ', '')
+        import re
+        phone = (request.data.get('phone') or member.phone or '').strip()
+        phone = re.sub(r'[^\d\+]', '', phone)
+        
         if not phone:
             return Response(
                 {'error': 'Phone number is required to create an account.'},
@@ -187,6 +190,43 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
             'pin':         raw_pin,
             'email':       email,
         }, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'])
+    def reset_pin(self, request, pk=None):
+        """
+        POST /api/v1/workforce/members/{id}/reset_pin/
+
+        Resets the PIN (password) for a worker's portal account.
+        
+        Body (optional):
+            pin  — 4-6 digit PIN; auto-generated if omitted
+
+        Returns { employee_id, username, pin }
+        """
+        import random, string
+        
+        member = self.get_object()
+        
+        if not member.account:
+            return Response(
+                {'error': 'This member does not have a portal account yet.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+            
+        raw_pin = str(request.data.get('pin') or '').strip()
+        if not raw_pin:
+            raw_pin = ''.join(random.choices(string.digits, k=6))
+            
+        user = member.account
+        user.set_password(raw_pin)
+        user.save(update_fields=['password'])
+        
+        return Response({
+            'message': f'PIN reset for {member.full_name}.',
+            'employee_id': member.employee_id,
+            'username': user.username,
+            'pin': raw_pin,
+        })
 
     @action(detail=True, methods=['post'])
     def send_credentials(self, request, pk=None):
