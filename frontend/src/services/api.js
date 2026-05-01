@@ -519,6 +519,10 @@ export const dataTransferService = {
     exportProject: (projectId) =>
         api.get(`data-transfer/export/${projectId}/`, { responseType: 'blob' }),
 
+    /** Download EVERYTHING as a single SQL backup */
+    exportFullSystem: () =>
+        api.get('data-transfer/export/all/', { responseType: 'blob' }),
+
     /** Import a .sql file */
     importSql: (sqlFile, onUploadProgress) => {
         const formData = new FormData();

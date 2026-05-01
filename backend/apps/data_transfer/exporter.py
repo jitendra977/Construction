@@ -172,15 +172,11 @@ def export_project_sql(project_id: int) -> tuple[str, dict]:
     now = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
     lines = [
         f"-- ============================================================",
-        f"-- ConstructPro SQL Export",
+        f"-- ConstructPro SQL Export (Single Project)",
         f"-- Project  : {project.name}",
         f"-- Project ID: {project_id}",
         f"-- Exported : {now}",
         f"-- ============================================================",
-        f"-- Re-import with:  POST /api/v1/data-transfer/import/",
-        f"-- Conflicts are silently skipped (ON CONFLICT DO NOTHING).",
-        f"-- ============================================================",
-        f"",
         f"BEGIN;",
         f"",
     ]
@@ -204,7 +200,37 @@ def export_project_sql(project_id: int) -> tuple[str, dict]:
         stats['total_rows'] += count
 
     lines.append("COMMIT;")
-    lines.append("")
-    lines.append(f"-- Export complete: {stats['total_rows']} total rows")
-
     return '\n'.join(lines), stats
+
+
+def export_all_projects_sql() -> tuple[str, dict]:
+    """
+    Generate a complete SQL dump for EVERY project in the system.
+    """
+    from django.apps import apps
+    projects = apps.get_model('core', 'HouseProject').objects.all()
+    
+    all_lines = [
+        f"-- ============================================================",
+        f"-- ConstructPro FULL SYSTEM EXPORT",
+        f"-- Projects Total: {projects.count()}",
+        f"-- Exported : {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}",
+        f"-- ============================================================",
+        f"BEGIN;",
+        f"",
+    ]
+    
+    total_stats = {'project': 'FULL SYSTEM', 'tables': [], 'total_rows': 0}
+    
+    for project in projects:
+        all_lines.append(f"-- >>> START PROJECT: {project.name} (ID: {project.id}) <<<")
+        for app_label, model_name, filter_factory in EXPORT_PLAN:
+            filter_kwargs = filter_factory(project.id)
+            table, count, sql_lines = _rows_to_sql(app_label, model_name, filter_kwargs)
+            if sql_lines:
+                all_lines.extend(sql_lines)
+                total_stats['total_rows'] += count
+        all_lines.append(f"-- <<< END PROJECT: {project.name} >>>\n")
+
+    all_lines.append("COMMIT;")
+    return '\n'.join(all_lines), total_stats

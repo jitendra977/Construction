@@ -209,6 +209,30 @@ function ExportTab({ user }) {
                     ? <><IcoRefresh size={16} className="animate-spin" /> Generating SQL...</>
                     : <><IcoDownload size={16} /> Export as SQL File</>}
             </button>
+
+            {/* Full system backup (Superuser only) */}
+            {user?.is_superuser && (
+                <div className="pt-4 mt-6 border-t border-slate-200">
+                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">System Administration</p>
+                    <button onClick={async () => {
+                        setExporting(true);
+                        try {
+                            const r = await dataTransferService.exportFullSystem();
+                            downloadBlob(r.data, `full_system_backup_${new Date().toISOString().slice(0,10)}.sql`);
+                            setSuccess("Full system backup successful!");
+                        } catch {
+                            setError("Full system export failed.");
+                        } finally {
+                            setExporting(false);
+                        }
+                    }}
+                    disabled={exporting}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-blue-600 text-blue-600 font-black text-[12px] hover:bg-blue-50 transition-all">
+                        <IcoDatabase size={15} />
+                        Full System Backup (All Projects)
+                    </button>
+                </div>
+            )}
         </div>
     );
 }
@@ -381,78 +405,143 @@ function ImportTab({ user }) {
     );
 }
 
+// ── HELP TAB (NEPALI) ──────────────────────────────────────────
+function HelpTab() {
+    const guide = {
+        "what": {
+            "q": "के हो यो प्रणाली? (What is this system?)",
+            "a": "यो एउटा यस्तो प्रणाली हो जसले तपाइँको निर्माण परियोजनाको सबै जानकारी (बजेट, टास्क, फोटो, र हिसाब-किताब) लाई सुरक्षित SQL फाइलमा बदल्न र फेरि लोड गर्न मद्दत गर्छ।"
+        },
+        "how": {
+            "q": "कसरी प्रयोग गर्ने? (How to use it?)",
+            "a": [
+                "१. Export बटन थिचेर आफ्नो परियोजनाको ब्याकअप फाइल डाउनलोड गर्नुहोस्।",
+                "२. फाइललाई सुरक्षित राख्नुहोस्।",
+                "३. अर्को सर्भरमा वा पछि डाटा चाहिएमा Import सेक्सनमा गएर फाइल अपलोड गर्नुहोस्।"
+            ]
+        },
+        "why": {
+            "q": "किन प्रयोग गर्ने? (Why use it?)",
+            "a": "डाटा हराउनबाट बचाउन (Backup), एउटा अफिसबाट अर्को अफिसमा डाटा सार्न, वा काम सकिएपछि रिपोर्ट सुरक्षित राख्न यो प्रणाली अनिवार्य छ।"
+        },
+        "who": {
+            "q": "कसले चलाउन सक्छ? (Who can use it?)",
+            "a": "Export सुविधा प्रोजेक्ट मेम्बर र एडमिन सबैले पाउन सक्छन्, तर Import (डाटा भित्र्याउने) सुविधा सुरक्षाको लागि केवल 'Super Admin' लाई मात्र दिइएको छ।"
+        }
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="bg-blue-600 rounded-2xl p-6 text-white shadow-lg overflow-hidden relative">
+                <div className="relative z-10">
+                    <h2 className="text-xl font-black mb-1">प्रणाली निर्देशिका</h2>
+                    <p className="text-[12px] opacity-90">How, What, Why and Who Guide</p>
+                </div>
+                <div className="absolute top-[-20px] right-[-20px] opacity-10">
+                    <IcoDatabase size={120} />
+                </div>
+            </div>
+
+            <div className="space-y-4">
+                {Object.entries(guide).map(([key, item]) => (
+                    <div key={key} className="bg-white rounded-xl border border-slate-200 p-5 hover:border-blue-300 transition-all shadow-sm">
+                        <div className="flex items-start gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                                <span className="text-blue-600 font-black text-sm capitalize">{key[0]}</span>
+                            </div>
+                            <div>
+                                <h3 className="font-black text-slate-800 text-[14px] mb-2">{item.q}</h3>
+                                {Array.isArray(item.a) ? (
+                                    <div className="space-y-1.5">
+                                        {item.a.map((line, i) => (
+                                            <p key={i} className="text-[12px] text-slate-600 leading-relaxed">{line}</p>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-[12px] text-slate-600 leading-relaxed">{item.a}</p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 // ── MAIN PAGE ─────────────────────────────────────────────────
 export default function DataTransferPage() {
     const { user } = useConstruction();
     const [tab, setTab] = useState('export');
 
     const tabs = [
-        { id: 'export', label: 'Export', icon: IcoDownload, desc: 'Download project as SQL' },
-        { id: 'import', label: 'Import', icon: IcoUpload, desc: 'Upload & execute SQL file' },
+        { id: 'export', label: 'Export (निर्यात)', icon: IcoDownload },
+        { id: 'import', label: 'Import (भित्र्याउनुहोस्)', icon: IcoUpload },
+        { id: 'help',   label: 'Guides (निर्देशिका)', icon: IcoFile },
     ];
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30 p-4 md:p-8">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30 p-4 md:p-8 pb-20">
             <div className="max-w-2xl mx-auto">
 
                 {/* Header */}
                 <div className="mb-8">
                     <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-md">
-                            <IcoDatabase size={20} className="text-white" />
+                        <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg transform rotate-3">
+                            <IcoDatabase size={24} className="text-white" />
                         </div>
                         <div>
-                            <h1 className="text-xl font-black text-slate-800 tracking-tight">Data Transfer</h1>
-                            <p className="text-[12px] text-slate-500">Export projects as SQL · Import SQL files</p>
+                            <h1 className="text-2xl font-black text-slate-800 tracking-tight">Data Transfer</h1>
+                            <p className="text-[13px] text-slate-500">डाटा स्थानान्तरण प्रणाली · Project SQL Backup & Restore</p>
                         </div>
                     </div>
                 </div>
 
                 {/* Tab switcher */}
-                <div className="flex gap-2 p-1 bg-slate-100 rounded-xl mb-6">
+                <div className="flex gap-2 p-1 bg-slate-200/60 backdrop-blur-md rounded-2xl mb-6 sticky top-4 z-50 shadow-sm border border-white/50">
                     {tabs.map(t => (
                         <button key={t.id} onClick={() => setTab(t.id)}
-                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-[13px] font-bold transition-all ${
+                            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[12px] font-black transition-all ${
                                 tab === t.id
-                                    ? 'bg-white text-slate-800 shadow-sm'
-                                    : 'text-slate-500 hover:text-slate-700'
+                                    ? 'bg-white text-blue-600 shadow-md transform scale-[1.02]'
+                                    : 'text-slate-500 hover:text-slate-700 hover:bg-white/30'
                             }`}>
-                            <t.icon size={15} />
+                            <t.icon size={16} />
                             {t.label}
                         </button>
                     ))}
                 </div>
 
                 {/* Panel */}
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                    {tab === 'export'
-                        ? <ExportTab user={user} />
-                        : <ImportTab user={user} />}
+                <div className="bg-white/80 backdrop-blur-xl rounded-3xl border border-slate-200 shadow-xl shadow-blue-900/5 p-6 min-h-[400px]">
+                    {tab === 'export' && <ExportTab user={user} />}
+                    {tab === 'import' && <ImportTab user={user} />}
+                    {tab === 'help' && <HelpTab />}
                 </div>
 
-                {/* Info cards */}
-                <div className="grid grid-cols-2 gap-3 mt-4">
-                    <div className="bg-white rounded-xl border border-slate-200 p-4">
-                        <p className="text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1">Export includes</p>
-                        <ul className="space-y-0.5 text-[11px] text-slate-500">
-                            <li>· Phases, floors, rooms</li>
-                            <li>· Tasks & updates</li>
-                            <li>· Finance & budgets</li>
-                            <li>· Resources & materials</li>
-                            <li>· Permits & analytics</li>
-                        </ul>
+                {/* Info cards (only for data tabs) */}
+                {tab !== 'help' && (
+                    <div className="grid grid-cols-2 gap-3 mt-4">
+                        <div className="bg-white/60 rounded-2xl border border-slate-200 p-4">
+                            <p className="text-[11px] font-black text-slate-600 uppercase tracking-wider mb-2">Export includes</p>
+                            <ul className="space-y-1 text-[11px] text-slate-500">
+                                <li className="flex items-center gap-2"><IcoCheck size={10} className="text-emerald-500" /> Phases, floors, rooms</li>
+                                <li className="flex items-center gap-2"><IcoCheck size={10} className="text-emerald-500" /> Tasks & updates</li>
+                                <li className="flex items-center gap-2"><IcoCheck size={10} className="text-emerald-500" /> Finance & budgets</li>
+                                <li className="flex items-center gap-2"><IcoCheck size={10} className="text-emerald-500" /> Resources & materials</li>
+                            </ul>
+                        </div>
+                        <div className="bg-white/60 rounded-2xl border border-slate-200 p-4">
+                            <p className="text-[11px] font-black text-slate-600 uppercase tracking-wider mb-2">Import notes</p>
+                            <ul className="space-y-1 text-[11px] text-slate-500">
+                                <li className="flex items-center gap-2"><IcoCheck size={10} className="text-blue-500" /> Superuser only</li>
+                                <li className="flex items-center gap-2"><IcoCheck size={10} className="text-blue-500" /> Full rollback on error</li>
+                                <li className="flex items-center gap-2"><IcoCheck size={10} className="text-blue-500" /> Conflicts skipped safely</li>
+                                <li className="flex items-center gap-2"><IcoCheck size={10} className="text-blue-500" /> DROP/TRUNCATE blocked</li>
+                            </ul>
+                        </div>
                     </div>
-                    <div className="bg-white rounded-xl border border-slate-200 p-4">
-                        <p className="text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1">Import notes</p>
-                        <ul className="space-y-0.5 text-[11px] text-slate-500">
-                            <li>· Superuser only</li>
-                            <li>· Full rollback on error</li>
-                            <li>· Conflicts skipped safely</li>
-                            <li>· DROP/TRUNCATE blocked</li>
-                            <li>· UTF-8 encoding required</li>
-                        </ul>
-                    </div>
-                </div>
+                )}
 
             </div>
         </div>

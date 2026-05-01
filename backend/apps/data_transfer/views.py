@@ -118,6 +118,29 @@ class ExportProjectView(APIView):
         return response
 
 
+class ExportSystemView(APIView):
+    """GET /api/v1/data-transfer/export/all/ — download EVERYTHING as SQL. Superuser only."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not request.user.is_superuser:
+            return Response({'error': 'Superuser access required.'}, status=403)
+
+        try:
+            from .exporter import export_all_projects_sql
+            sql_content, stats = export_all_projects_sql()
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+
+        from datetime import datetime
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        filename = f"full_system_backup_{timestamp}.sql"
+
+        response = HttpResponse(sql_content, content_type='application/sql')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+
+
 class ExportStatsView(APIView):
     """GET /api/v1/data-transfer/export/<project_id>/stats/ — preview what would be exported."""
     permission_classes = [IsAuthenticated]

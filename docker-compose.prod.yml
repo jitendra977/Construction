@@ -31,6 +31,7 @@ services:
       - ./scripts/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - internal
+      - app_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 10s
