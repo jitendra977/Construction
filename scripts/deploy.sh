@@ -195,12 +195,15 @@ ssh_exec "
   export IMAGE_TAG='${IMAGE_TAG}'
   docker compose -f '${COMPOSE_FILE}' build --pull ${BUILD_SERVICES}
 
+  echo '==> Ensure infrastructure (db, redis) is up'
+  docker compose -f '${COMPOSE_FILE}' up -d db redis
+
   echo '==> Run migrations'
-  if ! docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend python manage.py migrate --noinput; then
+  if ! docker compose -f '${COMPOSE_FILE}' run --rm backend python manage.py migrate --noinput; then
     echo '!! Migration failed (likely history mismatch). Running Deep Reconciler...'
     
     # 1. Clear ENTIRE migration history table.
-    docker compose -f '${COMPOSE_FILE}' run --rm --no-deps --entrypoint python backend manage.py shell -c \"
+    docker compose -f '${COMPOSE_FILE}' run --rm --entrypoint python backend manage.py shell -c \"
 from django.db import connection
 with connection.cursor() as cursor:
     cursor.execute('DELETE FROM django_migrations')
@@ -210,11 +213,11 @@ with connection.cursor() as cursor:
     # Since the DB schema likely already matches the models after a squash/refactor,
     # --fake is the safest way to mark all new migrations as finished without running SQL.
     echo '==> Re-applying all migrations with --fake...'
-    docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend python manage.py migrate --noinput --fake
+    docker compose -f '${COMPOSE_FILE}' run --rm backend python manage.py migrate --noinput --fake
   fi
 
   echo '==> Collect static files'
-  docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend \
+  docker compose -f '${COMPOSE_FILE}' run --rm backend \
     python manage.py collectstatic --noinput --clear
 
   echo '==> Start / restart services'
