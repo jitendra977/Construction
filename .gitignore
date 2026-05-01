@@ -37,8 +37,9 @@ test_*.py
 *.test.tsx
 *.spec.tsx
 
-# Migrations are intentionally NOT ignored - they must be tracked in git
-# so the cloud server can apply them on deploy.
+# Migrations
+**/migrations/*.py
+!**/migrations/__init__.py
 
 # Scripts
 # (Uncovered: these contain critical deploy/population scripts and should be tracked)
