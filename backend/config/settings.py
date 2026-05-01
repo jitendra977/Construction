@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'django_filters',
     'simple_history',
+    'drf_spectacular',
     
     # Celery / task scheduling
     'django_celery_beat',
@@ -248,6 +249,7 @@ AUTH_USER_MODEL = 'accounts.User'
 
 # REST Framework settings
 REST_FRAMEWORK = {
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
@@ -358,4 +360,13 @@ LOGGING = {
             'propagate': False,
         },
     },
+}
+
+# Spectacular API Documentation Settings
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Construction Management API',
+    'DESCRIPTION': 'API documentation for the Construction Management System backend',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
 }

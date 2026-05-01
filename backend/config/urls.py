@@ -8,6 +8,7 @@ from django.conf.urls.static import static
 from django.http import JsonResponse
 from django.db import connection
 from rest_framework.routers import DefaultRouter
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 
 def health_check(request):
@@ -56,6 +57,10 @@ router.register(r'email-logs', EmailLogViewSet)
 router.register(r'project-members', ProjectMemberViewSet, basename='project-member')
 
 urlpatterns = [
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+
     path('api/v1/health/', health_check, name='health-check'),
     path('admin/', admin.site.urls),
     path('api/v1/auth/', include('apps.accounts.urls')),      # Auth endpoints (legacy)
