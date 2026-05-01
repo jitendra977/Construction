@@ -221,7 +221,8 @@ with connection.cursor() as cursor:
     python manage.py collectstatic --noinput --clear
 
   echo '==> Start / restart services'
-  docker compose -f '${COMPOSE_FILE}' up -d --force-recreate --remove-orphans ${UP_SERVICES}
+  # Force all services to start to ensure stack is complete
+  docker compose -f '${COMPOSE_FILE}' up -d --force-recreate --remove-orphans backend frontend celery celery-beat db redis
 
   echo '==> Wait for containers (20s)'
   sleep 20

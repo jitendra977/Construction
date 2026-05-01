@@ -38,8 +38,9 @@ test_*.py
 *.spec.tsx
 
 # Migrations
-**/migrations/*.py
-!**/migrations/__init__.py
+# (Previously ignored, but now tracked to ensure production deployments work)
+# **/migrations/*.py
+# !**/migrations/__init__.py
 
 # Scripts
 # (Uncovered: these contain critical deploy/population scripts and should be tracked)
