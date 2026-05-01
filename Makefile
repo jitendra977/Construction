@@ -265,7 +265,7 @@ dev-logs: ## Dev — tail Docker dev stack logs
 	docker compose -f $(COMPOSE_DEV) logs -f --tail=100
 
 # ════════════════════════════════════════════════════════════
-#  🗄 DATABASE
+#  🗄 DATABASE — Backup / Restore / Export / Import
 # ════════════════════════════════════════════════════════════
 .PHONY: migrate
 migrate: ## DB — run Django migrations
@@ -284,23 +284,117 @@ createsuperuser: ## DB — create Django superuser interactively
 	$(DC) exec backend python manage.py createsuperuser
 
 .PHONY: dbshell
-dbshell: ## DB — open PostgreSQL shell
+dbshell: ## DB — open PostgreSQL shell inside Docker
 	$(DC) exec db psql -U $${DB_USER:-constructpro} -d $${DB_NAME:-constructpro}
 
+# ── Backup (Local Docker) ────────────────────────────────────
 .PHONY: db-backup
-db-backup: ## DB — dump database to ./backups/db_TIMESTAMP.sql.gz
+db-backup: ## DB — Backup local Docker DB → backups/db_TIMESTAMP.sql.gz
 	@mkdir -p backups
 	@TS=$$(date +%Y%m%d_%H%M%S) && \
-	$(DC) exec -T db pg_dump -U $${DB_USER:-constructpro} $${DB_NAME:-constructpro} \
+	$(DC) exec -T db pg_dump \
+	  -U $${DB_USER:-constructpro} \
+	  --clean --if-exists \
+	  $${DB_NAME:-constructpro} \
 	  | gzip > backups/db_$$TS.sql.gz && \
-	echo "Backup saved: backups/db_$$TS.sql.gz"
+	echo "" && \
+	echo "✅  Backup saved → backups/db_$$TS.sql.gz" && \
+	ls -lh backups/db_$$TS.sql.gz
 
+# ── Restore (Local Docker) ───────────────────────────────────
 .PHONY: db-restore
-db-restore: ## DB — restore from file: make db-restore FILE=backups/db_XXX.sql.gz
-	@test -n "$(FILE)" || (echo "Usage: make db-restore FILE=backups/db_XXX.sql.gz" && exit 1)
-	@echo "Restoring $(FILE) ..."
-	@gunzip -c $(FILE) | $(DC) exec -T db psql -U $${DB_USER:-constructpro} -d $${DB_NAME:-constructpro}
-	@echo "Restore complete."
+db-restore: ## DB — Restore local Docker DB from file: make db-restore FILE=backups/db_XXX.sql.gz
+	@test -n "$(FILE)" || (echo "❌  Usage: make db-restore FILE=backups/db_XXX.sql.gz" && exit 1)
+	@test -f "$(FILE)" || (echo "❌  File not found: $(FILE)" && exit 1)
+	@echo "⚠️  This will OVERWRITE the current database. Ctrl+C to cancel."
+	@sleep 3
+	@gunzip -c $(FILE) | $(DC) exec -T db psql \
+	  -U $${DB_USER:-constructpro} \
+	  -d $${DB_NAME:-constructpro} \
+	  --quiet
+	@echo "✅  Restore complete from $(FILE)"
+
+# ── Export to plain SQL (readable) ──────────────────────────
+.PHONY: db-export
+db-export: ## DB — Export local DB as plain SQL: make db-export  → backups/export_TIMESTAMP.sql
+	@mkdir -p backups
+	@TS=$$(date +%Y%m%d_%H%M%S) && \
+	$(DC) exec -T db pg_dump \
+	  -U $${DB_USER:-constructpro} \
+	  --clean --if-exists \
+	  $${DB_NAME:-constructpro} \
+	  > backups/export_$$TS.sql && \
+	echo "✅  Export saved → backups/export_$$TS.sql" && \
+	ls -lh backups/export_$$TS.sql
+
+# ── Import from plain SQL ────────────────────────────────────
+.PHONY: db-import
+db-import: ## DB — Import plain SQL into local Docker DB: make db-import FILE=backups/export_XXX.sql
+	@test -n "$(FILE)" || (echo "❌  Usage: make db-import FILE=backups/export_XXX.sql" && exit 1)
+	@test -f "$(FILE)" || (echo "❌  File not found: $(FILE)" && exit 1)
+	@echo "⚠️  This will OVERWRITE the current database. Ctrl+C to cancel."
+	@sleep 3
+	@cat $(FILE) | $(DC) exec -T db psql \
+	  -U $${DB_USER:-constructpro} \
+	  -d $${DB_NAME:-constructpro} \
+	  --quiet
+	@echo "✅  Import complete from $(FILE)"
+
+# ── Remote Backup (VPS → Local) ─────────────────────────────
+.PHONY: db-pull
+db-pull: ## DB — Download DB backup FROM server to ./backups/ (SSH required)
+	@mkdir -p backups
+	@TS=$$(date +%Y%m%d_%H%M%S) && \
+	REMOTE_FILE="/tmp/db_pull_$$TS.sql.gz" && \
+	echo "📡  Dumping database on server..." && \
+	ssh $${VPS_USER:-nishanaweb}@$${VPS_HOST:-nishanaweb.cloud} \
+	  "cd $${REMOTE_PROJECT_DIR:-/home/nishanaweb/project/Construction} && \
+	  docker compose -f docker-compose.prod.yml exec -T db pg_dump \
+	    -U \$${DB_USER:-constructpro} \
+	    --clean --if-exists \
+	    \$${DB_NAME:-constructpro} | gzip > $$REMOTE_FILE" && \
+	echo "⬇️   Downloading to backups/db_server_$$TS.sql.gz ..." && \
+	scp $${VPS_USER:-nishanaweb}@$${VPS_HOST:-nishanaweb.cloud}:$$REMOTE_FILE backups/db_server_$$TS.sql.gz && \
+	ssh $${VPS_USER:-nishanaweb}@$${VPS_HOST:-nishanaweb.cloud} "rm -f $$REMOTE_FILE" && \
+	echo "" && \
+	echo "✅  Server DB downloaded → backups/db_server_$$TS.sql.gz" && \
+	ls -lh backups/db_server_$$TS.sql.gz
+
+# ── Push Local Backup to Server & Restore ───────────────────
+.PHONY: db-push
+db-push: ## DB — Upload local backup to server and restore it: make db-push FILE=backups/db_XXX.sql.gz
+	@test -n "$(FILE)" || (echo "❌  Usage: make db-push FILE=backups/db_XXX.sql.gz" && exit 1)
+	@test -f "$(FILE)" || (echo "❌  File not found: $(FILE)" && exit 1)
+	@echo "⚠️  This will OVERWRITE the PRODUCTION database. Ctrl+C to cancel."
+	@sleep 5
+	@REMOTE_TMP="/tmp/$$(basename $(FILE))" && \
+	echo "⬆️   Uploading $(FILE) to server..." && \
+	scp $(FILE) $${VPS_USER:-nishanaweb}@$${VPS_HOST:-nishanaweb.cloud}:$$REMOTE_TMP && \
+	echo "📥  Restoring on server..." && \
+	ssh $${VPS_USER:-nishanaweb}@$${VPS_HOST:-nishanaweb.cloud} \
+	  "cd $${REMOTE_PROJECT_DIR:-/home/nishanaweb/project/Construction} && \
+	  gunzip -c $$REMOTE_TMP | docker compose -f docker-compose.prod.yml exec -T db psql \
+	    -U \$${DB_USER:-constructpro} \
+	    -d \$${DB_NAME:-constructpro} \
+	    --quiet && \
+	  rm -f $$REMOTE_TMP" && \
+	echo "" && \
+	echo "✅  Production DB restored from $(FILE)"
+
+# ── List backups ─────────────────────────────────────────────
+.PHONY: db-list
+db-list: ## DB — List all local backup files
+	@echo ""
+	@echo -e "$(BOLD)$(CYAN)  Local Backups (./backups/)$(RESET)"
+	@ls -lht backups/*.sql* 2>/dev/null | awk '{print "  " $$0}' || echo "  No backups found."
+	@echo ""
+
+# ── Prune old backups ────────────────────────────────────────
+.PHONY: db-prune
+db-prune: ## DB — Delete backups older than 7 days
+	@echo "Removing backup files older than 7 days..."
+	@find backups/ -name "*.sql*" -mtime +7 -delete -print 2>/dev/null || true
+	@echo "✅  Done"
 
 # ════════════════════════════════════════════════════════════
 #  🔧 MAINTENANCE
