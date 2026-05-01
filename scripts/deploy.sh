@@ -70,9 +70,11 @@ ssh_exec() {
   if [[ "$DRY_RUN" == "true" ]]; then
     echo -e "  ${YEL}[dry-run → VPS]${RST} (ssh block skipped)"
   else
-    ssh -o StrictHostKeyChecking=no \
-        "${VPS_USER}@${VPS_HOST}" "bash -s" <<REMOTE 2>&1 | tee -a "$LOG_FILE"
+    ssh -o StrictHostKeyChecking=no "${VPS_USER}@${VPS_HOST}" "bash -s" <<REMOTE
+$(cat <<EOF
 $1
+EOF
+)
 REMOTE
   fi
 }
