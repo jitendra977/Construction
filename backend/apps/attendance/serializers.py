@@ -42,7 +42,7 @@ class AttendanceWorkerSerializer(serializers.ModelSerializer):
             "use_custom_window",
             "custom_checkin_start", "custom_checkin_end",
             "custom_checkout_start", "custom_checkout_end",
-            "qr_token",
+            "qr_token", "nfc_uid",
             # Contractor link
             "contractor", "contractor_id", "contractor_name",
             "contractor_role", "contractor_phone", "contractor_email",
@@ -235,6 +235,9 @@ class ProjectAttendanceSettingsSerializer(serializers.ModelSerializer):
             "weekly_off_days", "weekly_off_list", "auto_mark_weekend_off",
             "auto_apply_holiday",
             "annual_leave_days", "sick_leave_days", "leave_carry_forward",
+            "timezone",
+            "mqtt_broker_url", "mqtt_port", "mqtt_topic",
+            "mqtt_username", "mqtt_password",
             "created_at", "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]

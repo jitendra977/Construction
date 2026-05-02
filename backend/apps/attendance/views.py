@@ -181,58 +181,28 @@ def _auto_calc_overtime(record, today, time_out):
         record.save(update_fields=update_fields)
 
 
-# ── QR Scan (AllowAny - kiosk/tablet use) ─────────────────────────────────────
-
-@api_view(["POST"])
-@permission_classes([AllowAny])
-def qr_scan(request):
+def _process_attendance_scan(worker, request=None, scan_source="QR"):
     """
-    POST /api/v1/attendance/qr-scan/
-    Body: { "qr_data": "<JSON string from QR code>" }
-
-    Smart scan flow:
-      1. Validate QR code
-      2. Cooldown guard (60 s)
-      3. Auto-close missed checkouts from previous days
-      4. Enforce time window (if project has active ScanTimeWindow)
-      5. Determine action: CHECK_IN or CHECK_OUT based on today's record state
-      6. Create/update DailyAttendance
-      7. Log to QRScanLog
+    Unified logic for processing a scan (QR or NFC).
+    Handles cooldown, missed checkouts, time windows, and attendance marking.
     """
-    from datetime import timedelta
-
-    raw = request.data.get("qr_data", "")
-    if not raw:
-        return Response({"error": "qr_data is required."}, status=400)
-
-    try:
-        payload = json.loads(raw)
-    except (json.JSONDecodeError, TypeError):
-        QRScanLog.objects.create(
-            worker_id=None, scan_type="INVALID", scan_status="REJECTED",
-            scanned_at=timezone.now(),
-            ip_address=_get_client_ip(request),
-            user_agent=request.META.get("HTTP_USER_AGENT", "")[:500],
-            note="Malformed JSON in QR data",
-        ) if False else None  # worker_id required; skip log for truly invalid
-        return Response({"error": "Invalid QR code format."}, status=400)
-
-    if payload.get("type") != "hcms_attendance":
-        return Response({"error": "Not an HCMS attendance QR code."}, status=400)
-
-    try:
-        worker = AttendanceWorker.objects.select_related("project").get(
-            pk=payload.get("worker_id"),
-            qr_token=payload.get("token"),
-            is_active=True,
-        )
-    except (AttendanceWorker.DoesNotExist, Exception):
-        return Response({"error": "Invalid or revoked QR code."}, status=404)
-
-    now        = timezone.localtime()
+    from datetime import timedelta, datetime
+    import pytz
+    
+    # Load project timezone
+    p_settings = ProjectAttendanceSettings.objects.filter(project=worker.project).first()
+    p_tz       = pytz.timezone(p_settings.timezone if p_settings else 'Asia/Kathmandu')
+    
+    now        = timezone.now().astimezone(p_tz)
     today      = now.date()
     time_now   = now.time()
-    scanned_by = request.user if request.user.is_authenticated else None
+    scanned_by = request.user if (request and request.user.is_authenticated) else None
+
+    def _get_client_ip(req):
+        if not req: return "127.0.0.1"
+        x_forwarded_for = req.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for: return x_forwarded_for.split(',')[0]
+        return req.META.get('REMOTE_ADDR')
 
     def _log(scan_type, scan_status="VALID", attendance=None,
              is_late=False, is_early=False, note=""):
@@ -242,61 +212,50 @@ def qr_scan(request):
             is_late=is_late, is_early=is_early,
             scanned_at=now, scanned_by=scanned_by,
             ip_address=_get_client_ip(request),
-            user_agent=request.META.get("HTTP_USER_AGENT", "")[:500],
+            user_agent=request.META.get("HTTP_USER_AGENT", "")[:500] if request else f"NFC-Listener ({scan_source})",
             note=note,
         )
 
-    # ── 1. Cooldown guard ──────────────────────────────────────────────────────
+    # 1. Cooldown guard
     COOLDOWN_SECONDS = 60
     cutoff = now - timedelta(seconds=COOLDOWN_SECONDS)
     last_scan = QRScanLog.objects.filter(
-        worker=worker,
-        scanned_at__gte=cutoff,
-        scan_status="VALID",
+        worker=worker, scanned_at__gte=cutoff, scan_status="VALID",
     ).order_by("-scanned_at").first()
 
     if last_scan:
         seconds_ago = int((now - last_scan.scanned_at).total_seconds())
         wait = COOLDOWN_SECONDS - seconds_ago
-        _log("IGNORED", "DUPLICATE",
-             note=f"Duplicate scan — {seconds_ago}s after last valid scan")
-        return Response({
+        _log("IGNORED", "DUPLICATE", note=f"Duplicate scan — {seconds_ago}s after last valid scan")
+        return {
             "success": False, "action": "IGNORED",
             "message": f"Already scanned {seconds_ago}s ago. Please wait {wait}s.",
-            "worker":  {"id": worker.id, "name": worker.name, "trade": worker.get_trade_display()},
-            "project": {"id": worker.project_id, "name": worker.project.name},
             "cooldown_remaining": wait,
-        }, status=200)
+        }
 
-    # ── 2. Fix missed checkouts from previous days ─────────────────────────────
+    # 2. Fix missed checkouts
     _fix_missed_checkouts(worker, today)
 
-    # ── 3. Get today's record (if any) ────────────────────────────────────────
+    # 3. Get today's record
     try:
         today_record = DailyAttendance.objects.get(worker=worker, date=today)
     except DailyAttendance.DoesNotExist:
         today_record = None
 
-    # ── 4. Determine intended action ──────────────────────────────────────────
+    # 4. Determine intended action
     if today_record is None:
         intended = "CHECK_IN"
     elif today_record.check_in and today_record.check_out is None:
         intended = "CHECK_OUT"
     else:
-        # Both already set — this is a BLOCKED re-scan
-        _log("BLOCKED", "REJECTED",
-             attendance=today_record,
-             note="Both check-in and check-out already recorded for today")
-        return Response({
+        _log("BLOCKED", "REJECTED", attendance=today_record, note="Already recorded IN/OUT today")
+        return {
             "success": False, "action": "BLOCKED",
             "message": "Already checked in and out today.",
-            "worker":  {"id": worker.id, "name": worker.name, "trade": worker.get_trade_display()},
-            "project": {"id": worker.project_id, "name": worker.project.name},
             "attendance": _attendance_dict(today_record),
-        }, status=200)
+        }
 
-    # ── 5. Enforce time window ─────────────────────────────────────────────────
-    # Worker's custom window takes priority over the project-level window.
+    # 5. Enforce time window
     window = _get_effective_window(worker)
     is_late  = False
     is_early = False
@@ -305,100 +264,93 @@ def qr_scan(request):
         if intended == "CHECK_IN":
             in_window = window.checkin_start <= time_now <= window.checkin_end
             if not in_window:
-                _log("OUT_OF_TIME", "REJECTED",
-                     note=(f"Check-in attempt at {time_now.strftime('%H:%M')} "
-                           f"outside window {window.checkin_start:%H:%M}–{window.checkin_end:%H:%M}"))
-                return Response({
+                _log("OUT_OF_TIME", "REJECTED", note=f"Check-in at {time_now:%H:%M} outside window {window.checkin_start:%H:%M}–{window.checkin_end:%H:%M}")
+                return {
                     "success": False, "action": "OUT_OF_TIME",
-                    "message": (
-                        f"Check-in window is {window.checkin_start.strftime('%H:%M')}–"
-                        f"{window.checkin_end.strftime('%H:%M')}. "
-                        f"Current time {time_now.strftime('%H:%M')} is outside the window."
-                    ),
-                    "worker":  {"id": worker.id, "name": worker.name, "trade": worker.get_trade_display()},
-                    "project": {"id": worker.project_id, "name": worker.project.name},
-                    "window": {
-                        "checkin_start":  window.checkin_start.strftime("%H:%M"),
-                        "checkin_end":    window.checkin_end.strftime("%H:%M"),
-                        "checkout_start": window.checkout_start.strftime("%H:%M"),
-                        "checkout_end":   window.checkout_end.strftime("%H:%M"),
-                    },
-                }, status=200)
-            # Late detection
-            from datetime import timedelta as td
-            late_threshold = (
-                datetime.combine(today, window.checkin_start) + td(minutes=window.late_threshold_minutes)
-            ).time()
+                    "message": f"Check-in window is {window.checkin_start:%H:%M}–{window.checkin_end:%H:%M}.",
+                    "window": { "checkin_start": str(window.checkin_start), "checkin_end": str(window.checkin_end) }
+                }
+            late_threshold = (datetime.combine(today, window.checkin_start) + timedelta(minutes=window.late_threshold_minutes)).time()
             is_late = time_now > late_threshold
 
         elif intended == "CHECK_OUT":
             in_window = window.checkout_start <= time_now <= window.checkout_end
             if not in_window:
-                _log("OUT_OF_TIME", "REJECTED",
-                     attendance=today_record,
-                     note=(f"Check-out attempt at {time_now.strftime('%H:%M')} "
-                           f"outside window {window.checkout_start:%H:%M}–{window.checkout_end:%H:%M}"))
-                return Response({
+                _log("OUT_OF_TIME", "REJECTED", attendance=today_record, note=f"Check-out at {time_now:%H:%M} outside window {window.checkout_start:%H:%M}–{window.checkout_end:%H:%M}")
+                return {
                     "success": False, "action": "OUT_OF_TIME",
-                    "message": (
-                        f"Check-out window is {window.checkout_start.strftime('%H:%M')}–"
-                        f"{window.checkout_end.strftime('%H:%M')}. "
-                        f"Current time {time_now.strftime('%H:%M')} is outside the window."
-                    ),
-                    "worker":  {"id": worker.id, "name": worker.name, "trade": worker.get_trade_display()},
-                    "project": {"id": worker.project_id, "name": worker.project.name},
-                    "window": {
-                        "checkin_start":  window.checkin_start.strftime("%H:%M"),
-                        "checkin_end":    window.checkin_end.strftime("%H:%M"),
-                        "checkout_start": window.checkout_start.strftime("%H:%M"),
-                        "checkout_end":   window.checkout_end.strftime("%H:%M"),
-                    },
-                    "attendance": _attendance_dict(today_record),
-                }, status=200)
-            # Early checkout detection
-            from datetime import timedelta as td
-            early_threshold = (
-                datetime.combine(today, window.checkout_start) - td(minutes=window.early_checkout_minutes)
-            ).time()
+                    "message": f"Check-out window is {window.checkout_start:%H:%M}–{window.checkout_end:%H:%M}.",
+                    "window": { "checkout_start": str(window.checkout_start), "checkout_end": str(window.checkout_end) }
+                }
+            early_threshold = (datetime.combine(today, window.checkout_start) - timedelta(minutes=window.early_checkout_minutes)).time()
             is_early = time_now < early_threshold
 
-    # ── 6. Execute the action ──────────────────────────────────────────────────
+    # 6. Execute action
     if intended == "CHECK_IN":
         record = DailyAttendance.objects.create(
-            worker=worker,
-            project=worker.project,
-            date=today,
-            status="PRESENT",
-            check_in=time_now,
-            recorded_by=scanned_by,
+            worker=worker, project=worker.project, date=today,
+            status="PRESENT", check_in=time_now, recorded_by=scanned_by
         )
-        late_note = " (LATE)" if is_late else ""
-        action_msg = f"Checked in at {time_now.strftime('%I:%M %p')}{late_note}"
-        _log("CHECK_IN", "VALID", attendance=record,
-             is_late=is_late, note=f"Check-in at {time_now.strftime('%H:%M')}{late_note}")
-
-    else:  # CHECK_OUT
+        msg = f"Checked in at {time_now.strftime('%I:%M %p')}" + (" (LATE)" if is_late else "")
+        _log("CHECK_IN", "VALID", attendance=record, is_late=is_late, note=f"NFC/QR Scan: {msg}")
+    else:
         today_record.check_out = time_now
         today_record.save(update_fields=["check_out"])
         _auto_calc_overtime(today_record, today, time_now)
         record = today_record
-        early_note = " (EARLY)" if is_early else ""
-        action_msg = f"Checked out at {time_now.strftime('%I:%M %p')}{early_note}"
-        _log("CHECK_OUT", "VALID", attendance=record,
-             is_early=is_early, note=f"Check-out at {time_now.strftime('%H:%M')}{early_note}")
+        msg = f"Checked out at {time_now.strftime('%I:%M %p')}" + (" (EARLY)" if is_early else "")
+        _log("CHECK_OUT", "VALID", attendance=record, is_early=is_early, note=f"NFC/QR Scan: {msg}")
 
-    return Response({
+    return {
         "success": True,
         "action":  intended,
-        "message": action_msg,
+        "message": msg,
         "is_late":  is_late,
         "is_early": is_early,
         "worker":  {"id": worker.id, "name": worker.name, "trade": worker.get_trade_display()},
-        "project": {"id": worker.project_id, "name": worker.project.name},
         "attendance": _attendance_dict(record),
-        **({"window_status": "active", "late_checkin": is_late, "early_checkout": is_early}
-           if window else {"window_status": "disabled"}),
-    })
+    }
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def qr_scan(request):
+    """POST /api/v1/attendance/qr-scan/"""
+    raw = request.data.get("qr_data", "")
+    if not raw: return Response({"error": "qr_data is required."}, status=400)
+    try:
+        payload = json.loads(raw)
+    except:
+        return Response({"error": "Invalid QR format."}, status=400)
+
+    try:
+        worker = AttendanceWorker.objects.select_related("project").get(
+            pk=payload.get("worker_id"), qr_token=payload.get("token"), is_active=True
+        )
+    except:
+        return Response({"error": "Invalid QR code."}, status=404)
+
+    res = _process_attendance_scan(worker, request, scan_source="QR")
+    return Response(res)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def nfc_attendance_scan(request):
+    """
+    POST /api/v1/attendance/nfc-attendance/
+    Body: { "uid": "..." }
+    Used for frontend-triggered attendance if MQTT listener is unavailable or for testing.
+    """
+    uid = request.data.get("uid", "").replace(" ", "").upper()
+    if not uid: return Response({"error": "uid is required."}, status=400)
+    try:
+        worker = AttendanceWorker.objects.select_related("project").get(nfc_uid=uid, is_active=True)
+    except AttendanceWorker.DoesNotExist:
+        return Response({"error": f"Card {uid} not assigned to any active worker."}, status=404)
+
+    res = _process_attendance_scan(worker, request, scan_source="NFC")
+    return Response(res)
 
 
 def _attendance_dict(record):
@@ -1220,6 +1172,7 @@ def _build_person_entry(worker, today_records):
         "is_active":   worker.is_active,
         "joined_date": str(worker.joined_date) if worker.joined_date else None,
         "notes":       worker.notes,
+        "nfc_uid":     worker.nfc_uid,
         # Today
         "today_status":    today_status,
         "today_check_in":  today_check_in,
@@ -1378,6 +1331,7 @@ def person_add(request):
     joined_date      = request.data.get("joined_date") or None
     role_attendance  = bool(request.data.get("role_attendance", True))
     role_payment     = bool(request.data.get("role_payment", False))
+    nfc_uid          = request.data.get("nfc_uid") or None
 
     if not project_id or not name:
         return Response({"error": "project and name are required."}, status=400)
@@ -1421,6 +1375,7 @@ def person_add(request):
                     phone       = phone,
                     notes       = notes,
                     joined_date = joined_date,
+                    nfc_uid     = nfc_uid,
                     contractor  = contractor,
                 )
     finally:
@@ -1471,7 +1426,7 @@ def person_update(request, worker_id):
         worker.name = new_name
         worker_fields.append("name")
 
-    for field in ("trade", "worker_type", "phone", "notes"):
+    for field in ("trade", "worker_type", "phone", "notes", "nfc_uid"):
         if field in request.data:
             val = request.data[field]
             if isinstance(val, str):

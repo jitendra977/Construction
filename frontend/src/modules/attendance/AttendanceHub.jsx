@@ -11,6 +11,8 @@ import DailySheetTab    from './DailySheetTab';
 import MonthlyReportTab from './MonthlyReportTab';
 import PayrollTab       from './PayrollTab';
 import SettingsTab      from './SettingsTab';
+import ManpowerTab      from './ManpowerTab';
+import { MqttProvider, useMqtt } from './MqttContext';
 
 // ── Mobile detection hook ──────────────────────────────────────────────────────
 function useIsMobile() {
@@ -118,6 +120,7 @@ function MyQRModal({ projectId, onClose }) {
 // Records tab removed — data is visible directly in the Daily Sheet.
 const TABS = [
     { id: 'daily',    label: 'Attendance',     icon: '📋', short: 'Daily'    },
+    { id: 'manpower', label: 'Manpower',       icon: '👷', short: 'Workers'  },
     { id: 'monthly',  label: 'Monthly Report', icon: '📅', short: 'Monthly'  },
     { id: 'payroll',  label: 'Payroll',        icon: '💰', short: 'Pay'      },
     { id: 'settings', label: 'Settings',       icon: '⚙️', short: 'Settings' },
@@ -208,6 +211,76 @@ function MobileTabBar({ active, onChange, onQR, alertCount = 0 }) {
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
+// ── Live Scan Notifier ────────────────────────────────────────────────────────
+function LiveScanNotifier() {
+    const { lastScan } = useMqtt();
+    const [toast, setToast] = useState(null);
+
+    useEffect(() => {
+        if (!lastScan) return;
+
+        const processScan = async () => {
+            try {
+                const res = await attendanceService.nfcAttendanceScan({ uid: lastScan.uid });
+                setToast({ ...res, timestamp: Date.now() });
+            } catch (err) {
+                setToast({
+                    success: false,
+                    message: err.response?.data?.error || "Unknown card",
+                    timestamp: Date.now()
+                });
+            }
+        };
+
+        processScan();
+    }, [lastScan]);
+
+    useEffect(() => {
+        if (!toast) return;
+        const timer = setTimeout(() => setToast(null), 5000);
+        return () => clearTimeout(timer);
+    }, [toast]);
+
+    if (!toast) return null;
+
+    return (
+        <div style={{
+            position: 'fixed', top: 24, left: '50%', transform: 'translateX(-50%)',
+            zIndex: 9999, width: '90%', maxWidth: 360,
+            animation: 'toastIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+        }}>
+            <div style={{
+                background: toast.success ? '#fff' : '#fef2f2',
+                border: `2px solid ${toast.success ? '#22c55e' : '#ef4444'}`,
+                borderRadius: 20, padding: '16px 20px',
+                boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+                display: 'flex', alignItems: 'center', gap: 14
+            }}>
+                <div style={{
+                    width: 48, height: 48, borderRadius: 14,
+                    background: toast.success ? '#f0fdf4' : '#fee2e2',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 24
+                }}>
+                    {toast.success ? (toast.action === 'CHECK_IN' ? '☀️' : '🌙') : '⚠️'}
+                </div>
+                <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 900, color: '#1e293b' }}>
+                        {toast.worker?.name || 'Scan Result'}
+                    </div>
+                    <div style={{ fontSize: 12, color: toast.success ? '#059669' : '#b91c1c', fontWeight: 600 }}>
+                        {toast.message}
+                    </div>
+                </div>
+                <button onClick={() => setToast(null)} style={{ background: 'none', border: 'none', fontSize: 20, color: '#94a3b8', cursor: 'pointer' }}>✕</button>
+            </div>
+            <style>{`
+                @keyframes toastIn { from { transform: translate(-50%, -100%); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+            `}</style>
+        </div>
+    );
+}
+
 export default function AttendanceHub() {
     const [activeTab,      setActiveTab]      = useState('daily');
     const [myQROpen,       setMyQROpen]       = useState(false);
@@ -221,65 +294,66 @@ export default function AttendanceHub() {
     const tabContent = (
         <>
             {activeTab === 'daily'    && <DailySheetTab    projectId={activeProjectId} onAlertCount={setAlertCount} />}
+            {activeTab === 'manpower' && <ManpowerTab      projectId={activeProjectId} />}
             {activeTab === 'monthly'  && <MonthlyReportTab  projectId={activeProjectId} />}
             {activeTab === 'payroll'  && <PayrollTab        projectId={activeProjectId} />}
             {activeTab === 'settings' && <SettingsTab       projectId={activeProjectId} />}
         </>
     );
 
-    // ── MOBILE LAYOUT ──────────────────────────────────────────────────────────
-    if (isMobile) {
-        return (
-            <div style={{ minHeight: '100vh', background: 'var(--t-bg)', paddingBottom: 100 }}>
+    const mainLayout = (
+        <>
+            <LiveScanNotifier />
+            {isMobile ? (
+                /* Mobile Layout ... already defined below, but we'll return it here */
+                null 
+            ) : (
+                /* Desktop Layout */
+                null
+            )}
+        </>
+    );
 
-                {/* Compact sticky header */}
+    const content = isMobile ? (
+        <div style={{ minHeight: '100vh', background: 'var(--t-bg)', paddingBottom: 100 }}>
+            {/* Compact sticky header */}
+            <div style={{
+                position: 'sticky', top: 0, zIndex: 50,
+                background: 'var(--t-surface)', borderBottom: '1px solid var(--t-border)',
+                padding: '12px 16px',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                backdropFilter: 'blur(12px)',
+            }}>
+                <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 20 }}>🕐</span>
+                        <span style={{ fontWeight: 900, fontSize: 17, color: 'var(--t-text)' }}>Attendance</span>
+                    </div>
+                    {activeProject && (
+                        <p style={{ margin: '1px 0 0 28px', fontSize: 11, color: '#f97316', fontWeight: 700 }}>
+                            {activeProject.name}
+                        </p>
+                    )}
+                </div>
                 <div style={{
-                    position: 'sticky', top: 0, zIndex: 50,
-                    background: 'var(--t-surface)', borderBottom: '1px solid var(--t-border)',
-                    padding: '12px 16px',
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    backdropFilter: 'blur(12px)',
+                    padding: '4px 12px', borderRadius: 8,
+                    background: '#f9731615', border: '1px solid #f9731640',
+                    fontSize: 11, fontWeight: 800, color: '#f97316',
                 }}>
-                    <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ fontSize: 20 }}>🕐</span>
-                            <span style={{ fontWeight: 900, fontSize: 17, color: 'var(--t-text)' }}>Attendance</span>
-                        </div>
-                        {activeProject && (
-                            <p style={{ margin: '1px 0 0 28px', fontSize: 11, color: '#f97316', fontWeight: 700 }}>
-                                {activeProject.name}
-                            </p>
-                        )}
-                    </div>
-                    {/* Active tab label */}
-                    <div style={{
-                        padding: '4px 12px', borderRadius: 8,
-                        background: '#f9731615', border: '1px solid #f9731640',
-                        fontSize: 11, fontWeight: 800, color: '#f97316',
-                    }}>
-                        {TABS.find(t => t.id === activeTab)?.label}
-                    </div>
+                    {TABS.find(t => t.id === activeTab)?.label}
                 </div>
-
-                {/* Full-bleed content — no card wrapper on mobile */}
-                <div style={{ padding: '12px 12px 0' }}>
-                    {tabContent}
-                </div>
-
-                {/* Bottom pill tab bar */}
-                <MobileTabBar active={activeTab} onChange={setActiveTab} onQR={() => setMyQROpen(true)} alertCount={alertCount} />
-
-                {myQROpen && <MyQRModal projectId={activeProjectId} onClose={() => setMyQROpen(false)} />}
             </div>
-        );
-    }
 
-    // ── DESKTOP LAYOUT ─────────────────────────────────────────────────────────
-    return (
+            <div style={{ padding: '12px 12px 0' }}>
+                {tabContent}
+            </div>
+
+            <MobileTabBar active={activeTab} onChange={setActiveTab} onQR={() => setMyQROpen(true)} alertCount={alertCount} />
+            {myQROpen && <MyQRModal projectId={activeProjectId} onClose={() => setMyQROpen(false)} />}
+        </div>
+    ) : (
         <div className="min-h-screen" style={{ background: 'var(--t-bg)', padding: '24px 32px 60px' }}>
             <div style={{ width: '100%', margin: '0 auto' }}>
-
-                {/* Header */}
                 <div style={{ marginBottom: 20, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
@@ -303,7 +377,6 @@ export default function AttendanceHub() {
                     </button>
                 </div>
 
-                {/* Desktop tab bar */}
                 <div style={{
                     display: 'flex', gap: 4, marginBottom: 20,
                     borderBottom: '2px solid var(--t-border)', paddingBottom: 0,
@@ -337,13 +410,18 @@ export default function AttendanceHub() {
                     ))}
                 </div>
 
-                {/* Content card */}
                 <div style={{ background: 'var(--t-surface)', borderRadius: 16, border: '1px solid var(--t-border)', padding: '12px' }}>
                     {tabContent}
                 </div>
             </div>
-
             {myQROpen && <MyQRModal projectId={activeProjectId} onClose={() => setMyQROpen(false)} />}
         </div>
+    );
+
+    return (
+        <MqttProvider projectId={activeProjectId}>
+            <LiveScanNotifier />
+            {content}
+        </MqttProvider>
     );
 }

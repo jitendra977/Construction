@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   backend:
+    image: construction-backend-dev:latest
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
@@ -23,6 +24,7 @@ services:
       - app_network
 
   frontend:
+    image: construction-frontend-dev:latest
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
@@ -41,6 +43,35 @@ services:
     command: bun run dev -- --host
     depends_on:
       - backend
+    networks:
+      - construction_network
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: construction_mqtt
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+    networks:
+      - construction_network
+
+  mqtt_listener:
+    image: construction-backend-dev:latest
+    container_name: construction_mqtt_listener
+    volumes:
+      - ./backend:/app
+      - /app/venv
+    env_file:
+      - ./backend/.env.dev
+    environment:
+      - MQTT_BROKER_URL=mosquitto
+      - MQTT_BROKER_PORT=1883
+    command: python manage.py mqtt_listener
+    depends_on:
+      - backend
+      - mosquitto
     networks:
       - construction_network
 

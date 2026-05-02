@@ -84,12 +84,16 @@ class AttendanceWorker(models.Model):
     custom_checkout_start = models.TimeField(null=True, blank=True, help_text="HH:MM — custom check-out window opens")
     custom_checkout_end   = models.TimeField(null=True, blank=True, help_text="HH:MM — custom check-out window closes")
 
-    # ── QR Attendance ──────────────────────────────────────────
+    # ── QR & NFC Attendance ────────────────────────────────────
     # Unique token embedded in the worker's QR code.
     # Never changes after creation — regenerating invalidates old printed badges.
     qr_token     = models.UUIDField(
         default=uuid.uuid4, unique=True, editable=False,
         help_text="Unique token embedded in QR badge. Scan to mark check-in/out.",
+    )
+    nfc_uid      = models.CharField(
+        max_length=50, unique=True, null=True, blank=True,
+        help_text="Hardware UID of the assigned NFC card/fob (e.g., 01010112D919C800)",
     )
 
     created_at   = models.DateTimeField(auto_now_add=True)
@@ -343,6 +347,8 @@ class ProjectAttendanceSettings(models.Model):
         default=True,
         help_text="When a ProjectHoliday is saved, auto-mark all workers as HOLIDAY for that date",
     )
+    timezone             = models.CharField(max_length=50, default='Asia/Kathmandu',
+                            help_text="Timezone for this project (e.g., Asia/Kathmandu, Asia/Kolkata, UTC)")
 
     # ── Leave Entitlement ─────────────────────────────────────────────────────
     annual_leave_days    = models.PositiveIntegerField(default=12,
@@ -351,6 +357,18 @@ class ProjectAttendanceSettings(models.Model):
                             help_text="Paid sick leave days per year")
     leave_carry_forward  = models.BooleanField(default=False,
                             help_text="Allow unused annual leave to carry forward to next year")
+
+    # ── MQTT Broker Settings ──────────────────────────────────────────────────
+    mqtt_broker_url      = models.CharField(max_length=255, default='localhost',
+                            help_text="IP or URL of the MQTT Broker")
+    mqtt_port            = models.PositiveIntegerField(default=1883,
+                            help_text="Port of the MQTT Broker")
+    mqtt_topic           = models.CharField(max_length=255, default='nfc/+/state',
+                            help_text="MQTT Topic to subscribe to. Use + as wildcard for MAC address.")
+    mqtt_username        = models.CharField(max_length=255, blank=True, default='',
+                            help_text="MQTT broker username (leave blank for anonymous)")
+    mqtt_password        = models.CharField(max_length=255, blank=True, default='',
+                            help_text="MQTT broker password (leave blank for anonymous)")
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -24,6 +24,7 @@ from .views import (
     holidays_list,
     holiday_detail,
     holiday_apply,
+    nfc_attendance_scan,
 )
 
 router = DefaultRouter()
@@ -35,6 +36,8 @@ urlpatterns = router.urls + [
     path("qr-scan/",               qr_scan,               name="attendance-qr-scan"),
     # Admin: time window config
     path("time-window/",           time_window,           name="attendance-time-window"),
+    # NFC attendance scan
+    path("nfc-attendance/",        nfc_attendance_scan,   name="attendance-nfc-scan"),
     # Admin: missed checkouts list
     path("missed-checkouts/",      missed_checkouts,      name="attendance-missed-checkouts"),
     # Admin: manual checkout correction

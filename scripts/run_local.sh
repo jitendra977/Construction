@@ -36,6 +36,7 @@ cleanup() {
     warn "Stopping services..."
     [[ -n "$BACKEND_PID"  ]] && kill "$BACKEND_PID"  2>/dev/null || true
     [[ -n "$FRONTEND_PID" ]] && kill "$FRONTEND_PID" 2>/dev/null || true
+    [[ -n "$MQTT_PID"     ]] && kill "$MQTT_PID"     2>/dev/null || true
     exit 0
 }
 trap cleanup INT TERM
@@ -124,6 +125,12 @@ print('created' if created else 'updated')
     info "Starting Django on http://localhost:$BACKEND_PORT ..."
     python manage.py runserver "0.0.0.0:$BACKEND_PORT" &
     BACKEND_PID=$!
+
+    # 8. Start MQTT Listener (NFC Attendance)
+    info "Starting MQTT Listener..."
+    python manage.py mqtt_listener &
+    MQTT_PID=$!
+    
     cd "$ROOT"
 fi
 
@@ -174,4 +181,4 @@ echo -e "  Press ${BOLD}Ctrl+C${RESET} to stop"
 hr
 
 # ── Wait ─────────────────────────────────────────────────────────────────────
-wait $BACKEND_PID $FRONTEND_PID 2>/dev/null || true
+wait $BACKEND_PID $FRONTEND_PID $MQTT_PID 2>/dev/null || true

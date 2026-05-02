@@ -105,6 +105,8 @@ export const attendanceService = {
     createHoliday:  (data)           => api.post('holidays/', data).then(r => r.data),
     deleteHoliday:  (id)             => api.delete(`holidays/${id}/`).then(r => r.data),
     applyHoliday:   (id)             => api.post(`holidays/${id}/apply/`).then(r => r.data),
+    // ── NFC Attendance ────────────────────────────────────────────────────────
+    nfcAttendanceScan: (payload) => api.post('nfc-attendance/', payload).then(r => r.data),
 };
 
 export default attendanceService;

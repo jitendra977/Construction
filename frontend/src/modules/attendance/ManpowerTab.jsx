@@ -13,6 +13,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { attendanceService } from '../../services/attendanceService';
+import { useMqtt } from './MqttContext';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -141,7 +142,7 @@ function SummaryBanner({ summary }) {
 
 // ─── Person card ──────────────────────────────────────────────────────────────
 
-function PersonCard({ person, onToggleRole, onEdit, toggling }) {
+function PersonCard({ person, onToggleRole, onEdit, onAssignCard, toggling }) {
   const [expanded, setExpanded] = useState(false);
 
   const todayDot  = TODAY_COLOR[person.today_status] || TODAY_COLOR.NOT_MARKED;
@@ -169,6 +170,7 @@ function PersonCard({ person, onToggleRole, onEdit, toggling }) {
             <span>{person.trade_label}</span>
             <span>·</span>
             <span>₹{Number(person.daily_rate).toLocaleString()}/day</span>
+            {person.nfc_uid && <span style={{ color: '#059669', fontWeight: 800, marginLeft: 4 }}>· 🪪 {person.nfc_uid}</span>}
           </div>
           {/* Today badge */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
@@ -205,6 +207,7 @@ function PersonCard({ person, onToggleRole, onEdit, toggling }) {
           <div style={{ display: 'flex', gap: 16, fontSize: 12, color: '#6b7280' }}>
             {person.phone && <span>📞 {person.phone}</span>}
             {person.joined_date && <span>📅 Joined {person.joined_date}</span>}
+            {person.nfc_uid && <span style={{ color: '#059669', fontWeight: 700 }}>🪪 {person.nfc_uid}</span>}
           </div>
 
           {/* Payment info if enabled */}
@@ -321,6 +324,14 @@ function PersonCard({ person, onToggleRole, onEdit, toggling }) {
                 color: '#374151', fontSize: 12, fontWeight: 600, cursor: 'pointer',
               }}
             >✏️ Edit</button>
+            <button
+              onClick={() => onAssignCard(person)}
+              style={{
+                flex: 1.2, padding: '8px', borderRadius: 8,
+                background: '#f0fdf4', border: '1px solid #86efac',
+                color: '#15803d', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              }}
+            >🪪 Assign Card</button>
             {outOfSync && (
               <button
                 onClick={() => attendanceService.syncFromContractor(person.worker_id).catch(console.error)}
@@ -391,6 +402,7 @@ function AddPersonSheet({ projectId, onClose, onAdded }) {
     daily_rate:      '',
     notes:           '',
     joined_date:     '',
+    nfc_uid:         '',
     role_attendance: true,
     role_payment:    false,
   });
@@ -419,6 +431,7 @@ function AddPersonSheet({ projectId, onClose, onAdded }) {
         daily_rate:       form.daily_rate || 0,
         notes:            form.notes,
         joined_date:      form.joined_date || null,
+        nfc_uid:          form.nfc_uid.trim() || null,
         role_attendance:  form.role_attendance,
         role_payment:     form.role_payment,
       });
@@ -506,6 +519,28 @@ function AddPersonSheet({ projectId, onClose, onAdded }) {
               <input style={inputStyle} placeholder="800" type="number"
                 value={form.daily_rate} onChange={e => set('daily_rate', e.target.value)} />
             </div>
+          </div>
+
+          {/* NFC UID */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <label style={{ ...labelStyle, marginBottom: 0 }}>NFC Card UID (Optional)</label>
+              {window.last_nfc_scan && (
+                <button
+                  type="button"
+                  onClick={() => set('nfc_uid', window.last_nfc_scan)}
+                  style={{ fontSize: 10, padding: '2px 8px', borderRadius: 6, border: '1px solid #10b981', background: '#f0fdf4', color: '#15803d', cursor: 'pointer', fontWeight: 700 }}
+                >
+                  Use Last Scan: {window.last_nfc_scan}
+                </button>
+              )}
+            </div>
+            <input
+              style={{ ...inputStyle, fontFamily: 'monospace', textTransform: 'uppercase' }}
+              placeholder="e.g. 0102030405060708"
+              value={form.nfc_uid}
+              onChange={e => set('nfc_uid', e.target.value.replace(/\s+/g, ''))}
+            />
           </div>
 
           {/* ── Role toggles ── */}
@@ -603,6 +638,7 @@ function EditPersonSheet({ person, onClose, onSaved }) {
     notes:      person.notes || '',
     is_active:  person.is_active,
     joined_date: person.joined_date || '',
+    nfc_uid:    person.nfc_uid || '',
   });
   const [saving, setSaving] = useState(false);
   const [err, setErr]       = useState('');
@@ -662,6 +698,26 @@ function EditPersonSheet({ person, onClose, onSaved }) {
           <div>
             <label style={labelStyle}>Phone</label>
             <input style={inputStyle} value={form.phone} onChange={e => set('phone', e.target.value)} />
+          </div>
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <label style={{ ...labelStyle, marginBottom: 0 }}>NFC Card UID</label>
+              {window.last_nfc_scan && (
+                <button
+                  type="button"
+                  onClick={() => set('nfc_uid', window.last_nfc_scan)}
+                  style={{ fontSize: 10, padding: '2px 8px', borderRadius: 6, border: '1px solid #10b981', background: '#f0fdf4', color: '#15803d', cursor: 'pointer', fontWeight: 700 }}
+                >
+                  Use Last Scan: {window.last_nfc_scan}
+                </button>
+              )}
+            </div>
+            <input
+              style={{ ...inputStyle, fontFamily: 'monospace', textTransform: 'uppercase' }}
+              placeholder="e.g. 0102030405060708"
+              value={form.nfc_uid}
+              onChange={e => set('nfc_uid', e.target.value.replace(/\s+/g, ''))}
+            />
           </div>
           <div>
             <label style={labelStyle}>Notes</label>
@@ -795,6 +851,7 @@ export default function ManpowerTab({ projectId }) {
   const [editPerson, setEditPerson]     = useState(null);
   const [toggleTarget, setToggleTarget] = useState(null); // {workerId, role, enable, personName}
   const [adopting, setAdopting]         = useState(null); // contractorId
+  const [pairingPerson, setPairingPerson] = useState(null);
 
   const load = useCallback(() => {
     if (!projectId) return;
@@ -854,6 +911,9 @@ export default function ManpowerTab({ projectId }) {
       </div>
 
       <div style={{ padding: '12px 16px' }}>
+        {/* Scanner Status Bar */}
+        <ScannerStatusBar />
+
         {/* Summary */}
         {data && <SummaryBanner summary={summary} />}
 
@@ -910,6 +970,7 @@ export default function ManpowerTab({ projectId }) {
                     person={p}
                     onToggleRole={handleToggleRole}
                     onEdit={setEditPerson}
+                    onAssignCard={setPairingPerson}
                     toggling={false}
                   />
                 ))}
@@ -981,6 +1042,231 @@ export default function ManpowerTab({ projectId }) {
           onDone={load}
         />
       )}
+      {pairingPerson && (
+        <PairingModal
+          person={pairingPerson}
+          onClose={() => setPairingPerson(null)}
+          onAssigned={(uid) => {
+            load();
+            setPairingPerson(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Components ──────────────────────────────────────────────────────────────
+
+function ScannerStatusBar() {
+  const { lastScan, status, clearScan } = useMqtt();
+  if (status !== 'Connected' && !lastScan) return null;
+
+  return (
+    <div style={{
+      background: lastScan ? '#f0fdf4' : '#fff',
+      border: `1px solid ${lastScan ? '#22c55e' : '#e5e7eb'}`,
+      borderRadius: 16, padding: '10px 16px', marginBottom: 16,
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      boxShadow: lastScan ? '0 4px 12px rgba(34, 197, 94, 0.15)' : '0 2px 4px rgba(0,0,0,0.05)',
+      transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+      position: 'relative', overflow: 'hidden'
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+         <div style={{
+           width: 10, height: 10, borderRadius: '50%',
+           background: status === 'Connected' ? '#22c55e' : '#ef4444',
+           boxShadow: status === 'Connected' ? '0 0 8px #22c55e' : 'none'
+         }} />
+         <div>
+           <div style={{ fontSize: 13, fontWeight: 800, color: '#1f2937' }}>
+             {status === 'Connected' ? 'NFC Scanner Ready' : 'Scanner Offline'}
+           </div>
+           <div style={{ fontSize: 10, color: '#6b7280' }}>
+             {status === 'Connected' ? 'Awaiting card tap...' : 'Check MQTT settings'}
+           </div>
+         </div>
+      </div>
+
+      {lastScan && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, animation: 'slideInRight 0.3s ease-out' }}>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 10, color: '#059669', fontWeight: 700, textTransform: 'uppercase' }}>Recent Scan</div>
+            <code style={{ fontSize: 14, fontWeight: 900, color: '#064e3b', letterSpacing: 0.5 }}>{lastScan.uid}</code>
+          </div>
+          <button
+            onClick={clearScan}
+            style={{
+              background: '#fff', border: '1px solid #d1fae5', borderRadius: '50%',
+              width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', color: '#059669', fontSize: 14
+            }}
+          >×</button>
+        </div>
+      )}
+      <style>{`
+        @keyframes slideInRight {
+          from { transform: translateX(20px); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// ─── Pairing Modal ──────────────────────────────────────────────────────────
+
+function PairingModal({ person, onClose, onAssigned }) {
+  const { lastScan, setLastScan, status, clearScan } = useMqtt();
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+
+  const handleAssign = async () => {
+    if (!lastScan) return;
+    setSaving(true); setErr('');
+    try {
+      await attendanceService.updatePerson(person.worker_id, { nfc_uid: lastScan.uid });
+      onAssigned(lastScan.uid);
+      clearScan();
+    } catch (e) {
+      setErr(e?.response?.data?.error || 'Failed to assign card.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 3000,
+      background: 'rgba(15, 23, 42, 0.8)', backdropFilter: 'blur(8px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+      animation: 'fadeIn 0.2s ease-out'
+    }} onClick={onClose}>
+      <div style={{
+        background: '#fff', borderRadius: 32, width: '100%', maxWidth: 420,
+        padding: 32, boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+        textAlign: 'center', position: 'relative', overflow: 'hidden',
+        animation: 'scaleUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'
+      }} onClick={e => e.stopPropagation()}>
+
+        {/* Decorative background element */}
+        <div style={{
+          position: 'absolute', top: -100, right: -100, width: 200, height: 200,
+          background: 'radial-gradient(circle, rgba(99, 102, 241, 0.1) 0%, transparent 70%)',
+          borderRadius: '50%'
+        }} />
+
+        <div style={{
+          width: 80, height: 80, background: '#f5f3ff', borderRadius: 24,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 40, margin: '0 auto 20px', color: '#6366f1',
+          boxShadow: '0 10px 15px -3px rgba(99, 102, 241, 0.2)'
+        }}>
+          {lastScan ? '✨' : '🪪'}
+        </div>
+
+        <h3 style={{ margin: '0 0 8px', fontSize: 24, fontWeight: 900, color: '#1e293b' }}>
+          Assign NFC Card
+        </h3>
+        <p style={{ margin: '0 0 24px', fontSize: 14, color: '#64748b', lineHeight: 1.5 }}>
+          Tap a card on the reader to link it with<br/>
+          <strong style={{ color: '#1e293b' }}>{person.name}</strong>
+        </p>
+
+        <div style={{
+          background: lastScan ? '#f0fdf4' : '#f8fafc',
+          border: `2px solid ${lastScan ? '#22c55e' : '#e2e8f0'}`,
+          borderRadius: 24, padding: '32px 24px', marginBottom: 24,
+          transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+          transform: lastScan ? 'scale(1.02)' : 'scale(1)',
+          position: 'relative'
+        }}>
+          {!lastScan ? (
+            <>
+              <div style={{
+                fontSize: 12, fontWeight: 800, letterSpacing: 1,
+                color: status === 'Connected' ? '#10b981' : '#f59e0b',
+                textTransform: 'uppercase', marginBottom: 12
+              }}>
+                {status === 'Connected' ? '● Scanner Active' : '○ Scanner Offline'}
+              </div>
+              <div className="pulse-text" style={{ fontSize: 16, fontWeight: 700, color: '#94a3b8' }}>
+                Waiting for tap...
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{
+                position: 'absolute', top: 12, right: 12,
+                background: '#22c55e', color: '#fff', fontSize: 10,
+                padding: '4px 10px', borderRadius: 20, fontWeight: 900
+              }}>READY</div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: '#059669', textTransform: 'uppercase', marginBottom: 8 }}>Card Detected</div>
+              <div style={{ fontSize: 28, fontWeight: 950, color: '#064e3b', fontFamily: 'monospace', letterSpacing: 1 }}>
+                {lastScan.uid}
+              </div>
+              <div style={{ fontSize: 11, color: '#10b981', marginTop: 10, fontWeight: 600 }}>
+                Scan received at {lastScan.timestamp.toLocaleTimeString()}
+              </div>
+            </>
+          )}
+        </div>
+
+        {err && (
+          <div style={{
+            background: '#fef2f2', color: '#dc2626', padding: '12px',
+            borderRadius: 12, fontSize: 13, marginBottom: 20, fontWeight: 600,
+            border: '1px solid #fee2e2'
+          }}>
+            ⚠️ {err}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 12 }}>
+          <button
+            onClick={onClose}
+            style={{
+              flex: 1, padding: '16px', borderRadius: 16, border: '1px solid #e2e8f0',
+              background: '#fff', color: '#64748b', fontWeight: 800, fontSize: 15,
+              cursor: 'pointer', transition: 'all 0.2s'
+            }}
+          >Cancel</button>
+          <button
+            onClick={handleAssign}
+            disabled={!lastScan || saving}
+            style={{
+              flex: 1.5, padding: '16px', borderRadius: 16, border: 'none',
+              background: lastScan ? 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' : '#e2e8f0',
+              color: '#fff', fontWeight: 800, fontSize: 15,
+              cursor: lastScan ? 'pointer' : 'not-allowed',
+              boxShadow: lastScan ? '0 10px 15px -3px rgba(79, 70, 229, 0.3)' : 'none',
+              transition: 'all 0.2s'
+            }}
+          >
+            {saving ? 'Saving...' : 'Link Card'}
+          </button>
+        </div>
+
+        {lastScan && (
+           <button
+             onClick={clearScan}
+             style={{
+               background: 'none', border: 'none', color: '#6366f1',
+               fontSize: 12, fontWeight: 800, marginTop: 20, cursor: 'pointer',
+               textDecoration: 'underline'
+             }}
+           >
+             Scan different card
+           </button>
+        )}
+
+        <style>{`
+          @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+          @keyframes scaleUp { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+          @keyframes pulse-text { 0% { opacity: 0.5 } 50% { opacity: 1 } 100% { opacity: 0.5 } }
+          .pulse-text { animation: pulse-text 2s infinite ease-in-out }
+        `}</style>
+      </div>
     </div>
   );
 }
