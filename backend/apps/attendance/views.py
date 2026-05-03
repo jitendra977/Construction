@@ -216,8 +216,21 @@ def _process_attendance_scan(worker, request=None, scan_source="QR"):
             note=note,
         )
 
-    # 1. Cooldown guard
-    COOLDOWN_SECONDS = 60
+    # 1. Fetch today's state and determine intended action
+    try:
+        today_record = DailyAttendance.objects.get(worker=worker, date=today)
+    except DailyAttendance.DoesNotExist:
+        today_record = None
+
+    if today_record is None:
+        intended = "CHECK_IN"
+    elif today_record.check_in and today_record.check_out is None:
+        intended = "CHECK_OUT"
+    else:
+        intended = "BLOCKED"
+
+    # 2. Cooldown & Double-tap guard (Real-world friendly)
+    COOLDOWN_SECONDS = 5
     cutoff = now - timedelta(seconds=COOLDOWN_SECONDS)
     last_scan = QRScanLog.objects.filter(
         worker=worker, scanned_at__gte=cutoff, scan_status="VALID",
@@ -226,28 +239,37 @@ def _process_attendance_scan(worker, request=None, scan_source="QR"):
     if last_scan:
         seconds_ago = int((now - last_scan.scanned_at).total_seconds())
         wait = COOLDOWN_SECONDS - seconds_ago
-        _log("IGNORED", "DUPLICATE", note=f"Duplicate scan — {seconds_ago}s after last valid scan")
-        return {
-            "success": False, "action": "IGNORED",
-            "message": f"Already scanned {seconds_ago}s ago. Please wait {wait}s.",
-            "cooldown_remaining": wait,
-        }
+        time_str = "just now" if seconds_ago == 0 else f"{seconds_ago}s ago"
 
-    # 2. Fix missed checkouts
-    _fix_missed_checkouts(worker, today)
+        # Case A: Same intended action as last valid scan (Idempotent)
+        # Case B: Tap twice for IN (IN -> OUT transition within 3s)
+        # Case C: Tap twice for OUT (OUT -> BLOCKED transition within 3s)
+        is_duplicate_tap = (last_scan.scan_type == intended) or \
+                          (intended == "CHECK_OUT" and last_scan.scan_type == "CHECK_IN" and seconds_ago < 3) or \
+                          (intended == "BLOCKED" and last_scan.scan_type == "CHECK_OUT" and seconds_ago < 3)
 
-    # 3. Get today's record
-    try:
-        today_record = DailyAttendance.objects.get(worker=worker, date=today)
-    except DailyAttendance.DoesNotExist:
-        today_record = None
+        if is_duplicate_tap:
+            reported_action = last_scan.scan_type
+            return {
+                "success": True,
+                "action":  reported_action,
+                "message": f"Already recorded {reported_action.replace('_', ' ')} {time_str}.",
+                "worker":  {"id": worker.id, "name": worker.name, "trade": worker.get_trade_display()},
+                "attendance": _attendance_dict(today_record) if today_record else None,
+                "is_duplicate": True,
+            }
+        
+        # Otherwise, if it's NOT a duplicate but still within cooldown
+        if seconds_ago < COOLDOWN_SECONDS:
+            _log("IGNORED", "TOO_FAST", note=f"Scan for {intended} too fast — {time_str} after last {last_scan.scan_type}")
+            return {
+                "success": False, "action": "IGNORED",
+                "message": f"Scan too fast. Already scanned {time_str}. Please wait {wait}s.",
+                "cooldown_remaining": wait,
+            }
 
-    # 4. Determine intended action
-    if today_record is None:
-        intended = "CHECK_IN"
-    elif today_record.check_in and today_record.check_out is None:
-        intended = "CHECK_OUT"
-    else:
+    # 3. Final block if already finished for the day (and not a rapid duplicate)
+    if intended == "BLOCKED":
         _log("BLOCKED", "REJECTED", attendance=today_record, note="Already recorded IN/OUT today")
         return {
             "success": False, "action": "BLOCKED",
@@ -255,7 +277,10 @@ def _process_attendance_scan(worker, request=None, scan_source="QR"):
             "attendance": _attendance_dict(today_record),
         }
 
-    # 5. Enforce time window
+    # 4. Fix missed checkouts from previous days
+    _fix_missed_checkouts(worker, today)
+
+    # 4. Enforce time window
     window = _get_effective_window(worker)
     is_late  = False
     is_early = False
@@ -285,7 +310,7 @@ def _process_attendance_scan(worker, request=None, scan_source="QR"):
             early_threshold = (datetime.combine(today, window.checkout_start) - timedelta(minutes=window.early_checkout_minutes)).time()
             is_early = time_now < early_threshold
 
-    # 6. Execute action
+    # 5. Execute action
     if intended == "CHECK_IN":
         record = DailyAttendance.objects.create(
             worker=worker, project=worker.project, date=today,
@@ -310,6 +335,7 @@ def _process_attendance_scan(worker, request=None, scan_source="QR"):
         "worker":  {"id": worker.id, "name": worker.name, "trade": worker.get_trade_display()},
         "attendance": _attendance_dict(record),
     }
+
 
 
 @api_view(["POST"])
@@ -1853,15 +1879,28 @@ class DailyAttendanceViewSet(viewsets.ModelViewSet):
                 continue
             # Build defaults — never overwrite check_in/check_out with None
             # (QR-scanned times must be preserved when the sheet saves over them)
+            status   = rec.get("status")
+            check_in = rec.get("check_in")
+            check_out= rec.get("check_out")
+
+            # If status is cleared AND no times are present, delete the record for this day
+            if not status and not check_in and not check_out:
+                DailyAttendance.objects.filter(worker=worker, date=day).delete()
+                continue
+
             bulk_defaults = {
                 "project_id":     project_id,
-                "status":         rec.get("status", "PRESENT"),
+                "status":         status or "PRESENT",
                 "overtime_hours": Decimal(str(rec.get("overtime_hours", 0))),
                 "notes":          rec.get("notes", ""),
                 "recorded_by":    request.user,
             }
-            if rec.get("check_in")  is not None: bulk_defaults["check_in"]  = rec["check_in"]
-            if rec.get("check_out") is not None: bulk_defaults["check_out"] = rec["check_out"]
+            if "check_in" in rec:
+                val = rec.get("check_in")
+                bulk_defaults["check_in"] = None if val in ("", None) else val
+            if "check_out" in rec:
+                val = rec.get("check_out")
+                bulk_defaults["check_out"] = None if val in ("", None) else val
             # NOTE: daily_rate_snapshot / overtime_rate_snapshot are handled by
             # DailyAttendance.save() on first creation (if not self.pk).
             # Do NOT include them here — that would cause an UnboundLocalError
@@ -1875,21 +1914,6 @@ class DailyAttendanceViewSet(viewsets.ModelViewSet):
                 created_count += 1
             else:
                 updated_count += 1
-
-            # Auto-status + OT from punch times
-            from datetime import time as time_type
-            if obj.check_in and obj.check_out:
-                # Both punches present — derive PRESENT vs HALF_DAY + overtime
-                try:
-                    co = obj.check_out if isinstance(obj.check_out, time_type) else datetime.strptime(str(obj.check_out), "%H:%M:%S").time()
-                    _auto_calc_overtime(obj, day, co)
-                except Exception:
-                    pass
-            elif obj.check_in and not obj.check_out:
-                # Check-in only → incomplete shift = HALF_DAY
-                if obj.status not in ("HALF_DAY", "LEAVE", "HOLIDAY", "ABSENT"):
-                    obj.status = "HALF_DAY"
-                    obj.save(update_fields=["status"])
 
         return Response({"created": created_count, "updated": updated_count, "errors": errors})
 

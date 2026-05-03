@@ -138,6 +138,20 @@ const LiveMqttTerminal = ({ brokerUrl, topic, username, password }) => {
 
     const dot = { 'Connected':'#22c55e','Connecting...':'#f59e0b','Error':'#ef4444','Offline':'#f59e0b' }[status] || '#64748b';
 
+    const sendTestScan = async () => {
+        const uid = window.prompt("Enter NFC UID to test (e.g. 90 47 DB 13):", window.last_nfc_scan || "");
+        if (!uid) return;
+        setLogs(prev => [...prev, `[Test] Sending mock scan for UID: ${uid} ...`]);
+        try {
+            const res = await attendanceService.nfcAttendanceScan({ uid });
+            setLogs(prev => [...prev, `[Test] Success: ${res.message}`]);
+            // Notify global system
+            window.dispatchEvent(new CustomEvent('attendance-updated', { detail: res }));
+        } catch (err) {
+            setLogs(prev => [...prev, `[Error] Test failed: ${err.response?.data?.error || err.message}`]);
+        }
+    };
+
     return (
         <div style={{ marginTop: 16 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 8 }}>
@@ -147,7 +161,8 @@ const LiveMqttTerminal = ({ brokerUrl, topic, username, password }) => {
                     <span style={{ fontSize:11, color: dot, fontWeight:600 }}>{status}</span>
                 </div>
                 <div style={{ display:'flex', alignItems:'center', gap: 6 }}>
-                    <span style={{ fontSize:10, color:'var(--t-text3)' }}>WS Port</span>
+                    <button onClick={sendTestScan} style={{ fontSize:10, padding:'3px 10px', borderRadius:5, border:'1px solid #f9731660', background:'#f9731610', color:'#f97316', fontWeight:700, cursor:'pointer' }}>⚡ Test Scan</button>
+                    <span style={{ fontSize:10, color:'var(--t-text3)', marginLeft: 8 }}>WS Port</span>
                     <input type="number" value={wsPort} onChange={e => setWsPort(parseInt(e.target.value)||9001)}
                         style={{ width:58, fontSize:11, padding:'2px 6px', borderRadius:5, border:'1px solid var(--t-border)', background:'var(--t-surface2)', color:'var(--t-text)', textAlign:'center' }} />
                     <button onClick={() => setLogs([])} style={{ fontSize:10, padding:'3px 8px', borderRadius:5, border:'1px solid var(--t-border)', background:'var(--t-surface2)', color:'var(--t-text3)', cursor:'pointer' }}>Clear</button>

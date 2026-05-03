@@ -18,6 +18,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import attendanceService from '../../services/attendanceService';
 import QRScannerTab from './QRScannerTab';
+import ConfirmModal from '../../components/common/ConfirmModal';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -29,13 +30,21 @@ const STATUS_OPTIONS = [
     { value: 'HOLIDAY',  label: 'Holiday',  short: 'HO', emoji: '🎉', color: '#94a3b8', bg: 'rgba(148,163,184,0.12)' },
 ];
 const STATUS_CYCLE = ['PRESENT', 'HALF_DAY', 'ABSENT', 'LEAVE'];
-const sMeta = Object.fromEntries(STATUS_OPTIONS.map(s => [s.value, s]));
+const sMeta = {
+    ...Object.fromEntries(STATUS_OPTIONS.map(s => [s.value, s])),
+    "": { value: "", label: "Unmarked", short: "—", emoji: "⚪", color: "#94a3b8", bg: "rgba(148,163,184,0.12)" }
+};
 
-function todayStr() { return new Date().toISOString().split('T')[0]; }
+function todayStr() {
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
 function shiftDate(dateStr, days) {
     const d = new Date(dateStr);
     d.setDate(d.getDate() + days);
-    return d.toISOString().split('T')[0];
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 function fmtDate(dateStr) {
     const d = new Date(dateStr + 'T00:00:00');
@@ -199,7 +208,7 @@ function CountRing({ counts, total }) {
 // ─── Worker row (mobile swipeable card) ───────────────────────────────────────
 
 function WorkerCard({ worker, rec, onChange, lateScans, projSettings }) {
-    const sm = sMeta[rec.status] || sMeta.PRESENT;
+    const sm = sMeta[rec.status] || sMeta[""];
     const [showOT, setShowOT]       = useState(false);
     const [showNote, setShowNote]   = useState(false);
     const touchX = useRef(null);
@@ -470,27 +479,16 @@ function MobileDailySheet({ projectId, onAlertCount }) {
     const [scannerOpen, setScannerOpen] = useState(false);
     const [scanToast,   setScanToast]   = useState(null); // { worker, action, time }
     const [dirty,       setDirty]       = useState(false); // true when unsaved changes exist
+    const [showClearConfirm, setShowClearConfirm] = useState(false);
     const [projSettings, setProjSettings] = useState(null); // ProjectAttendanceSettings
     const saveTimer  = useRef(null);
     const dirtyRef   = useRef(false); // ref copy for auto-save closure (avoids stale state)
     const toastTimer = useRef(null);
+    const initialSheet = useRef({}); // tracks the original data from the server
 
     // Helper: mark dirty in both ref (for closure) and state (for UI)
     const markDirty   = () => { dirtyRef.current = true;  setDirty(true);  };
     const markClean   = () => { dirtyRef.current = false; setDirty(false); };
-
-    // ── QR scan success handler ───────────────────────────────────────────────
-    const handleScanSuccess = useCallback((entry) => {
-        setScannerOpen(false);
-        // Show toast
-        if (toastTimer.current) clearTimeout(toastTimer.current);
-        setScanToast(entry);
-        toastTimer.current = setTimeout(() => setScanToast(null), 4000);
-        // Refresh sheet so the new check-in/out time appears
-        // Small delay to let the backend commit
-        setTimeout(() => load(), 600);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
 
     // ── Load data ─────────────────────────────────────────────────────────────
     const load = useCallback(async () => {
@@ -522,8 +520,9 @@ function MobileDailySheet({ projectId, onAlertCount }) {
             });
             const init = {};
             list.forEach(w => {
-                init[w.id] = recMap[w.id] || { status: 'PRESENT', overtime_hours: 0, notes: '', check_in: '', check_out: '' };
+                init[w.id] = recMap[w.id] || { status: '', overtime_hours: 0, notes: '', check_in: '', check_out: '' };
             });
+            initialSheet.current = init;
             setSheet(init);
             markClean();
 
@@ -533,11 +532,65 @@ function MobileDailySheet({ projectId, onAlertCount }) {
             logs.forEach(l => { if (l.is_late) late.add(l.worker); });
             setLateScans(late);
 
-        } catch { setError('Failed to load attendance.'); }
+        } catch { setError('Failed to load.'); }
         finally   { setLoading(false); }
     }, [projectId, date]);
 
     useEffect(() => { load(); }, [load]);
+
+
+    // ── QR scan success handler ───────────────────────────────────────────────
+    const handleScanSuccess = useCallback((entry) => {
+        setScannerOpen(false);
+        // Show toast
+        if (toastTimer.current) clearTimeout(toastTimer.current);
+        setScanToast(entry);
+        toastTimer.current = setTimeout(() => setScanToast(null), 4000);
+
+        // Update local sheet immediately if we're looking at today
+        if (date === todayStr() && entry.workerId) {
+            setSheet(prev => ({
+                ...prev,
+                [entry.workerId]: {
+                    status:         entry.status || 'PRESENT',
+                    overtime_hours: entry.overtimeH || 0,
+                    notes:          prev[entry.workerId]?.notes || '',
+                    check_in:       entry.checkIn  || '',
+                    check_out:      entry.checkOut || '',
+                }
+            }));
+            // Mark as clean since these changes are already in the DB
+            markClean();
+        } else {
+            // If not today, or no workerId, full reload just in case
+            setTimeout(() => load(), 600);
+        }
+    }, [date, load]);
+
+    // Listen for external updates (e.g. NFC scans via MQTT)
+    useEffect(() => {
+        const handler = (e) => {
+            const res = e.detail;
+            if (!res.success || !res.attendance || !res.worker) return;
+            if (res.attendance.date === date) {
+                setSheet(prev => ({
+                    ...prev,
+                    [res.worker.id]: {
+                        status:         res.attendance.status,
+                        overtime_hours: res.attendance.overtime_hours,
+                        notes:          prev[res.worker.id]?.notes || res.attendance.notes || '',
+                        check_in:       res.attendance.check_in  || '',
+                        check_out:      res.attendance.check_out || '',
+                    }
+                }));
+                markClean();
+            }
+        };
+        window.addEventListener('attendance-updated', handler);
+        return () => window.removeEventListener('attendance-updated', handler);
+    }, [date]);
+
+    // ── Auto-save (debounced 3s after any change) ─────────────────────────────
 
     // ── Auto-save (debounced 3s after any change) ─────────────────────────────
     const scheduleAutoSave = useCallback((nextSheet, workerList) => {
@@ -546,14 +599,19 @@ function MobileDailySheet({ projectId, onAlertCount }) {
             if (!dirtyRef.current) return;
             setSaving(true);
             try {
-                const records = workerList.map(w => ({
-                    worker:         w.id,
-                    status:         nextSheet[w.id]?.status         || 'PRESENT',
-                    overtime_hours: parseFloat(nextSheet[w.id]?.overtime_hours || 0),
-                    notes:          nextSheet[w.id]?.notes          || '',
-                    check_in:       nextSheet[w.id]?.check_in  || null,
-                    check_out:      nextSheet[w.id]?.check_out || null,
-                }));
+                const records = workerList.map(w => {
+                    const current = nextSheet[w.id] || {};
+                    const initial = initialSheet.current[w.id] || {};
+                    const rec = {
+                        worker:         w.id,
+                        status:         current.status,
+                        overtime_hours: parseFloat(current.overtime_hours || 0),
+                        notes:          current.notes          || '',
+                    };
+                    if (current.check_in !== initial.check_in) rec.check_in = current.check_in;
+                    if (current.check_out !== initial.check_out) rec.check_out = current.check_out;
+                    return rec;
+                });
                 await attendanceService.bulkMark({ project: projectId, date, records });
                 setSaved(true);
                 markClean();
@@ -588,14 +646,19 @@ function MobileDailySheet({ projectId, onAlertCount }) {
         if (saveTimer.current) clearTimeout(saveTimer.current);
         setSaving(true); setError('');
         try {
-            const records = workers.map(w => ({
-                worker:         w.id,
-                status:         sheet[w.id]?.status         || 'PRESENT',
-                overtime_hours: parseFloat(sheet[w.id]?.overtime_hours || 0),
-                notes:          sheet[w.id]?.notes          || '',
-                check_in:       sheet[w.id]?.check_in  || null,
-                check_out:      sheet[w.id]?.check_out || null,
-            }));
+            const records = workers.map(w => {
+                const current = sheet[w.id] || {};
+                const initial = initialSheet.current[w.id] || {};
+                const rec = {
+                    worker:         w.id,
+                    status:         current.status,
+                    overtime_hours: parseFloat(current.overtime_hours || 0),
+                    notes:          current.notes          || '',
+                };
+                if (current.check_in !== initial.check_in) rec.check_in = current.check_in;
+                if (current.check_out !== initial.check_out) rec.check_out = current.check_out;
+                return rec;
+            });
             await attendanceService.bulkMark({ project: projectId, date, records });
             setSaved(true); markClean();
             setTimeout(() => setSaved(false), 2500);
@@ -628,6 +691,24 @@ function MobileDailySheet({ projectId, onAlertCount }) {
                 return next;
             });
         } catch { setError('Failed to copy from yesterday.'); }
+        setMarkAllOpen(false);
+    };
+
+    const clearAll = () => {
+        setShowClearConfirm(true);
+    };
+
+    const handleConfirmClear = () => {
+        setSheet(prev => {
+            const next = { ...prev };
+            workers.forEach(w => {
+                next[w.id] = { status: '', overtime_hours: 0, notes: '', check_in: '', check_out: '' };
+            });
+            markDirty();
+            scheduleAutoSave(next, workers);
+            return next;
+        });
+        setShowClearConfirm(false);
         setMarkAllOpen(false);
     };
 
@@ -841,6 +922,10 @@ function MobileDailySheet({ projectId, onAlertCount }) {
                             padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700,
                             border: '1px solid var(--t-border)', background: 'var(--t-surface2)', color: 'var(--t-text3)', cursor: 'pointer',
                         }}>📋 Copy Yesterday</button>
+                        <button onClick={clearAll} style={{
+                            padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                            border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', cursor: 'pointer',
+                        }}>🧹 Clear All</button>
                         <button onClick={setHoliday} style={{
                             padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 800,
                             border: '1px solid #94a3b8', background: 'rgba(148,163,184,0.12)', color: '#475569', cursor: 'pointer',
@@ -948,6 +1033,15 @@ function MobileDailySheet({ projectId, onAlertCount }) {
                     )}
                 </div>
             )}
+            <ConfirmModal 
+                isOpen={showClearConfirm} 
+                title="Clear All Attendance" 
+                message={`Are you sure you want to clear all attendance data for ${date}? This will reset all statuses and times.`}
+                onConfirm={handleConfirmClear} 
+                onCancel={() => setShowClearConfirm(false)} 
+                confirmText="Yes, Clear All"
+                type="warning"
+            />
         </div>
     );
 }
@@ -966,22 +1060,15 @@ function DesktopDailySheet({ projectId, onAlertCount }) {
     const [scannerOpen, setScannerOpen] = useState(false);
     const [scanToast,   setScanToast]   = useState(null);
     const [dirty,       setDirty]       = useState(false);
+    const [showClearConfirm, setShowClearConfirm] = useState(false);
     const [projSettings, setProjSettings] = useState(null);
     const saveTimer  = useRef(null);
     const dirtyRef   = useRef(false);
     const toastTimer = useRef(null);
+    const initialSheet = useRef({});
 
     const markDirty = () => { dirtyRef.current = true;  setDirty(true);  };
     const markClean = () => { dirtyRef.current = false; setDirty(false); };
-
-    const handleScanSuccess = useCallback((entry) => {
-        setScannerOpen(false);
-        if (toastTimer.current) clearTimeout(toastTimer.current);
-        setScanToast(entry);
-        toastTimer.current = setTimeout(() => setScanToast(null), 4000);
-        setTimeout(() => load(), 600);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
 
     const load = useCallback(async () => {
         if (!projectId) return;
@@ -1000,7 +1087,8 @@ function DesktopDailySheet({ projectId, onAlertCount }) {
                 recMap[r.worker] = { status: r.status, overtime_hours: r.overtime_hours || 0, notes: r.notes || '', check_in: r.check_in || '', check_out: r.check_out || '' };
             });
             const init = {};
-            list.forEach(w => { init[w.id] = recMap[w.id] || { status: 'PRESENT', overtime_hours: 0, notes: '', check_in: '', check_out: '' }; });
+            list.forEach(w => { init[w.id] = recMap[w.id] || { status: '', overtime_hours: 0, notes: '', check_in: '', check_out: '' }; });
+            initialSheet.current = init;
             setSheet(init);
             markClean();
         } catch { setError('Failed to load.'); }
@@ -1008,6 +1096,82 @@ function DesktopDailySheet({ projectId, onAlertCount }) {
     }, [projectId, date]);
 
     useEffect(() => { load(); }, [load]);
+
+
+    const handleScanSuccess = useCallback((entry) => {
+        setScannerOpen(false);
+        if (toastTimer.current) clearTimeout(toastTimer.current);
+        setScanToast(entry);
+        toastTimer.current = setTimeout(() => setScanToast(null), 4000);
+
+        // Update local sheet immediately if we're looking at today
+        if (date === todayStr() && entry.workerId) {
+            setSheet(prev => ({
+                ...prev,
+                [entry.workerId]: {
+                    status:         entry.status || 'PRESENT',
+                    overtime_hours: entry.overtimeH || 0,
+                    notes:          prev[entry.workerId]?.notes || '',
+                    check_in:       entry.checkIn  || '',
+                    check_out:      entry.checkOut || '',
+                }
+            }));
+            markClean();
+        } else {
+            setTimeout(() => load(), 600);
+        }
+    }, [date, load]);
+
+    // Listen for external updates (e.g. NFC scans via MQTT)
+    useEffect(() => {
+        const handler = (e) => {
+            const res = e.detail;
+            if (!res.success || !res.attendance || !res.worker) return;
+            if (res.attendance.date === date) {
+                setSheet(prev => ({
+                    ...prev,
+                    [res.worker.id]: {
+                        status:         res.attendance.status,
+                        overtime_hours: res.attendance.overtime_hours,
+                        notes:          prev[res.worker.id]?.notes || res.attendance.notes || '',
+                        check_in:       res.attendance.check_in  || '',
+                        check_out:      res.attendance.check_out || '',
+                    }
+                }));
+                markClean();
+            }
+        };
+        window.addEventListener('attendance-updated', handler);
+        return () => window.removeEventListener('attendance-updated', handler);
+    }, [date]);
+
+
+    const scheduleAutoSave = (nextSheet, workerList) => {
+        if (saveTimer.current) clearTimeout(saveTimer.current);
+        saveTimer.current = setTimeout(async () => {
+            if (!dirtyRef.current) return;
+            setSaving(true);
+            try {
+                const records = workerList.map(w => {
+                    const current = nextSheet[w.id] || {};
+                    const initial = initialSheet.current[w.id] || {};
+                    const rec = {
+                        worker:         w.id,
+                        status:         current.status,
+                        overtime_hours: parseFloat(current.overtime_hours || 0),
+                        notes:          current.notes          || '',
+                    };
+                    if (current.check_in !== initial.check_in) rec.check_in = current.check_in;
+                    if (current.check_out !== initial.check_out) rec.check_out = current.check_out;
+                    return rec;
+                });
+                await attendanceService.bulkMark({ project: projectId, date, records });
+                setSaved(true); markClean();
+                setTimeout(() => setSaved(false), 2500);
+            } catch { setError('Auto-save failed.'); }
+            finally { setSaving(false); }
+        }, 2800);
+    };
 
     const changeRec = (wid, field, val) => {
         setSheet(prev => {
@@ -1021,23 +1185,7 @@ function DesktopDailySheet({ projectId, onAlertCount }) {
             }
             const next = { ...prev, [wid]: updated };
             markDirty();
-            if (saveTimer.current) clearTimeout(saveTimer.current);
-            saveTimer.current = setTimeout(async () => {
-                if (!dirtyRef.current) return;
-                setSaving(true);
-                try {
-                    const records = workers.map(w => ({
-                        worker: w.id, status: next[w.id]?.status || 'PRESENT',
-                        overtime_hours: parseFloat(next[w.id]?.overtime_hours || 0), notes: next[w.id]?.notes || '',
-                        check_in:  next[w.id]?.check_in  || null,
-                        check_out: next[w.id]?.check_out || null,
-                    }));
-                    await attendanceService.bulkMark({ project: projectId, date, records });
-                    setSaved(true); markClean();
-                    setTimeout(() => setSaved(false), 2500);
-                } catch { setError('Auto-save failed.'); }
-                finally { setSaving(false); }
-            }, 2800);
+            scheduleAutoSave(next, workers);
             return next;
         });
     };
@@ -1046,12 +1194,19 @@ function DesktopDailySheet({ projectId, onAlertCount }) {
         if (saveTimer.current) clearTimeout(saveTimer.current);
         setSaving(true); setError('');
         try {
-            const records = workers.map(w => ({
-                worker: w.id, status: sheet[w.id]?.status || 'PRESENT',
-                overtime_hours: parseFloat(sheet[w.id]?.overtime_hours || 0), notes: sheet[w.id]?.notes || '',
-                check_in:  sheet[w.id]?.check_in  || null,
-                check_out: sheet[w.id]?.check_out || null,
-            }));
+            const records = workers.map(w => {
+                const current = sheet[w.id] || {};
+                const initial = initialSheet.current[w.id] || {};
+                const rec = {
+                    worker:         w.id,
+                    status:         current.status,
+                    overtime_hours: parseFloat(current.overtime_hours || 0),
+                    notes:          current.notes          || '',
+                };
+                if (current.check_in !== initial.check_in) rec.check_in = current.check_in;
+                if (current.check_out !== initial.check_out) rec.check_out = current.check_out;
+                return rec;
+            });
             await attendanceService.bulkMark({ project: projectId, date, records });
             setSaved(true); markClean();
             setTimeout(() => setSaved(false), 2500);
@@ -1079,6 +1234,23 @@ function DesktopDailySheet({ projectId, onAlertCount }) {
             markDirty();
             return next;
         });
+    };
+
+    const clearAll = () => {
+        setShowClearConfirm(true);
+    };
+
+    const handleConfirmClear = () => {
+        setSheet(prev => {
+            const next = { ...prev };
+            workers.forEach(w => {
+                next[w.id] = { status: '', overtime_hours: 0, notes: '', check_in: '', check_out: '' };
+            });
+            markDirty();
+            scheduleAutoSave(next, workers);
+            return next;
+        });
+        setShowClearConfirm(false);
     };
 
     const counts = useMemo(() => {
@@ -1157,49 +1329,47 @@ function DesktopDailySheet({ projectId, onAlertCount }) {
                 );
             })()}
 
-            {/* Controls row */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-                {/* Day nav */}
-                <button onClick={() => setDate(d => shiftDate(d, -1))} style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid var(--t-border)', background: 'var(--t-surface)', color: 'var(--t-text)', cursor: 'pointer', fontSize: 16 }}>‹</button>
-                <div style={{ textAlign: 'center', minWidth: 140 }}>
-                    <div style={{ fontWeight: 800, fontSize: 14, color: date === todayStr() ? '#f97316' : 'var(--t-text)' }}>{dateInfo.label}</div>
-                    <div style={{ fontSize: 11, color: 'var(--t-text3)' }}>{dateInfo.sub}</div>
+            {/* ── Controls row (Mobile Layout) ── */}
+            <div style={{ padding: '0 16px 14px' }}>
+                {/* 1. Date Navigation */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <button onClick={() => setDate(d => shiftDate(d, -1))} style={{ padding: '8px 16px', borderRadius: 10, border: '1px solid var(--t-border)', background: 'var(--t-surface)', color: 'var(--t-text)', cursor: 'pointer', fontSize: 18 }}>‹</button>
+                    <div style={{ textAlign: 'center', flex: 1, padding: '0 10px' }}>
+                        <div style={{ fontWeight: 800, fontSize: 15, color: date === todayStr() ? '#f97316' : 'var(--t-text)' }}>{dateInfo.label}</div>
+                        <div style={{ fontSize: 12, color: 'var(--t-text3)', marginTop: 2 }}>{dateInfo.sub}</div>
+                    </div>
+                    <button onClick={() => setDate(d => shiftDate(d, +1))} disabled={date >= todayStr()} style={{ padding: '8px 16px', borderRadius: 10, border: '1px solid var(--t-border)', background: date >= todayStr() ? 'var(--t-border)' : 'var(--t-surface)', color: 'var(--t-text)', cursor: date >= todayStr() ? 'not-allowed' : 'pointer', fontSize: 18 }}>›</button>
                 </div>
-                <button onClick={() => setDate(d => shiftDate(d, +1))} disabled={date >= todayStr()} style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid var(--t-border)', background: date >= todayStr() ? 'var(--t-border)' : 'var(--t-surface)', color: 'var(--t-text)', cursor: date >= todayStr() ? 'not-allowed' : 'pointer', fontSize: 16 }}>›</button>
-                <input type="date" value={date} onChange={e => setDate(e.target.value)}
-                    style={{ padding: '7px 10px', borderRadius: 8, fontSize: 12, border: '1px solid var(--t-border)', background: 'var(--t-surface)', color: 'var(--t-text)' }} />
 
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {/* 2. Actions (Scrollable horizontal list) */}
+                <div style={{ display: 'flex', gap: 8, overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 6 }}>
+                    <button onClick={() => setScannerOpen(true)} style={{
+                        padding: '8px 14px', borderRadius: 9, fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap',
+                        background: 'rgba(249,115,22,0.12)', color: '#f97316', border: '1.5px solid #f97316', flexShrink: 0,
+                    }}>📷 Scan QR</button>
+                    
                     {['PRESENT','ABSENT','HOLIDAY'].map(s => (
                         <button key={s} onClick={() => markAll(s)} style={{
-                            padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 800,
-                            border: `2px solid ${sMeta[s].color}`,
-                            background: sMeta[s].color, color: '#fff',
-                            cursor: 'pointer',
+                            padding: '8px 14px', borderRadius: 9, fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap',
+                            border: `2px solid ${sMeta[s].color}`, background: sMeta[s].color, color: '#fff', flexShrink: 0,
                             boxShadow: `0 2px 6px ${sMeta[s].color}40`,
                         }}>
-                            {sMeta[s].emoji} {sMeta[s].label}
+                            {sMeta[s].emoji} All {sMeta[s].label}
                         </button>
                     ))}
-                    <button onClick={copyPrevious} style={{ padding: '6px 10px', borderRadius: 7, fontSize: 11, fontWeight: 700, border: '1px solid var(--t-border)', background: 'var(--t-surface)', color: 'var(--t-text3)', cursor: 'pointer' }}>📋 Copy Yesterday</button>
+                    
+                    <button onClick={copyPrevious} style={{ padding: '8px 14px', borderRadius: 9, fontSize: 12, fontWeight: 700, border: '1px solid var(--t-border)', background: 'var(--t-surface)', color: 'var(--t-text)', flexShrink: 0, whiteSpace: 'nowrap' }}>📋 Copy Yesterday</button>
+                    <button onClick={clearAll} style={{ padding: '8px 14px', borderRadius: 9, fontSize: 12, fontWeight: 700, border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', flexShrink: 0, whiteSpace: 'nowrap' }}>🧹 Clear All</button>
                 </div>
 
-                <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <input type="text" placeholder="🔍 Search…" value={search} onChange={e => setSearch(e.target.value)}
-                        style={{ padding: '7px 10px', borderRadius: 8, fontSize: 12, border: '1px solid var(--t-border)', background: 'var(--t-surface)', color: 'var(--t-text)', width: 140 }} />
-                    {(saving || saved) && <span style={{ fontSize: 12, color: saved ? '#22c55e' : '#f59e0b', fontWeight: 700 }}>{saving ? '⏳ Saving…' : '✅ Saved'}</span>}
-                    {error && <span style={{ fontSize: 12, color: '#ef4444' }}>{error}</span>}
-                    <button onClick={() => setScannerOpen(true)} style={{
-                        padding: '8px 14px', borderRadius: 9, fontSize: 13, fontWeight: 800,
-                        background: 'rgba(249,115,22,0.12)', color: '#f97316',
-                        border: '1.5px solid #f97316', cursor: 'pointer',
-                    }}>📷 Scan QR</button>
+                {/* 3. Search and Actions */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+                    <input type="text" placeholder="🔍 Search worker…" value={search} onChange={e => setSearch(e.target.value)} style={{ flex: 1, padding: '9px 12px', borderRadius: 10, fontSize: 13, border: '1px solid var(--t-border)', background: 'var(--t-surface)', color: 'var(--t-text)' }} />
                     <button onClick={save} disabled={saving || !dirty} style={{
-                        padding: '8px 18px', borderRadius: 9, fontSize: 13, fontWeight: 800,
+                        padding: '9px 18px', borderRadius: 10, fontSize: 14, fontWeight: 800,
                         background: saved ? '#22c55e' : dirty ? '#f97316' : 'var(--t-border)',
-                        color: dirty ? '#fff' : 'var(--t-text3)',
-                        border: 'none', cursor: dirty ? 'pointer' : 'not-allowed',
-                        opacity: saving ? 0.7 : 1, transition: 'all 0.2s',
+                        color: dirty || saved ? '#fff' : 'var(--t-text3)',
+                        border: 'none', cursor: (saving || !dirty) ? 'not-allowed' : 'pointer',
                     }}>{saving ? '⏳' : saved ? '✅ Saved' : '💾 Save'}</button>
                 </div>
             </div>
@@ -1276,12 +1446,12 @@ function DesktopDailySheet({ projectId, onAlertCount }) {
                         </thead>
                         <tbody>
                             {displayWorkers.map((w, i) => {
-                                const rec = sheet[w.id] || { status: 'PRESENT', overtime_hours: 0, notes: '' };
-                                const sm  = sMeta[rec.status] || sMeta.PRESENT;
+                                const rec = sheet[w.id] || { status: '', overtime_hours: 0, notes: '' };
+                                const sm  = sMeta[rec.status] || sMeta[""];
                                 return (
                                     <tr key={w.id} style={{
                                         borderBottom: '1px solid var(--t-border)',
-                                        borderLeft: `4px solid ${(sMeta[rec.status] || sMeta.PRESENT).color}`,
+                                        borderLeft: `4px solid ${sm.color}`,
                                         background: i % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.015)',
                                     }}>
                                         <td style={{ padding: '8px 12px', color: 'var(--t-text3)', fontSize: 11 }}>{i + 1}</td>
@@ -1374,6 +1544,15 @@ function DesktopDailySheet({ projectId, onAlertCount }) {
                     </table>
                 </div>
             )}
+            <ConfirmModal 
+                isOpen={showClearConfirm} 
+                title="Clear All Attendance" 
+                message={`Are you sure you want to clear all attendance data for ${date}? This will reset all statuses and times.`}
+                onConfirm={handleConfirmClear} 
+                onCancel={() => setShowClearConfirm(false)} 
+                confirmText="Yes, Clear All"
+                type="warning"
+            />
         </div>
     );
 }

@@ -111,15 +111,29 @@ class WorkforceMemberListSerializer(serializers.ModelSerializer):
         Cached on the serializer context so multiple fields share one lookup.
         """
         cache = self.context.setdefault('_today_cache', {})
+        tz_cache = self.context.setdefault('_tz_cache', {})
         member_id = str(obj.pk)
         if member_id not in cache:
             aw = obj.attendance_worker
             if not aw:
                 cache[member_id] = None
             else:
-                from django.utils import timezone
+                import datetime
+                import pytz
                 from apps.attendance.models import DailyAttendance
-                today = timezone.localdate()
+                
+                project_id = obj.current_project_id
+                if project_id not in tz_cache:
+                    try:
+                        tz_name = aw.project.attendance_settings.timezone
+                        tz_cache[project_id] = pytz.timezone(tz_name)
+                    except Exception:
+                        from django.utils import timezone
+                        tz_cache[project_id] = timezone.get_default_timezone()
+                
+                tz = tz_cache[project_id]
+                today = datetime.datetime.now(tz).date()
+
                 try:
                     cache[member_id] = DailyAttendance.objects.filter(
                         worker=aw, date=today

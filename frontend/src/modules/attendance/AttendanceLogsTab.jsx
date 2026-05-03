@@ -21,7 +21,11 @@ export default function AttendanceLogsTab({ projectId }) {
   const [loading, setLoading] = useState(true);
   const [editingLog, setEditingLog] = useState(null);
   const [filters, setFilters] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: (() => {
+        const d = new Date();
+        const pad = n => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    })(),
     searchTerm: ''
   });
 

@@ -119,8 +119,8 @@ function MyQRModal({ projectId, onClose }) {
 // QR Scanner is now embedded inside DailySheetTab (no longer a standalone tab).
 // Records tab removed — data is visible directly in the Daily Sheet.
 const TABS = [
-    { id: 'daily',    label: 'Attendance',     icon: '📋', short: 'Daily'    },
-    { id: 'manpower', label: 'Manpower',       icon: '👷', short: 'Workers'  },
+    { id: 'daily',    label: 'Daily Sheet',     icon: '📋', short: 'Sheet'    },
+    { id: 'manpower', label: 'Staff Registry',       icon: '👷', short: 'Staff'    },
     { id: 'monthly',  label: 'Monthly Report', icon: '📅', short: 'Monthly'  },
     { id: 'payroll',  label: 'Payroll',        icon: '💰', short: 'Pay'      },
     { id: 'settings', label: 'Settings',       icon: '⚙️', short: 'Settings' },
@@ -211,6 +211,57 @@ function MobileTabBar({ active, onChange, onQR, alertCount = 0 }) {
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
+// ─── Sound System (Harmonic Synthesis) ─────────────────────────────────────────
+const playScanSound = (type) => {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        if (ctx.state === 'suspended') ctx.resume();
+        
+        const playNote = (freq, start, duration, wave='sine', volume=0.1) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = wave;
+            osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+            gain.gain.setValueAtTime(volume, ctx.currentTime + start);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + start + duration);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(ctx.currentTime + start);
+            osc.stop(ctx.currentTime + start + duration);
+        };
+
+        if (type === 'CHECK_IN') {
+            playNote(523.25, 0, 0.4, 'sine', 0.12);
+            playNote(659.25, 0.08, 0.4, 'sine', 0.1);
+            playNote(783.99, 0.16, 0.4, 'sine', 0.08);
+        } else if (type === 'CHECK_OUT') {
+            playNote(783.99, 0, 0.4, 'sine', 0.1);
+            playNote(659.25, 0.12, 0.4, 'sine', 0.1);
+        } else {
+            playNote(180, 0, 0.3, 'sawtooth', 0.1);
+            playNote(140, 0.08, 0.3, 'sawtooth', 0.1);
+        }
+    } catch (e) {
+        console.warn("Audio feedback failed:", e);
+    }
+};
+
+// ─── Voice Feedback ───────────────────────────────────────────────────────────
+const speakText = (text) => {
+    try {
+        if (!window.speechSynthesis) return;
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        utterance.volume = 1.0;
+        window.speechSynthesis.speak(utterance);
+    } catch (e) {
+        console.warn("Speech feedback failed:", e);
+    }
+};
+
 // ── Live Scan Notifier ────────────────────────────────────────────────────────
 function LiveScanNotifier() {
     const { lastScan } = useMqtt();
@@ -220,13 +271,27 @@ function LiveScanNotifier() {
         if (!lastScan) return;
 
         const processScan = async () => {
+            console.log("Processing NFC Scan for UID:", lastScan.uid);
             try {
                 const res = await attendanceService.nfcAttendanceScan({ uid: lastScan.uid });
                 setToast({ ...res, timestamp: Date.now() });
+                playScanSound(res.action);
+                
+                // Voice announcement
+                if (res.worker?.name) {
+                    const greeting = res.action === 'CHECK_IN' ? 'Welcome' : 'Goodbye';
+                    speakText(`${greeting}, ${res.worker.name}`);
+                }
+
+                // Notify other components (like DailySheetTab) to update without reload
+                window.dispatchEvent(new CustomEvent('attendance-updated', { detail: res }));
             } catch (err) {
+                playScanSound('ERROR');
+                const errMsg = err.response?.data?.error || "Unknown card";
+                speakText(`Error: ${errMsg}`);
                 setToast({
                     success: false,
-                    message: err.response?.data?.error || "Unknown card",
+                    message: errMsg,
                     timestamp: Date.now()
                 });
             }
@@ -281,6 +346,19 @@ function LiveScanNotifier() {
     );
 }
 
+function MqttStatusBadge() {
+    const { status } = useMqtt();
+    const dot = { 'Connected': '#22c55e', 'Connecting...': '#f59e0b', 'Error': '#ef4444', 'Offline': '#f59e0b' }[status] || '#64748b';
+    const label = status === 'Connected' ? 'Scanner Live' : status;
+
+    return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 8, background: 'var(--t-surface2)', border: '1px solid var(--t-border)' }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: dot, boxShadow: status === 'Connected' ? `0 0 6px ${dot}` : 'none' }} />
+            <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--t-text3)', textTransform: 'uppercase', letterSpacing: '.03em' }}>{label}</span>
+        </div>
+    );
+}
+
 export default function AttendanceHub() {
     const [activeTab,      setActiveTab]      = useState('daily');
     const [myQROpen,       setMyQROpen]       = useState(false);
@@ -327,7 +405,7 @@ export default function AttendanceHub() {
                 <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontSize: 20 }}>🕐</span>
-                        <span style={{ fontWeight: 900, fontSize: 17, color: 'var(--t-text)' }}>Attendance</span>
+                        <span style={{ fontWeight: 900, fontSize: 17, color: 'var(--t-text)' }}>Workforce Attendance</span>
                     </div>
                     {activeProject && (
                         <p style={{ margin: '1px 0 0 28px', fontSize: 11, color: '#f97316', fontWeight: 700 }}>
@@ -335,12 +413,19 @@ export default function AttendanceHub() {
                         </p>
                     )}
                 </div>
-                <div style={{
-                    padding: '4px 12px', borderRadius: 8,
-                    background: '#f9731615', border: '1px solid #f9731640',
-                    fontSize: 11, fontWeight: 800, color: '#f97316',
-                }}>
-                    {TABS.find(t => t.id === activeTab)?.label}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <button 
+                        onClick={() => { playScanSound('CHECK_IN'); speakText('Feedback system active'); }}
+                        style={{ background: 'none', border: '1px solid #f9731640', borderRadius: 8, padding: '4px 8px', fontSize: 10, color: '#f97316', fontWeight: 800, cursor: 'pointer' }}
+                    >🔊 Test</button>
+                    <MqttStatusBadge />
+                    <div style={{
+                        padding: '4px 12px', borderRadius: 8,
+                        background: '#f9731615', border: '1px solid #f9731640',
+                        fontSize: 11, fontWeight: 800, color: '#f97316',
+                    }}>
+                        {TABS.find(t => t.id === activeTab)?.label}
+                    </div>
                 </div>
             </div>
 
@@ -358,7 +443,7 @@ export default function AttendanceHub() {
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
                             <span style={{ fontSize: 26 }}>🕐</span>
-                            <h1 style={{ margin: 0, fontSize: 24, fontWeight: 900, color: 'var(--t-text)' }}>Attendance</h1>
+                            <h1 style={{ margin: 0, fontSize: 24, fontWeight: 900, color: 'var(--t-text)' }}>Workforce Attendance</h1>
                         </div>
                         <p style={{ margin: 0, fontSize: 13, color: 'var(--t-text3)' }}>
                             {activeProject
@@ -366,15 +451,18 @@ export default function AttendanceHub() {
                                 : 'Select a project from Project Manager to get started.'}
                         </p>
                     </div>
-                    <button onClick={() => setMyQROpen(true)} title="View my QR attendance badge" style={{
-                        display: 'flex', alignItems: 'center', gap: 6,
-                        padding: '8px 16px', borderRadius: 10, cursor: 'pointer',
-                        background: '#f9731615', border: '1px solid #f9731640',
-                        color: '#f97316', fontWeight: 800, fontSize: 13,
-                        whiteSpace: 'nowrap', flexShrink: 0,
-                    }}>
-                        🪪 My QR
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <MqttStatusBadge />
+                        <button onClick={() => setMyQROpen(true)} title="View my QR attendance badge" style={{
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            padding: '8px 16px', borderRadius: 10, cursor: 'pointer',
+                            background: '#f9731615', border: '1px solid #f9731640',
+                            color: '#f97316', fontWeight: 800, fontSize: 13,
+                            whiteSpace: 'nowrap', flexShrink: 0,
+                        }}>
+                            🪪 My QR
+                        </button>
+                    </div>
                 </div>
 
                 <div style={{

@@ -8,6 +8,57 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import attendanceService from '../../services/attendanceService';
 
+// ─── Sound System (Harmonic Synthesis) ─────────────────────────────────────────
+const playScanSound = (type) => {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        if (ctx.state === 'suspended') ctx.resume();
+        
+        const playNote = (freq, start, duration, wave='sine', volume=0.1) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = wave;
+            osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+            gain.gain.setValueAtTime(volume, ctx.currentTime + start);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + start + duration);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(ctx.currentTime + start);
+            osc.stop(ctx.currentTime + start + duration);
+        };
+
+        if (type === 'CHECK_IN') {
+            playNote(523.25, 0, 0.4, 'sine', 0.12);
+            playNote(659.25, 0.08, 0.4, 'sine', 0.1);
+            playNote(783.99, 0.16, 0.4, 'sine', 0.08);
+        } else if (type === 'CHECK_OUT') {
+            playNote(783.99, 0, 0.4, 'sine', 0.1);
+            playNote(659.25, 0.12, 0.4, 'sine', 0.1);
+        } else {
+            playNote(180, 0, 0.3, 'sawtooth', 0.1);
+            playNote(140, 0.08, 0.3, 'sawtooth', 0.1);
+        }
+    } catch (e) {
+        console.warn("Audio feedback failed:", e);
+    }
+};
+
+// ─── Voice Feedback ───────────────────────────────────────────────────────────
+const speakText = (text) => {
+    try {
+        if (!window.speechSynthesis) return;
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        utterance.volume = 1.0;
+        window.speechSynthesis.speak(utterance);
+    } catch (e) {
+        console.warn("Speech feedback failed:", e);
+    }
+};
+
 // ── Utilities ─────────────────────────────────────────────────────────────────
 function useIsMobile() {
     const [m, setM] = useState(() => window.innerWidth < 768);
@@ -225,12 +276,22 @@ export default function QRScannerTab({ projectId, onClose, onScanSuccess }) {
         setProcessing(true);
         try {
             const res = await attendanceService.qrScan(rawData);
+            playScanSound(res.action);
+            
+            // Voice announcement
+            if (res.worker?.name) {
+                const greeting = res.action === 'CHECK_IN' ? 'Welcome' : 'Goodbye';
+                speakText(`${greeting}, ${res.worker.name}`);
+            }
+
             const entry = {
                 id: Date.now(), action: res.action,
+                workerId: res.worker?.id,
                 worker: res.worker?.name || 'Unknown',
                 trade:  res.worker?.trade || '',
                 message: res.message,
                 time: fmtHMS(new Date()),
+                status:   res.attendance?.status,
                 checkIn:  res.attendance?.check_in,
                 checkOut: res.attendance?.check_out,
                 overtimeH: res.attendance?.overtime_hours,
@@ -242,9 +303,12 @@ export default function QRScannerTab({ projectId, onClose, onScanSuccess }) {
                 onScanSuccess(entry);
             }
         } catch (e) {
+            playScanSound('ERROR');
+            const errMsg = e?.response?.data?.error || 'Invalid QR code.';
+            speakText(`Error: ${errMsg}`);
             const entry = {
                 id: Date.now(), action: 'ERROR',
-                worker: '—', message: e?.response?.data?.error || 'Invalid QR code.',
+                worker: '—', message: errMsg,
                 time: fmtHMS(new Date()),
             };
             setResult(entry); setResultAnim(true);

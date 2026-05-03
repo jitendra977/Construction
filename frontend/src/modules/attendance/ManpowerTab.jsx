@@ -118,22 +118,25 @@ function Toggle({ value, onChange }) {
 
 function SummaryBanner({ summary }) {
   const stats = [
-    { label: 'Total',      value: summary.total,           icon: '👷', color: '#6366f1' },
-    { label: 'Attendance', value: summary.active,          icon: '📋', color: '#22c55e' },
-    { label: 'Payment',    value: summary.with_payment,    icon: '💰', color: '#f59e0b' },
-    { label: 'Login',      value: summary.with_login,      icon: '🔐', color: '#8b5cf6' },
-    { label: 'Workforce',  value: summary.with_workforce,  icon: '🗂', color: '#10b981' },
+    { label: 'Total Staff',  value: summary.total,           icon: '👥', color: '#6366f1', bg: '#f5f3ff' },
+    { label: 'On Duty',     value: summary.active,          icon: '📋', color: '#10b981', bg: '#f0fdf4' },
+    { label: 'Payroll',     value: summary.with_payment,    icon: '💰', color: '#f59e0b', bg: '#fffbeb' },
+    { label: 'App Users',   value: summary.with_login,      icon: '🔐', color: '#8b5cf6', bg: '#f5f3ff' },
+    { label: 'Verified',    value: summary.with_workforce,  icon: '🛡️', color: '#06b6d4', bg: '#ecfeff' },
   ];
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 8, marginBottom: 14 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 10, marginBottom: 18 }}>
       {stats.map(s => (
         <div key={s.label} style={{
-          background: '#fff', borderRadius: 10, padding: '10px 6px',
-          textAlign: 'center', border: '1px solid #e5e7eb',
-          boxShadow: '0 1px 3px rgba(0,0,0,.04)',
+          background: s.bg, borderRadius: 14, padding: '12px 8px',
+          textAlign: 'center', border: `1px solid ${s.color}20`,
+          transition: 'transform 0.2s, box-shadow 0.2s',
+          cursor: 'default'
         }}>
-          <div style={{ fontSize: 18, fontWeight: 800, color: s.color }}>{s.value}</div>
-          <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 1 }}>{s.label}</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.02em' }}>{s.label}</div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+             {s.value}
+          </div>
         </div>
       ))}
     </div>
@@ -177,13 +180,36 @@ function PersonCard({ person, onToggleRole, onEdit, onAssignCard, toggling }) {
             <div style={{ width: 7, height: 7, borderRadius: '50%', background: todayDot }} />
             <span style={{ fontSize: 11, color: '#6b7280' }}>{todayText}</span>
           </div>
+          {/* Quick Actions */}
+          {!expanded && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button
+                onClick={(e) => { e.stopPropagation(); onEdit(person); }}
+                style={{
+                  padding: '4px 10px', borderRadius: 6,
+                  background: '#f1f5f9', border: '1px solid #e2e8f0',
+                  color: '#374151', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 4
+                }}
+              >✏️ Edit</button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onAssignCard(person); }}
+                style={{
+                  padding: '4px 10px', borderRadius: 6,
+                  background: '#f0fdf4', border: '1px solid #86efac',
+                  color: '#15803d', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 4
+                }}
+              >🪪 Card</button>
+            </div>
+          )}
         </div>
         {/* Role pills */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
-          <RoleBadge icon="📋" label="QR"        enabled={person.role_attendance}             small />
-          <RoleBadge icon="💰" label="Pay"       enabled={person.role_payment}                small />
-          <RoleBadge icon="🔐" label="Login"     enabled={person.role_login}                  small />
-          <RoleBadge icon="🗂" label="Workforce" enabled={!!person.workforce_member_id}       small />
+          <RoleBadge icon="📋" label="Attendance"  enabled={person.role_attendance}             small />
+          <RoleBadge icon="💰" label="Payroll"     enabled={person.role_payment}                small />
+          <RoleBadge icon="🔐" label="Portal"      enabled={person.role_login}                  small />
+          <RoleBadge icon="🛡️" label="Verified"    enabled={!!person.workforce_member_id}       small />
         </div>
         <span style={{ fontSize: 11, color: '#d1d5db', marginLeft: 2 }}>{expanded ? '▲' : '▼'}</span>
       </div>
@@ -469,15 +495,18 @@ function AddPersonSheet({ projectId, onClose, onAdded }) {
 
         {/* Header */}
         <div style={{ padding: '12px 20px 16px', borderBottom: '1px solid #f3f4f6' }}>
-          <div style={{ fontWeight: 800, fontSize: 18, color: '#1f2937' }}>👷 Add Person</div>
+          <div style={{ fontWeight: 800, fontSize: 18, color: '#1f2937' }}>👷 Add Staff Member</div>
           <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 2 }}>
-            Enter once — choose which roles apply
+            Create a unified record for attendance, payroll, and login
           </div>
         </div>
 
         {/* Body */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
 
+          <div style={{ fontSize: 12, fontWeight: 800, color: '#6366f1', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: -4 }}>
+            1. Basic Information
+          </div>
           {/* Name */}
           <div>
             <label style={labelStyle}>Full Name *</label>
@@ -585,6 +614,9 @@ function AddPersonSheet({ projectId, onClose, onAdded }) {
           </div>
 
           {/* Optional fields */}
+          <div style={{ fontSize: 12, fontWeight: 800, color: '#6366f1', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 8, marginBottom: -4 }}>
+            3. Optional Details
+          </div>
           <div style={{ display: 'flex', gap: 10 }}>
             <div style={{ flex: 1 }}>
               <label style={labelStyle}>Joined Date</label>
@@ -612,12 +644,13 @@ function AddPersonSheet({ projectId, onClose, onAdded }) {
             style={{
               width: '100%', padding: 14, borderRadius: 12, border: 'none',
               background: saving || !form.name.trim() ? '#e5e7eb' : '#6366f1',
-              color: saving || !form.name.trim() ? '#9ca3af' : '#fff',
+              color: saving || !form.name.trim() ? '#fff' : '#fff',
               fontSize: 15, fontWeight: 800, cursor: saving ? 'not-allowed' : 'pointer',
               marginTop: 4,
+              boxShadow: saving ? 'none' : '0 4px 12px rgba(99, 102, 241, 0.3)',
             }}
           >
-            {saving ? '⏳ Adding…' : '✅ Add Person'}
+            {saving ? '⏳ Adding…' : '✅ Add Staff Member'}
           </button>
 
           <div style={{ height: 20 }} />
@@ -676,7 +709,7 @@ function EditPersonSheet({ person, onClose, onSaved }) {
           <div style={{ width: 36, height: 4, borderRadius: 2, background: '#d1d5db' }} />
         </div>
         <div style={{ padding: '12px 20px 14px', borderBottom: '1px solid #f3f4f6' }}>
-          <div style={{ fontWeight: 800, fontSize: 17, color: '#1f2937' }}>✏️ Edit — {person.name}</div>
+          <div style={{ fontWeight: 800, fontSize: 17, color: '#1f2937' }}>✏️ Edit Staff — {person.name}</div>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
@@ -845,6 +878,7 @@ export default function ManpowerTab({ projectId }) {
   const [error, setError]     = useState(null);
   const [search, setSearch]   = useState('');
   const [showInactive, setShowInactive] = useState(false);
+  const [tradeFilter, setTradeFilter] = useState('ALL');
 
   // Sheets
   const [showAdd, setShowAdd]           = useState(false);
@@ -881,7 +915,8 @@ export default function ManpowerTab({ projectId }) {
 
   const filter = search.trim().toLowerCase();
   const persons = (data?.persons || []).filter(p =>
-    !filter || p.name.toLowerCase().includes(filter) || (p.trade_label || '').toLowerCase().includes(filter)
+    (!filter || p.name.toLowerCase().includes(filter) || (p.trade_label || '').toLowerCase().includes(filter)) &&
+    (tradeFilter === 'ALL' || p.trade === tradeFilter)
   );
   const orphans = (data?.orphan_contractors || []).filter(c =>
     !filter || c.name.toLowerCase().includes(filter)
@@ -890,7 +925,7 @@ export default function ManpowerTab({ projectId }) {
 
   if (!projectId) return (
     <div style={{ textAlign: 'center', padding: 60, color: '#9ca3af' }}>
-      Select a project to view manpower.
+      Select a project to view staff registry.
     </div>
   );
 
@@ -898,16 +933,20 @@ export default function ManpowerTab({ projectId }) {
     <div style={{ padding: '0 0 100px', maxWidth: 660, margin: '0 auto' }}>
 
       {/* Title bar */}
-      <div style={{ padding: '16px 16px 0', display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ padding: '20px 16px 4px', display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{ flex: 1 }}>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#1f2937' }}>👷 People</h2>
-          <p style={{ margin: '2px 0 0', fontSize: 12, color: '#9ca3af' }}>One record per person · Toggle roles per person</p>
+          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: 'var(--t-text)', letterSpacing: '-0.02em' }}>👷 Staff Registry</h2>
+          <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--t-text3)' }}>Manage worker profiles, roles, and digital identities</p>
         </div>
         <button onClick={() => setShowAdd(true)} style={{
-          padding: '9px 16px', borderRadius: 10, border: 'none',
-          background: '#6366f1', color: '#fff', fontSize: 13, fontWeight: 700,
-          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
-        }}>➕ Add Person</button>
+          padding: '10px 20px', borderRadius: 12, border: 'none',
+          background: '#6366f1', color: '#fff', fontSize: 13, fontWeight: 800,
+          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+          boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)',
+          transition: 'all 0.2s'
+        }}>
+          <span style={{ fontSize: 16 }}>➕</span> Add Staff
+        </button>
       </div>
 
       <div style={{ padding: '12px 16px' }}>
@@ -918,16 +957,28 @@ export default function ManpowerTab({ projectId }) {
         {data && <SummaryBanner summary={summary} />}
 
         {/* Search + filter */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
           <input
             style={{
-              flex: 1, padding: '10px 14px', borderRadius: 10,
+              flex: 1, minWidth: 150, padding: '10px 14px', borderRadius: 10,
               border: '1px solid #e5e7eb', fontSize: 14, background: '#f9fafb',
             }}
             placeholder="🔍  Search name or trade…"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
+          <select 
+            value={tradeFilter}
+            onChange={e => setTradeFilter(e.target.value)}
+            style={{
+              padding: '10px 14px', borderRadius: 10,
+              border: '1px solid #e5e7eb', fontSize: 14, background: '#fff',
+              color: '#374151', cursor: 'pointer', outline: 'none'
+            }}
+          >
+            <option value="ALL">All Trades</option>
+            {TRADE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
           <button
             onClick={() => setShowInactive(s => !s)}
             style={{
