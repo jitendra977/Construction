@@ -11,15 +11,16 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import mqtt from 'mqtt';
 import attendanceService from '../../services/attendanceService';
+import { previewTheme, SOUND_THEMES } from './attendanceSounds';
 
 // ── Tiny helpers ──────────────────────────────────────────────────────────────
 const Row = ({ label, children, hint }) => (
-    <div style={{ marginBottom: 18 }}>
-        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--t-text3)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+    <div style={{ marginBottom: 20 }}>
+        <label style={{ display: 'block', fontSize: 11, fontWeight: 900, color: 'var(--t-text3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.05em' }}>
             {label}
         </label>
         {children}
-        {hint && <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--t-text3)' }}>{hint}</p>}
+        {hint && <p style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--t-text3)', lineHeight: 1.4 }}>{hint}</p>}
     </div>
 );
 
@@ -29,8 +30,9 @@ const Input = ({ value, onChange, type = 'text', style = {}, ...rest }) => (
         value={value ?? ''}
         onChange={e => onChange(e.target.value)}
         style={{
-            padding: '8px 10px', borderRadius: 8, fontSize: 13, width: '100%', boxSizing: 'border-box',
-            border: '1px solid var(--t-border)', background: 'var(--t-surface2)', color: 'var(--t-text)',
+            padding: '12px 14px', borderRadius: 12, fontSize: 14, width: '100%', boxSizing: 'border-box',
+            border: '1.5px solid var(--t-border)', background: 'var(--t-surface)', color: 'var(--t-text)',
+            outline: 'none', transition: 'all 0.2s',
             ...style,
         }}
         {...rest}
@@ -59,11 +61,12 @@ const Toggle = ({ value, onChange, label }) => (
 
 const SectionCard = ({ title, icon, children }) => (
     <div style={{
-        background: 'var(--t-surface)', border: '1px solid var(--t-border)',
-        borderRadius: 14, padding: '18px 20px', marginBottom: 16,
+        background: 'var(--t-surface)', border: '1.5px solid var(--t-border)',
+        borderRadius: 18, padding: '20px', marginBottom: 16,
+        boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
     }}>
-        <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 900, color: 'var(--t-text)', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span>{icon}</span>{title}
+        <h3 style={{ margin: '0 0 20px', fontSize: 15, fontWeight: 900, color: 'var(--t-text)', display: 'flex', alignItems: 'center', gap: 10, letterSpacing: '-0.01em' }}>
+            <span style={{ fontSize: 20 }}>{icon}</span>{title}
         </h3>
         {children}
     </div>
@@ -202,6 +205,13 @@ const DEFAULT_SETTINGS = {
     mqtt_topic: 'nfc/+/state',
     mqtt_username: '',
     mqtt_password: '',
+    sound_enabled: true,
+    voice_enabled: true,
+    sound_volume: 0.5,
+    sound_pitch: 1.0,
+    voice_rate: 1.0,
+    voice_pitch: 1.0,
+    sound_theme: 'harmonic',
 };
 
 export default function SettingsTab({ projectId }) {
@@ -645,6 +655,105 @@ export default function SettingsTab({ projectId }) {
                     </div>
                 </SectionCard>
             )}
+
+            {/* ── 5. Sound & Voice Management ─────────────────────────────────── */}
+            <SectionCard title="Sound & Voice Feedback" icon="🔊">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 12 }}>
+                    <Row label="Chime Sounds" hint="Play a chime on scan success/error">
+                        <Toggle 
+                            value={settings.sound_enabled} 
+                            onChange={v => setSettings(s => ({ ...s, sound_enabled: v }))}
+                            label={settings.sound_enabled ? 'Enabled' : 'Disabled'}
+                        />
+                    </Row>
+                    <Row label="Voice Announcements" hint="Speak staff names after scan">
+                        <Toggle 
+                            value={settings.voice_enabled} 
+                            onChange={v => setSettings(s => ({ ...s, voice_enabled: v }))}
+                            label={settings.voice_enabled ? 'Enabled' : 'Disabled'}
+                        />
+                    </Row>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+                    <Row label="Master Volume" hint={`${Math.round(settings.sound_volume * 100)}%`}>
+                        <input 
+                            type="range" min="0" max="1" step="0.05"
+                            value={settings.sound_volume}
+                            onChange={e => setSettings(s => ({ ...s, sound_volume: parseFloat(e.target.value) }))}
+                            style={{ width: '100%', accentColor: '#f97316' }}
+                        />
+                    </Row>
+                    <Row label="Sound Pitch" hint={`${settings.sound_pitch}x multiplier`}>
+                        <input 
+                            type="range" min="0.5" max="2" step="0.1"
+                            value={settings.sound_pitch}
+                            onChange={e => setSettings(s => ({ ...s, sound_pitch: parseFloat(e.target.value) }))}
+                            style={{ width: '100%', accentColor: '#f97316' }}
+                        />
+                    </Row>
+                    <Row label="Speech Rate" hint={`${settings.voice_rate}x speed`}>
+                        <input 
+                            type="range" min="0.5" max="2" step="0.1"
+                            value={settings.voice_rate}
+                            onChange={e => setSettings(s => ({ ...s, voice_rate: parseFloat(e.target.value) }))}
+                            style={{ width: '100%', accentColor: '#f97316' }}
+                        />
+                    </Row>
+                    <Row label="Speech Pitch" hint={`${settings.voice_pitch} (0-2)`}>
+                        <input 
+                            type="range" min="0" max="2" step="0.1"
+                            value={settings.voice_pitch}
+                            onChange={e => setSettings(s => ({ ...s, voice_pitch: parseFloat(e.target.value) }))}
+                            style={{ width: '100%', accentColor: '#f97316' }}
+                        />
+                    </Row>
+                </div>
+
+                <Row label="Sound Theme" hint="Select a melody style — click ▶ to preview before applying">
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        {Object.entries(SOUND_THEMES).map(([key, { label, description }]) => {
+                            const active = settings.sound_theme === key;
+                            const ICONS = { harmonic: '🎼', classic: '🔔', modern: '✨', temple: '🪘', chime: '🎐', digital: '🤖' };
+                            return (
+                                <div
+                                    key={key}
+                                    onClick={() => setSettings(s => ({ ...s, sound_theme: key }))}
+                                    style={{
+                                        borderRadius: 10, padding: '10px 12px', cursor: 'pointer',
+                                        border: `1.5px solid ${active ? '#f97316' : 'var(--t-border)'}`,
+                                        background: active ? '#f9731610' : 'var(--t-surface2)',
+                                        display: 'flex', flexDirection: 'column', gap: 4,
+                                        transition: 'all .15s',
+                                    }}
+                                >
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <span style={{ fontSize: 13, fontWeight: 800, color: active ? '#f97316' : 'var(--t-text)' }}>
+                                            {ICONS[key]} {label}
+                                        </span>
+                                        <button
+                                            onClick={e => { e.stopPropagation(); previewTheme(key, settings); }}
+                                            title="Preview this theme"
+                                            style={{
+                                                background: active ? '#f9731625' : 'var(--t-surface)',
+                                                border: `1px solid ${active ? '#f97316' : 'var(--t-border)'}`,
+                                                borderRadius: 6, padding: '2px 7px', fontSize: 11,
+                                                cursor: 'pointer', color: active ? '#f97316' : 'var(--t-text3)',
+                                                fontWeight: 700,
+                                            }}
+                                        >
+                                            ▶
+                                        </button>
+                                    </div>
+                                    <span style={{ fontSize: 11, color: 'var(--t-text3)', lineHeight: 1.3 }}>
+                                        {description}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </Row>
+            </SectionCard>
                 </>
             )}
 

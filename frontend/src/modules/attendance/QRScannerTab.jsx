@@ -7,20 +7,26 @@
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import attendanceService from '../../services/attendanceService';
+import { useMqtt } from './MqttContext';
 
 // ─── Sound System (Harmonic Synthesis) ─────────────────────────────────────────
-const playScanSound = (type) => {
+const playScanSound = (type, settings = {}) => {
     try {
+        if (settings.sound_enabled === false) return;
+        const volumeMultiplier = settings.sound_volume !== undefined ? settings.sound_volume : 0.5;
+        const pitchMultiplier  = settings.sound_pitch !== undefined ? settings.sound_pitch : 1.0;
+
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         if (!AudioContext) return;
         const ctx = new AudioContext();
         if (ctx.state === 'suspended') ctx.resume();
         
         const playNote = (freq, start, duration, wave='sine', volume=0.1) => {
+            const actualFreq = freq * pitchMultiplier;
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.type = wave;
-            osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+            osc.frequency.setValueAtTime(actualFreq, ctx.currentTime + start);
             gain.gain.setValueAtTime(volume, ctx.currentTime + start);
             gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + start + duration);
             osc.connect(gain);
@@ -29,16 +35,32 @@ const playScanSound = (type) => {
             osc.stop(ctx.currentTime + start + duration);
         };
 
+        const theme = settings.sound_theme || 'harmonic';
+
         if (type === 'CHECK_IN') {
-            playNote(523.25, 0, 0.4, 'sine', 0.12);
-            playNote(659.25, 0.08, 0.4, 'sine', 0.1);
-            playNote(783.99, 0.16, 0.4, 'sine', 0.08);
+            if (theme === 'classic') {
+                playNote(880, 0, 0.2, 'square', 0.08 * volumeMultiplier); // A5 beep
+            } else if (theme === 'modern') {
+                playNote(1046.50, 0, 0.1, 'sine', 0.1 * volumeMultiplier); // C6 ping
+                playNote(1318.51, 0.1, 0.3, 'sine', 0.1 * volumeMultiplier); // E6
+            } else { // harmonic
+                playNote(523.25, 0, 0.4, 'sine', 0.12 * volumeMultiplier);
+                playNote(659.25, 0.08, 0.4, 'sine', 0.1 * volumeMultiplier);
+                playNote(783.99, 0.16, 0.4, 'sine', 0.08 * volumeMultiplier);
+            }
         } else if (type === 'CHECK_OUT') {
-            playNote(783.99, 0, 0.4, 'sine', 0.1);
-            playNote(659.25, 0.12, 0.4, 'sine', 0.1);
+            if (theme === 'classic') {
+                playNote(440, 0, 0.2, 'square', 0.08 * volumeMultiplier); // A4 beep
+            } else if (theme === 'modern') {
+                playNote(1318.51, 0, 0.1, 'sine', 0.1 * volumeMultiplier); // E6
+                playNote(1046.50, 0.1, 0.3, 'sine', 0.1 * volumeMultiplier); // C6 ping
+            } else { // harmonic
+                playNote(783.99, 0, 0.4, 'sine', 0.1 * volumeMultiplier);
+                playNote(659.25, 0.12, 0.4, 'sine', 0.1 * volumeMultiplier);
+            }
         } else {
-            playNote(180, 0, 0.3, 'sawtooth', 0.1);
-            playNote(140, 0.08, 0.3, 'sawtooth', 0.1);
+            playNote(180, 0, 0.3, 'sawtooth', 0.1 * volumeMultiplier);
+            playNote(140, 0.08, 0.3, 'sawtooth', 0.1 * volumeMultiplier);
         }
     } catch (e) {
         console.warn("Audio feedback failed:", e);
@@ -46,12 +68,13 @@ const playScanSound = (type) => {
 };
 
 // ─── Voice Feedback ───────────────────────────────────────────────────────────
-const speakText = (text) => {
+const speakText = (text, settings = {}) => {
     try {
+        if (settings.voice_enabled === false) return;
         if (!window.speechSynthesis) return;
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.0;
-        utterance.pitch = 1.0;
+        utterance.rate = settings.voice_rate !== undefined ? settings.voice_rate : 1.0;
+        utterance.pitch = settings.voice_pitch !== undefined ? settings.voice_pitch : 1.0;
         utterance.volume = 1.0;
         window.speechSynthesis.speak(utterance);
     } catch (e) {
@@ -209,6 +232,7 @@ const ACTION_CFG = {
 // onClose       — optional; when provided a ✕ close button is shown (overlay mode)
 // onScanSuccess — optional; called with the scan result entry after CHECK_IN / CHECK_OUT
 export default function QRScannerTab({ projectId, onClose, onScanSuccess }) {
+    const { settings } = useMqtt();
     const isMobile = useIsMobile();
     const now      = useClock();
 
@@ -276,12 +300,12 @@ export default function QRScannerTab({ projectId, onClose, onScanSuccess }) {
         setProcessing(true);
         try {
             const res = await attendanceService.qrScan(rawData);
-            playScanSound(res.action);
+            playScanSound(res.action, settings);
             
             // Voice announcement
             if (res.worker?.name) {
                 const greeting = res.action === 'CHECK_IN' ? 'Welcome' : 'Goodbye';
-                speakText(`${greeting}, ${res.worker.name}`);
+                speakText(`${greeting}, ${res.worker.name}`, settings);
             }
 
             const entry = {
@@ -303,9 +327,9 @@ export default function QRScannerTab({ projectId, onClose, onScanSuccess }) {
                 onScanSuccess(entry);
             }
         } catch (e) {
-            playScanSound('ERROR');
+            playScanSound('ERROR', settings);
             const errMsg = e?.response?.data?.error || 'Invalid QR code.';
-            speakText(`Error: ${errMsg}`);
+            speakText(`Error: ${errMsg}`, settings);
             const entry = {
                 id: Date.now(), action: 'ERROR',
                 worker: '—', message: errMsg,

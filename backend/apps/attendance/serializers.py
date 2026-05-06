@@ -238,6 +238,7 @@ class ProjectAttendanceSettingsSerializer(serializers.ModelSerializer):
             "timezone",
             "mqtt_broker_url", "mqtt_port", "mqtt_topic",
             "mqtt_username", "mqtt_password",
+            "sound_enabled", "voice_enabled", "sound_volume", "sound_pitch", "voice_rate", "voice_pitch", "sound_theme",
             "created_at", "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]

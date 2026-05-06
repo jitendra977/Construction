@@ -151,9 +151,14 @@ if $RUN_FRONTEND; then
         ok "Frontend dependencies installed"
     fi
 
-    export VITE_API_URL="http://localhost:$BACKEND_PORT/api/v1"
+    # Detect LAN IP so other devices (mobile/tablet) on the same Wi-Fi can reach the backend.
+    # Falls back to localhost if detection fails.
+    LAN_IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}' || echo "localhost")
+    if [[ -z "$LAN_IP" || "$LAN_IP" == "" ]]; then LAN_IP="localhost"; fi
 
-    info "Starting Vite on http://localhost:$FRONTEND_PORT ..."
+    export VITE_API_URL="http://${LAN_IP}:$BACKEND_PORT/api/v1"
+
+    info "Starting Vite on http://localhost:$FRONTEND_PORT (LAN: http://${LAN_IP}:$FRONTEND_PORT) ..."
     if command -v bun &>/dev/null; then
         bun run dev -- --port "$FRONTEND_PORT" --host &
     else
@@ -170,9 +175,11 @@ echo -e "${BOLD}${GREEN}  App is running!${RESET}"
 echo ""
 if $RUN_FRONTEND; then
 echo -e "  🌐 Frontend  → ${CYAN}http://localhost:$FRONTEND_PORT${RESET}"
+echo -e "  📱 LAN URL   → ${CYAN}http://${LAN_IP}:$FRONTEND_PORT${RESET}  (other devices)"
 fi
 if $RUN_BACKEND; then
 echo -e "  📡 Backend   → ${CYAN}http://localhost:$BACKEND_PORT/api/v1${RESET}"
+echo -e "  📡 LAN API   → ${CYAN}http://${LAN_IP}:$BACKEND_PORT/api/v1${RESET}"
 echo -e "  🔑 Admin     → ${CYAN}http://localhost:$BACKEND_PORT/admin${RESET}"
 echo -e "  👤 Login     → $ADMIN_EMAIL / $ADMIN_PASS"
 fi

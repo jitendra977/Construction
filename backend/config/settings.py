@@ -15,7 +15,7 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-this-in-produc
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,192.168.0.112', cast=Csv())
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,192.168.0.112,192.168.0.129', cast=Csv())
 
 # Security Settings
 SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=False, cast=bool)
@@ -285,6 +285,10 @@ SIMPLE_JWT = {
 }
 
 # CORS settings
+# CORS_ALLOW_ALL_ORIGINS=True lets any LAN client (ESP32 device pages, mobile
+# browsers on the same network) call the API without needing to enumerate IPs.
+# Set CORS_ALLOW_ALL_ORIGINS=False in production and list explicit origins instead.
+CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', default=True, cast=bool)
 CORS_ALLOWED_ORIGINS = config(
     'CORS_ALLOWED_ORIGINS',
     default='http://localhost:3000,http://localhost:5173,http://localhost:5174',

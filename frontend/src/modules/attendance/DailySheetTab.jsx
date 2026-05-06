@@ -205,20 +205,12 @@ function CountRing({ counts, total }) {
     );
 }
 
-// ─── Worker row (mobile swipeable card) ───────────────────────────────────────
+// ─── Worker row (mobile compact swipeable card) ──────────────────────────────
 
 function WorkerCard({ worker, rec, onChange, lateScans, projSettings }) {
     const sm = sMeta[rec.status] || sMeta[""];
-    const [showOT, setShowOT]       = useState(false);
-    const [showNote, setShowNote]   = useState(false);
+    const [expanded, setExpanded] = useState(false);
     const touchX = useRef(null);
-
-    // Quick-tap avatar → cycle status
-    const cycleStatus = () => {
-        const idx = STATUS_CYCLE.indexOf(rec.status);
-        const next = STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length];
-        onChange({ ...rec, status: next });
-    };
 
     // Swipe gesture
     const onTouchStart = e => { touchX.current = e.touches[0].clientX; };
@@ -226,8 +218,8 @@ function WorkerCard({ worker, rec, onChange, lateScans, projSettings }) {
         if (touchX.current === null) return;
         const dx = e.changedTouches[0].clientX - touchX.current;
         touchX.current = null;
-        if (dx > 60)  onChange({ ...rec, status: 'PRESENT' });
-        if (dx < -60) onChange({ ...rec, status: 'ABSENT'  });
+        if (dx > 50)  onChange({ ...rec, status: 'PRESENT' });
+        if (dx < -50) onChange({ ...rec, status: 'ABSENT'  });
     };
 
     const isLate = lateScans?.has(worker.id);
@@ -236,226 +228,146 @@ function WorkerCard({ worker, rec, onChange, lateScans, projSettings }) {
         <div
             style={{
                 borderRadius: 14,
-                border: `1.5px solid ${sm.color}40`,
-                borderLeft: `5px solid ${sm.color}`,
+                border: `1.5px solid ${sm.color}30`,
+                borderLeft: `6px solid ${sm.color}`,
                 background: 'var(--t-surface)', overflow: 'hidden',
-                boxShadow: `0 3px 12px ${sm.color}18`,
-                transition: 'all 0.2s',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.05)',
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                marginBottom: 8,
             }}
             onTouchStart={onTouchStart}
             onTouchEnd={onTouchEnd}
         >
-            {/* ── Header row ── */}
-            <div style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: '10px 12px 10px 10px',
-                background: `${sm.color}10`,
-            }}>
-                {/* Big status emoji — tap to cycle */}
-                <div
-                    onClick={cycleStatus}
-                    title="Tap to cycle status"
-                    style={{
-                        width: 44, height: 44, borderRadius: 12, flexShrink: 0,
-                        background: sm.color,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 22, cursor: 'pointer', userSelect: 'none',
-                        boxShadow: `0 2px 8px ${sm.color}50`,
-                        transition: 'all 0.15s',
-                    }}
-                >{sm.emoji}</div>
-
-                <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--t-text)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            {/* ── Compact Main Row ── */}
+            <div style={{ display: 'flex', alignItems: 'center', padding: '12px 14px', gap: 10 }}>
+                
+                {/* Info block */}
+                <div 
+                    style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2, cursor: 'pointer' }} 
+                    onClick={() => setExpanded(e => !e)}
+                >
+                    <div style={{ fontWeight: 800, fontSize: 13, color: 'var(--t-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 6 }}>
                         {worker.name}
-                        {isLate && (
-                            <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 5, background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}>⏰ LATE</span>
-                        )}
+                        {isLate && <span style={{ fontSize: 9, fontWeight: 800, padding: '1px 5px', borderRadius: 4, background: '#fef3c7', color: '#92400e' }}>LATE</span>}
                     </div>
-                    <div style={{ fontSize: 11, color: 'var(--t-text3)', marginTop: 2 }}>
-                        {worker.trade_display}
-                        <span style={{
-                            marginLeft: 6, fontSize: 10, padding: '1px 5px', borderRadius: 4,
-                            background: worker.worker_type === 'STAFF' ? 'rgba(59,130,246,0.12)' : 'rgba(249,115,22,0.12)',
-                            color: worker.worker_type === 'STAFF' ? '#3b82f6' : '#f97316',
-                            fontWeight: 700,
-                        }}>{worker.worker_type}</span>
+                    <div style={{ fontSize: 11, color: 'var(--t-text3)', display: 'flex', gap: 6 }}>
+                        <span>{worker.trade_display}</span>
+                        {worker.worker_type === 'STAFF' && <span style={{ color: '#3b82f6', fontWeight: 600 }}>Staff</span>}
                     </div>
                 </div>
 
-                {/* Current status pill — solid color, white text, tap = cycle */}
-                <div onClick={cycleStatus} style={{
-                    padding: '6px 12px', borderRadius: 10, cursor: 'pointer',
-                    background: sm.color, color: '#fff',
-                    fontWeight: 900, fontSize: 12, whiteSpace: 'nowrap',
-                    boxShadow: `0 2px 6px ${sm.color}50`,
-                    letterSpacing: '0.02em',
-                    userSelect: 'none',
-                }}>
-                    {sm.emoji} {sm.label}
-                </div>
-            </div>
-
-            {/* ── Status selector row ── */}
-            <div style={{ display: 'flex', padding: '10px 10px 4px', gap: 6 }}>
-                {STATUS_OPTIONS.map(s => {
-                    const isSelected = rec.status === s.value;
-                    return (
-                        <button
-                            key={s.value}
-                            onClick={() => onChange({ ...rec, status: s.value })}
-                            style={{
-                                flex: 1,
-                                padding: isSelected ? '9px 2px' : '8px 2px',
-                                borderRadius: 10,
-                                fontSize: isSelected ? 11 : 10,
-                                fontWeight: isSelected ? 900 : 500,
-                                border: isSelected ? `2px solid ${s.color}` : '1.5px solid var(--t-border)',
-                                background: isSelected ? s.color : 'var(--t-surface2)',
-                                color: isSelected ? '#fff' : '#94a3b8',
-                                cursor: 'pointer',
-                                transition: 'all 0.14s',
-                                display: 'flex', flexDirection: 'column',
-                                alignItems: 'center', gap: 2,
-                                boxShadow: isSelected ? `0 2px 8px ${s.color}40` : 'none',
-                                transform: isSelected ? 'scale(1.04)' : 'scale(1)',
-                            }}
-                        >
-                            <span style={{ fontSize: isSelected ? 16 : 14, lineHeight: 1 }}>{s.emoji}</span>
-                            <span>{s.short}</span>
-                        </button>
-                    );
-                })}
-            </div>
-
-            {/* ── Check-in / Check-out time row ── */}
-            {(rec.status === 'PRESENT' || rec.status === 'HALF_DAY' || rec.check_in || rec.check_out) && (
-                <div style={{ display: 'flex', gap: 8, padding: '0 10px 8px', alignItems: 'center' }}>
-                    <div style={{ flex: 1 }}>
-                        <label style={{ display: 'block', fontSize: 9, fontWeight: 700, color: 'var(--t-text3)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            🟢 Check-in
-                        </label>
-                        <input
-                            type="time"
-                            value={(rec.check_in || '').slice(0, 5)}
-                            onChange={e => onChange({ ...rec, check_in: e.target.value || '' })}
-                            style={{
-                                width: '100%', padding: '5px 8px', borderRadius: 7, boxSizing: 'border-box',
-                                border: `1px solid ${rec.check_in ? '#22c55e' : 'var(--t-border)'}`,
-                                background: rec.check_in ? 'rgba(34,197,94,0.06)' : 'var(--t-bg)',
-                                color: rec.check_in ? '#15803d' : 'var(--t-text3)',
-                                fontSize: 13, fontWeight: rec.check_in ? 700 : 400,
-                            }}
-                        />
+                {/* Center Time Block */}
+                {(rec.check_in || rec.check_out) && (
+                    <div style={{ 
+                        display: 'flex', alignItems: 'center', gap: 4,
+                        padding: '4px 10px', borderRadius: 8, 
+                        background: 'var(--t-bg)',
+                        border: '1px solid var(--t-border)',
+                        fontSize: 12, fontWeight: 900, fontFamily: 'monospace'
+                    }}>
+                        <span style={{ color: '#22c55e' }}>{rec.check_in ? rec.check_in.slice(0, 5) : '--:--'}</span>
+                        <span style={{ color: 'var(--t-text3)', opacity: 0.5 }}>~</span>
+                        <span style={{ color: '#ef4444' }}>{rec.check_out ? rec.check_out.slice(0, 5) : '--:--'}</span>
                     </div>
-                    <div style={{ flex: 1 }}>
-                        <label style={{ display: 'block', fontSize: 9, fontWeight: 700, color: 'var(--t-text3)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            🔴 Check-out
-                        </label>
-                        <input
-                            type="time"
-                            value={(rec.check_out || '').slice(0, 5)}
-                            onChange={e => onChange({ ...rec, check_out: e.target.value || '' })}
-                            style={{
-                                width: '100%', padding: '5px 8px', borderRadius: 7, boxSizing: 'border-box',
-                                border: `1px solid ${rec.check_out ? '#ef4444' : 'var(--t-border)'}`,
-                                background: rec.check_out ? 'rgba(239,68,68,0.06)' : 'var(--t-bg)',
-                                color: rec.check_out ? '#b91c1c' : 'var(--t-text3)',
-                                fontSize: 13, fontWeight: rec.check_out ? 700 : 400,
-                            }}
-                        />
-                    </div>
-                    {/* ── Total hours chip ── */}
-                    {(() => {
-                        const h = calcHours(rec.check_in, rec.check_out, projSettings);
-                        if (!h) return null;
-                        const std = parseFloat(projSettings?.working_hours_per_day || 8);
-                        const isFullDay = h.total >= std;
+                )}
+
+                {/* Quick Status Buttons (P / H / A / expand) */}
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                    {['PRESENT','HALF_DAY','ABSENT'].map(s => {
+                        const isSel = rec.status === s;
+                        const meta = sMeta[s];
                         return (
-                            <div style={{
-                                display: 'flex', flexDirection: 'column', alignItems: 'center',
-                                justifyContent: 'center', minWidth: 52, gap: 2,
-                                background: isFullDay ? 'rgba(34,197,94,0.08)' : 'rgba(245,158,11,0.08)',
-                                borderRadius: 8, padding: '4px 7px',
-                                border: `1px solid ${isFullDay ? 'rgba(34,197,94,0.25)' : 'rgba(245,158,11,0.25)'}`,
-                            }}>
-                                <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--t-text3)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>⏱ Total</span>
-                                <span style={{ fontSize: 13, fontWeight: 900, color: isFullDay ? '#16a34a' : '#d97706', lineHeight: 1 }}>
-                                    {h.total.toFixed(1)}h
-                                </span>
-                                {h.ot > 0 && (
-                                    <span style={{ fontSize: 9, fontWeight: 800, color: '#8b5cf6', lineHeight: 1 }}>
-                                        +{h.ot.toFixed(1)} OT
-                                    </span>
-                                )}
-                            </div>
+                            <button 
+                                key={s} 
+                                onClick={() => onChange({ ...rec, status: s })} 
+                                style={{
+                                    width: 32, height: 32, borderRadius: 8,
+                                    background: isSel ? meta.color : 'var(--t-surface2)',
+                                    color: isSel ? '#fff' : 'var(--t-text3)',
+                                    border: isSel ? 'none' : '1px solid var(--t-border)',
+                                    fontSize: 13, fontWeight: 900, cursor: 'pointer',
+                                    boxShadow: isSel ? `0 2px 6px ${meta.color}50` : 'none',
+                                    transition: 'all 0.1s',
+                                }}
+                            >{meta.short}</button>
                         );
-                    })()}
+                    })}
+                    {/* Expand Button */}
+                    <button 
+                        onClick={() => setExpanded(e => !e)} 
+                        style={{
+                            width: 30, height: 30, borderRadius: 8, 
+                            background: expanded ? 'rgba(0,0,0,0.05)' : 'transparent',
+                            border: 'none', color: 'var(--t-text3)', fontSize: 16, cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            marginLeft: 2,
+                        }}
+                    >
+                        {expanded ? '▴' : '▾'}
+                    </button>
                 </div>
-            )}
-
-            {/* ── OT + Notes toggle ── */}
-            <div style={{ display: 'flex', gap: 6, padding: '0 10px 10px' }}>
-                <button
-                    onClick={() => setShowOT(o => !o)}
-                    style={{
-                        flex: 1, padding: '6px 8px', borderRadius: 8, fontSize: 11, fontWeight: 700,
-                        border: '1px solid var(--t-border)', background: parseFloat(rec.overtime_hours) > 0 ? 'rgba(139,92,246,0.1)' : 'var(--t-surface2)',
-                        color: parseFloat(rec.overtime_hours) > 0 ? '#8b5cf6' : 'var(--t-text3)', cursor: 'pointer',
-                    }}
-                >
-                    ⏱ OT: {parseFloat(rec.overtime_hours || 0).toFixed(1)}h
-                </button>
-                <button
-                    onClick={() => setShowNote(o => !o)}
-                    style={{
-                        flex: 1, padding: '6px 8px', borderRadius: 8, fontSize: 11, fontWeight: 700,
-                        border: '1px solid var(--t-border)', background: rec.notes ? 'rgba(99,102,241,0.08)' : 'var(--t-surface2)',
-                        color: rec.notes ? '#6366f1' : 'var(--t-text3)', cursor: 'pointer',
-                    }}
-                >
-                    📝 {rec.notes ? 'Note ✓' : 'Add Note'}
-                </button>
             </div>
 
-            {/* ── OT stepper ── */}
-            {showOT && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '6px 12px 12px' }}>
-                    {rec.check_in && rec.check_out && (
-                        <span style={{ fontSize: 10, fontWeight: 800, color: '#8b5cf6', letterSpacing: '.04em', opacity: 0.8 }}>
-                            ⚡ AUTO-CALCULATED FROM SCAN TIMES
-                        </span>
-                    )}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                        <button
-                            onClick={() => onChange({ ...rec, overtime_hours: Math.max(0, parseFloat(rec.overtime_hours || 0) - 0.5) })}
-                            style={{ width: 36, height: 36, borderRadius: 10, border: '1px solid var(--t-border)', background: 'var(--t-surface2)', color: 'var(--t-text)', fontWeight: 900, fontSize: 18, cursor: 'pointer' }}
-                        >−</button>
-                        <span style={{ minWidth: 50, textAlign: 'center', fontWeight: 900, fontSize: 20, color: '#8b5cf6' }}>
-                            {parseFloat(rec.overtime_hours || 0).toFixed(1)}h
-                        </span>
-                        <button
-                            onClick={() => onChange({ ...rec, overtime_hours: Math.min(24, parseFloat(rec.overtime_hours || 0) + 0.5) })}
-                            style={{ width: 36, height: 36, borderRadius: 10, border: '1px solid var(--t-border)', background: 'var(--t-surface2)', color: 'var(--t-text)', fontWeight: 900, fontSize: 18, cursor: 'pointer' }}
-                        >+</button>
+            {/* ── Expanded Area (Times, OT, Notes) ── */}
+            {expanded && (
+                <div style={{ padding: '0 10px 10px', background: 'var(--t-surface2)', borderTop: '1px solid var(--t-border)' }}>
+                    
+                    {/* Time & OT Row */}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center' }}>
+                        <div style={{ flex: 1 }}>
+                            <label style={{ fontSize: 9, fontWeight: 700, color: 'var(--t-text3)', display: 'block', marginBottom: 2 }}>🟢 IN</label>
+                            <input 
+                                type="time" 
+                                value={(rec.check_in || '').slice(0, 5)} 
+                                onChange={e => onChange({ ...rec, check_in: e.target.value || '' })} 
+                                style={{ width: '100%', padding: '6px', fontSize: 12, borderRadius: 6, border: `1px solid ${rec.check_in ? '#22c55e' : 'var(--t-border)'}`, boxSizing: 'border-box' }} 
+                            />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                            <label style={{ fontSize: 9, fontWeight: 700, color: 'var(--t-text3)', display: 'block', marginBottom: 2 }}>🔴 OUT</label>
+                            <input 
+                                type="time" 
+                                value={(rec.check_out || '').slice(0, 5)} 
+                                onChange={e => onChange({ ...rec, check_out: e.target.value || '' })} 
+                                style={{ width: '100%', padding: '6px', fontSize: 12, borderRadius: 6, border: `1px solid ${rec.check_out ? '#ef4444' : 'var(--t-border)'}`, boxSizing: 'border-box' }} 
+                            />
+                        </div>
+                        <div style={{ width: 50 }}>
+                            <label style={{ fontSize: 9, fontWeight: 700, color: '#8b5cf6', display: 'block', marginBottom: 2 }}>OT (h)</label>
+                            <input 
+                                type="number" step="0.5" min="0" max="24"
+                                value={rec.overtime_hours} 
+                                onChange={e => onChange({ ...rec, overtime_hours: e.target.value })} 
+                                style={{ width: '100%', padding: '6px', fontSize: 12, borderRadius: 6, border: `1px solid ${parseFloat(rec.overtime_hours) > 0 ? '#8b5cf6' : 'var(--t-border)'}`, textAlign: 'center', boxSizing: 'border-box' }} 
+                            />
+                        </div>
+                        
+                        {/* Total hours indicator */}
+                        {(() => {
+                            const h = calcHours(rec.check_in, rec.check_out, projSettings);
+                            if (!h) return null;
+                            const std = parseFloat(projSettings?.working_hours_per_day || 8);
+                            return (
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 36 }}>
+                                    <span style={{ fontSize: 8, color: 'var(--t-text3)' }}>Total</span>
+                                    <span style={{ fontSize: 12, fontWeight: 900, color: h.total >= std ? '#22c55e' : '#f59e0b' }}>
+                                        {h.total.toFixed(1)}
+                                    </span>
+                                </div>
+                            );
+                        })()}
                     </div>
-                </div>
-            )}
 
-            {/* ── Notes input ── */}
-            {showNote && (
-                <div style={{ padding: '0 12px 12px' }}>
-                    <input
-                        type="text"
-                        value={rec.notes}
-                        onChange={e => onChange({ ...rec, notes: e.target.value })}
-                        placeholder="Add a note for this worker today…"
-                        style={{
-                            width: '100%', padding: '8px 12px', borderRadius: 8, boxSizing: 'border-box',
-                            border: '1px solid var(--t-border)', background: 'var(--t-bg)',
-                            color: 'var(--t-text)', fontSize: 13,
-                        }}
-                    />
+                    {/* Note Input */}
+                    <div style={{ marginTop: 8 }}>
+                        <input 
+                            type="text" 
+                            value={rec.notes} 
+                            onChange={e => onChange({ ...rec, notes: e.target.value })} 
+                            placeholder="Add a note (e.g. Leave reason)…" 
+                            style={{ width: '100%', padding: '8px', fontSize: 12, borderRadius: 6, border: '1px solid var(--t-border)', boxSizing: 'border-box' }} 
+                        />
+                    </div>
                 </div>
             )}
         </div>

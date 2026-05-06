@@ -5,6 +5,7 @@
  * Desktop : header + horizontal tab bar + card wrapper (unchanged)
  */
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useConstruction } from '../../context/ConstructionContext';
 import attendanceService from '../../services/attendanceService';
 import DailySheetTab    from './DailySheetTab';
@@ -13,6 +14,7 @@ import PayrollTab       from './PayrollTab';
 import SettingsTab      from './SettingsTab';
 import ManpowerTab      from './ManpowerTab';
 import { MqttProvider, useMqtt } from './MqttContext';
+import { playScanSound, speakScanResult, speakText, cancelVoice, unlockAudioOnGesture, forceUnlockAudio } from './attendanceSounds';
 
 // ── Mobile detection hook ──────────────────────────────────────────────────────
 function useIsMobile() {
@@ -120,7 +122,7 @@ function MyQRModal({ projectId, onClose }) {
 // Records tab removed — data is visible directly in the Daily Sheet.
 const TABS = [
     { id: 'daily',    label: 'Daily Sheet',     icon: '📋', short: 'Sheet'    },
-    { id: 'manpower', label: 'Staff Registry',       icon: '👷', short: 'Staff'    },
+    { id: 'manpower', label: 'Staff NFC',       icon: '🏷️', short: 'Staff'    },
     { id: 'monthly',  label: 'Monthly Report', icon: '📅', short: 'Monthly'  },
     { id: 'payroll',  label: 'Payroll',        icon: '💰', short: 'Pay'      },
     { id: 'settings', label: 'Settings',       icon: '⚙️', short: 'Settings' },
@@ -143,7 +145,8 @@ function MobileTabBar({ active, onChange, onQR, alertCount = 0 }) {
             position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
             background: 'var(--t-surface)',
             borderTop: '1px solid var(--t-border)',
-            boxShadow: '0 -4px 20px rgba(0,0,0,0.10)',
+            boxShadow: '0 -8px 30px rgba(0,0,0,0.06)',
+            paddingBottom: 'env(safe-area-inset-bottom)',
         }}>
             <div
                 ref={scrollRef}
@@ -152,8 +155,8 @@ function MobileTabBar({ active, onChange, onQR, alertCount = 0 }) {
                     overflowX: 'auto',
                     scrollbarWidth: 'none',          /* Firefox */
                     WebkitOverflowScrolling: 'touch',
-                    padding: '6px 8px 10px',
-                    gap: 2,
+                    padding: '8px 12px 14px',
+                    gap: 6,
                 }}
             >
                 {/* Hide scrollbar on webkit */}
@@ -165,12 +168,14 @@ function MobileTabBar({ active, onChange, onQR, alertCount = 0 }) {
                         data-tabid={tab.id}
                         onClick={() => onChange(tab.id)}
                         style={{
-                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-                            padding: '8px 14px', borderRadius: 12, border: 'none', cursor: 'pointer',
-                            background: active === tab.id ? '#f97316' : 'transparent',
-                            color: active === tab.id ? '#fff' : 'var(--t-text3)',
-                            transition: 'all 0.15s', flexShrink: 0,
-                            position: 'relative',
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                            padding: '10px 14px', borderRadius: 16, border: 'none', cursor: 'pointer',
+                            background: active === tab.id ? 'var(--t-text)' : 'transparent',
+                            color: active === tab.id ? 'var(--t-surface)' : 'var(--t-text3)',
+                            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', flexShrink: 0,
+                            position: 'relative', minWidth: 70,
+                            transform: active === tab.id ? 'scale(1.05)' : 'scale(1)',
+                            boxShadow: active === tab.id ? '0 4px 14px rgba(0,0,0,0.1)' : 'none',
                         }}
                     >
                         <span style={{ fontSize: 20, lineHeight: 1 }}>{tab.icon}</span>
@@ -211,60 +216,9 @@ function MobileTabBar({ active, onChange, onQR, alertCount = 0 }) {
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
-// ─── Sound System (Harmonic Synthesis) ─────────────────────────────────────────
-const playScanSound = (type) => {
-    try {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        if (!AudioContext) return;
-        const ctx = new AudioContext();
-        if (ctx.state === 'suspended') ctx.resume();
-        
-        const playNote = (freq, start, duration, wave='sine', volume=0.1) => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.type = wave;
-            osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
-            gain.gain.setValueAtTime(volume, ctx.currentTime + start);
-            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + start + duration);
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.start(ctx.currentTime + start);
-            osc.stop(ctx.currentTime + start + duration);
-        };
-
-        if (type === 'CHECK_IN') {
-            playNote(523.25, 0, 0.4, 'sine', 0.12);
-            playNote(659.25, 0.08, 0.4, 'sine', 0.1);
-            playNote(783.99, 0.16, 0.4, 'sine', 0.08);
-        } else if (type === 'CHECK_OUT') {
-            playNote(783.99, 0, 0.4, 'sine', 0.1);
-            playNote(659.25, 0.12, 0.4, 'sine', 0.1);
-        } else {
-            playNote(180, 0, 0.3, 'sawtooth', 0.1);
-            playNote(140, 0.08, 0.3, 'sawtooth', 0.1);
-        }
-    } catch (e) {
-        console.warn("Audio feedback failed:", e);
-    }
-};
-
-// ─── Voice Feedback ───────────────────────────────────────────────────────────
-const speakText = (text) => {
-    try {
-        if (!window.speechSynthesis) return;
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.0;
-        utterance.pitch = 1.0;
-        utterance.volume = 1.0;
-        window.speechSynthesis.speak(utterance);
-    } catch (e) {
-        console.warn("Speech feedback failed:", e);
-    }
-};
-
 // ── Live Scan Notifier ────────────────────────────────────────────────────────
 function LiveScanNotifier() {
-    const { lastScan } = useMqtt();
+    const { lastScan, settings } = useMqtt();
     const [toast, setToast] = useState(null);
 
     useEffect(() => {
@@ -275,20 +229,20 @@ function LiveScanNotifier() {
             try {
                 const res = await attendanceService.nfcAttendanceScan({ uid: lastScan.uid });
                 setToast({ ...res, timestamp: Date.now() });
-                playScanSound(res.action);
-                
-                // Voice announcement
-                if (res.worker?.name) {
-                    const greeting = res.action === 'CHECK_IN' ? 'Welcome' : 'Goodbye';
-                    speakText(`${greeting}, ${res.worker.name}`);
-                }
 
-                // Notify other components (like DailySheetTab) to update without reload
+                // Advanced sound + voice from attendanceSounds.js
+                // Guard: settings may be null if not yet loaded from API
+                const safeSettings = settings || {};
+                playScanSound(res.action, safeSettings);
+                speakScanResult(res, safeSettings);
+
+                // Notify other components (like DailySheetTab) to refresh
                 window.dispatchEvent(new CustomEvent('attendance-updated', { detail: res }));
             } catch (err) {
-                playScanSound('ERROR');
-                const errMsg = err.response?.data?.error || "Unknown card";
-                speakText(`Error: ${errMsg}`);
+                const safeSettings = settings || {};
+                playScanSound('ERROR', safeSettings);
+                const errMsg = err.response?.data?.message || err.response?.data?.error || 'Unknown card';
+                speakText(`Error: ${errMsg}`, safeSettings);
                 setToast({
                     success: false,
                     message: errMsg,
@@ -362,11 +316,15 @@ function MqttStatusBadge() {
 export default function AttendanceHub() {
     const [activeTab,      setActiveTab]      = useState('daily');
     const [myQROpen,       setMyQROpen]       = useState(false);
-    const [alertCount,     setAlertCount]     = useState(0); // workers with check-in but no check-out
+    const [alertCount,     setAlertCount]     = useState(0); 
+    const navigate = useNavigate();
     const isMobile = useIsMobile();
 
     const { activeProjectId, projects } = useConstruction();
     const activeProject = projects?.find(p => p.id === activeProjectId);
+
+    // Unlock Web Audio + SpeechSynthesis on first user gesture (required on mobile)
+    useEffect(() => { unlockAudioOnGesture(); }, []);
 
     // ── Tab content ────────────────────────────────────────────────────────────
     const tabContent = (
@@ -393,29 +351,44 @@ export default function AttendanceHub() {
     );
 
     const content = isMobile ? (
-        <div style={{ minHeight: '100vh', background: 'var(--t-bg)', paddingBottom: 100 }}>
+        <div style={{ minHeight: '100vh', background: 'var(--t-bg)', paddingBottom: 110 }}>
             {/* Compact sticky header */}
             <div style={{
                 position: 'sticky', top: 0, zIndex: 50,
-                background: 'var(--t-surface)', borderBottom: '1px solid var(--t-border)',
-                padding: '12px 16px',
+                background: 'var(--t-surface)', 
+                borderBottom: '1px solid var(--t-border)',
+                padding: '16px',
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                backdropFilter: 'blur(12px)',
+                boxShadow: '0 4px 24px rgba(0,0,0,0.04)',
             }}>
-                <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 20 }}>🕐</span>
-                        <span style={{ fontWeight: 900, fontSize: 17, color: 'var(--t-text)' }}>Workforce Attendance</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <button 
+                        onClick={() => navigate('/dashboard')}
+                        style={{ 
+                            background: 'var(--t-surface2)', border: '1.5px solid var(--t-border)', 
+                            borderRadius: 10, width: 40, height: 40, display: 'flex', 
+                            alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                            fontSize: 18, boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+                        }}
+                    >🏠</button>
+                    <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontWeight: 900, fontSize: 18, color: 'var(--t-text)', letterSpacing: '-0.02em' }}>Workforce</span>
+                        </div>
+                        {activeProject && (
+                            <p style={{ margin: '1px 0 0 0', fontSize: 11, color: '#f97316', fontWeight: 700 }}>
+                                {activeProject.name}
+                            </p>
+                        )}
                     </div>
-                    {activeProject && (
-                        <p style={{ margin: '1px 0 0 28px', fontSize: 11, color: '#f97316', fontWeight: 700 }}>
-                            {activeProject.name}
-                        </p>
-                    )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <button 
-                        onClick={() => { playScanSound('CHECK_IN'); speakText('Feedback system active'); }}
+                        onClick={() => window.open(`/kiosk/${activeProjectId || 1}`, '_blank')}
+                        style={{ background: 'none', border: '1px solid #10b98140', borderRadius: 8, padding: '4px 8px', fontSize: 10, color: '#10b981', fontWeight: 800, cursor: 'pointer' }}
+                    >🖥️ Kiosk</button>
+                    <button 
+                        onClick={() => { forceUnlockAudio(); playScanSound('CHECK_IN', settings); speakText('Feedback system active', settings); }}
                         style={{ background: 'none', border: '1px solid #f9731640', borderRadius: 8, padding: '4px 8px', fontSize: 10, color: '#f97316', fontWeight: 800, cursor: 'pointer' }}
                     >🔊 Test</button>
                     <MqttStatusBadge />
@@ -442,7 +415,18 @@ export default function AttendanceHub() {
                 <div style={{ marginBottom: 20, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                            <span style={{ fontSize: 26 }}>🕐</span>
+                            <button 
+                                onClick={() => navigate('/dashboard')}
+                                style={{ 
+                                    background: 'var(--t-surface)', border: '1.5px solid var(--t-border)', 
+                                    borderRadius: 10, width: 42, height: 42, display: 'flex', 
+                                    alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                                    fontSize: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+                                    transition: 'all 0.2s'
+                                }}
+                                onMouseOver={e => e.currentTarget.style.background = 'var(--t-surface2)'}
+                                onMouseOut={e => e.currentTarget.style.background = 'var(--t-surface)'}
+                            >🏠</button>
                             <h1 style={{ margin: 0, fontSize: 24, fontWeight: 900, color: 'var(--t-text)' }}>Workforce Attendance</h1>
                         </div>
                         <p style={{ margin: 0, fontSize: 13, color: 'var(--t-text3)' }}>
@@ -453,6 +437,15 @@ export default function AttendanceHub() {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <MqttStatusBadge />
+                        <button onClick={() => window.open(`/kiosk/${activeProjectId || 1}`, '_blank')} title="Open Kiosk" style={{
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            padding: '8px 16px', borderRadius: 10, cursor: 'pointer',
+                            background: '#10b98115', border: '1px solid #10b98140',
+                            color: '#10b981', fontWeight: 800, fontSize: 13,
+                            whiteSpace: 'nowrap', flexShrink: 0,
+                        }}>
+                            🖥️ Open Kiosk
+                        </button>
                         <button onClick={() => setMyQROpen(true)} title="View my QR attendance badge" style={{
                             display: 'flex', alignItems: 'center', gap: 6,
                             padding: '8px 16px', borderRadius: 10, cursor: 'pointer',

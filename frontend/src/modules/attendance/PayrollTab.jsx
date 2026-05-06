@@ -106,6 +106,7 @@ function MobilePayroll({ projectId }) {
     const [error,         setError]         = useState('');
     const [showPost,      setShowPost]      = useState(false);
     const [expandedGroup, setExpandedGroup] = useState('LABOUR'); // LABOUR | STAFF
+    const [search,        setSearch]        = useState('');
 
     const load = useCallback(async () => {
         if (!projectId) return;
@@ -138,6 +139,10 @@ function MobilePayroll({ projectId }) {
 
     const labourWorkers = workers.filter(w => w.worker_type === 'LABOUR');
     const staffWorkers  = workers.filter(w => w.worker_type === 'STAFF');
+    
+    const filteredWorkers = (expandedGroup === 'LABOUR' ? labourWorkers : staffWorkers)
+        .filter(w => w.worker_name.toLowerCase().includes(search.toLowerCase()) || w.trade.toLowerCase().includes(search.toLowerCase()));
+
     const labourTotal   = labourWorkers.reduce((s, w) => s + w.grand_total, 0);
     const staffTotal    = staffWorkers.reduce((s,  w) => s + w.grand_total, 0);
 
@@ -160,62 +165,81 @@ function MobilePayroll({ projectId }) {
                 </div>
             ) : (<>
                 {/* Summary cards 2×2 */}
-                <div style={{ padding:'10px 12px 0', display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                <div style={{ padding:'12px 12px 0', display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
                     {[
                         { icon:'💰', label:'Total Payroll', val:`NPR ${Math.round(totals.total_wage_bill||0).toLocaleString()}`, color:'#10b981' },
                         { icon:'👷', label:'Labour',        val:`NPR ${Math.round(labourTotal).toLocaleString()}`,              color:'#f97316' },
                         { icon:'👔', label:'Staff',         val:`NPR ${Math.round(staffTotal).toLocaleString()}`,               color:'#3b82f6' },
                         { icon:'👥', label:'Workers',       val:totals.total_workers||0,                                        color:'#8b5cf6' },
                     ].map(c => (
-                        <div key={c.label} style={{ padding:'14px 12px', borderRadius:12, background:'var(--t-surface)', border:'1px solid var(--t-border)', textAlign:'center' }}>
-                            <div style={{ fontSize:22, marginBottom:4 }}>{c.icon}</div>
-                            <div style={{ fontSize:10, color:'var(--t-text3)', fontWeight:700, textTransform:'uppercase', marginBottom:2 }}>{c.label}</div>
-                            <div style={{ fontSize:15, fontWeight:900, color:c.color }}>{c.val}</div>
+                        <div key={c.label} style={{ padding:'16px 14px', borderRadius:16, background:'var(--t-surface)', border:'1.5px solid var(--t-border)', textAlign:'center', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
+                            <div style={{ fontSize:24, marginBottom:6 }}>{c.icon}</div>
+                            <div style={{ fontSize:9, color:'var(--t-text3)', fontWeight:800, textTransform:'uppercase', letterSpacing: '0.04em', marginBottom:4 }}>{c.label}</div>
+                            <div style={{ fontSize:15, fontWeight:900, color:c.color, letterSpacing: '-0.01em' }}>{c.val}</div>
                         </div>
                     ))}
                 </div>
 
                 {/* Group toggle */}
-                <div style={{ padding:'10px 12px 0', display:'flex', gap:6 }}>
+                <div style={{ padding:'12px 12px 0', display:'flex', gap:6 }}>
                     {[['LABOUR','👷 Labour'], ['STAFF','👔 Staff']].map(([g, label]) => (
-                        <button key={g} onClick={() => setExpandedGroup(g)} style={{
-                            flex:1, padding:'8px', borderRadius:8, fontSize:12, fontWeight:800,
-                            border:'1px solid var(--t-border)',
+                        <button key={g} onClick={() => { setExpandedGroup(g); setSearch(''); }} style={{
+                            flex:1, padding:'10px', borderRadius:12, fontSize:12, fontWeight:900,
+                            border:'1.5px solid var(--t-border)',
                             background: expandedGroup===g ? '#f97316' : 'var(--t-surface)',
                             color: expandedGroup===g ? '#fff' : 'var(--t-text3)', cursor:'pointer',
-                        }}>{label} ({(expandedGroup==='LABOUR'?labourWorkers:g==='LABOUR'?labourWorkers:staffWorkers).length === 0 ? 0 : (g==='LABOUR'?labourWorkers:staffWorkers).length})</button>
+                            boxShadow: expandedGroup===g ? '0 4px 12px rgba(249,115,22,0.2)' : 'none',
+                        }}>{label} ({(g==='LABOUR'?labourWorkers:staffWorkers).length})</button>
                     ))}
                 </div>
 
+                {/* Search Bar */}
+                <div style={{ padding:'12px 12px 0' }}>
+                    <div style={{ position: 'relative' }}>
+                        <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>🔍</span>
+                        <input 
+                            type="text" 
+                            placeholder={`Search ${expandedGroup.toLowerCase()}...`}
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            style={{ 
+                                width: '100%', padding: '12px 12px 12px 36px', borderRadius: 14, 
+                                border: '1.5px solid var(--t-border)', background: 'var(--t-surface)', 
+                                color: 'var(--t-text)', fontSize: 13, outline: 'none' 
+                            }}
+                        />
+                    </div>
+                </div>
+
                 {/* Worker payroll cards */}
-                <div style={{ padding:'10px 12px 0', display:'flex', flexDirection:'column', gap:8 }}>
-                    {(expandedGroup==='LABOUR' ? labourWorkers : staffWorkers).length === 0 ? (
-                        <div style={{ padding:'20px', textAlign:'center', borderRadius:12, background:'var(--t-surface)', border:'1px solid var(--t-border)', color:'var(--t-text3)', fontSize:13 }}>
-                            No {expandedGroup.toLowerCase()} workers for this month.
+                <div style={{ padding:'12px 12px 0', display:'flex', flexDirection:'column', gap:10 }}>
+                    {filteredWorkers.length === 0 ? (
+                        <div style={{ padding:'32px 20px', textAlign:'center', borderRadius:16, background:'var(--t-surface)', border:'1.5px solid var(--t-border)', color:'var(--t-text3)', fontSize:13 }}>
+                            {search ? `No results for "${search}"` : `No ${expandedGroup.toLowerCase()} workers for this month.`}
                         </div>
-                    ) : (expandedGroup==='LABOUR' ? labourWorkers : staffWorkers).map(w => (
-                        <div key={w.worker_id} style={{ borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-surface)', padding:'12px 14px' }}>
-                            <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:8 }}>
+                    ) : filteredWorkers.map(w => (
+                        <div key={w.worker_id} style={{ borderRadius:16, border:'1.5px solid var(--t-border)', background:'var(--t-surface)', padding:'14px 16px', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
+                            <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:10 }}>
                                 <div>
-                                    <div style={{ fontWeight:800, fontSize:14, color:'var(--t-text)' }}>{w.worker_name}</div>
-                                    <div style={{ fontSize:11, color:'var(--t-text3)', marginTop:1 }}>{w.trade} · NPR {Number(w.daily_rate).toLocaleString()}/day</div>
+                                    <div style={{ fontWeight:900, fontSize:15, color:'var(--t-text)', letterSpacing: '-0.01em' }}>{w.worker_name}</div>
+                                    <div style={{ fontSize:11, color:'var(--t-text3)', marginTop:2, fontWeight: 500 }}>{w.trade} · <span style={{ fontWeight: 700, color: 'var(--t-text)' }}>NPR {Number(w.daily_rate).toLocaleString()}</span></div>
                                 </div>
                                 <div style={{ textAlign:'right' }}>
-                                    <div style={{ fontWeight:900, fontSize:16, color:'#10b981' }}>NPR {Math.round(w.grand_total).toLocaleString()}</div>
-                                    <div style={{ fontSize:10, color:'var(--t-text3)' }}>total</div>
+                                    <div style={{ fontWeight:900, fontSize:17, color:'#10b981', letterSpacing: '-0.01em' }}>NPR {Math.round(w.grand_total).toLocaleString()}</div>
+                                    <div style={{ fontSize:9, color:'var(--t-text3)', fontWeight: 800, textTransform: 'uppercase' }}>net pay</div>
                                 </div>
                             </div>
-
+                            
                             {/* Breakdown row */}
-                            <div style={{ display:'flex', gap:6 }}>
-                                <div style={{ flex:1, padding:'6px 4px', borderRadius:8, background:'rgba(16,185,129,0.08)', textAlign:'center' }}>
-                                    <div style={{ fontSize:11, fontWeight:800, color:'#10b981' }}>NPR {Math.round(w.total_wage).toLocaleString()}</div>
-                                    <div style={{ fontSize:9, color:'var(--t-text3)', fontWeight:700 }}>Base ({w.effective_days.toFixed(1)}d)</div>
+                            <div style={{ display:'flex', gap:8 }}>
+                                <div style={{ flex:1, padding:'8px', borderRadius:10, background:'rgba(16,185,129,0.06)', border: '1px solid #10b98120', textAlign:'center' }}>
+                                    <div style={{ fontSize:11, fontWeight:900, color:'#10b981' }}>NPR {Math.round(w.total_wage).toLocaleString()}</div>
+                                    <div style={{ fontSize:9, color:'var(--t-text3)', fontWeight:800, textTransform: 'uppercase', letterSpacing: '0.02em', marginTop: 1 }}>Base ({w.effective_days.toFixed(1)}d)</div>
                                 </div>
                                 {w.total_overtime_hours > 0 && (
-                                    <div style={{ flex:1, padding:'6px 4px', borderRadius:8, background:'rgba(139,92,246,0.08)', textAlign:'center' }}>
-                                        <div style={{ fontSize:11, fontWeight:800, color:'#8b5cf6' }}>NPR {Math.round(w.total_overtime_pay).toLocaleString()}</div>
-                                        <div style={{ fontSize:9, color:'var(--t-text3)', fontWeight:700 }}>OT ({w.total_overtime_hours.toFixed(1)}h)</div>
+                                    <div style={{ flex:1, padding:'8px', borderRadius:10, background:'rgba(139,92,246,0.06)', border: '1px solid #8b5cf620', textAlign:'center' }}>
+                                        <div style={{ fontSize:11, fontWeight:900, color:'#8b5cf6' }}>NPR {Math.round(w.total_overtime_pay).toLocaleString()}</div>
+                                        <div style={{ fontSize:9, color:'var(--t-text3)', fontWeight:800, textTransform: 'uppercase', letterSpacing: '0.02em', marginTop: 1 }}>OT ({w.total_overtime_hours.toFixed(1)}h)</div>
                                     </div>
                                 )}
                             </div>

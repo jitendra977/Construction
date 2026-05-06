@@ -15,11 +15,22 @@ const STATUS_MAP = {
   HOLIDAY: { short: 'HO', color: '#94a3b8', label: 'Holiday' }
 };
 
+function useIsMobile() {
+    const [mobile, setMobile] = useState(() => window.innerWidth < 768);
+    useEffect(() => {
+        const fn = () => setMobile(window.innerWidth < 768);
+        window.addEventListener('resize', fn);
+        return () => window.removeEventListener('resize', fn);
+    }, []);
+    return mobile;
+}
+
 export default function MonthlyReportTab({ projectId }) {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [data, setData] = useState({ workers: [], records: [] });
   const [loading, setLoading] = useState(true);
   const [selectedWorker, setSelectedWorker] = useState(null);
+  const isMobile = useIsMobile();
 
   const load = useCallback(async () => {
     if (!projectId) return;
@@ -63,16 +74,16 @@ export default function MonthlyReportTab({ projectId }) {
     <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
       
       {/* Top Bar */}
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-        <div style={{ display:'flex', gap:12, alignItems:'center' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ display:'flex', gap:10, alignItems:'center', flex: 1 }}>
           <input 
             type="month" 
             value={month}
             onChange={e => setMonth(e.target.value)}
-            style={{ padding:'10px 14px', borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-surface)', fontWeight:900, fontSize:14 }}
+            style={{ padding:'12px 16px', borderRadius:14, border:'1.5px solid var(--t-border)', background:'var(--t-surface)', color: 'var(--t-text)', fontWeight:900, fontSize:14, outline: 'none' }}
           />
-          <div style={{ fontSize:12, color:'var(--t-text3)', fontWeight:700 }}>
-            {data.workers.length} Personnel · {days.length} Operating Days
+          <div style={{ fontSize:11, color:'var(--t-text3)', fontWeight:700, letterSpacing: '0.02em' }}>
+            {data.workers.length} Personnel · {days.length} Days
           </div>
         </div>
         <div style={{ display:'flex', gap:8 }}>
@@ -87,6 +98,50 @@ export default function MonthlyReportTab({ projectId }) {
 
       {loading ? (
         <div style={{ textAlign:'center', padding:60, color:'var(--t-text3)' }}>Compiling monthly records...</div>
+      ) : isMobile ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {data.workers.length === 0 ? (
+            <div style={{ padding: 40, textAlign: 'center', color: 'var(--t-text3)', background: 'var(--t-surface)', borderRadius: 16 }}>No records found.</div>
+          ) : data.workers.map(w => (
+            <div key={w.worker_id} 
+              onClick={() => setSelectedWorker(w.worker_id)}
+              style={{ 
+                background: 'var(--t-surface)', padding: '16px', borderRadius: 16, 
+                border: '1px solid var(--t-border)', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' 
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontWeight: 900, fontSize: 16, color: 'var(--t-text)' }}>{w.worker_name}</div>
+                  <div style={{ fontSize: 11, color: 'var(--t-text3)', fontWeight: 700, textTransform: 'uppercase', marginTop: 2 }}>{w.trade}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontWeight: 900, fontSize: 16, color: '#10b981' }}>{w.days_present}P</div>
+                  <div style={{ fontSize: 10, color: 'var(--t-text3)', fontWeight: 800 }}>ATTENDANCE</div>
+                </div>
+              </div>
+              
+              {/* Mini visual bar or grid could go here, but let's keep it simple for now */}
+              <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }}>
+                {days.map(d => {
+                  const rec = (gridMap[w.worker_id] || {})[d];
+                  const cfg = rec ? STATUS_MAP[rec.status] : null;
+                  return (
+                    <div key={d} style={{ 
+                      width: 14, height: 14, borderRadius: 3, flexShrink: 0,
+                      background: cfg ? cfg.color : 'rgba(0,0,0,0.05)',
+                      border: cfg ? 'none' : '1px solid var(--t-border)'
+                    }} />
+                  );
+                })}
+              </div>
+              <div style={{ marginTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 11, color: 'var(--t-text3)', fontWeight: 700 }}>{Math.round(w.total_overtime_hours)}h Overtime</span>
+                <span style={{ fontSize: 11, color: '#6366f1', fontWeight: 800 }}>View History →</span>
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
         <div style={{ 
           background:'var(--t-surface)', borderRadius:20, border:'1px solid var(--t-border)', 
@@ -221,10 +276,10 @@ export default function MonthlyReportTab({ projectId }) {
 
       {/* Financial Summary Card */}
       {!loading && data.workers.length > 0 && (
-        <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:24 }}>
-          <div style={{ background:'var(--t-surface)', padding:24, borderRadius:20, border:'1px solid var(--t-border)' }}>
-             <h4 style={{ margin:'0 0 16px', fontSize:14, fontWeight:900 }}>💰 Monthly Payroll Outlook</h4>
-             <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:20 }}>
+        <div style={{ display:'flex', flexDirection: 'column', gap:16 }}>
+          <div style={{ background:'var(--t-surface)', padding:20, borderRadius:20, border:'1.5px solid var(--t-border)', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
+             <h4 style={{ margin:'0 0 16px', fontSize:14, fontWeight:900, color: 'var(--t-text)', display: 'flex', alignItems: 'center', gap: 8 }}><span>💰</span> Monthly Payroll Outlook</h4>
+             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:12 }}>
                 <div style={sumBox}>
                   <div style={sumLabel}>Basic Wages</div>
                   <div style={sumVal}>NPR {Math.round(data.workers.reduce((a,b)=>a + parseFloat(b.total_wage || 0), 0)).toLocaleString()}</div>
@@ -233,7 +288,7 @@ export default function MonthlyReportTab({ projectId }) {
                   <div style={sumLabel}>Overtime Pay</div>
                   <div style={sumVal}>NPR {Math.round(data.workers.reduce((a,b)=>a + parseFloat(b.total_overtime_pay || 0), 0)).toLocaleString()}</div>
                 </div>
-                <div style={{ ...sumBox, background:'rgba(16,185,129,0.05)', borderColor:'#10b981' }}>
+                <div style={{ ...sumBox, background:'rgba(16,185,129,0.05)', border: '1.5px solid #10b98140' }}>
                   <div style={sumLabel}>Grand Total</div>
                   <div style={{ ...sumVal, color:'#10b981' }}>NPR {Math.round(data.workers.reduce((a,b)=>a + parseFloat(b.grand_total || 0), 0)).toLocaleString()}</div>
                 </div>

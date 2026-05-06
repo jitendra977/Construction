@@ -1,0 +1,64 @@
+# ============================================================
+#  attendance-mqtt.service
+#  Systemd unit — NFC Attendance MQTT Listener
+# ============================================================
+#
+#  Install:
+#    sudo cp attendance-mqtt.service /etc/systemd/system/
+#    sudo systemctl daemon-reload
+#    sudo systemctl enable attendance-mqtt
+#    sudo systemctl start  attendance-mqtt
+#
+#  Check:
+#    sudo systemctl status  attendance-mqtt
+#    sudo journalctl -u attendance-mqtt -f
+#
+#  Stop:
+#    sudo systemctl stop attendance-mqtt
+#
+#  Restart after code change:
+#    sudo systemctl restart attendance-mqtt
+# ============================================================
+
+[Unit]
+Description=NFC Attendance MQTT Listener
+Documentation=https://github.com/your-repo
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+# ── Identity ──────────────────────────────────────────────
+# Run as a dedicated non-root user for security.
+# Create with: sudo useradd -r -s /bin/false construction
+User=construction
+Group=construction
+
+# ── Working directory & environment ───────────────────────
+WorkingDirectory=/opt/construction/backend
+
+# Load .env file if present (DATABASE_URL, SECRET_KEY, etc.)
+EnvironmentFile=-/opt/construction/backend/.env
+
+# ── The command ───────────────────────────────────────────
+# --project 1  → use MQTTConfig for project ID 1
+# Remove --project flag to auto-use the first enabled config.
+ExecStart=/opt/construction/venv/bin/python manage.py mqtt_listener --project 1
+
+# ── Restart policy ────────────────────────────────────────
+Restart=always
+RestartSec=10s
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+# ── Output ────────────────────────────────────────────────
+# Logs go to systemd journal: sudo journalctl -u attendance-mqtt -f
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=attendance-mqtt
+
+# ── Limits ────────────────────────────────────────────────
+LimitNOFILE=65536
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

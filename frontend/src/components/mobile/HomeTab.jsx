@@ -602,21 +602,21 @@ const actDotColor = (update) => {
 ───────────────────────────────────────────── */
 const AttendanceLiveCard = ({ projectId }) => {
     const navigate = useNavigate();
-    const [data, setData]     = useState(null);
-    const [loading, setLoad]  = useState(true);
+    const [data, setData] = useState(null);
+    const [loading, setLoad] = useState(true);
 
     useEffect(() => {
         if (!projectId) { setLoad(false); return; }
         attendanceService.getLive(projectId)
             .then(d => setData(d))
-            .catch(() => {})
+            .catch(() => { })
             .finally(() => setLoad(false));
     }, [projectId]);
 
-    const present  = data?.present_count  ?? data?.present  ?? 0;
-    const absent   = data?.absent_count   ?? data?.absent   ?? 0;
-    const total    = data?.total_workers  ?? data?.total    ?? (present + absent);
-    const rate     = total > 0 ? Math.round((present / total) * 100) : 0;
+    const present = data?.present_count ?? data?.present ?? 0;
+    const absent = data?.absent_count ?? data?.absent ?? 0;
+    const total = data?.total_workers ?? data?.total ?? (present + absent);
+    const rate = total > 0 ? Math.round((present / total) * 100) : 0;
 
     return (
         <button
@@ -658,8 +658,8 @@ const AttendanceLiveCard = ({ projectId }) => {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, background: 'var(--t-border)' }}>
                         {[
                             { label: 'Present', val: present, color: '#10b981' },
-                            { label: 'Absent',  val: absent,  color: '#ef4444' },
-                            { label: 'Total',   val: total,   color: 'var(--t-text)' },
+                            { label: 'Absent', val: absent, color: '#ef4444' },
+                            { label: 'Total', val: total, color: 'var(--t-text)' },
                         ].map(s => (
                             <div key={s.label} style={{ background: 'var(--t-surface)', padding: '12px 10px' }}>
                                 <div style={{ fontFamily: 'var(--f-disp)', fontSize: 28, lineHeight: 1, color: s.color }}>{s.val}</div>
@@ -937,13 +937,13 @@ const HomeTab = () => {
                     <div className="ht-quick">
                         {[
                             { icon: '🕐', label: 'Attendance', path: '/dashboard/mobile/attendance' },
-                            { icon: '📋', label: 'Phases',     path: '/dashboard/mobile/phases'    },
-                            { icon: '💰', label: 'Finance',    path: '/dashboard/mobile/finance'   },
-                            { icon: '📅', label: 'Timeline',   path: '/dashboard/mobile/timeline'  },
-                            { icon: '🧱', label: 'Resources',  path: '/dashboard/mobile/resource'  },
-                            { icon: '📸', label: 'Gallery',    path: '/dashboard/mobile/photos'    },
-                            { icon: '📜', label: 'Permits',    path: '/dashboard/mobile/permits'   },
-                            { icon: '🛠️', label: 'Manage',    path: '/dashboard/mobile/manage'    },
+                            { icon: '📋', label: 'Phases', path: '/dashboard/mobile/phases' },
+                            { icon: '💰', label: 'Finance', path: '/dashboard/mobile/finance' },
+                            { icon: '📅', label: 'Timeline', path: '/dashboard/mobile/timeline' },
+                            { icon: '🧱', label: 'Resources', path: '/dashboard/mobile/resource' },
+                            { icon: '📸', label: 'Gallery', path: '/dashboard/mobile/photos' },
+                            { icon: '📜', label: 'Permits', path: '/dashboard/mobile/permits' },
+                            { icon: '🛠️', label: 'Manage', path: '/dashboard/mobile/manage' },
                         ].map(a => (
                             <button key={a.label} className="ht-qa" onClick={() => navigate(a.path)}>
                                 <span className="ht-qa-icon">{a.icon}</span>
@@ -1089,8 +1089,8 @@ const HomeTab = () => {
                                                         <div className="ht-task-lbl">
                                                             <div>{task.title}</div>
                                                             <div className="flex items-center gap-2 mt-0.5">
-                                                                <span style={{ 
-                                                                    fontSize: '7px', 
+                                                                <span style={{
+                                                                    fontSize: '7px',
                                                                     color: task.priority === 'CRITICAL' ? 'var(--t-danger)' : 'var(--t-primary)',
                                                                     background: task.priority === 'CRITICAL' ? 'rgba(255, 78, 78, 0.1)' : 'rgba(var(--t-primary-rgb), 0.1)',
                                                                     padding: '1px 4px',

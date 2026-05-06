@@ -31,7 +31,7 @@ export default function createApiClient(options = {}) {
         (res) => res,
         async (err) => {
             const original = err.config;
-            if (err.response?.status === 401 && !original._retry) {
+            if (err.response?.status === 401 && !original._retry && !original.url.includes('auth/login/')) {
                 original._retry = true;
                 const refresh = localStorage.getItem('refresh_token');
                 if (refresh) {
@@ -46,9 +46,17 @@ export default function createApiClient(options = {}) {
                     } catch {
                         localStorage.removeItem('access_token');
                         localStorage.removeItem('refresh_token');
+                        localStorage.removeItem('user');
                         if (!window.location.pathname.startsWith('/login')) {
                             window.location.href = '/login?expired=true';
                         }
+                    }
+                } else {
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('refresh_token');
+                    localStorage.removeItem('user');
+                    if (!window.location.pathname.startsWith('/login')) {
+                        window.location.href = '/login?expired=true';
                     }
                 }
             }

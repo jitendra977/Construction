@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { attachResponseInterceptor } from './api';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
@@ -12,6 +13,7 @@ api.interceptors.request.use(cfg => {
     cfg.headers = { ...cfg.headers, ...getHeaders() };
     return cfg;
 });
+attachResponseInterceptor(api);
 
 export const attendanceService = {
     // Workers
@@ -89,6 +91,8 @@ export const attendanceService = {
         api.patch(`persons/${workerId}/update/`, data).then(r => r.data),
     toggleRole:           (workerId, data) =>
         api.post(`persons/${workerId}/toggle-role/`, data).then(r => r.data),
+    togglePersonActive:   (workerId) =>
+        api.post(`persons/${workerId}/toggle-active/`).then(r => r.data),
     adoptContractor:      (data)         =>
         api.post('persons/adopt-contractor/', data).then(r => r.data),
 
@@ -107,6 +111,12 @@ export const attendanceService = {
     applyHoliday:   (id)             => api.post(`holidays/${id}/apply/`).then(r => r.data),
     // ── NFC Attendance ────────────────────────────────────────────────────────
     nfcAttendanceScan: (payload) => api.post('nfc-attendance/', payload).then(r => r.data),
+
+    // ── NFC Device Fleet ──────────────────────────────────────────────────────
+    getNfcDevices: (project, params = {}) =>
+        api.get('mqtt/devices/', { params: { project, ...params } }).then(r => r.data),
+    pushUsersToDevice: (project, mac = null) =>
+        api.post('mqtt/devices/push-users/', { project, ...(mac ? { mac } : {}) }).then(r => r.data),
 };
 
 export default attendanceService;

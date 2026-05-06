@@ -26,82 +26,86 @@ api.interceptors.request.use((config) => {
 });
 
 // Response interceptor for token refresh
-api.interceptors.response.use(
-    (response) => response,
-    async (error) => {
-        const originalRequest = error.config;
+export const attachResponseInterceptor = (axiosInstance) => {
+    axiosInstance.interceptors.response.use(
+        (response) => response,
+        async (error) => {
+            const originalRequest = error.config;
 
-        // Global Error Logger for 400/401 debug
-        console.error(`❌ API Error [${error.response?.status}]: ${originalRequest?.method?.toUpperCase()} ${originalRequest?.url}`, error.response?.data);
+            // Global Error Logger for 400/401 debug
+            console.error(`❌ API Error [${error.response?.status}]: ${originalRequest?.method?.toUpperCase()} ${originalRequest?.url}`, error.response?.data);
 
-        // If error is 401 and we haven't retried yet
-        // Skip the refresh logic for the login endpoint itself — a 401 there
-        // means bad credentials, not an expired session. Without this guard the
-        // interceptor swallows the real error message from the server.
-        const isLoginRequest = originalRequest?.url?.includes('auth/login/');
-        if (error.response?.status === 401 && !originalRequest._retry && !isLoginRequest) {
-            originalRequest._retry = true;
-            console.log("Attempting token refresh...");
+            // If error is 401 and we haven't retried yet
+            // Skip the refresh logic for the login endpoint itself — a 401 there
+            // means bad credentials, not an expired session. Without this guard the
+            // interceptor swallows the real error message from the server.
+            const isLoginRequest = originalRequest?.url?.includes('auth/login/');
+            if (error.response?.status === 401 && !originalRequest._retry && !isLoginRequest) {
+                originalRequest._retry = true;
+                console.log("Attempting token refresh...");
 
-            try {
-                const refreshToken = localStorage.getItem('refresh_token');
-                if (!refreshToken) throw new Error("No refresh token");
+                try {
+                    const refreshToken = localStorage.getItem('refresh_token');
+                    if (!refreshToken) throw new Error("No refresh token");
 
-                // Attempt to refresh
-                const response = await axios.post(`${API_URL}/auth/token/refresh/`, {
-                    refresh: refreshToken
-                });
+                    // Attempt to refresh
+                    const response = await axios.post(`${API_URL}/auth/token/refresh/`, {
+                        refresh: refreshToken
+                    });
 
-                const { access } = response.data;
-                localStorage.setItem('access_token', access);
+                    const { access } = response.data;
+                    localStorage.setItem('access_token', access);
 
-                // Update header and retry
-                originalRequest.headers.Authorization = `Bearer ${access}`;
-                return api(originalRequest);
-            } catch (refreshError) {
-                // If refresh fails, logout
-                localStorage.removeItem('access_token');
-                localStorage.removeItem('refresh_token');
-                localStorage.removeItem('user');
+                    // Update header and retry
+                    originalRequest.headers.Authorization = `Bearer ${access}`;
+                    return axiosInstance(originalRequest);
+                } catch (refreshError) {
+                    // If refresh fails, logout
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('refresh_token');
+                    localStorage.removeItem('user');
 
-                // Only redirect if not already on login
-                if (!window.location.pathname.startsWith('/login')) {
-                    window.location.href = '/login?expired=true';
+                    // Only redirect if not already on login
+                    if (!window.location.pathname.startsWith('/login')) {
+                        window.location.href = '/login?expired=true';
+                    }
+                    return Promise.reject(refreshError);
                 }
-                return Promise.reject(refreshError);
             }
-        }
 
-        // ── Offline queue (HCMS-2 Phase 6) ─────────────────────
-        // If this is a mutation and we lost the network, queue the
-        // request so it replays when we're back online.
-        const method = (originalRequest?.method || '').toLowerCase();
-        const isMutation = ['post', 'patch', 'put', 'delete'].includes(method);
-        const isNetworkError = !error.response || error.code === 'ERR_NETWORK';
-        if (isMutation && isNetworkError && originalRequest?.url) {
-            try {
-                await offlineQueue.enqueue({
-                    url: originalRequest.url,
-                    method: originalRequest.method,
-                    body: originalRequest.data,
-                    headers: {
-                        Authorization: originalRequest.headers?.Authorization,
-                        'Content-Type': 'application/json',
-                    },
-                });
-                return Promise.resolve({
-                    data: { queued: true, offline: true },
-                    status: 202,
-                    queued: true,
-                });
-            } catch {
-                /* fall through */
+            // ── Offline queue (HCMS-2 Phase 6) ─────────────────────
+            // If this is a mutation and we lost the network, queue the
+            // request so it replays when we're back online.
+            const method = (originalRequest?.method || '').toLowerCase();
+            const isMutation = ['post', 'patch', 'put', 'delete'].includes(method);
+            const isNetworkError = !error.response || error.code === 'ERR_NETWORK';
+            if (isMutation && isNetworkError && originalRequest?.url) {
+                try {
+                    await offlineQueue.enqueue({
+                        url: originalRequest.url,
+                        method: originalRequest.method,
+                        body: originalRequest.data,
+                        headers: {
+                            Authorization: originalRequest.headers?.Authorization,
+                            'Content-Type': 'application/json',
+                        },
+                    });
+                    return Promise.resolve({
+                        data: { queued: true, offline: true },
+                        status: 202,
+                        queued: true,
+                    });
+                } catch {
+                    /* fall through */
+                }
             }
-        }
 
-        return Promise.reject(error);
-    }
-);
+            return Promise.reject(error);
+        }
+    );
+};
+
+attachResponseInterceptor(api);
 
 // Flush queued writes when connectivity returns
 offlineQueue.installOnlineFlush(api);

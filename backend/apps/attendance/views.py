@@ -181,19 +181,31 @@ def _auto_calc_overtime(record, today, time_out):
         record.save(update_fields=update_fields)
 
 
-def _process_attendance_scan(worker, request=None, scan_source="QR"):
+def _process_attendance_scan(worker, request=None, scan_source="QR", scan_time=None):
     """
     Unified logic for processing a scan (QR or NFC).
     Handles cooldown, missed checkouts, time windows, and attendance marking.
+
+    scan_time  — optional aware datetime override (used when replaying offline /
+                 queued scans so the record uses the device's original timestamp
+                 rather than the server-receive time).
     """
     from datetime import timedelta, datetime
     import pytz
-    
+
     # Load project timezone
     p_settings = ProjectAttendanceSettings.objects.filter(project=worker.project).first()
     p_tz       = pytz.timezone(p_settings.timezone if p_settings else 'Asia/Kathmandu')
-    
-    now        = timezone.now().astimezone(p_tz)
+
+    # Use the provided scan_time (device timestamp) if given, otherwise server now
+    if scan_time is not None:
+        import django.utils.timezone as _tz
+        # Ensure it's timezone-aware
+        if _tz.is_naive(scan_time):
+            scan_time = _tz.make_aware(scan_time, p_tz)
+        now = scan_time.astimezone(p_tz)
+    else:
+        now = timezone.now().astimezone(p_tz)
     today      = now.date()
     time_now   = now.time()
     scanned_by = request.user if (request and request.user.is_authenticated) else None
@@ -1224,6 +1236,13 @@ def _build_person_entry(worker, today_records):
         # The ManpowerTab uses this to show a "Workforce Profile" badge.
         "workforce_member_id":  None,   # filled in persons_list() below
         "workforce_employee_id": None,
+        # ── NFC device access policy ──────────────────────────────────────────
+        "use_custom_window":    worker.use_custom_window,
+        "custom_checkin_start":  str(worker.custom_checkin_start)  if worker.custom_checkin_start  else None,
+        "custom_checkin_end":    str(worker.custom_checkin_end)    if worker.custom_checkin_end    else None,
+        "custom_checkout_start": str(worker.custom_checkout_start) if worker.custom_checkout_start else None,
+        "custom_checkout_end":   str(worker.custom_checkout_end)   if worker.custom_checkout_end   else None,
+        "working_days_mask":     worker.working_days_mask,
     }
 
 
@@ -1475,6 +1494,28 @@ def person_update(request, worker_id):
         val = request.data["joined_date"]
         worker.joined_date = val if (val and str(val).strip()) else None
         worker_fields.append("joined_date")
+
+    # ── NFC access policy fields ──────────────────────────────────────────────
+    for tf in ("custom_checkin_start", "custom_checkin_end",
+               "custom_checkout_start", "custom_checkout_end"):
+        if tf in request.data:
+            val = request.data[tf]
+            setattr(worker, tf, val if (val and str(val).strip()) else None)
+            worker_fields.append(tf)
+
+    if "use_custom_window" in request.data:
+        val = request.data["use_custom_window"]
+        worker.use_custom_window = bool(val) if not isinstance(val, str) else val.lower() == "true"
+        worker_fields.append("use_custom_window")
+
+    if "working_days_mask" in request.data:
+        val = request.data["working_days_mask"]
+        try:
+            worker.working_days_mask = int(val) if val is not None else 127
+        except (TypeError, ValueError):
+            worker.working_days_mask = 127
+        worker_fields.append("working_days_mask")
+
     # Decimal field handling
     if "daily_rate" in request.data:
         val = request.data["daily_rate"]
@@ -1551,9 +1592,47 @@ def person_update(request, worker_id):
         if c_fields:
             c.save(update_fields=c_fields)
 
+    # ── Auto-push to NFC devices via MQTT ─────────────────────────────────────
+    # Triggered whenever nfc_uid is assigned/changed OR authorization changes.
+    # The device upserts the record in its local user table so the next tap
+    # is evaluated with up-to-date auth status.
+    if any(f in worker_fields for f in ("nfc_uid", "is_active")):
+        from apps.attendance.mqtt_publish import push_worker_to_devices
+        push_worker_to_devices(worker)
+
     return Response(
         AttendanceWorkerSerializer(worker, context={"request": request}).data
     )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def person_toggle_active(request, worker_id):
+    """
+    POST /api/v1/attendance/persons/<worker_id>/toggle-active/
+    Toggle the is_active flag on an AttendanceWorker.
+    Called from the NFC device Members page to authorize / block a worker.
+    Optionally accepts {"is_active": true|false} in the body to set an
+    explicit state; without a body it simply flips the current value.
+    """
+    try:
+        worker = AttendanceWorker.objects.get(pk=worker_id)
+    except AttendanceWorker.DoesNotExist:
+        return Response({"error": "Worker not found."}, status=404)
+
+    if "is_active" in request.data:
+        val = request.data["is_active"]
+        worker.is_active = bool(val) if not isinstance(val, str) else val.lower() == "true"
+    else:
+        worker.is_active = not worker.is_active
+
+    worker.save(update_fields=["is_active"])
+
+    # Push updated authorization to every NFC device in the project via MQTT
+    from apps.attendance.mqtt_publish import push_worker_to_devices
+    push_worker_to_devices(worker)
+
+    return Response({"worker_id": worker.id, "is_active": worker.is_active})
 
 
 @api_view(["POST"])

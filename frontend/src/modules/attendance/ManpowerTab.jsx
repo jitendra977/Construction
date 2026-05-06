@@ -14,6 +14,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { attendanceService } from '../../services/attendanceService';
 import { useMqtt } from './MqttContext';
+import NfcDevicesPanel from './NfcDevicesPanel';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -145,8 +146,9 @@ function SummaryBanner({ summary }) {
 
 // ─── Person card ──────────────────────────────────────────────────────────────
 
-function PersonCard({ person, onToggleRole, onEdit, onAssignCard, toggling }) {
+function PersonCard({ person, onToggleRole, onToggleActive, onEdit, onAssignCard, toggling }) {
   const [expanded, setExpanded] = useState(false);
+  const [togglingActive, setTogglingActive] = useState(false);
 
   const todayDot  = TODAY_COLOR[person.today_status] || TODAY_COLOR.NOT_MARKED;
   const todayText = person.today_check_in
@@ -154,25 +156,56 @@ function PersonCard({ person, onToggleRole, onEdit, onAssignCard, toggling }) {
     : person.today_status === 'NOT_MARKED' ? 'Not marked' : person.today_status;
 
   const outOfSync = person.role_payment && !person.in_sync;
+  const isActive  = person.is_active !== false;  // default true if field missing
+
+  const handleToggleActive = async (e) => {
+    e.stopPropagation();
+    if (!window.confirm(
+      isActive
+        ? `Deactivate ${person.name}?\n\nThey will be blocked from NFC door access and attendance immediately.`
+        : `Reactivate ${person.name}?\n\nThey will regain NFC door access and attendance.`
+    )) return;
+    setTogglingActive(true);
+    try {
+      await onToggleActive(person.worker_id);
+    } finally {
+      setTogglingActive(false);
+    }
+  };
 
   return (
     <div style={{
-      background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb',
-      boxShadow: '0 1px 4px rgba(0,0,0,.05)',
-      overflow: 'hidden',
+      background: 'var(--t-surface)', borderRadius: 16,
+      border: `1px solid ${isActive ? 'var(--t-border)' : '#fca5a5'}`,
+      boxShadow: isActive ? '0 4px 12px rgba(0,0,0,.03)' : '0 4px 12px rgba(239,68,68,.06)',
+      overflow: 'hidden', marginBottom: 12,
+      opacity: isActive ? 1 : 0.82,
+      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
     }}>
       {/* ── Card header (always visible) ── */}
       <div
-        style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
+        style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
         onClick={() => setExpanded(e => !e)}
       >
         <Avatar name={person.name} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, color: '#1f2937' }}>{person.name}</div>
-          <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--t-text)', letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: 6 }}>
+            {person.name}
+            {/* Active / Inactive pill — always visible */}
+            <span style={{
+              fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 20,
+              background: isActive ? '#dcfce7' : '#fee2e2',
+              color:      isActive ? '#15803d' : '#dc2626',
+              letterSpacing: '0.04em',
+              flexShrink: 0,
+            }}>
+              {isActive ? '✓ ACTIVE' : '✗ INACTIVE'}
+            </span>
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--t-text3)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6, fontWeight: 500 }}>
             <span>{person.trade_label}</span>
-            <span>·</span>
-            <span>₹{Number(person.daily_rate).toLocaleString()}/day</span>
+            <span style={{ opacity: 0.5 }}>·</span>
+            <span style={{ fontWeight: 700, color: 'var(--t-text)' }}>₹{Number(person.daily_rate).toLocaleString()}</span>
             {person.nfc_uid && <span style={{ color: '#059669', fontWeight: 800, marginLeft: 4 }}>· 🪪 {person.nfc_uid}</span>}
           </div>
           {/* Today badge */}
@@ -216,7 +249,7 @@ function PersonCard({ person, onToggleRole, onEdit, onAssignCard, toggling }) {
 
       {/* ── Expanded detail ── */}
       {expanded && (
-        <div style={{ borderTop: '1px solid #f3f4f6', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ borderTop: '1px solid var(--t-border)', padding: '16px', display: 'flex', flexDirection: 'column', gap: 14, background: 'rgba(0,0,0,0.01)' }}>
 
           {/* Out-of-sync warning */}
           {outOfSync && (
@@ -306,10 +339,44 @@ function PersonCard({ person, onToggleRole, onEdit, onAssignCard, toggling }) {
 
           {/* Role toggles */}
           <div style={{
-            background: '#f8fafc', borderRadius: 8, padding: '10px 12px',
-            display: 'flex', flexDirection: 'column', gap: 8,
+            background: 'var(--t-bg)', borderRadius: 12, padding: '12px 16px',
+            display: 'flex', flexDirection: 'column', gap: 12,
+            border: `1px solid ${isActive ? 'var(--t-border)' : '#fca5a5'}`,
           }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 2 }}>ROLES</div>
+            <div style={{ fontSize: 10, fontWeight: 900, color: 'var(--t-text3)', marginBottom: 2, letterSpacing: '0.05em' }}>ROLES & ACCESS</div>
+
+            {/* ── Active / Inactive master switch ───────────────────────── */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: isActive ? '#f0fdf4' : '#fef2f2',
+              borderRadius: 10, padding: '10px 12px',
+              border: `1px solid ${isActive ? '#86efac' : '#fca5a5'}`,
+            }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: isActive ? '#15803d' : '#dc2626' }}>
+                  {isActive ? '✓ Worker Active' : '✗ Worker Inactive'}
+                </div>
+                <div style={{ fontSize: 11, color: isActive ? '#16a34a' : '#ef4444', marginTop: 2 }}>
+                  {isActive
+                    ? 'NFC door access ✓  ·  Attendance recording ✓'
+                    : 'NFC door BLOCKED  ·  Attendance BLOCKED  ·  pushed to device instantly'}
+                </div>
+              </div>
+              <button
+                onClick={handleToggleActive}
+                disabled={togglingActive}
+                style={{
+                  padding: '7px 14px', borderRadius: 8, border: 'none',
+                  background: togglingActive ? '#d1d5db' : isActive ? '#dc2626' : '#16a34a',
+                  color: '#fff', fontWeight: 800, fontSize: 12,
+                  cursor: togglingActive ? 'not-allowed' : 'pointer',
+                  flexShrink: 0, marginLeft: 12,
+                  transition: 'background .2s',
+                }}
+              >
+                {togglingActive ? '…' : isActive ? 'Deactivate' : 'Reactivate'}
+              </button>
+            </div>
 
             {/* Payment toggle */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -341,31 +408,33 @@ function PersonCard({ person, onToggleRole, onEdit, onAssignCard, toggling }) {
           </div>
 
           {/* Action buttons */}
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
             <button
               onClick={() => onEdit(person)}
               style={{
-                flex: 1, padding: '8px', borderRadius: 8,
-                background: '#f1f5f9', border: '1px solid #e2e8f0',
-                color: '#374151', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                flex: 1, padding: '12px', borderRadius: 12,
+                background: 'var(--t-surface2)', border: '1px solid var(--t-border)',
+                color: 'var(--t-text)', fontSize: 13, fontWeight: 800, cursor: 'pointer',
+                transition: 'all 0.2s',
               }}
             >✏️ Edit</button>
             <button
               onClick={() => onAssignCard(person)}
               style={{
-                flex: 1.2, padding: '8px', borderRadius: 8,
+                flex: 1.5, padding: '12px', borderRadius: 12,
                 background: '#f0fdf4', border: '1px solid #86efac',
-                color: '#15803d', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                color: '#15803d', fontSize: 13, fontWeight: 800, cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(34,197,94,0.1)',
               }}
-            >🪪 Assign Card</button>
+            >🪪 Card</button>
             {outOfSync && (
               <button
                 onClick={() => attendanceService.syncFromContractor(person.worker_id).catch(console.error)}
                 disabled={toggling}
                 style={{
-                  flex: 1, padding: '8px', borderRadius: 8,
+                  flex: 1, padding: '12px', borderRadius: 12,
                   background: '#fffbeb', border: '1px solid #fde68a',
-                  color: '#92400e', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  color: '#92400e', fontSize: 13, fontWeight: 800, cursor: 'pointer',
                 }}
               >🔄 Sync</button>
             )}
@@ -903,6 +972,11 @@ export default function ManpowerTab({ projectId }) {
     setToggleTarget({ workerId, role, enable, personName: p?.name || '' });
   };
 
+  const handleToggleActive = async (workerId) => {
+    await attendanceService.togglePersonActive(workerId);
+    load();   // reload list — card will reflect new status instantly
+  };
+
   const handleAdopt = async (contractor, trade) => {
     setAdopting(contractor.contractor_id);
     try {
@@ -935,7 +1009,7 @@ export default function ManpowerTab({ projectId }) {
       {/* Title bar */}
       <div style={{ padding: '20px 16px 4px', display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{ flex: 1 }}>
-          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: 'var(--t-text)', letterSpacing: '-0.02em' }}>👷 Staff Registry</h2>
+          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: 'var(--t-text)', letterSpacing: '-0.02em' }}>🏷️ Staff NFC Registry</h2>
           <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--t-text3)' }}>Manage worker profiles, roles, and digital identities</p>
         </div>
         <button onClick={() => setShowAdd(true)} style={{
@@ -957,11 +1031,11 @@ export default function ManpowerTab({ projectId }) {
         {data && <SummaryBanner summary={summary} />}
 
         {/* Search + filter */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
           <input
             style={{
-              flex: 1, minWidth: 150, padding: '10px 14px', borderRadius: 10,
-              border: '1px solid #e5e7eb', fontSize: 14, background: '#f9fafb',
+              flex: 1, minWidth: 150, padding: '12px 16px', borderRadius: 14,
+              border: '1.5px solid var(--t-border)', fontSize: 14, background: 'var(--t-surface)', color: 'var(--t-text)',
             }}
             placeholder="🔍  Search name or trade…"
             value={search}
@@ -971,9 +1045,9 @@ export default function ManpowerTab({ projectId }) {
             value={tradeFilter}
             onChange={e => setTradeFilter(e.target.value)}
             style={{
-              padding: '10px 14px', borderRadius: 10,
-              border: '1px solid #e5e7eb', fontSize: 14, background: '#fff',
-              color: '#374151', cursor: 'pointer', outline: 'none'
+              padding: '12px 14px', borderRadius: 14,
+              border: '1.5px solid var(--t-border)', fontSize: 13, background: 'var(--t-surface)',
+              color: 'var(--t-text)', cursor: 'pointer', outline: 'none'
             }}
           >
             <option value="ALL">All Trades</option>
@@ -982,15 +1056,15 @@ export default function ManpowerTab({ projectId }) {
           <button
             onClick={() => setShowInactive(s => !s)}
             style={{
-              padding: '10px 12px', borderRadius: 10, border: '1px solid #e5e7eb',
-              background: showInactive ? '#fef3c7' : '#fff',
-              color: showInactive ? '#92400e' : '#6b7280',
-              fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+              padding: '12px 14px', borderRadius: 14, border: '1.5px solid var(--t-border)',
+              background: showInactive ? 'rgba(245,158,11,0.1)' : 'var(--t-surface)',
+              color: showInactive ? '#d97706' : 'var(--t-text3)',
+              fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
             }}
           >{showInactive ? '👁 All' : '👁 Active'}</button>
           <button onClick={load} style={{
-            padding: '10px 12px', borderRadius: 10, border: '1px solid #e5e7eb',
-            background: '#fff', color: '#6b7280', fontSize: 13, cursor: 'pointer',
+            padding: '12px 14px', borderRadius: 14, border: '1.5px solid var(--t-border)',
+            background: 'var(--t-surface)', color: 'var(--t-text3)', fontSize: 16, cursor: 'pointer',
           }}>🔄</button>
         </div>
 
@@ -1020,6 +1094,7 @@ export default function ManpowerTab({ projectId }) {
                     key={p.worker_id}
                     person={p}
                     onToggleRole={handleToggleRole}
+                    onToggleActive={handleToggleActive}
                     onEdit={setEditPerson}
                     onAssignCard={setPairingPerson}
                     toggling={false}
@@ -1069,6 +1144,14 @@ export default function ManpowerTab({ projectId }) {
             )}
           </>
         )}
+      </div>
+
+      {/* ── NFC Device Fleet ── */}
+      <div style={{ padding: '0 16px', marginTop: 8 }}>
+        <div style={{
+          height: 1, background: 'var(--t-border)', margin: '16px 0',
+        }} />
+        <NfcDevicesPanel projectId={projectId} />
       </div>
 
       {/* ── Sheets ── */}

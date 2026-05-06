@@ -5,6 +5,7 @@
  * Base URL: /api/v1/workforce/
  */
 import axios from 'axios';
+import { attachResponseInterceptor } from './api';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
@@ -18,6 +19,7 @@ api.interceptors.request.use(cfg => {
     cfg.headers = { ...cfg.headers, ...getHeaders() };
     return cfg;
 });
+attachResponseInterceptor(api);
 
 const workforceService = {
 

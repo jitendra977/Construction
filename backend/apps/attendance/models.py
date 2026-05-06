@@ -83,6 +83,8 @@ class AttendanceWorker(models.Model):
     custom_checkin_end    = models.TimeField(null=True, blank=True, help_text="HH:MM — custom check-in window closes")
     custom_checkout_start = models.TimeField(null=True, blank=True, help_text="HH:MM — custom check-out window opens")
     custom_checkout_end   = models.TimeField(null=True, blank=True, help_text="HH:MM — custom check-out window closes")
+    # Bitmask of allowed work days: bit 0 = Sun, 1 = Mon, … 6 = Sat. 127 = every day.
+    working_days_mask     = models.IntegerField(default=127, help_text="Bitmask of allowed work days (bit0=Sun … bit6=Sat). 127=all days.")
 
     # ── QR & NFC Attendance ────────────────────────────────────
     # Unique token embedded in the worker's QR code.
@@ -369,6 +371,22 @@ class ProjectAttendanceSettings(models.Model):
                             help_text="MQTT broker username (leave blank for anonymous)")
     mqtt_password        = models.CharField(max_length=255, blank=True, default='',
                             help_text="MQTT broker password (leave blank for anonymous)")
+
+    # ── Sound & Voice Feedback ────────────────────────────────────────────────
+    sound_enabled        = models.BooleanField(default=True,
+                            help_text="Enable/disable chime sounds on scan success/error")
+    voice_enabled        = models.BooleanField(default=True,
+                            help_text="Enable/disable voice announcements of staff names")
+    sound_volume         = models.DecimalField(max_digits=3, decimal_places=2, default=0.5,
+                            help_text="Master volume for chime sounds (0.0 to 1.0)")
+    sound_pitch          = models.DecimalField(max_digits=3, decimal_places=2, default=1.0,
+                            help_text="Pitch multiplier for chime sounds (0.5 to 2.0)")
+    voice_rate           = models.DecimalField(max_digits=3, decimal_places=2, default=1.0,
+                            help_text="Speech rate for voice announcements (0.5 to 2.0)")
+    voice_pitch          = models.DecimalField(max_digits=3, decimal_places=2, default=1.0,
+                            help_text="Speech pitch for voice announcements (0.0 to 2.0)")
+    sound_theme          = models.CharField(max_length=50, default='harmonic',
+                            help_text="Sound theme: harmonic, classic, or modern")
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

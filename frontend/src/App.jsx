@@ -14,7 +14,8 @@ const MobileDashboard = lazy(() => import('./pages/mobile/MobileDashboard'));
 const DesktopRoutes = lazy(() => import('./routes/desktop/DesktopRoutes'));
 const MobileRoutes = lazy(() => import('./routes/mobile/MobileRoutes'));
 const AboutDeveloper = lazy(() => import('./pages/desktop/AboutDeveloper'));
-const WorkerPortal = lazy(() => import('./modules/worker/WorkerPortal'));
+const WorkerPortal      = lazy(() => import('./modules/worker/WorkerPortal'));
+const AttendanceKiosk   = lazy(() => import('./modules/attendance/AttendanceKiosk'));
 
 const LoadingFallback = () => (
   <div className="flex justify-center items-center h-screen bg-[var(--t-bg)]">
@@ -139,6 +140,15 @@ function App() {
                 element={
                   <Suspense fallback={<LoadingFallback />}>
                     <WorkerPortal />
+                  </Suspense>
+                }
+              />
+              {/* Kiosk — fullscreen NFC kiosk for site entrance, no auth required */}
+              <Route
+                path="/kiosk/:projectId"
+                element={
+                  <Suspense fallback={<LoadingFallback />}>
+                    <AttendanceKiosk />
                   </Suspense>
                 }
               />
