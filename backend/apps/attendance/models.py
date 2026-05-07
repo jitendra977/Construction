@@ -97,6 +97,14 @@ class AttendanceWorker(models.Model):
         max_length=50, unique=True, null=True, blank=True,
         help_text="Hardware UID of the assigned NFC card/fob (e.g., 01010112D919C800)",
     )
+    nfc_uid_updated_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text=(
+            "Timestamp when nfc_uid was last assigned or changed.  "
+            "Compare against NFCDevice.last_push_at to know if this worker's "
+            "card is already loaded on every device."
+        ),
+    )
 
     created_at   = models.DateTimeField(auto_now_add=True)
     updated_at   = models.DateTimeField(auto_now=True)

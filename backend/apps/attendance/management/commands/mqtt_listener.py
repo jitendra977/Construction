@@ -85,11 +85,26 @@ class Command(BaseCommand):
         username    = options["user"]     or cfg.username
         password    = options["password"] or cfg.password
 
-        # Build Paho client
+        # ── Build Paho client with a PERSISTENT SESSION ───────────────────────
+        # clean_session=False + a stable client_id tells the MQTT broker to
+        # keep a durable queue for this subscriber even while Django is offline.
+        # When the listener restarts, the broker immediately delivers every scan
+        # that arrived while it was down — nothing is lost.
+        #
+        # IMPORTANT: the broker must have persistence enabled.
+        # Mosquitto: add  persistence true  to /etc/mosquitto/mosquitto.conf
+        #            (it is the default in most Mosquitto packages).
+        project_pk  = cfg.project.pk if hasattr(cfg.project, "pk") else "0"
+        client_id   = f"django-nfc-listener-proj{project_pk}"
+        self.stdout.write(f"  MQTT client_id: {client_id}  (clean_session=False → durable queue)")
         try:
-            client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1)
-        except AttributeError:
-            client = mqtt.Client()
+            client = mqtt.Client(
+                mqtt.CallbackAPIVersion.VERSION1,
+                client_id=client_id,
+                clean_session=False,
+            )
+        except (AttributeError, TypeError):
+            client = mqtt.Client(client_id=client_id, clean_session=False)
 
         if username:
             client.username_pw_set(username, password or None)
@@ -275,6 +290,10 @@ class Command(BaseCommand):
             client.subscribe("nfc/+/users/request")
             self.stdout.write("  Subscribed to: nfc/+/users/request")
 
+            # Device error state — firmware publishes "No Wi-Fi", "No MQTT", "OK", etc.
+            client.subscribe("nfc/+/error_state")
+            self.stdout.write("  Subscribed to: nfc/+/error_state")
+
             cfg.mark_connected()
         else:
             err = f"Connection refused — return code {rc}"
@@ -302,6 +321,12 @@ class Command(BaseCommand):
         if msg.topic.endswith("/users/request"):
             mac = self._mac_from_topic(msg.topic)
             self._process_users_request(mac)
+            return
+
+        # ── nfc/<mac>/error_state → device error status ───────────────────────
+        if msg.topic.endswith("/error_state"):
+            mac = self._mac_from_topic(msg.topic)
+            self._process_error_state(mac, payload_str)
             return
 
         # ── nfc/<mac>/state → attendance scan ─────────────────────────────────
@@ -346,20 +371,46 @@ class Command(BaseCommand):
             except (ValueError, OSError, OverflowError):
                 device_ts = None
 
+        # ── Detect replay type and compute effective scan_time ────────────────
+        # Case A — is_queued=True: firmware buffered this on-device while MQTT
+        #          was down.  device_ts is the moment the card was scanned.
+        # Case B — is_queued=False but device_ts is old: Django was offline
+        #          while MQTT was still up.  The broker queued the message.
+        #          device_ts is still the original scan time — use it so the
+        #          attendance record reflects when the worker actually scanned.
+        # Case C — no device_ts: v1 firmware or clock not synced → use server now.
+
+        from django.utils import timezone as dj_tz
+        server_lag_secs = 0
+        if device_ts:
+            server_lag_secs = (dj_tz.now() - device_ts).total_seconds()
+
+        # Treat any scan with device_ts as the authoritative time, but reject
+        # timestamps that are clearly wrong (future or > 24 h in the past).
+        use_device_ts = (
+            device_ts is not None
+            and -60 <= server_lag_secs <= 86400   # within 24 h window
+        )
+
         if is_queued:
-            lag = ""
-            if device_ts:
-                from django.utils import timezone as dj_tz
-                lag_secs = (dj_tz.now() - device_ts).total_seconds()
-                lag = f" (queued {lag_secs:.0f}s ago, device ts={device_ts:%H:%M:%S})"
-            self.stdout.write(f"  [QUEUED replay]{lag}")
+            lag_str = f"{server_lag_secs:.0f}s ago" if device_ts else "unknown lag"
+            self.stdout.write(f"  [ESP32 OFFLINE REPLAY] device queued scan {lag_str}")
+        elif use_device_ts and server_lag_secs > 60:
+            self.stdout.write(
+                self.style.WARNING(
+                    f"  [SERVER OFFLINE REPLAY] scan from {server_lag_secs:.0f}s ago "
+                    f"(device ts={device_ts:%Y-%m-%d %H:%M:%S}) — Django was down, "
+                    f"MQTT broker held this message"
+                )
+            )
 
         # MAC is the middle segment of the topic: nfc/<mac>/state
         mac = self._mac_from_topic(msg.topic)
 
         self._process_scan(
             nfc_uid, msg.topic, payload_str, telemetry, mac,
-            device_ts=device_ts, is_queued=is_queued,
+            device_ts=device_ts if use_device_ts else None,
+            is_queued=(is_queued or (use_device_ts and server_lag_secs > 60)),
         )
 
     # ── Users request handler ─────────────────────────────────────────────────
@@ -464,6 +515,58 @@ class Command(BaseCommand):
         except Exception as exc:
             logger.warning("users/request: publish failed: %s", exc)
 
+    # ── Error state handler ───────────────────────────────────────────────────
+
+    def _process_error_state(self, mac: str, error_str: str):
+        """
+        Handle  nfc/<mac>/error_state  messages from the firmware diagnostic_task.
+
+        The firmware publishes:
+          "OK"             — all systems healthy (clears any previous error)
+          "No Wi-Fi"       — WiFi just reconnected so MQTT is up; clearing is normal
+          "No MQTT"        — MQTT broker unreachable (WiFi still up)
+          "PN532 Error"    — NFC reader hardware fault
+          "Door Left Open" — Door held open > alarm threshold
+
+        We track the first-seen timestamp so the dashboard can show how long
+        the error has been active.  Pushing a user list to a device in error
+        state is blocked by the dashboard UI (NfcDevicesPanel).
+        """
+        from apps.attendance.mqtt_models import NFCDevice
+        from django.utils import timezone
+
+        error = (error_str or "").strip()
+        if not mac:
+            return
+
+        is_ok = (error == "" or error.upper() == "OK")
+
+        try:
+            device = NFCDevice.objects.filter(mac__iexact=mac).first()
+            if not device:
+                return  # Unknown device — ignore until it announces itself
+
+            if is_ok:
+                if device.error_state:
+                    self.stdout.write(self.style.SUCCESS(
+                        f"  ✓ Device {mac} error cleared (was: {device.error_state})"
+                    ))
+                device.error_state = ""
+                device.error_since = None
+            else:
+                if device.error_state != error:
+                    # New error type — record onset time
+                    device.error_since = timezone.now()
+                    self.stdout.write(self.style.WARNING(
+                        f"  ⚠ Device {mac} error: {error}"
+                    ))
+                device.error_state = error
+
+            device.save(update_fields=["error_state", "error_since"])
+
+        except Exception as exc:
+            logger.warning("_process_error_state failed for %s: %s", mac, exc)
+
     # ── Announce handler ──────────────────────────────────────────────────────
 
     def _process_announce(self, payload_str: str):
@@ -491,6 +594,15 @@ class Command(BaseCommand):
                     f"  Device {verb}: {device.mac} ({device.device_name}) "
                     f"fw={device.firmware_version} ip={device.ip_address}"
                 ))
+                # Announce means the device just (re)connected — clear any
+                # stale error state so the dashboard shows it as healthy.
+                if device.error_state:
+                    device.error_state = ""
+                    device.error_since = None
+                    device.save(update_fields=["error_state", "error_since"])
+                    self.stdout.write(self.style.SUCCESS(
+                        f"  Error state cleared on reconnect for {device.mac}"
+                    ))
         except Exception as exc:
             logger.warning("Failed to upsert NFCDevice: %s", exc)
 
@@ -502,10 +614,12 @@ class Command(BaseCommand):
         """
         Resolve UID → worker, record attendance, publish feedback, log event.
 
-        device_ts  — datetime from the device's 'ts' field (may be None for v1 firmware)
-        is_queued  — True when the scan was buffered on device while MQTT was offline;
-                     when True and device_ts is valid, attendance is recorded using
-                     device_ts so check-in/out times reflect the actual scan moment.
+        device_ts  — aware datetime from the device's 'ts' field (None for old firmware)
+        is_queued  — True for:
+                       • firmware-side offline queue (ESP32 buffered while MQTT was down)
+                       • server-side offline queue (broker held message while Django was down)
+                     In both cases, device_ts carries the real scan time and is used as
+                     the attendance timestamp so records are not timestamped "now".
         """
         from apps.attendance.models import AttendanceWorker
         from apps.attendance.views import _process_attendance_scan
@@ -531,13 +645,25 @@ class Command(BaseCommand):
             self._publish_feedback(mac, "ERROR", "", False)
             return
 
-        # For queued scans: pass the device's original timestamp so attendance
-        # records show the time of the actual scan, not the server-receive time.
-        scan_time = device_ts if (is_queued and device_ts is not None) else None
+        # Use device_ts as the canonical scan time whenever it is available.
+        # This covers three replay scenarios:
+        #   1. is_queued=True  → ESP32 offline queue (MQTT was down)
+        #   2. is_queued=True  → server offline replay (Django was down, broker queued)
+        #   3. is_queued=False → live scan with valid device clock (normal path)
+        # If device_ts is None (v1 firmware / clock not synced) we fall back to now.
+        scan_time = device_ts  # already None when not trusted (filtered upstream)
+
+        # Build a descriptive source tag for the QRScanLog.user_agent field
+        if is_queued and device_ts:
+            from django.utils import timezone as dj_tz
+            lag = int((dj_tz.now() - device_ts).total_seconds())
+            scan_src = f"MQTT/{topic}[replay +{lag}s]"
+        else:
+            scan_src = f"MQTT/{topic}"
 
         result = _process_attendance_scan(
             worker,
-            scan_source=f"MQTT/{topic}{'[queued]' if is_queued else ''}",
+            scan_source=scan_src,
             scan_time=scan_time,
         )
 

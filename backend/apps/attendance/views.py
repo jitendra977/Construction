@@ -1210,7 +1210,8 @@ def _build_person_entry(worker, today_records):
         "is_active":   worker.is_active,
         "joined_date": str(worker.joined_date) if worker.joined_date else None,
         "notes":       worker.notes,
-        "nfc_uid":     worker.nfc_uid,
+        "nfc_uid":              worker.nfc_uid,
+        "nfc_uid_updated_at":   worker.nfc_uid_updated_at,
         # Today
         "today_status":    today_status,
         "today_check_in":  today_check_in,
@@ -1411,17 +1412,19 @@ def person_add(request):
                     final_name = f"{name} ({counter})"
                     counter   += 1
 
+                from django.utils import timezone as _tz
                 worker = AttendanceWorker.objects.create(
-                    project_id  = project_id,
-                    name        = final_name,
-                    trade       = trade,
-                    worker_type = worker_type,
-                    daily_rate  = daily_rate,
-                    phone       = phone,
-                    notes       = notes,
-                    joined_date = joined_date,
-                    nfc_uid     = nfc_uid,
-                    contractor  = contractor,
+                    project_id         = project_id,
+                    name               = final_name,
+                    trade              = trade,
+                    worker_type        = worker_type,
+                    daily_rate         = daily_rate,
+                    phone              = phone,
+                    notes              = notes,
+                    joined_date        = joined_date,
+                    nfc_uid            = nfc_uid,
+                    nfc_uid_updated_at = _tz.now() if nfc_uid else None,
+                    contractor         = contractor,
                 )
     finally:
         post_save.connect(contractor_post_save, sender=Contractor)
@@ -1471,7 +1474,7 @@ def person_update(request, worker_id):
         worker.name = new_name
         worker_fields.append("name")
 
-    for field in ("trade", "worker_type", "phone", "notes", "nfc_uid"):
+    for field in ("trade", "worker_type", "phone", "notes"):
         if field in request.data:
             val = request.data[field]
             if isinstance(val, str):
@@ -1479,6 +1482,27 @@ def person_update(request, worker_id):
             setattr(worker, field, val)
             worker_fields.append(field)
 
+    # NFC UID — requires uniqueness check before save
+    if "nfc_uid" in request.data:
+        new_uid = (request.data["nfc_uid"] or "").strip().upper().replace(" ", "")
+        if new_uid:
+            clash = (
+                AttendanceWorker.objects
+                .filter(nfc_uid__iexact=new_uid)
+                .exclude(pk=worker.pk)
+                .first()
+            )
+            if clash:
+                return Response(
+                    {"error": f"NFC UID {new_uid} is already assigned to {clash.name}."},
+                    status=400,
+                )
+        worker.nfc_uid = new_uid if new_uid else None
+        worker_fields.append("nfc_uid")
+        # Stamp so dashboard can compare against device.last_push_at
+        from django.utils import timezone as _tz
+        worker.nfc_uid_updated_at = _tz.now()
+        worker_fields.append("nfc_uid_updated_at")
 
     if "is_active" in request.data:
         val = request.data["is_active"]

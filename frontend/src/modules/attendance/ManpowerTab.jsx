@@ -144,11 +144,43 @@ function SummaryBanner({ summary }) {
   );
 }
 
+// ─── NFC sync-status helper ────────────────────────────────────────────────────
+
+function nfcSyncStatus(person, nfcDevices) {
+  if (!person.nfc_uid)
+    return { state: 'no_card',   label: '📵 No Card',     color: '#9ca3af', bg: '#f1f5f9', border: '#e2e8f0', canPush: false };
+
+  if (!nfcDevices || nfcDevices.length === 0)
+    return { state: 'no_device', label: '📡 No Device',   color: '#9ca3af', bg: '#f1f5f9', border: '#e2e8f0', canPush: false };
+
+  const healthyDevices = nfcDevices.filter(d => {
+    const e = (d.error_state || '').trim();
+    return e === '' || e.toUpperCase() === 'OK';
+  });
+  if (healthyDevices.length === 0)
+    return { state: 'err',       label: '⚠️ Device Error', color: '#d97706', bg: '#fffbeb', border: '#fde68a', canPush: false };
+
+  const uidTs = person.nfc_uid_updated_at ? new Date(person.nfc_uid_updated_at) : null;
+
+  const allSynced = healthyDevices.every(d => {
+    if (!d.last_push_at) return false;          // never pushed to this device
+    if (!uidTs) return false;                    // legacy row, no stamp → unknown → show as Needs Push
+    return new Date(d.last_push_at) > uidTs;    // device pushed AFTER uid last changed
+  });
+
+  if (allSynced)
+    return { state: 'synced',     label: '✅ On Device',  color: '#059669', bg: '#f0fdf4', border: '#86efac', canPush: false };
+
+  return   { state: 'needs_push', label: '📤 Push Needed', color: '#d97706', bg: '#fffbeb', border: '#fde68a', canPush: true  };
+}
+
 // ─── Person card ──────────────────────────────────────────────────────────────
 
-function PersonCard({ person, onToggleRole, onToggleActive, onEdit, onAssignCard, toggling }) {
-  const [expanded, setExpanded] = useState(false);
+function PersonCard({ person, onToggleRole, onToggleActive, onEdit, onAssignCard, toggling, nfcDevices, onPushWorker }) {
+  const [expanded, setExpanded]         = useState(false);
   const [togglingActive, setTogglingActive] = useState(false);
+  const [pushingNfc, setPushingNfc]     = useState(false);
+  const [nfcResult, setNfcResult]       = useState(null); // {ok, msg}
 
   const todayDot  = TODAY_COLOR[person.today_status] || TODAY_COLOR.NOT_MARKED;
   const todayText = person.today_check_in
@@ -156,7 +188,25 @@ function PersonCard({ person, onToggleRole, onToggleActive, onEdit, onAssignCard
     : person.today_status === 'NOT_MARKED' ? 'Not marked' : person.today_status;
 
   const outOfSync = person.role_payment && !person.in_sync;
-  const isActive  = person.is_active !== false;  // default true if field missing
+  const isActive  = person.is_active !== false;
+  const nfcStatus = nfcSyncStatus(person, nfcDevices);
+
+  const handlePushWorker = async (e) => {
+    e.stopPropagation();
+    setPushingNfc(true);
+    setNfcResult(null);
+    try {
+      const res = await onPushWorker(person.worker_id);
+      setNfcResult({ ok: true, msg: `✅ Card pushed to ${res.pushed_to} device(s)` });
+      setTimeout(() => setNfcResult(null), 6000);
+    } catch (err) {
+      const msg = err?.response?.data?.error || err.message || 'Push failed';
+      setNfcResult({ ok: false, msg: `✗ ${msg}` });
+      setTimeout(() => setNfcResult(null), 8000);
+    } finally {
+      setPushingNfc(false);
+    }
+  };
 
   const handleToggleActive = async (e) => {
     e.stopPropagation();
@@ -202,11 +252,31 @@ function PersonCard({ person, onToggleRole, onToggleActive, onEdit, onAssignCard
               {isActive ? '✓ ACTIVE' : '✗ INACTIVE'}
             </span>
           </div>
-          <div style={{ fontSize: 11, color: 'var(--t-text3)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6, fontWeight: 500 }}>
+          <div style={{ fontSize: 11, color: 'var(--t-text3)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6, fontWeight: 500, flexWrap: 'wrap' }}>
             <span>{person.trade_label}</span>
             <span style={{ opacity: 0.5 }}>·</span>
             <span style={{ fontWeight: 700, color: 'var(--t-text)' }}>₹{Number(person.daily_rate).toLocaleString()}</span>
-            {person.nfc_uid && <span style={{ color: '#059669', fontWeight: 800, marginLeft: 4 }}>· 🪪 {person.nfc_uid}</span>}
+            {/* NFC status pill — always visible */}
+            <span
+              onClick={e => { e.stopPropagation(); if (nfcStatus.canPush && !pushingNfc) handlePushWorker(e); }}
+              title={
+                nfcStatus.state === 'synced'     ? `Card "${person.nfc_uid}" is loaded on all devices` :
+                nfcStatus.state === 'needs_push' ? `Click to push "${person.nfc_uid}" to NFC device(s)` :
+                nfcStatus.state === 'no_card'    ? 'No NFC card assigned — use 🪪 Card to assign one' :
+                nfcStatus.label
+              }
+              style={{
+                fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 20,
+                background: nfcStatus.bg, color: nfcStatus.color,
+                border: `1px solid ${nfcStatus.border}`,
+                cursor: nfcStatus.canPush ? 'pointer' : 'default',
+                marginLeft: 2, flexShrink: 0,
+                opacity: pushingNfc ? 0.6 : 1,
+                transition: 'all .2s',
+              }}
+            >
+              {pushingNfc ? '⏳ Pushing…' : nfcStatus.label}
+            </span>
           </div>
           {/* Today badge */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
@@ -263,10 +333,79 @@ function PersonCard({ person, onToggleRole, onToggleActive, onEdit, onAssignCard
           )}
 
           {/* Phone / joined */}
-          <div style={{ display: 'flex', gap: 16, fontSize: 12, color: '#6b7280' }}>
-            {person.phone && <span>📞 {person.phone}</span>}
+          <div style={{ display: 'flex', gap: 16, fontSize: 12, color: '#6b7280', flexWrap: 'wrap' }}>
+            {person.phone      && <span>📞 {person.phone}</span>}
             {person.joined_date && <span>📅 Joined {person.joined_date}</span>}
-            {person.nfc_uid && <span style={{ color: '#059669', fontWeight: 700 }}>🪪 {person.nfc_uid}</span>}
+          </div>
+
+          {/* ── NFC Card status panel ── */}
+          <div style={{
+            borderRadius: 12, border: `1.5px solid ${nfcStatus.border}`,
+            background: nfcStatus.bg, padding: '12px 14px',
+            display: 'flex', alignItems: 'center', gap: 12,
+          }}>
+            {/* Left: UID + status */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: nfcStatus.color, marginBottom: 2 }}>
+                {nfcStatus.label}
+              </div>
+              {person.nfc_uid ? (
+                <div style={{ fontFamily: 'monospace', fontSize: 11, color: '#374151',
+                  background: 'rgba(0,0,0,0.06)', borderRadius: 6, padding: '2px 7px',
+                  display: 'inline-block', letterSpacing: '0.05em' }}>
+                  {person.nfc_uid}
+                </div>
+              ) : (
+                <div style={{ fontSize: 11, color: '#9ca3af' }}>
+                  Tap "🪪 Card" below to assign an NFC card to this worker.
+                </div>
+              )}
+              {nfcResult && (
+                <div style={{
+                  marginTop: 6, fontSize: 11, fontWeight: 700,
+                  color: nfcResult.ok ? '#059669' : '#dc2626',
+                }}>
+                  {nfcResult.msg}
+                </div>
+              )}
+            </div>
+
+            {/* Right: push button (only when card assigned and push needed) */}
+            {nfcStatus.state === 'needs_push' && (
+              <button
+                onClick={handlePushWorker}
+                disabled={pushingNfc}
+                style={{
+                  padding: '8px 16px', borderRadius: 9, border: 'none',
+                  background: pushingNfc ? '#e5e7eb' : '#d97706',
+                  color: pushingNfc ? '#9ca3af' : '#fff',
+                  fontSize: 12, fontWeight: 800,
+                  cursor: pushingNfc ? 'not-allowed' : 'pointer',
+                  flexShrink: 0, whiteSpace: 'nowrap',
+                  boxShadow: pushingNfc ? 'none' : '0 2px 8px rgba(217,119,6,0.3)',
+                  transition: 'all .2s',
+                }}
+              >
+                {pushingNfc ? '⏳ Pushing…' : '📤 Push to NFC'}
+              </button>
+            )}
+            {nfcStatus.state === 'synced' && (
+              <button
+                onClick={handlePushWorker}
+                disabled={pushingNfc}
+                title="Force re-push even though already synced"
+                style={{
+                  padding: '7px 12px', borderRadius: 9,
+                  border: '1px solid #86efac',
+                  background: 'transparent',
+                  color: '#059669', fontSize: 11, fontWeight: 700,
+                  cursor: pushingNfc ? 'not-allowed' : 'pointer',
+                  flexShrink: 0, whiteSpace: 'nowrap',
+                }}
+              >
+                {pushingNfc ? '⏳…' : '🔄 Re-push'}
+              </button>
+            )}
           </div>
 
           {/* Payment info if enabled */}
@@ -956,6 +1095,74 @@ export default function ManpowerTab({ projectId }) {
   const [adopting, setAdopting]         = useState(null); // contractorId
   const [pairingPerson, setPairingPerson] = useState(null);
 
+  // Push to NFC devices
+  const [pushing, setPushing]       = useState(false);
+  const [pushResult,   setPushResult]   = useState(null); // { ok, workers, pushed, error }
+  const [rebooting,    setRebooting]    = useState(false);
+  const [rebootResult, setRebootResult] = useState(null); // { ok, rebooted, error }
+
+  // NFC device status for the header pill
+  const [nfcDevices, setNfcDevices] = useState([]);
+
+  const loadNfcStatus = useCallback(() => {
+    if (!projectId) return Promise.resolve();
+    return attendanceService.getNfcDevices(projectId)
+      .then(data => setNfcDevices(data.devices || []))
+      .catch(() => setNfcDevices([]));
+  }, [projectId]);
+
+  useEffect(() => {
+    loadNfcStatus();
+    const t = setInterval(loadNfcStatus, 20000); // refresh every 20s
+    return () => clearInterval(t);
+  }, [loadNfcStatus]);
+
+  // Derived: compute status summary from nfcDevices
+  const nfcStatus = (() => {
+    if (!nfcDevices.length) return null;
+    const now = Date.now();
+    const online  = nfcDevices.filter(d => (now - new Date(d.last_seen)) < 10 * 60 * 1000);
+    const inError = nfcDevices.filter(d => {
+      const e = (d.error_state || '').trim();
+      return e !== '' && e.toUpperCase() !== 'OK';
+    });
+    return { total: nfcDevices.length, online: online.length, inError: inError.length,
+             errors: inError.map(d => ({ name: d.device_name || d.mac, state: d.error_state })) };
+  })();
+
+  const handlePushToDevices = async () => {
+    setPushing(true);
+    setPushResult(null);
+    try {
+      const res = await attendanceService.pushUsersToDevice(projectId, null);
+      setPushResult({ ok: true, workers: res.workers, pushed: res.pushed });
+      // Refresh device list so last_push_at updates and per-worker badges flip to ✅
+      await loadNfcStatus();
+    } catch (err) {
+      const msg = err?.response?.data?.error || err.message || 'Push failed';
+      setPushResult({ ok: false, error: msg });
+    } finally {
+      setPushing(false);
+      setTimeout(() => setPushResult(null), 8000);
+    }
+  };
+
+  const handleRebootDevices = async () => {
+    if (!window.confirm('Reboot all NFC devices for this project? They will reconnect in ~10 seconds.')) return;
+    setRebooting(true);
+    setRebootResult(null);
+    try {
+      const res = await attendanceService.rebootDevice(projectId, null);
+      setRebootResult({ ok: true, rebooted: res.rebooted });
+    } catch (err) {
+      const msg = err?.response?.data?.error || err.message || 'Reboot failed';
+      setRebootResult({ ok: false, error: msg });
+    } finally {
+      setRebooting(false);
+      setTimeout(() => setRebootResult(null), 8000);
+    }
+  };
+
   const load = useCallback(() => {
     if (!projectId) return;
     setLoading(true); setError(null);
@@ -974,7 +1181,14 @@ export default function ManpowerTab({ projectId }) {
 
   const handleToggleActive = async (workerId) => {
     await attendanceService.togglePersonActive(workerId);
-    load();   // reload list — card will reflect new status instantly
+    load();
+  };
+
+  const handlePushSingleWorker = async (workerId) => {
+    const res = await attendanceService.pushSingleWorker(projectId, workerId);
+    // Await refresh so last_push_at updates and the badge flips immediately
+    await loadNfcStatus();
+    return res;
   };
 
   const handleAdopt = async (contractor, trade) => {
@@ -1007,11 +1221,92 @@ export default function ManpowerTab({ projectId }) {
     <div style={{ padding: '0 0 100px', maxWidth: 660, margin: '0 auto' }}>
 
       {/* Title bar */}
-      <div style={{ padding: '20px 16px 4px', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ flex: 1 }}>
+      <div style={{ padding: '20px 16px 4px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 180 }}>
           <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: 'var(--t-text)', letterSpacing: '-0.02em' }}>🏷️ Staff NFC Registry</h2>
           <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--t-text3)' }}>Manage worker profiles, roles, and digital identities</p>
         </div>
+
+        {/* ── NFC Device Status Pill ── */}
+        {nfcStatus && (() => {
+          const hasErr = nfcStatus.inError > 0;
+          const allOff = nfcStatus.online === 0;
+          const color  = hasErr ? '#dc2626' : allOff ? '#6b7280' : '#059669';
+          const bg     = hasErr ? '#fef2f2' : allOff ? '#f3f4f6' : '#f0fdf4';
+          const border = hasErr ? '#fca5a5' : allOff ? '#d1d5db' : '#86efac';
+          const dot    = hasErr ? '#ef4444' : allOff ? '#9ca3af' : '#22c55e';
+          const label  = hasErr
+            ? `⚠ ${nfcStatus.inError} error${nfcStatus.inError > 1 ? 's' : ''}`
+            : allOff
+              ? `${nfcStatus.total} device${nfcStatus.total > 1 ? 's' : ''} offline`
+              : `${nfcStatus.online}/${nfcStatus.total} online`;
+          const tip = hasErr
+            ? nfcStatus.errors.map(e => `${e.name}: ${e.state}`).join('\n')
+            : `${nfcStatus.online} device(s) reachable`;
+          return (
+            <div
+              title={tip}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '6px 10px', borderRadius: 20,
+                background: bg, border: `1.5px solid ${border}`,
+                color, fontSize: 12, fontWeight: 700,
+                cursor: 'default', userSelect: 'none',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <span style={{
+                width: 7, height: 7, borderRadius: '50%',
+                background: dot,
+                boxShadow: hasErr ? `0 0 5px ${dot}88` : allOff ? 'none' : `0 0 5px ${dot}88`,
+                flexShrink: 0,
+              }} />
+              📡 {label}
+            </div>
+          );
+        })()}
+
+        {/* Push to NFC Devices button */}
+        <button
+          onClick={handlePushToDevices}
+          disabled={pushing}
+          title="Push all active NFC workers to every registered device immediately"
+          style={{
+            padding: '10px 16px', borderRadius: 12, border: 'none',
+            background: pushing ? '#e5e7eb' : '#059669',
+            color: pushing ? '#9ca3af' : '#fff',
+            fontSize: 13, fontWeight: 800,
+            cursor: pushing ? 'not-allowed' : 'pointer',
+            display: 'flex', alignItems: 'center', gap: 6,
+            boxShadow: pushing ? 'none' : '0 4px 12px rgba(5, 150, 105, 0.3)',
+            transition: 'all 0.2s',
+          }}
+        >
+          <span style={{ fontSize: 15 }}>{pushing ? '⏳' : '📤'}</span>
+          {pushing ? 'Pushing…' : 'Push to NFC'}
+        </button>
+
+        {/* Reboot Device(s) button */}
+        {nfcDevices.length > 0 && (
+          <button
+            onClick={handleRebootDevices}
+            disabled={rebooting}
+            title="Send reboot command to all NFC devices for this project"
+            style={{
+              padding: '10px 14px', borderRadius: 12, border: 'none',
+              background: rebooting ? '#e5e7eb' : '#dc2626',
+              color: rebooting ? '#9ca3af' : '#fff',
+              fontSize: 13, fontWeight: 800,
+              cursor: rebooting ? 'not-allowed' : 'pointer',
+              display: 'flex', alignItems: 'center', gap: 6,
+              boxShadow: rebooting ? 'none' : '0 4px 12px rgba(220, 38, 38, 0.3)',
+              transition: 'all 0.2s',
+            }}
+          >
+            <span style={{ fontSize: 15 }}>{rebooting ? '⏳' : '🔄'}</span>
+            {rebooting ? 'Rebooting…' : 'Reboot'}
+          </button>
+        )}
         <button onClick={() => setShowAdd(true)} style={{
           padding: '10px 20px', borderRadius: 12, border: 'none',
           background: '#6366f1', color: '#fff', fontSize: 13, fontWeight: 800,
@@ -1022,6 +1317,40 @@ export default function ManpowerTab({ projectId }) {
           <span style={{ fontSize: 16 }}>➕</span> Add Staff
         </button>
       </div>
+
+      {/* Push result banner */}
+      {pushResult && (
+        <div style={{
+          margin: '8px 16px 0',
+          padding: '10px 14px',
+          borderRadius: 10,
+          background: pushResult.ok ? '#f0fdf4' : '#fef2f2',
+          border: `1px solid ${pushResult.ok ? '#86efac' : '#fca5a5'}`,
+          color: pushResult.ok ? '#166534' : '#991b1b',
+          fontWeight: 600, fontSize: 13,
+        }}>
+          {pushResult.ok
+            ? `✓ Pushed ${pushResult.workers} workers to ${pushResult.pushed} device(s). Cards will work instantly.`
+            : `✗ ${pushResult.error}`}
+        </div>
+      )}
+
+      {/* Reboot result banner */}
+      {rebootResult && (
+        <div style={{
+          margin: '8px 16px 0',
+          padding: '10px 14px',
+          borderRadius: 10,
+          background: rebootResult.ok ? '#fff7ed' : '#fef2f2',
+          border: `1px solid ${rebootResult.ok ? '#fed7aa' : '#fca5a5'}`,
+          color: rebootResult.ok ? '#9a3412' : '#991b1b',
+          fontWeight: 600, fontSize: 13,
+        }}>
+          {rebootResult.ok
+            ? `🔄 Reboot command sent to ${rebootResult.rebooted} device(s). They will reconnect in ~10 seconds.`
+            : `✗ ${rebootResult.error}`}
+        </div>
+      )}
 
       <div style={{ padding: '12px 16px' }}>
         {/* Scanner Status Bar */}
@@ -1062,7 +1391,7 @@ export default function ManpowerTab({ projectId }) {
               fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
             }}
           >{showInactive ? '👁 All' : '👁 Active'}</button>
-          <button onClick={load} style={{
+          <button onClick={() => { load(); loadNfcStatus(); }} style={{
             padding: '12px 14px', borderRadius: 14, border: '1.5px solid var(--t-border)',
             background: 'var(--t-surface)', color: 'var(--t-text3)', fontSize: 16, cursor: 'pointer',
           }}>🔄</button>
@@ -1098,6 +1427,8 @@ export default function ManpowerTab({ projectId }) {
                     onEdit={setEditPerson}
                     onAssignCard={setPairingPerson}
                     toggling={false}
+                    nfcDevices={nfcDevices}
+                    onPushWorker={handlePushSingleWorker}
                   />
                 ))}
               </div>

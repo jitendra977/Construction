@@ -115,8 +115,18 @@ export const attendanceService = {
     // ── NFC Device Fleet ──────────────────────────────────────────────────────
     getNfcDevices: (project, params = {}) =>
         api.get('mqtt/devices/', { params: { project, ...params } }).then(r => r.data),
+
+    // Push ALL active workers with NFC UIDs to one or every device immediately
     pushUsersToDevice: (project, mac = null) =>
         api.post('mqtt/devices/push-users/', { project, ...(mac ? { mac } : {}) }).then(r => r.data),
+
+    // Push a SINGLE worker to every device via users/set (faster, targeted)
+    pushSingleWorker: (project, worker_id) =>
+        api.post('mqtt/devices/push-worker/', { project, worker_id }).then(r => r.data),
+
+    // Reboot one device (mac) or all project devices via MQTT cmd topic
+    rebootDevice: (project, mac = null) =>
+        api.post('mqtt/devices/reboot/', { project, ...(mac ? { mac } : {}) }).then(r => r.data),
 };
 
 export default attendanceService;

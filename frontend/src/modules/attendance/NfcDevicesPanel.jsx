@@ -30,6 +30,23 @@ function isOnline(last_seen, minutes = 10) {
     return (Date.now() - new Date(last_seen)) < minutes * 60 * 1000;
 }
 
+/* Returns true when the device has a non-OK error that blocks pushes */
+function hasError(device) {
+    const e = (device.error_state || '').trim();
+    return e !== '' && e.toUpperCase() !== 'OK';
+}
+
+const ERROR_COLOR = {
+    'No Wi-Fi':       { bg: '#fef2f2', border: '#fca5a5', text: '#991b1b', icon: '📡' },
+    'No MQTT':        { bg: '#fff7ed', border: '#fed7aa', text: '#9a3412', icon: '🔌' },
+    'PN532 Error':    { bg: '#fef2f2', border: '#fca5a5', text: '#991b1b', icon: '🔧' },
+    'Door Left Open': { bg: '#fffbeb', border: '#fde68a', text: '#92400e', icon: '🚪' },
+};
+
+function errorStyle(state) {
+    return ERROR_COLOR[state] || { bg: '#fef2f2', border: '#fca5a5', text: '#991b1b', icon: '⚠️' };
+}
+
 const MODE_COLOR = {
     door_lock:  '#6366f1',
     attendance: '#059669',
@@ -47,7 +64,9 @@ const MODE_LABEL = {
 function DeviceCard({ device, projectId, onPushed }) {
     const [pushing, setPushing] = useState(false);
     const [result,  setResult]  = useState(null);  // { ok, workers, error }
-    const online = isOnline(device.last_seen);
+    const online  = isOnline(device.last_seen);
+    const inError = hasError(device);
+    const eStyle  = inError ? errorStyle(device.error_state) : null;
 
     const handlePush = async () => {
         setPushing(true);
@@ -67,7 +86,7 @@ function DeviceCard({ device, projectId, onPushed }) {
     return (
         <div style={{
             background: 'var(--t-surface)',
-            border: `1.5px solid ${online ? '#22c55e33' : 'var(--t-border)'}`,
+            border: `1.5px solid ${inError ? (eStyle.border) : online ? '#22c55e33' : 'var(--t-border)'}`,
             borderRadius: 14,
             padding: '16px 18px',
             display: 'flex',
@@ -78,9 +97,9 @@ function DeviceCard({ device, projectId, onPushed }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{
                     width: 10, height: 10, borderRadius: '50%',
-                    background: online ? '#22c55e' : '#d1d5db',
+                    background: inError ? '#ef4444' : online ? '#22c55e' : '#d1d5db',
                     flexShrink: 0,
-                    boxShadow: online ? '0 0 6px #22c55e88' : 'none',
+                    boxShadow: inError ? '0 0 6px #ef444488' : online ? '0 0 6px #22c55e88' : 'none',
                 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--t-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -100,6 +119,30 @@ function DeviceCard({ device, projectId, onPushed }) {
                 </span>
             </div>
 
+            {/* ── Error banner ── */}
+            {inError && (
+                <div style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 8,
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    background: eStyle.bg,
+                    border: `1px solid ${eStyle.border}`,
+                    color: eStyle.text,
+                    fontSize: 12,
+                    fontWeight: 600,
+                }}>
+                    <span style={{ fontSize: 15, flexShrink: 0 }}>{eStyle.icon}</span>
+                    <div style={{ flex: 1 }}>
+                        <div>{device.error_state}</div>
+                        {device.error_since && (
+                            <div style={{ fontWeight: 400, marginTop: 2, opacity: 0.8 }}>
+                                Since {timeSince(device.error_since)} · Push disabled until resolved
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
             {/* Stats row */}
             <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--t-text3)' }}>
                 <span>fw {device.firmware_version || '—'}</span>
@@ -112,20 +155,22 @@ function DeviceCard({ device, projectId, onPushed }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <button
                     onClick={handlePush}
-                    disabled={pushing}
+                    disabled={pushing || inError}
+                    title={inError ? `Push blocked: device is in error state (${device.error_state})` : 'Push worker list to this device'}
                     style={{
                         padding: '7px 18px',
                         borderRadius: 8,
                         border: 'none',
-                        background: pushing ? 'var(--t-border)' : '#6366f1',
-                        color: pushing ? 'var(--t-text3)' : '#fff',
+                        background: (pushing || inError) ? 'var(--t-border)' : '#6366f1',
+                        color: (pushing || inError) ? 'var(--t-text3)' : '#fff',
                         fontWeight: 700,
                         fontSize: 13,
-                        cursor: pushing ? 'not-allowed' : 'pointer',
+                        cursor: (pushing || inError) ? 'not-allowed' : 'pointer',
                         transition: 'background .2s',
+                        opacity: inError ? 0.55 : 1,
                     }}
                 >
-                    {pushing ? '⏳ Pushing…' : '📤 Push Members'}
+                    {pushing ? '⏳ Pushing…' : inError ? '🚫 Push Blocked' : '📤 Push Members'}
                 </button>
 
                 {result && (
@@ -171,9 +216,18 @@ export default function NfcDevicesPanel({ projectId }) {
     const handlePushAll = async () => {
         setPushingAll(true);
         setPushAllResult(null);
+        // Count how many devices are healthy vs in error
+        const errorDevices = devices.filter(d => hasError(d));
+        const healthyCount = devices.length - errorDevices.length;
         try {
             const res = await attendanceService.pushUsersToDevice(projectId, null);
-            setPushAllResult({ ok: true, workers: res.workers, pushed: res.pushed });
+            setPushAllResult({
+                ok: true,
+                workers: res.workers,
+                pushed: res.pushed,
+                skipped: errorDevices.length,
+                skippedNames: errorDevices.map(d => d.device_name || d.mac),
+            });
         } catch (err) {
             const msg = err?.response?.data?.error || err.message || 'Push failed';
             setPushAllResult({ ok: false, error: msg });
@@ -253,9 +307,16 @@ export default function NfcDevicesPanel({ projectId }) {
                     fontWeight: 600,
                     fontSize: 13,
                 }}>
-                    {pushAllResult.ok
-                        ? `✓ Pushed ${pushAllResult.workers} workers to ${pushAllResult.pushed} device(s). Cards will be accepted within seconds.`
-                        : `✗ ${pushAllResult.error}`}
+                    {pushAllResult.ok ? (
+                        <div>
+                            <div>✓ Pushed {pushAllResult.workers} workers to {pushAllResult.pushed} device(s). Cards will be accepted within seconds.</div>
+                            {pushAllResult.skipped > 0 && (
+                                <div style={{ marginTop: 4, color: '#92400e', fontWeight: 500 }}>
+                                    ⚠ {pushAllResult.skipped} device(s) skipped due to active errors: {pushAllResult.skippedNames?.join(', ')}
+                                </div>
+                            )}
+                        </div>
+                    ) : `✗ ${pushAllResult.error}`}
                 </div>
             )}
 

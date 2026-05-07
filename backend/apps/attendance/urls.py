@@ -38,6 +38,8 @@ from .mqtt_views import (
     mqtt_nfc_scan,
     mqtt_devices,
     mqtt_push_users,
+    mqtt_push_single_worker,
+    mqtt_reboot_device,
 )
 
 router = DefaultRouter()
@@ -100,4 +102,8 @@ urlpatterns = router.urls + [
     path("mqtt/devices/",            mqtt_devices,    name="mqtt-devices"),
     # POST  { project, mac? }  — push full worker list to device(s) immediately
     path("mqtt/devices/push-users/", mqtt_push_users, name="mqtt-push-users"),
+    # POST  { project, worker_id }  — push a single worker via users/set
+    path("mqtt/devices/push-worker/", mqtt_push_single_worker, name="mqtt-push-worker"),
+    # POST  { project, mac? }  — reboot one or all devices via nfc/<mac>/cmd
+    path("mqtt/devices/reboot/",      mqtt_reboot_device,      name="mqtt-reboot-device"),
 ]

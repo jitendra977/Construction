@@ -322,6 +322,34 @@ class NFCDevice(models.Model):
         help_text="Total scan events received from this device since tracking started",
     )
 
+    # ── Error state ───────────────────────────────────────────────────────────
+    error_state = models.CharField(
+        max_length=32,
+        blank=True,
+        default="",
+        help_text=(
+            "Last error reported by the device via nfc/<mac>/error_state.  "
+            "Empty or 'OK' means all systems healthy.  "
+            "Possible values: 'No Wi-Fi', 'No MQTT', 'PN532 Error', 'Door Left Open'."
+        ),
+    )
+    error_since = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp when the current error condition first appeared.",
+    )
+
+    # ── Sync tracking ─────────────────────────────────────────────────────────
+    last_push_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Timestamp of the last successful users/sync push to this device.  "
+            "Compare against AttendanceWorker.nfc_uid_updated_at to determine "
+            "whether a worker's card is already on this device."
+        ),
+    )
+
     # ── Timestamps ────────────────────────────────────────────────────────────
     first_seen = models.DateTimeField(auto_now_add=True)
     last_seen  = models.DateTimeField(
