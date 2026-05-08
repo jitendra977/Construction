@@ -115,7 +115,7 @@ export default function RoomsPage() {
             )}
 
             {showForm && (
-                <Modal onClose={() => { setShowForm(false); setEditRoom(null); }}>
+                <Modal isOpen={true} onClose={() => { setShowForm(false); setEditRoom(null); }}>
                     <RoomForm
                         editRoom={editRoom}
                         onClose={() => { setShowForm(false); setEditRoom(null); }}

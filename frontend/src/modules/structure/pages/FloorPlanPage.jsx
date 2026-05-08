@@ -80,7 +80,7 @@ export default function FloorPlanPage() {
             </p>
 
             {showFloorForm && (
-                <Modal onClose={() => { setShowFloorForm(false); reload(); }}>
+                <Modal isOpen={true} onClose={() => { setShowFloorForm(false); reload(); }}>
                     <FloorForm onClose={() => setShowFloorForm(false)} />
                 </Modal>
             )}

@@ -177,7 +177,7 @@ export default function StructureDashboard() {
 
             {/* Modals */}
             {showFloorForm && (
-                <Modal onClose={() => { setShowFloorForm(false); setEditFloor(null); reload(); }}>
+                <Modal isOpen={true} onClose={() => { setShowFloorForm(false); setEditFloor(null); reload(); }}>
                     <FloorForm
                         editFloor={editFloor}
                         onClose={() => { setShowFloorForm(false); setEditFloor(null); }}
@@ -185,7 +185,7 @@ export default function StructureDashboard() {
                 </Modal>
             )}
             {showRoomForm && (
-                <Modal onClose={() => { setShowRoomForm(false); reload(); }}>
+                <Modal isOpen={true} onClose={() => { setShowRoomForm(false); reload(); }}>
                     <RoomForm onClose={() => setShowRoomForm(false)} />
                 </Modal>
             )}
