@@ -17,8 +17,9 @@ export default function FinanceTopNav() {
         { to: `${base}/finance/transfers`, icon: '🔄', label: 'Transfers' },
         { to: `${base}/finance/ledger`,    icon: '📒', label: 'Ledger'    },
         { to: `${base}/finance/bills`,     icon: '🧾', label: 'Bills'     },
-        { to: `${base}/finance/budget`,    icon: '🎯', label: 'Budget'    },
-        { to: `${base}/finance/help`,      icon: '📖', label: 'सहायता'   },
+        { to: `${base}/finance/budget`,      icon: '🎯', label: 'Budget'      },
+        { to: `${base}/finance/contractors`, icon: '🏗️', label: 'Contractors' },
+        { to: `${base}/finance/help`,        icon: '📖', label: 'सहायता'     },
     ];
   const { dashboard, loading } = useFinance();
   const totalCash = Number(dashboard?.banking?.total_cash || 0);

@@ -13,6 +13,7 @@ import { dashboardService } from '../../services/api';
 import IDCardModal from './components/IDCardModal';
 import MemberDrawer, { StatusBadge, TypeBadge, Spinner } from './components/MemberDrawer';
 import WorkforceMembersView from './components/WorkforceMembersView';
+import EmptyState from '../../shared/ui/EmptyState';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const TABS = [

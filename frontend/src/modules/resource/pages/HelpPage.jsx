@@ -3,7 +3,7 @@
  * Resource module help page written in Nepali.
  */
 import React from 'react';
-import { usePlatformBase } from '../../../shared/utils/platformNav';
+import { useLocation } from 'react-router-dom';
 
 const Section = ({ icon, title, subtitle, children }) => (
   <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
@@ -45,7 +45,8 @@ const Badge = ({ color, label }) => {
 };
 
 export default function HelpPage() {
-    const base = usePlatformBase();
+  const { pathname } = useLocation();
+  const base = pathname.startsWith('/dashboard/mobile') ? '/dashboard/mobile' : '/dashboard/desktop';
   return (
     <div className="space-y-6 pb-10">
 

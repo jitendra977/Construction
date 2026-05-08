@@ -30,6 +30,7 @@ import BillsPage          from '../pages/BillsPage';
 import BudgetPage              from '../pages/BudgetPage';
 import HelpPage               from '../pages/HelpPage';
 import BankAccountDetailPage  from '../pages/BankAccountDetailPage';
+import ContractorPage         from '../pages/ContractorPage';
 
 export default function FinanceRoutes({ projectId }) {
   return (
@@ -44,6 +45,7 @@ export default function FinanceRoutes({ projectId }) {
           <Route path="ledger"        element={<LedgerPage />} />
           <Route path="bills"         element={<BillsPage />} />
           <Route path="budget"        element={<BudgetPage />} />
+          <Route path="contractors"   element={<ContractorPage />} />
           <Route path="help"          element={<HelpPage />} />
           <Route path="*"             element={<Navigate to="" replace />} />
         </Routes>

@@ -39,18 +39,23 @@ from .views import (
     BillViewSet, BillPaymentViewSet,
     BudgetCategoryViewSet, BudgetAllocationViewSet,
     FinanceDashboardView,
+    ContractorContractViewSet, ContractorInstallmentViewSet,
+    InstallmentPaymentViewSet,
 )
 
 router = DefaultRouter()
-router.register(r"accounts",           AccountViewSet,           basename="fin-account")
-router.register(r"journal-entries",    JournalEntryViewSet,      basename="fin-journal")
-router.register(r"transfers",          CashTransferViewSet,      basename="fin-transfer")
-router.register(r"loan-disbursements", LoanDisbursementViewSet,  basename="fin-disbursement")
-router.register(r"loan-emi-payments",  LoanEMIPaymentViewSet,    basename="fin-emi")
-router.register(r"bills",              BillViewSet,              basename="fin-bill")
-router.register(r"bill-payments",      BillPaymentViewSet,       basename="fin-bill-payment")
-router.register(r"budget-categories",  BudgetCategoryViewSet,    basename="fin-budget-cat")
-router.register(r"budget-allocations", BudgetAllocationViewSet,  basename="fin-budget-alloc")
+router.register(r"accounts",                AccountViewSet,               basename="fin-account")
+router.register(r"journal-entries",         JournalEntryViewSet,          basename="fin-journal")
+router.register(r"transfers",               CashTransferViewSet,          basename="fin-transfer")
+router.register(r"loan-disbursements",      LoanDisbursementViewSet,      basename="fin-disbursement")
+router.register(r"loan-emi-payments",       LoanEMIPaymentViewSet,        basename="fin-emi")
+router.register(r"bills",                   BillViewSet,                  basename="fin-bill")
+router.register(r"bill-payments",           BillPaymentViewSet,           basename="fin-bill-payment")
+router.register(r"budget-categories",       BudgetCategoryViewSet,        basename="fin-budget-cat")
+router.register(r"budget-allocations",      BudgetAllocationViewSet,      basename="fin-budget-alloc")
+router.register(r"contractor-contracts",    ContractorContractViewSet,    basename="fin-contractor")
+router.register(r"contractor-installments", ContractorInstallmentViewSet, basename="fin-installment")
+router.register(r"installment-payments",    InstallmentPaymentViewSet,    basename="fin-inst-payment")
 
 urlpatterns = [
     path("", include(router.urls)),

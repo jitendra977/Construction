@@ -1,9 +1,10 @@
-from .account  import Account, AccountType
-from .journal  import JournalEntry, JournalLine, EntryType
-from .transfer import CashTransfer
-from .loan     import LoanDisbursement, LoanEMIPayment
-from .bill     import Bill, BillItem, BillPayment
-from .budget   import BudgetCategory, BudgetAllocation
+from .account              import Account, AccountType
+from .journal              import JournalEntry, JournalLine, EntryType
+from .transfer             import CashTransfer
+from .loan                 import LoanDisbursement, LoanEMIPayment
+from .bill                 import Bill, BillItem, BillPayment
+from .budget               import BudgetCategory, BudgetAllocation
+from .contractor_payment   import ContractorContract, ContractorInstallment, InstallmentPayment
 
 __all__ = [
     "Account", "AccountType",
@@ -12,4 +13,5 @@ __all__ = [
     "LoanDisbursement", "LoanEMIPayment",
     "Bill", "BillItem", "BillPayment",
     "BudgetCategory", "BudgetAllocation",
+    "ContractorContract", "ContractorInstallment", "InstallmentPayment",
 ]

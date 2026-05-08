@@ -5,9 +5,11 @@
  *   icon        {string}           — emoji or icon character  (default '📭')
  *   title       {string}           — short heading
  *   description {string}           — optional sub-text
+ *   subtitle    {string}           — alias for description
  *   action      {object|ReactNode} — { label, onClick } OR a JSX element
  */
-export default function EmptyState({ icon = '📭', title, description, action }) {
+export default function EmptyState({ icon = '📭', title, description, subtitle, action }) {
+    const finalDescription = description || subtitle;
     const actionEl = action
         ? typeof action === 'object' && action.label
             ? (
@@ -26,9 +28,9 @@ export default function EmptyState({ icon = '📭', title, description, action }
         <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="text-5xl mb-4 opacity-30">{icon}</div>
             <h3 className="text-sm font-bold mb-1" style={{ color: 'var(--t-text3)' }}>{title}</h3>
-            {description && (
+            {finalDescription && (
                 <p className="text-xs mb-4 max-w-xs" style={{ color: 'var(--t-text3)', opacity: 0.7 }}>
-                    {description}
+                    {finalDescription}
                 </p>
             )}
             {actionEl}

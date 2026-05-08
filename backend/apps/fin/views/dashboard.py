@@ -81,11 +81,12 @@ class FinanceDashboardView(APIView):
             )
         recent_transfers = [
             {
-                "date":      str(t.date),
-                "from":      t.from_account.name,
-                "to":        t.to_account.name,
-                "amount":    float(t.amount),
-                "reference": t.reference,
+                "id":               str(t.id),
+                "date":             str(t.date),
+                "from_account_name": t.from_account.name,
+                "to_account_name":   t.to_account.name,
+                "amount":           float(t.amount),
+                "description":      t.reference or "",
             }
             for t in tx_qs[:5]
         ]
@@ -93,19 +94,26 @@ class FinanceDashboardView(APIView):
         return Response({
             "project_id": pid,
             "banking": {
-                "total_cash": float(total_cash),
-                "accounts":   banks,
+                "total_cash":  float(total_cash),
+                "bank_count":  len(banks),
+                "accounts":    banks,
             },
             "loans": {
                 "total_outstanding": float(total_outstanding),
+                "loan_count":        len(loans),
                 "accounts":          loans,
             },
             "bills": {
-                "total_billed":  float(total_billed),
-                "total_paid":    float(total_paid),
-                "total_due":     float(total_due),
-                "overdue_count": overdue_count,
-                "overdue_amount": float(overdue_amt),
+                "total_billed":      float(total_billed),
+                "total_paid":        float(total_paid),
+                "total_outstanding": float(total_due),
+                "total_due":         float(total_due),
+                "total_bills":       len(all_bills),
+                "unpaid_count":      sum(1 for b in all_bills if b.status == "UNPAID"),
+                "partial_count":     sum(1 for b in all_bills if b.status == "PARTIAL"),
+                "paid_count":        sum(1 for b in all_bills if b.status == "PAID"),
+                "overdue_count":     overdue_count,
+                "overdue_amount":    float(overdue_amt),
             },
             "recent_transfers": recent_transfers,
         })

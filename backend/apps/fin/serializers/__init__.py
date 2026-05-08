@@ -1,9 +1,15 @@
-from .account  import AccountSerializer
-from .journal  import JournalEntrySerializer, JournalLineSerializer
-from .transfer import CashTransferSerializer
-from .loan     import LoanDisbursementSerializer, LoanEMIPaymentSerializer
-from .bill     import BillSerializer, BillItemSerializer, BillPaymentSerializer
-from .budget   import BudgetCategorySerializer, BudgetAllocationSerializer
+from .account              import AccountSerializer
+from .journal              import JournalEntrySerializer, JournalLineSerializer
+from .transfer             import CashTransferSerializer
+from .loan                 import LoanDisbursementSerializer, LoanEMIPaymentSerializer
+from .bill                 import BillSerializer, BillItemSerializer, BillPaymentSerializer
+from .budget               import BudgetCategorySerializer, BudgetAllocationSerializer
+from .contractor_payment   import (
+    ContractorContractSerializer,
+    ContractorInstallmentSerializer,
+    InstallmentPaymentSerializer,
+    AddPaymentSerializer,
+)
 
 __all__ = [
     "AccountSerializer",
@@ -12,4 +18,6 @@ __all__ = [
     "LoanDisbursementSerializer", "LoanEMIPaymentSerializer",
     "BillSerializer", "BillItemSerializer", "BillPaymentSerializer",
     "BudgetCategorySerializer", "BudgetAllocationSerializer",
+    "ContractorContractSerializer", "ContractorInstallmentSerializer",
+    "InstallmentPaymentSerializer", "AddPaymentSerializer",
 ]

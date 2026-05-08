@@ -75,6 +75,73 @@ export const getBudgetAllocations  = (projectIdOrCategoryId, phaseId) => {
 export const createBudgetAllocation = (data)       => http.post('/fin/budget-allocations/', data);
 export const updateBudgetAllocation = (id, data)   => http.patch(`/fin/budget-allocations/${id}/`, data);
 
+// ── Contractor Contracts + Installments ──────────────────────────────────────
+export const getContractorContracts  = (projectId) =>
+  http.get(`/fin/contractor-contracts/${qs(projectId)}`);
+export const getContractorContract   = (id) =>
+  http.get(`/fin/contractor-contracts/${id}/`);
+export const createContractorContract = (data) => {
+  if (data.document) {
+    const formData = new FormData();
+    Object.keys(data).forEach(key => {
+      if (data[key] !== null && data[key] !== undefined) {
+        formData.append(key, data[key]);
+      }
+    });
+    return http.post('/fin/contractor-contracts/', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  }
+  return http.post('/fin/contractor-contracts/', data);
+};
+export const updateContractorContract = (id, data) => {
+  if (data.document) {
+    const formData = new FormData();
+    Object.keys(data).forEach(key => {
+      if (data[key] !== null && data[key] !== undefined) {
+        formData.append(key, data[key]);
+      }
+    });
+    return http.patch(`/fin/contractor-contracts/${id}/`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  }
+  return http.patch(`/fin/contractor-contracts/${id}/`, data);
+};
+export const deleteContractorContract = (id) =>
+  http.delete(`/fin/contractor-contracts/${id}/`);
+
+export const getInstallments       = (projectId, contractId) =>
+  http.get(`/fin/contractor-installments/${qs(projectId, contractId ? `contract=${contractId}` : '')}`);
+export const createInstallment     = (data) =>
+  http.post('/fin/contractor-installments/', data);
+export const updateInstallment     = (id, data) =>
+  http.patch(`/fin/contractor-installments/${id}/`, data);
+export const deleteInstallment     = (id) =>
+  http.delete(`/fin/contractor-installments/${id}/`);
+export const addInstallmentPayment = (installmentId, data) => {
+  if (data.proof) {
+    const formData = new FormData();
+    Object.keys(data).forEach(key => {
+      if (data[key] !== null && data[key] !== undefined) {
+        formData.append(key, data[key]);
+      }
+    });
+    return http.post(`/fin/contractor-installments/${installmentId}/add_payment/`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  }
+  return http.post(`/fin/contractor-installments/${installmentId}/add_payment/`, data);
+};
+export const resetInstallment      = (installmentId) =>
+  http.post(`/fin/contractor-installments/${installmentId}/reset/`, {});
+
+// ── Installment Payment Tranches ─────────────────────────────────────────────
+export const getInstallmentPayments  = (installmentId) =>
+  http.get(`/fin/installment-payments/?installment=${installmentId}`);
+export const deleteInstallmentPayment = (paymentId) =>
+  http.delete(`/fin/installment-payments/${paymentId}/`);
+
 // ── Named export bundle (for components that import everything at once) ────────
 const financeApi = {
   getDashboard,
@@ -88,6 +155,11 @@ const financeApi = {
   getBillPayments, createBillPayment,
   getBudgetCategories, createBudgetCategory, updateBudgetCategory, deleteBudgetCategory,
   getBudgetAllocations, createBudgetAllocation, updateBudgetAllocation,
+  getContractorContracts, getContractorContract,
+  createContractorContract, updateContractorContract, deleteContractorContract,
+  getInstallments, createInstallment, updateInstallment, deleteInstallment,
+  addInstallmentPayment, resetInstallment,
+  getInstallmentPayments, deleteInstallmentPayment,
 };
 
 export default financeApi;
