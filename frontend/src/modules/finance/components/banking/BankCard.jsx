@@ -1,8 +1,18 @@
+import { useNavigate } from 'react-router-dom';
+import { usePlatformBase } from '../../../../shared/utils/platformNav';
 import AmountDisplay from '../shared/AmountDisplay';
 
 export default function BankCard({ account, onDeposit, onEdit }) {
+  const navigate = useNavigate();
+  const base     = usePlatformBase();
+
+  const goToDetail = () => navigate(`${base}/finance/banking/${account.id}`);
+
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-md hover:border-gray-300 transition-all">
+    <div
+      className="bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-md hover:border-gray-300 transition-all cursor-pointer"
+      onClick={goToDetail}
+    >
       {/* Header */}
       <div className="flex justify-between items-start mb-1">
         <div className="flex-1 min-w-0">
@@ -10,7 +20,7 @@ export default function BankCard({ account, onDeposit, onEdit }) {
           <p className="text-[10px] text-gray-400 font-medium">{account.bank_name || 'Bank Account'}</p>
         </div>
         <button
-          onClick={() => onEdit(account)}
+          onClick={(e) => { e.stopPropagation(); onEdit(account); }}
           className="text-gray-300 hover:text-gray-600 transition-colors ml-2 text-sm"
         >✏️</button>
       </div>
@@ -21,18 +31,26 @@ export default function BankCard({ account, onDeposit, onEdit }) {
         {account.account_holder_name ? ` · ${account.account_holder_name}` : ''}
       </p>
 
-      {/* Balance + action */}
+      {/* Balance + actions */}
       <div className="flex items-end justify-between">
         <div>
           <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Balance</p>
           <AmountDisplay value={account.balance} size="xl" colorize />
         </div>
-        <button
-          onClick={() => onDeposit(account)}
-          className="px-3 py-1.5 bg-green-50 text-green-700 text-[10px] font-black rounded-lg hover:bg-green-100 border border-green-200 transition-colors uppercase tracking-wide"
-        >
-          + Deposit
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={(e) => { e.stopPropagation(); onDeposit(account); }}
+            className="px-3 py-1.5 bg-green-50 text-green-700 text-[10px] font-black rounded-lg hover:bg-green-100 border border-green-200 transition-colors uppercase tracking-wide"
+          >
+            + Deposit
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); goToDetail(); }}
+            className="px-3 py-1.5 bg-gray-50 text-gray-500 text-[10px] font-black rounded-lg hover:bg-gray-100 border border-gray-200 transition-colors uppercase tracking-wide"
+          >
+            View →
+          </button>
+        </div>
       </div>
     </div>
   );

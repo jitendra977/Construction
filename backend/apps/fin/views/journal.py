@@ -30,6 +30,10 @@ class JournalEntryViewSet(viewsets.ReadOnlyModelViewSet):
         src = self.request.query_params.get("source_type")
         if src:
             qs = qs.filter(source_type=src)
+        # Filter by account — all journal entries that touch this account
+        acct = self.request.query_params.get("account")
+        if acct:
+            qs = qs.filter(fin_lines__account_id=acct).distinct()
         return qs
 
     def create(self, request, *args, **kwargs):

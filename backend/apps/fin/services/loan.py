@@ -26,12 +26,15 @@ class LoanService:
         if disbursement.journal_entry_id:
             return
 
+        project_id = disbursement.loan_account.project_id
+
         je = LedgerService.post_entry(
             date=disbursement.date,
             description=f"Loan Disbursement: {disbursement.loan_account.name}" +
                         (f" | {disbursement.reference}" if disbursement.reference else ""),
             source_type=SourceType.LOAN_IN,
             source_ref=disbursement.reference,
+            project_id=project_id,
             user=user,
             lines=[
                 {
@@ -65,10 +68,14 @@ class LoanService:
         if emi.journal_entry_id:
             return
 
+        project_id = emi.loan_account.project_id
+
+        # Interest Expense account — scoped to the project so it appears in the ledger
         interest_acc = LedgerService.get_or_create_system_account(
             name="Interest Expense",
             code="5801",
             account_type="EXPENSE",
+            project_id=project_id,
         )
 
         lines = [
@@ -100,6 +107,7 @@ class LoanService:
                         (f" | {emi.reference}" if emi.reference else ""),
             source_type=SourceType.EMI,
             source_ref=emi.reference,
+            project_id=project_id,
             user=user,
             lines=lines,
         )

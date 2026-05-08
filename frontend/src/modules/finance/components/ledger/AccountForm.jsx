@@ -15,7 +15,7 @@ const EMPTY = {
   interest_rate: '', loan_tenure_months: '', emi_amount: '', total_loan_limit: '',
 };
 
-export default function AccountForm({ account = null, onDone }) {
+export default function AccountForm({ account = null, defaultType = null, onDone }) {
   const { projectId, refresh } = useFinance();
   const [form, setForm] = useState(EMPTY);
   const [busy, setBusy] = useState(false);
@@ -24,9 +24,9 @@ export default function AccountForm({ account = null, onDone }) {
   useEffect(() => {
     setForm(account
       ? { ...EMPTY, ...account }
-      : { ...EMPTY, code: String(Math.floor(4000 + Math.random() * 5000)) }
+      : { ...EMPTY, code: String(Math.floor(4000 + Math.random() * 5000)), ...(defaultType ? { account_type: defaultType } : {}) }
     );
-  }, [account]);
+  }, [account, defaultType]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 

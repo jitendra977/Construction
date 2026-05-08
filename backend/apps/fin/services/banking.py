@@ -27,6 +27,7 @@ class BankingService:
             name="Opening Balance Equity",
             code="3000",
             account_type="EQUITY",
+            project_id=account.project_id,
         )
 
         LedgerService.post_entry(

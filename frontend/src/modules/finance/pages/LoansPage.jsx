@@ -1,5 +1,5 @@
 /**
- * LoansPage — manage loan accounts, pay EMIs, view amortization.
+ * LoansPage — manage loan accounts, pay EMIs, view amortization + history.
  */
 import { useState } from 'react';
 import { useFinance } from '../context/FinanceContext';
@@ -7,7 +7,9 @@ import PageHeader from '../components/shared/PageHeader';
 import LoanCard from '../components/loans/LoanCard';
 import LoanForm from '../components/loans/LoanForm';
 import EMIModal from '../components/loans/EMIModal';
+import EMIHistory from '../components/loans/EMIHistory';
 import AmortizationTable from '../components/loans/AmortizationTable';
+import DisbursementModal from '../components/loans/DisbursementModal';
 import Modal from '../components/shared/Modal';
 import EmptyState from '../components/shared/EmptyState';
 
@@ -16,7 +18,14 @@ export default function LoansPage() {
   const [showCreate,   setShowCreate]   = useState(false);
   const [editing,      setEditing]      = useState(null);
   const [payingEMI,    setPayingEMI]    = useState(null);
-  const [viewingAmort, setViewingAmort] = useState(null);
+  const [viewingLoan,  setViewingLoan]  = useState(null);
+  const [detailTab,    setDetailTab]    = useState('history');
+  const [disbursing,   setDisbursing]   = useState(null);
+
+  const openDetail = (loan, tab = 'history') => {
+    setViewingLoan(loan);
+    setDetailTab(tab);
+  };
 
   if (loading) {
     return (
@@ -51,19 +60,14 @@ export default function LoansPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {loans.map((loan) => (
-            <div key={loan.id}>
-              <LoanCard
-                account={loan}
-                onPayEMI={setPayingEMI}
-                onEdit={setEditing}
-              />
-              <button
-                onClick={() => setViewingAmort(loan)}
-                className="mt-1 w-full text-[10px] text-gray-400 hover:text-gray-600 font-bold py-1 hover:underline transition-colors"
-              >
-                View amortization schedule →
-              </button>
-            </div>
+            <LoanCard
+              key={loan.id}
+              account={loan}
+              onPayEMI={setPayingEMI}
+              onEdit={setEditing}
+              onDetail={(l) => openDetail(l, 'history')}
+              onDisburse={setDisbursing}
+            />
           ))}
         </div>
       )}
@@ -83,11 +87,48 @@ export default function LoansPage() {
         <EMIModal loan={payingEMI} onClose={() => setPayingEMI(null)} />
       )}
 
-      {/* Amortization modal */}
-      <Modal isOpen={!!viewingAmort} onClose={() => setViewingAmort(null)} title={`Schedule — ${viewingAmort?.name}`} maxWidth="max-w-2xl">
-        {viewingAmort && (
-          <div className="p-6">
-            <AmortizationTable loan={viewingAmort} />
+      {/* Disbursement modal */}
+      {disbursing && (
+        <DisbursementModal loan={disbursing} onClose={() => setDisbursing(null)} />
+      )}
+
+      {/* Loan detail modal — tabbed: Payment History + Amortization Schedule */}
+      <Modal
+        isOpen={!!viewingLoan}
+        onClose={() => setViewingLoan(null)}
+        title={viewingLoan?.name || 'Loan Detail'}
+        maxWidth="max-w-2xl"
+      >
+        {viewingLoan && (
+          <div>
+            {/* Tabs */}
+            <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit mx-6 mt-4">
+              {[
+                { key: 'history',  label: '💳 Payment History' },
+                { key: 'schedule', label: '📅 Schedule' },
+              ].map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setDetailTab(key)}
+                  className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    detailTab === key
+                      ? 'bg-white shadow-sm text-gray-900'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab content */}
+            <div className="p-6">
+              {detailTab === 'history' ? (
+                <EMIHistory loan={viewingLoan} />
+              ) : (
+                <AmortizationTable loan={viewingLoan} />
+              )}
+            </div>
           </div>
         )}
       </Modal>

@@ -24,8 +24,10 @@ export const depositToAccount    = (id, data)                 => http.post(`/fin
 export const payEMI              = (id, data)                 => http.post(`/fin/accounts/${id}/pay-emi/`, data);
 
 // ── Journal Entries ───────────────────────────────────────────────────────────
-export const getJournalEntries   = (projectId, sourceType)    =>
+export const getJournalEntries      = (projectId, sourceType) =>
   http.get(`/fin/journal-entries/${qs(projectId, sourceType ? `source_type=${sourceType}` : '')}`);
+export const getAccountTransactions = (projectId, accountId) =>
+  http.get(`/fin/journal-entries/?project=${projectId}&account=${accountId}`);
 export const createJournalEntry  = (data)                     => http.post('/fin/journal-entries/', data);
 
 // ── Cash Transfers ────────────────────────────────────────────────────────────
@@ -77,7 +79,7 @@ export const updateBudgetAllocation = (id, data)   => http.patch(`/fin/budget-al
 const financeApi = {
   getDashboard,
   getAccounts, getAccount, createAccount, updateAccount, deleteAccount,
-  depositToAccount, payEMI,
+  depositToAccount, payEMI, getAccountTransactions,
   getJournalEntries, createJournalEntry,
   getTransfers, createTransfer,
   getDisbursements, createDisbursement,

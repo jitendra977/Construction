@@ -1,151 +1,225 @@
 /**
  * EMIModal — pay one EMI instalment for a loan account.
- * Splits the payment into principal + interest.
+ *
+ * Key design: `interest` is ALWAYS derived as (total_emi - principal).
+ * This guarantees principal_amount + interest_amount === total_emi on submit,
+ * preventing the backend validation error.
  */
 import { useState, useMemo } from 'react';
 import Modal from '../shared/Modal';
 import financeApi from '../../services/financeApi';
 import { useFinance } from '../../context/FinanceContext';
 
+const NPR = (n) =>
+  `NPR ${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+
+const toLakhCrore = (n) => {
+  const num = parseFloat(n) || 0;
+  if (num <= 0) return '';
+  if (num >= 10_000_000) return `${(num / 10_000_000).toFixed(2)} करोड`;
+  if (num >= 100_000)    return `${(num / 100_000).toFixed(2)} लाख`;
+  if (num >= 1_000)      return `${(num / 1_000).toFixed(1)} हजार`;
+  return `${num}`;
+};
+
+const inp = 'w-full px-3 py-2 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black/10 bg-white';
+const lbl = 'block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1';
+
+// ── Calculate suggested split from loan metadata ────────────────────────────
+function calcSplit(loan, totalEmi) {
+  const outstanding  = Math.abs(Number(loan.balance || 0));
+  const annualRate   = Number(loan.interest_rate || 0);
+  const monthlyRate  = annualRate / 100 / 12;
+  const interestPart = outstanding > 0 && monthlyRate > 0
+    ? parseFloat((outstanding * monthlyRate).toFixed(2))
+    : 0;
+  const principalPart = Math.max(0, parseFloat((totalEmi - interestPart).toFixed(2)));
+  return { principal: principalPart, interest: interestPart };
+}
+
 export default function EMIModal({ loan, onClose }) {
   const { banks, refresh } = useFinance();
-  const emi = Number(loan.emi_amount || 0);
 
-  const [form, setForm] = useState({
-    bank_account_id: '',
-    total_emi:       emi.toFixed(2),
-    principal:       '',
-    interest:        '',
-    description:     '',
-    reference:       '',
-  });
-  const [busy, setBusy] = useState(false);
-  const [err,  setErr]  = useState('');
+  const defaultEmi = Number(loan.emi_amount || 0);
 
-  const set = (k, v) => setForm((f) => {
-    const updated = { ...f, [k]: v };
-    // Auto-split: if total changes, keep principal and compute interest
-    if (k === 'total_emi' || k === 'principal') {
-      const total = Number(k === 'total_emi' ? v : updated.total_emi);
-      const prin  = Number(k === 'principal' ? v : updated.principal);
-      if (total && prin) updated.interest = Math.max(0, total - prin).toFixed(2);
-    }
-    return updated;
-  });
+  // Pre-calculate split so the form opens ready-to-submit
+  const defaultSplit = useMemo(() => calcSplit(loan, defaultEmi), [loan, defaultEmi]);
 
-  // Suggested split based on remaining balance + rate
-  const suggestedPrincipal = useMemo(() => {
-    const r = Number(loan.interest_rate || 0) / 100 / 12;
-    const outstanding = Number(loan.balance || 0);
-    const interestPart = outstanding * r;
-    const principalPart = emi - interestPart;
-    return Math.max(0, principalPart).toFixed(2);
-  }, [loan, emi]);
+  const [bankId,      setBankId]      = useState('');
+  const [totalEmi,    setTotalEmi]    = useState(defaultEmi.toFixed(2));
+  const [principal,   setPrincipal]   = useState(defaultSplit.principal.toFixed(2));
+  const [description, setDescription] = useState('');
+  const [reference,   setReference]   = useState('');
+  const [busy,        setBusy]        = useState(false);
+  const [err,         setErr]         = useState('');
 
-  const applyDefault = () => {
-    const r = Number(loan.interest_rate || 0) / 100 / 12;
-    const outstanding = Number(loan.balance || 0);
-    const interest   = (outstanding * r).toFixed(2);
-    const principal  = Math.max(0, emi - Number(interest)).toFixed(2);
-    setForm((f) => ({ ...f, total_emi: emi.toFixed(2), principal, interest }));
+  // Interest is ALWAYS computed — never independently stored
+  const interest = Math.max(0, parseFloat(totalEmi || 0) - parseFloat(principal || 0));
+  const isBalanced = Math.abs(parseFloat(totalEmi || 0) - parseFloat(principal || 0) - interest) < 0.005;
+
+  // When total EMI changes, recompute split
+  const handleTotalChange = (val) => {
+    setTotalEmi(val);
+    const total = parseFloat(val) || 0;
+    const split = calcSplit(loan, total);
+    setPrincipal(split.principal.toFixed(2));
+  };
+
+  // Auto-split button — recalculate from current total
+  const autoSplit = () => {
+    const total = parseFloat(totalEmi) || defaultEmi;
+    setTotalEmi(total.toFixed(2));
+    const split = calcSplit(loan, total);
+    setPrincipal(split.principal.toFixed(2));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.bank_account_id) { setErr('Select a bank account to pay from'); return; }
-    if (!form.principal || !form.interest) { setErr('Enter principal and interest split'); return; }
+    if (!bankId) { setErr('Select a bank account to pay from.'); return; }
+
+    const total  = parseFloat(totalEmi);
+    const prin   = parseFloat(principal);
+    const intAmt = parseFloat(interest.toFixed(2));
+
+    if (isNaN(total) || total <= 0) { setErr('Enter a valid EMI amount.'); return; }
+    if (isNaN(prin)  || prin < 0)   { setErr('Principal cannot be negative.'); return; }
+
     setBusy(true); setErr('');
     try {
       await financeApi.payEMI(loan.id, {
-        bank_account:  form.bank_account_id,
-        total_emi:     form.total_emi,
-        principal:     form.principal,
-        interest:      form.interest,
-        description:   form.description || `EMI payment — ${loan.name}`,
-        reference:     form.reference,
+        bank_account:     bankId,
+        total_emi:        total.toFixed(2),
+        principal_amount: prin.toFixed(2),
+        interest_amount:  intAmt.toFixed(2),
+        description:      description || `EMI payment — ${loan.name}`,
+        reference,
       });
       await refresh();
       onClose();
     } catch (ex) {
-      setErr(ex?.response?.data?.detail || JSON.stringify(ex?.response?.data) || ex.message);
+      const d = ex?.response?.data;
+      setErr(d?.detail || d?.error || (d && JSON.stringify(d)) || ex.message);
     } finally {
       setBusy(false);
     }
   };
 
+  const outstanding = Math.abs(Number(loan.balance || 0));
+
   return (
     <Modal isOpen onClose={onClose} title="Pay EMI" maxWidth="max-w-md">
       <form onSubmit={handleSubmit} className="p-6 space-y-4">
+
         {/* Loan info */}
-        <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl">
-          <p className="text-[10px] font-bold text-blue-500 uppercase">Loan</p>
-          <p className="font-black text-sm text-blue-800">{loan.name}</p>
-          <p className="text-xs text-blue-400">Outstanding: NPR {Number(loan.balance || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+        <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-2xl">
+          <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Loan</p>
+          <p className="font-black text-sm text-blue-900 mt-0.5">{loan.name}</p>
+          <div className="flex gap-4 mt-2">
+            <div>
+              <p className="text-[9px] text-blue-400 font-bold uppercase">Outstanding</p>
+              <p className="text-sm font-black text-blue-700">{NPR(outstanding)}</p>
+            </div>
+            {loan.interest_rate && (
+              <div>
+                <p className="text-[9px] text-blue-400 font-bold uppercase">Rate</p>
+                <p className="text-sm font-black text-blue-700">{loan.interest_rate}% p.a.</p>
+              </div>
+            )}
+            {loan.emi_amount && (
+              <div>
+                <p className="text-[9px] text-blue-400 font-bold uppercase">EMI</p>
+                <p className="text-sm font-black text-blue-700">{NPR(loan.emi_amount)}</p>
+              </div>
+            )}
+          </div>
         </div>
 
-        {err && <p className="text-xs text-red-600 font-semibold bg-red-50 p-2 rounded-lg">{err}</p>}
+        {err && (
+          <p className="text-xs text-red-600 font-semibold bg-red-50 border border-red-200 p-3 rounded-xl">{err}</p>
+        )}
 
+        {/* Bank account */}
         <div>
-          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Pay From Bank Account *</label>
-          <select
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black/10 bg-white"
-            value={form.bank_account_id} onChange={(e) => set('bank_account_id', e.target.value)} required
-          >
+          <label className={lbl}>Pay From Bank Account *</label>
+          <select className={inp} value={bankId} onChange={(e) => setBankId(e.target.value)} required>
             <option value="">— Select bank —</option>
             {banks.map((b) => (
-              <option key={b.id} value={b.id}>{b.name} (NPR {Number(b.balance || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })})</option>
+              <option key={b.id} value={b.id}>
+                {b.bank_name ? `${b.bank_name} · ` : ''}{b.name} ({NPR(b.balance)})
+              </option>
             ))}
           </select>
         </div>
 
+        {/* Total EMI */}
         <div>
           <div className="flex items-center justify-between mb-1">
-            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Total EMI (NPR)</label>
-            <button type="button" onClick={applyDefault} className="text-[9px] text-blue-500 font-bold hover:underline">Auto-split</button>
+            <label className={lbl}>Total EMI (NPR)</label>
+            <button type="button" onClick={autoSplit}
+              className="text-[9px] font-black text-blue-500 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-lg border border-blue-200 transition-colors">
+              ↻ Auto-split
+            </button>
           </div>
-          <input type="number" step="0.01" min="0" required
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black/10 bg-white font-semibold"
-            value={form.total_emi} onChange={(e) => set('total_emi', e.target.value)}
-          />
+          <input type="number" step="0.01" min="0.01" required className={`${inp} font-semibold`}
+            value={totalEmi} onChange={(e) => handleTotalChange(e.target.value)} />
+          {parseFloat(totalEmi) > 0 && (
+            <p className="text-[10px] font-black text-blue-600 mt-1 px-1">= {toLakhCrore(totalEmi)}</p>
+          )}
         </div>
 
+        {/* Principal + Interest — always in sync */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Principal</label>
-            <input type="number" step="0.01" min="0" required
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black/10 bg-white"
-              placeholder={suggestedPrincipal}
-              value={form.principal} onChange={(e) => set('principal', e.target.value)}
+            <label className={lbl}>Principal</label>
+            <input type="number" step="0.01" min="0" required className={inp}
+              value={principal}
+              onChange={(e) => setPrincipal(e.target.value)}
             />
+            <p className="text-[9px] text-gray-400 mt-0.5">Reduces loan balance</p>
           </div>
           <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Interest</label>
-            <input type="number" step="0.01" min="0" required
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black/10 bg-white"
-              value={form.interest} onChange={(e) => set('interest', e.target.value)}
-            />
+            <label className={lbl}>Interest (auto)</label>
+            <input type="number" step="0.01" readOnly className={`${inp} bg-gray-50 text-gray-500 cursor-not-allowed`}
+              value={interest.toFixed(2)} />
+            <p className="text-[9px] text-gray-400 mt-0.5">= Total − Principal</p>
           </div>
         </div>
 
-        <div>
-          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Description</label>
-          <input
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black/10 bg-white"
-            placeholder={`EMI payment — ${loan.name}`}
-            value={form.description} onChange={(e) => set('description', e.target.value)}
-          />
+        {/* Split summary bar */}
+        <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
+          <div className="flex justify-between text-[10px] font-black mb-2">
+            <span className="text-green-700">Principal: {NPR(principal)}</span>
+            <span className="text-orange-600">Interest: {NPR(interest)}</span>
+            <span className={isBalanced ? 'text-gray-500' : 'text-red-500'}>
+              Total: {NPR(totalEmi)} {isBalanced ? '✓' : '⚠'}
+            </span>
+          </div>
+          {parseFloat(totalEmi) > 0 && (
+            <div className="flex h-2 rounded-full overflow-hidden bg-gray-200">
+              <div
+                className="bg-green-500 transition-all"
+                style={{ width: `${Math.min(100, (parseFloat(principal) / parseFloat(totalEmi)) * 100)}%` }}
+              />
+              <div className="bg-orange-400 flex-1" />
+            </div>
+          )}
         </div>
 
+        {/* Description */}
         <div>
-          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Reference</label>
-          <input
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black/10 bg-white"
-            placeholder="Voucher / receipt no."
-            value={form.reference} onChange={(e) => set('reference', e.target.value)}
-          />
+          <label className={lbl}>Description</label>
+          <input className={inp} placeholder={`EMI payment — ${loan.name}`}
+            value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
 
-        <div className="flex gap-2 pt-2">
+        {/* Reference */}
+        <div>
+          <label className={lbl}>Reference</label>
+          <input className={inp} placeholder="Voucher / receipt no."
+            value={reference} onChange={(e) => setReference(e.target.value)} />
+        </div>
+
+        <div className="flex gap-2 pt-1">
           <button type="button" onClick={onClose}
             className="flex-1 py-2.5 border border-gray-200 text-sm font-bold text-gray-600 rounded-xl hover:bg-gray-50 transition-colors">
             Cancel

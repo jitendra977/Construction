@@ -3,6 +3,7 @@
  * Finance module help page written in Nepali.
  * Placed after Ledger in the sidebar.
  */
+import { usePlatformBase } from '../../../shared/utils/platformNav';
 
 const Section = ({ icon, title, subtitle, children }) => (
   <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">

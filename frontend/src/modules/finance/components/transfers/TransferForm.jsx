@@ -10,7 +10,8 @@ const lbl = 'block text-[10px] font-bold text-gray-500 uppercase tracking-wider 
 
 export default function TransferForm({ onDone }) {
   const { projectId, banks, refresh } = useFinance();
-  const [form, setForm] = useState({ from_account: '', to_account: '', amount: '', description: '', reference: '' });
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const [form, setForm] = useState({ from_account: '', to_account: '', amount: '', date: today, description: '', reference: '' });
   const [busy, setBusy] = useState(false);
   const [err,  setErr]  = useState('');
 
@@ -29,6 +30,7 @@ export default function TransferForm({ onDone }) {
         from_account: form.from_account,
         to_account:   form.to_account,
         amount:       form.amount,
+        date:         form.date,
         description:  form.description || 'Cash transfer',
         reference:    form.reference,
         project:      projectId,
@@ -87,6 +89,12 @@ export default function TransferForm({ onDone }) {
           <span className="font-semibold">{toAcc?.name || '?'}</span>
         </div>
       )}
+
+      <div>
+        <label className={lbl}>Date *</label>
+        <input type="date" required className={inp}
+          value={form.date} onChange={(e) => set('date', e.target.value)} />
+      </div>
 
       <div>
         <label className={lbl}>Amount (NPR) *</label>

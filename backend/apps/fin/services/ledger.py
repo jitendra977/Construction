@@ -91,13 +91,26 @@ class LedgerService:
 
     @staticmethod
     @transaction.atomic
-    def get_or_create_system_account(name: str, code: str, account_type: str) -> "Account":  # noqa
+    def get_or_create_system_account(
+        name: str, code: str, account_type: str, project_id=None
+    ) -> "Account":  # noqa
         """
         Ensures a system-level account exists (e.g. Opening Balance Equity, Interest Expense).
+
+        `code` is the globally-unique identifier — look up by code first so we
+        never hit the UNIQUE constraint.  If a project_id is supplied and the
+        account doesn't exist yet, it is created scoped to that project.
+        The AccountViewSet queryset already returns project=null accounts to
+        every project (is_bank=False), so global system accounts appear in all
+        project ledgers automatically.
         """
         from ..models.account import Account
         acc, _ = Account.objects.get_or_create(
-            name=name,
-            defaults={"code": code, "account_type": account_type},
+            code=code,
+            defaults={
+                "name": name,
+                "account_type": account_type,
+                "project_id": project_id,
+            },
         )
         return acc
