@@ -26,13 +26,17 @@ class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False)
     assigned_project_ids = serializers.SerializerMethodField(read_only=True)
     assigned_projects_data = serializers.SerializerMethodField(read_only=True)
+    # Plain integer — maps directly to the active_project_id DB column.
+    # DRF will assign it to the FK field on save via Meta.fields.
+    active_project_id = serializers.IntegerField(allow_null=True, required=False)
 
     class Meta:
         model = User
         fields = (
-            'id', 'username', 'email', 'first_name', 'last_name', 
+            'id', 'username', 'email', 'first_name', 'last_name',
             'phone_number', 'profile_image', 'bio', 'address',
             'preferred_language', 'notifications_enabled', 'typography_settings',
+            'active_project_id',
             'role', 'role_id', 'is_verified', 'is_system_admin',
             'can_manage_phases', 'can_manage_finances', 'can_manage_users',
             'contractor_profile', 'password', 'is_superuser',

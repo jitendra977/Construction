@@ -5,7 +5,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from .models import HouseProject, ConstructionPhase, Room, Floor, UserGuide, UserGuideStep, UserGuideFAQ, UserGuideSection, UserGuideProgress, EmailLog, ProjectMember
 from .serializers import HouseProjectSerializer, ConstructionPhaseSerializer, RoomSerializer, FloorSerializer, UserGuideSerializer, UserGuideStepSerializer, UserGuideFAQSerializer, UserGuideSectionSerializer, UserGuideProgressSerializer, EmailLogSerializer, ProjectMemberSerializer
-from apps.accounts.permissions import IsSystemAdmin, CanManagePhases
+from apps.accounts.permissions import IsSystemAdmin, CanManagePhases, CanManageStructure
 from apps.core.mixins import ProjectScopedMixin
 
 from apps.tasks.models import Task
@@ -383,7 +383,7 @@ class DashboardDataView(APIView):
 class RoomViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = Room.objects.select_related('floor').order_by('floor__level', 'name')
     serializer_class = RoomSerializer
-    permission_classes = [IsAuthenticated, CanManagePhases]
+    permission_classes = [IsAuthenticated, CanManageStructure]
     project_field = 'floor__project'
 
     def get_queryset(self):
@@ -399,7 +399,7 @@ class RoomViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
 class FloorViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = Floor.objects.prefetch_related('rooms').order_by('level')
     serializer_class = FloorSerializer
-    permission_classes = [IsAuthenticated, CanManagePhases]
+    permission_classes = [IsAuthenticated, CanManageStructure]
     project_field = 'project'
 
     def get_queryset(self):

@@ -46,25 +46,96 @@ def check_role_permission(user, permission_field):
         return True
     return getattr(user.role, permission_field, False)
 
+def check_project_permission(request, view, permission_field, obj=None):
+    """
+    Checks if a user has a specific permission, prioritizing ProjectMember flags
+    over global Role flags.
+    """
+    user = request.user
+    if not user or not user.is_authenticated:
+        return False
+    
+    if getattr(user, 'is_system_admin', False):
+        return True
+
+    # 1. Try to get project ID
+    project_id = (
+        request.query_params.get('project') or
+        request.data.get('project') or
+        _get_project_id(view, obj)
+    )
+
+    # 1b. If still no project_id, try to resolve via floor or other fields
+    if not project_id and not obj:
+        floor_id = request.data.get('floor')
+        if floor_id:
+            try:
+                from apps.core.models import Floor
+                project_id = Floor.objects.filter(pk=floor_id).values_list('project_id', flat=True).first()
+            except Exception:
+                pass
+
+    if project_id:
+        member = _get_member(user, project_id)
+        if member:
+            return getattr(member, permission_field, False)
+
+    # 2. Fallback to global role if project not specified or member not found
+    return check_role_permission(user, permission_field)
+
 class CanManageFinances(permissions.BasePermission):
     def has_permission(self, request, view):
         if request.method in permissions.SAFE_METHODS:
-            return check_role_permission(request.user, 'can_view_finances') or check_role_permission(request.user, 'can_manage_finances')
-        return check_role_permission(request.user, 'can_manage_finances')
+            return check_project_permission(request, view, 'can_view_finances') or \
+                   check_project_permission(request, view, 'can_manage_finances')
+        return check_project_permission(request, view, 'can_manage_finances')
+
+    def has_object_permission(self, request, view, obj):
+        if request.method in permissions.SAFE_METHODS:
+            return check_project_permission(request, view, 'can_view_finances', obj) or \
+                   check_project_permission(request, view, 'can_manage_finances', obj)
+        return check_project_permission(request, view, 'can_manage_finances', obj)
 
 class CanViewFinances(permissions.BasePermission):
     def has_permission(self, request, view):
-        return check_role_permission(request.user, 'can_view_finances') or check_role_permission(request.user, 'can_manage_finances')
+        return check_project_permission(request, view, 'can_view_finances') or \
+               check_project_permission(request, view, 'can_manage_finances')
 
 class CanManagePhases(permissions.BasePermission):
     def has_permission(self, request, view):
         if request.method in permissions.SAFE_METHODS:
-            return check_role_permission(request.user, 'can_view_phases') or check_role_permission(request.user, 'can_manage_phases')
-        return check_role_permission(request.user, 'can_manage_phases')
+            return check_project_permission(request, view, 'can_view_phases') or \
+                   check_project_permission(request, view, 'can_manage_phases')
+        return check_project_permission(request, view, 'can_manage_phases')
+
+    def has_object_permission(self, request, view, obj):
+        if request.method in permissions.SAFE_METHODS:
+            return check_project_permission(request, view, 'can_view_phases', obj) or \
+                   check_project_permission(request, view, 'can_manage_phases', obj)
+        return check_project_permission(request, view, 'can_manage_phases', obj)
 
 class CanViewPhases(permissions.BasePermission):
     def has_permission(self, request, view):
-        return check_role_permission(request.user, 'can_view_phases') or check_role_permission(request.user, 'can_manage_phases')
+        return check_project_permission(request, view, 'can_view_phases') or \
+               check_project_permission(request, view, 'can_manage_phases')
+
+class CanManageStructure(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if request.method in permissions.SAFE_METHODS:
+            return check_project_permission(request, view, 'can_view_structure') or \
+                   check_project_permission(request, view, 'can_manage_structure')
+        return check_project_permission(request, view, 'can_manage_structure')
+
+    def has_object_permission(self, request, view, obj):
+        if request.method in permissions.SAFE_METHODS:
+            return check_project_permission(request, view, 'can_view_structure', obj) or \
+                   check_project_permission(request, view, 'can_manage_structure', obj)
+        return check_project_permission(request, view, 'can_manage_structure', obj)
+
+class CanViewStructure(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return check_project_permission(request, view, 'can_view_structure') or \
+               check_project_permission(request, view, 'can_manage_structure')
 
 
 # ── Project-level permission classes ─────────────────────────────────────────

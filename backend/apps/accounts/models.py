@@ -91,6 +91,16 @@ class Role(models.Model):
         help_text="Can manage users and roles"
     )
 
+    # Structure Permissions
+    can_manage_structure = models.BooleanField(
+        default=False,
+        help_text="Can manage floors and rooms"
+    )
+    can_view_structure = models.BooleanField(
+        default=True,
+        help_text="Can view floors and rooms"
+    )
+
     def __str__(self):
         return f"{self.name} ({self.code})"
 
@@ -119,7 +129,14 @@ class User(AbstractUser):
     preferred_language = models.CharField(max_length=10, default='en')
     notifications_enabled = models.BooleanField(default=True)
     typography_settings = models.JSONField(null=True, blank=True)
-    
+    active_project = models.ForeignKey(
+        'core.HouseProject',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='active_for_users',
+        help_text="Last project the user was working on — auto-restored on next login",
+    )
+
     # ----- ROLE SYSTEM -----
     role = models.ForeignKey(Role, on_delete=models.SET_NULL, null=True, blank=True, related_name='users')
     assigned_projects = models.ManyToManyField('core.HouseProject', blank=True, related_name='assigned_users', help_text="Projects this user is allowed to access")
@@ -195,6 +212,16 @@ class User(AbstractUser):
     def can_manage_users_perm(self):
         if not self.is_active: return False
         return self.is_system_admin or (self.role and self.role.can_manage_users)
+
+    @property
+    def can_manage_structure_perm(self):
+        if not self.is_active: return False
+        return self.is_system_admin or (self.role and self.role.can_manage_structure)
+
+    @property
+    def can_view_structure_perm(self):
+        if not self.is_active: return False
+        return self.is_system_admin or (self.role and (self.role.can_view_structure or self.role.can_manage_structure))
 
     # ----- OVERRIDE SAVE -----
     def save(self, *args, **kwargs):
