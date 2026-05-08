@@ -132,14 +132,16 @@ export const ConstructionProvider = ({ children }) => {
         }
     }, [activeProjectId]);
 
-    // Switch active project and reload dashboard data
+    // Switch active project — persist to backend + localStorage
     const switchProject = useCallback(async (projectId) => {
         setActiveProjectId(projectId);
         if (projectId) {
-            localStorage.setItem('active-project-id', projectId);
+            localStorage.setItem('active-project-id', String(projectId));
         } else {
             localStorage.removeItem('active-project-id');
         }
+        // Save to backend so it survives logout / new devices
+        authService.updateProfile({ active_project_id: projectId || null }).catch(() => {});
         await fetchData(false, projectId);
     }, [fetchData]);
 
@@ -171,12 +173,21 @@ export const ConstructionProvider = ({ children }) => {
                 // Try to load from localStorage first for instant UI
                 const cached = authService.getCurrentUser();
                 if (cached) setUser(cached);
-                
-                // Then fetch fresh data from server
+
+                // Fetch fresh profile from backend
                 const result = await authService.getProfile();
                 if (result.success) {
                     setUser(result.user);
                     localStorage.setItem('user', JSON.stringify(result.user));
+
+                    // Restore active project from backend (authoritative source)
+                    const backendProjectId = result.user?.active_project_id;
+                    if (backendProjectId) {
+                        setActiveProjectId(String(backendProjectId));
+                        localStorage.setItem('active-project-id', String(backendProjectId));
+                        fetchData(false, backendProjectId);
+                        return;
+                    }
                 }
                 fetchData();
             } else {

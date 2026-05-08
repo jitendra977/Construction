@@ -2,6 +2,8 @@
  * HelpPage — स्रोत मोड्युलको सहायता पृष्ठ (नेपाली)
  * Resource module help page written in Nepali.
  */
+import React from 'react';
+import { usePlatformBase } from '../../../shared/utils/platformNav';
 
 const Section = ({ icon, title, subtitle, children }) => (
   <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">

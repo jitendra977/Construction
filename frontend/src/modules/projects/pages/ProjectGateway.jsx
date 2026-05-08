@@ -32,14 +32,52 @@ export default function ProjectGateway() {
     const [editingProject, setEditingProject] = useState(null);
     const [search, setSearch]             = useState('');
     const [deleting, setDeleting]         = useState(null);
+    const [sortBy, setSortBy]             = useState('name'); // name | budget | members | health
 
-    const filtered = projects.filter(p =>
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        (p.owner_name || '').toLowerCase().includes(search.toLowerCase()) ||
-        (p.address    || '').toLowerCase().includes(search.toLowerCase())
-    );
+    // Coerce both sides to string so "42" === 42 never fails silently
+    const isProjectActive = (project) => String(project.id) === String(activeProjectId);
 
     const activate = (project) => switchProject(project.id);
+
+    // ── Computed summary stats ────────────────────────────────────────────────
+    const activeProject  = projects.find(p => isProjectActive(p)) || null;
+    const totalBudget    = projects.reduce((s, p) => s + (+p.total_budget || 0), 0);
+    const totalMembers   = projects.reduce((s, p) => s + (p.member_count || 0), 0);
+    const avgCompletion  = projects.length > 0
+        ? Math.round(projects.reduce((s, p) => {
+              const total = p.phase_count || 0;
+              const done  = p.completed_phase_count || 0;
+              return s + (total > 0 ? (done / total) * 100 : 0);
+          }, 0) / projects.length)
+        : 0;
+    const healthCounts = projects.reduce((acc, p) => {
+        const h = p.budget_health?.status || 'HEALTHY';
+        acc[h] = (acc[h] || 0) + 1;
+        return acc;
+    }, {});
+
+    const fmtBudget = (n) => {
+        if (n >= 10_000_000) return `NPR ${(n / 10_000_000).toFixed(2)} Cr`;
+        if (n >= 100_000)    return `NPR ${(n / 100_000).toFixed(1)} L`;
+        return `NPR ${n.toLocaleString('en-IN')}`;
+    };
+
+    // ── Filter + sort ─────────────────────────────────────────────────────────
+    const filtered = projects
+        .filter(p =>
+            p.name.toLowerCase().includes(search.toLowerCase()) ||
+            (p.owner_name || '').toLowerCase().includes(search.toLowerCase()) ||
+            (p.address    || '').toLowerCase().includes(search.toLowerCase())
+        )
+        .sort((a, b) => {
+            if (sortBy === 'budget')  return (+b.total_budget || 0) - (+a.total_budget || 0);
+            if (sortBy === 'members') return (b.member_count || 0)  - (a.member_count || 0);
+            if (sortBy === 'health') {
+                const order = { OVER_SPENT: 0, OVER_ALLOCATED: 1, WARNING: 2, HEALTHY: 3 };
+                return (order[a.budget_health?.status] ?? 3) - (order[b.budget_health?.status] ?? 3);
+            }
+            return a.name.localeCompare(b.name);
+        });
 
     const handleDelete = async (project, e) => {
         e.stopPropagation();
@@ -48,7 +86,7 @@ export default function ProjectGateway() {
         try {
             await api.deleteProject(project.id);
             removeProjectLocal(project.id);
-            if (activeProjectId === project.id) switchProject(null);
+            if (isProjectActive(project)) switchProject(null);
         } catch (err) { console.error(err); }
         finally { setDeleting(null); }
     };
@@ -57,6 +95,24 @@ export default function ProjectGateway() {
         e.stopPropagation();
         setEditingProject(project);
     };
+
+    // ── Stat card style helpers ───────────────────────────────────────────────
+    const statCard = (bg, border) => ({
+        borderRadius: 12,
+        padding: isMobile ? '12px 14px' : '14px 16px',
+        background: bg || 'var(--t-surface)',
+        border: `1px solid ${border || 'var(--t-border)'}`,
+    });
+    const statLabel = () => ({
+        margin: 0, fontSize: isMobile ? 9 : 10, fontWeight: 700,
+        textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--t-text3)',
+    });
+    const statVal = (color) => ({
+        margin: '4px 0 2px', fontSize: isMobile ? 18 : 22, fontWeight: 900, color,
+    });
+    const statSub = () => ({
+        margin: 0, fontSize: 10, color: 'var(--t-text3)',
+    });
 
     if (loading) return (
         <div className="flex items-center justify-center min-h-screen" style={{ background: 'var(--t-bg)' }}>
@@ -127,8 +183,6 @@ export default function ProjectGateway() {
         );
     }
 
-    const activeProject = projects.find(p => p.id === activeProjectId);
-
     return (
         <div
             className="min-h-screen"
@@ -137,114 +191,149 @@ export default function ProjectGateway() {
                 padding: isMobile ? '16px 14px 96px' : '32px 24px 48px',
             }}
         >
-            {/* ── Hero header ─────────────────────────────────────────── */}
-            <div style={{ maxWidth: 1100, margin: '0 auto 24px' }}>
-                <div style={{
-                    display: 'flex', alignItems: 'flex-start',
-                    justifyContent: 'space-between', flexWrap: 'wrap', gap: 12,
-                    marginBottom: 16,
-                }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap' }}>
-                            <span style={{ fontSize: isMobile ? 22 : 28 }}>🏗️</span>
-                            <h1 style={{
-                                margin: 0,
-                                fontSize: isMobile ? 20 : 28,
-                                fontWeight: 900,
-                                color: 'var(--t-text)',
-                            }}>
-                                Project Manager
-                            </h1>
-                        </div>
-                        <p style={{ margin: 0, fontSize: 12, color: 'var(--t-text3)' }}>
-                            Select a project to work in, or create a new one.
-                            {activeProjectId && (
-                                <span style={{ marginLeft: 8, fontWeight: 700, color: '#f97316' }}>
-                                    ● Active: {activeProject?.name || '…'}
-                                </span>
-                            )}
+            {/* ── Header ──────────────────────────────────────────────── */}
+            <div style={{ maxWidth: 1100, margin: '0 auto 20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 20 }}>
+                    <div>
+                        <h1 style={{ margin: 0, fontSize: isMobile ? 20 : 26, fontWeight: 900, color: 'var(--t-text)' }}>
+                            🏗️ Project Manager
+                        </h1>
+                        <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--t-text3)' }}>
+                            {projects.length} project{projects.length !== 1 ? 's' : ''} · click a card to set active
                         </p>
                     </div>
                     {isAdmin && (
-                        <button
-                            onClick={() => setShowForm(true)}
-                            style={{
-                                display: 'flex', alignItems: 'center', gap: 6,
-                                padding: isMobile ? '8px 16px' : '10px 20px',
-                                borderRadius: 12, fontSize: isMobile ? 12 : 13,
-                                fontWeight: 800, color: '#fff', background: '#f97316',
-                                border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
-                                flexShrink: 0,
-                            }}>
+                        <button onClick={() => setShowForm(true)} style={{
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            padding: isMobile ? '8px 14px' : '10px 20px',
+                            borderRadius: 12, fontSize: isMobile ? 12 : 13,
+                            fontWeight: 800, color: '#fff', background: '#f97316',
+                            border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+                        }}>
                             + New Project
                         </button>
                     )}
                 </div>
 
-                {/* Stats bar */}
+                {/* ── Summary stats ──────────────────────────────────────── */}
                 {projects.length > 0 && (
                     <div style={{
                         display: 'grid',
-                        gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
-                        gap: isMobile ? 8 : 14,
+                        gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(5,1fr)',
+                        gap: isMobile ? 8 : 12,
+                        marginBottom: 16,
                     }}>
-                        {[
-                            ['🏗️', 'Total',   projects.length,                                                          '#f97316'],
-                            ['✅', 'Active',   activeProjectId ? 1 : 0,                                                  '#10b981'],
-                            ['💰', 'Budget',   `NPR ${(projects.reduce((s, p) => s + (+p.total_budget || 0), 0) / 1000).toFixed(0)}K`, '#3b82f6'],
-                            ['👥', 'Members',  projects.reduce((s, p) => s + (p.member_count || 0), 0),                  '#8b5cf6'],
-                        ].map(([icon, label, val, clr]) => (
-                            <div key={label} style={{
-                                borderRadius: 12, padding: isMobile ? '12px 14px' : '16px',
-                                textAlign: 'center',
-                                background: 'var(--t-surface)',
-                                border: '1px solid var(--t-border)',
-                            }}>
-                                <p style={{ margin: 0, fontSize: isMobile ? 10 : 11, color: 'var(--t-text3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                                    {icon} {label}
-                                </p>
-                                <p style={{ margin: '4px 0 0', fontSize: isMobile ? 16 : 20, fontWeight: 900, color: clr }}>
-                                    {val}
-                                </p>
+                        {/* Total Projects */}
+                        <div style={statCard()}>
+                            <p style={statLabel()}>📁 Total Projects</p>
+                            <p style={statVal('#f97316')}>{projects.length}</p>
+                            <p style={statSub()}>
+                                {healthCounts.HEALTHY || 0} healthy
+                                {(healthCounts.WARNING || 0) + (healthCounts.OVER_ALLOCATED || 0) + (healthCounts.OVER_SPENT || 0) > 0 &&
+                                    <span style={{ color: '#ef4444', marginLeft: 6 }}>
+                                        · {(healthCounts.WARNING || 0) + (healthCounts.OVER_ALLOCATED || 0) + (healthCounts.OVER_SPENT || 0)} need attention
+                                    </span>
+                                }
+                            </p>
+                        </div>
+
+                        {/* Active Project */}
+                        <div style={statCard(activeProject ? 'rgba(249,115,22,0.08)' : undefined, activeProject ? '#f97316' : undefined)}>
+                            <p style={statLabel()}>⚡ Active Project</p>
+                            {activeProject ? (
+                                <>
+                                    <p style={{ ...statVal('#f97316'), fontSize: isMobile ? 13 : 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {activeProject.name}
+                                    </p>
+                                    <p style={statSub()}>
+                                        {activeProject.phase_count || 0} phases · {activeProject.member_count || 0} members
+                                    </p>
+                                </>
+                            ) : (
+                                <>
+                                    <p style={statVal('#6b7280')}>None</p>
+                                    <p style={statSub()}>Click "Set as Active" on a card</p>
+                                </>
+                            )}
+                        </div>
+
+                        {/* Combined Budget */}
+                        <div style={statCard()}>
+                            <p style={statLabel()}>💰 Combined Budget</p>
+                            <p style={statVal('#3b82f6')}>{fmtBudget(totalBudget)}</p>
+                            <p style={statSub()}>across {projects.length} project{projects.length !== 1 ? 's' : ''}</p>
+                        </div>
+
+                        {/* Avg Completion */}
+                        <div style={statCard()}>
+                            <p style={statLabel()}>📊 Avg Completion</p>
+                            <p style={statVal(avgCompletion >= 75 ? '#10b981' : avgCompletion >= 40 ? '#f59e0b' : '#f97316')}>
+                                {avgCompletion}%
+                            </p>
+                            <div style={{ marginTop: 4, background: 'var(--t-border)', borderRadius: 4, height: 4, overflow: 'hidden' }}>
+                                <div style={{ width: `${avgCompletion}%`, height: '100%', borderRadius: 4, transition: 'width 0.4s',
+                                    background: avgCompletion >= 75 ? '#10b981' : avgCompletion >= 40 ? '#f59e0b' : '#f97316' }} />
                             </div>
-                        ))}
+                        </div>
+
+                        {/* Team Members */}
+                        <div style={statCard()}>
+                            <p style={statLabel()}>👥 Team Members</p>
+                            <p style={statVal('#8b5cf6')}>{totalMembers}</p>
+                            <p style={statSub()}>
+                                {projects.length > 0 ? `~${Math.round(totalMembers / projects.length)} per project` : ''}
+                            </p>
+                        </div>
                     </div>
                 )}
             </div>
 
             <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-                {/* Search */}
-                <div style={{ marginBottom: 16 }}>
+                {/* Search + Sort bar */}
+                <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
                     <div style={{
+                        flex: 1, minWidth: 180,
                         display: 'flex', alignItems: 'center', gap: 8,
                         padding: '10px 14px', borderRadius: 12,
-                        background: 'var(--t-surface)',
-                        border: '1px solid var(--t-border)',
+                        background: 'var(--t-surface)', border: '1px solid var(--t-border)',
                     }}>
                         <span style={{ fontSize: 14, opacity: 0.4 }}>🔍</span>
                         <input
                             value={search}
                             onChange={e => setSearch(e.target.value)}
                             placeholder="Search by name, owner, or location…"
-                            style={{
-                                flex: 1, background: 'transparent',
-                                border: 'none', outline: 'none',
-                                fontSize: 13, color: 'var(--t-text)',
-                            }}
+                            style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontSize: 13, color: 'var(--t-text)' }}
                         />
                         {search && (
-                            <button
-                                onClick={() => setSearch('')}
-                                style={{
-                                    background: 'none', border: 'none',
-                                    cursor: 'pointer', fontSize: 12,
-                                    color: 'var(--t-text3)', padding: 0,
-                                }}>
+                            <button onClick={() => setSearch('')}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--t-text3)', padding: 0 }}>
                                 ✕
                             </button>
                         )}
                     </div>
+                    {/* Sort */}
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                        {[['name','A-Z'],['budget','Budget'],['members','Members'],['health','Health']].map(([key, lbl]) => (
+                            <button key={key} onClick={() => setSortBy(key)}
+                                style={{
+                                    padding: '8px 12px', borderRadius: 10, fontSize: 11, fontWeight: 700,
+                                    cursor: 'pointer', border: 'none', whiteSpace: 'nowrap',
+                                    background: sortBy === key ? 'rgba(249,115,22,0.15)' : 'var(--t-surface)',
+                                    color: sortBy === key ? '#f97316' : 'var(--t-text3)',
+                                    outline: sortBy === key ? '1px solid #f97316' : '1px solid var(--t-border)',
+                                }}>
+                                {lbl}
+                            </button>
+                        ))}
+                    </div>
                 </div>
+
+                {/* Result count when filtering */}
+                {search && (
+                    <p style={{ margin: '0 0 10px', fontSize: 12, color: 'var(--t-text3)' }}>
+                        {filtered.length} of {projects.length} projects match "{search}"
+                    </p>
+                )}
 
                 {/* Error */}
                 {error && (
@@ -303,7 +392,7 @@ export default function ProjectGateway() {
                         <div key={project.id} style={{ position: 'relative' }} className="group">
                             <ProjectCard
                                 project={project}
-                                isActive={project.id === activeProjectId}
+                                isActive={isProjectActive(project)}
                                 onActivate={() => activate(project)}
                             />
                             {/* Delete + Edit — admins only */}

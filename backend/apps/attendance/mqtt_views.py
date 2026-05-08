@@ -24,6 +24,7 @@ import logging
 import re
 import socket
 import threading
+from typing import Optional
 
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
@@ -51,7 +52,7 @@ def _is_private_ip(ip: str) -> bool:
     except ValueError:
         return False
 
-def _coerce_project_id(value) -> int | None:
+def _coerce_project_id(value) -> Optional[int]:
     """Cast project_id from request to int; return None if invalid."""
     try:
         return int(value)

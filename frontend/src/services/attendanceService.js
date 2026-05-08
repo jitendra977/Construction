@@ -8,7 +8,7 @@ const getHeaders = () => {
     return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
-const api = axios.create({ baseURL: `${API_URL}/attendance` });
+const api = axios.create({ baseURL: `${API_URL}/attendance/` });
 api.interceptors.request.use(cfg => {
     cfg.headers = { ...cfg.headers, ...getHeaders() };
     return cfg;

@@ -5,40 +5,130 @@ import { useConstruction } from '../../context/ConstructionContext';
 import ThemeToggle from '../common/ThemeToggle';
 import ProjectSwitcher from '../common/ProjectSwitcher';
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   Sidebar CSS — hover / active states defined here so JS mouse handlers can't
+   accidentally override React Router's active class on NavLinks.
+───────────────────────────────────────────────────────────────────────────── */
+const SIDEBAR_CSS = `
+  /* Nav item base */
+  .sb-nav-link {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px; border-radius: 8px;
+    font-size: 14px; font-weight: 500;
+    color: #9ca3af;
+    border-left: 2px solid transparent;
+    text-decoration: none;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .sb-nav-link:hover {
+    background: rgba(255,255,255,0.05);
+    color: #e5e7eb;
+  }
+  .sb-nav-link.active {
+    background: rgba(249,115,22,0.14);
+    color: #f97316;
+    border-left-color: #f97316;
+    padding-left: 10px;
+  }
+  .sb-nav-link.active:hover {
+    background: rgba(249,115,22,0.18);
+    color: #f97316;
+  }
+
+  /* Section header button */
+  .sb-section-btn {
+    width: 100%; display: flex; align-items: center; gap: 8px;
+    padding: 6px 12px; border-radius: 8px;
+    background: transparent; border: none; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .sb-section-btn:hover { background: rgba(255,255,255,0.04); }
+
+  /* Footer buttons */
+  .sb-footer-btn {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; border-radius: 8px;
+    font-size: 14px; font-weight: 500;
+    background: transparent; border: none; cursor: pointer;
+    text-decoration: none; transition: background 0.15s;
+  }
+  .sb-footer-btn:hover { background: rgba(255,255,255,0.06); }
+
+  /* Worker portal link */
+  .sb-portal-link {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; border-radius: 8px;
+    font-size: 14px; font-weight: 500;
+    color: #f97316; text-decoration: none;
+    transition: background 0.15s;
+  }
+  .sb-portal-link:hover { background: rgba(249,115,22,0.08); }
+
+  /* Logout button */
+  .sb-logout-btn {
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 8px 12px; border-radius: 8px;
+    font-size: 14px; font-weight: 500;
+    color: #ef4444; background: transparent; border: none; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .sb-logout-btn:hover { background: rgba(239,68,68,0.1); }
+
+  /* User profile link */
+  .sb-profile-link {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px; border-radius: 8px;
+    text-decoration: none; transition: background 0.15s;
+  }
+  .sb-profile-link:hover { background: rgba(255,255,255,0.04); }
+  .sb-profile-link.active { background: rgba(249,115,22,0.14); }
+
+  /* Logo / header link */
+  .sb-logo-link {
+    display: flex; align-items: center; gap: 12px;
+    padding: 20px; text-decoration: none;
+    transition: background 0.15s;
+    border-bottom: 1px solid #1f2937;
+  }
+  .sb-logo-link:hover { background: rgba(255,255,255,0.03); }
+
+`;
+
+/* ── Nav structure ────────────────────────────────────────────────────────── */
 const NAV_SECTIONS = [
     {
-        id:    'projects',
+        id: 'projects',
         label: 'Projects',
-        icon:  '🗂️',
-        ids:   ['projects'],
+        icon: '🗂️',
+        ids: ['projects'],
         defaultOpen: true,
     },
     {
-        id:    'overview',
+        id: 'overview',
         label: 'Overview',
-        icon:  '📊',
-        ids:   ['home', 'analytics', 'estimator'],
+        icon: '📊',
+        ids: ['home', 'analytics', 'estimator'],
         defaultOpen: true,
     },
     {
-        id:    'construction',
+        id: 'construction',
         label: 'Construction',
-        icon:  '🏗️',
-        ids:   ['permits', 'phases', 'manage', 'timeline', 'finance', 'resource', 'structure', 'photos', 'timelapse'],
+        icon: '🏗️',
+        ids: ['permits', 'phases', 'manage', 'timeline', 'finance', 'resource', 'structure', 'photos', 'timelapse'],
         defaultOpen: true,
     },
     {
-        id:    'team',
+        id: 'team',
         label: 'Team & HR',
-        icon:  '👷',
-        ids:   ['attendance', 'workforce'],
+        icon: '👷',
+        ids: ['attendance', 'workforce'],
         defaultOpen: true,
     },
     {
-        id:    'settings',
+        id: 'settings',
         label: 'Settings',
-        icon:  '⚙️',
-        ids:   ['accounts', 'guides', 'data-transfer'],
+        icon: '⚙️',
+        ids: ['accounts', 'guides', 'data-transfer'],
         defaultOpen: false,
     },
 ];
@@ -50,19 +140,9 @@ function Chevron({ open }) {
             width="12" height="12"
             viewBox="0 0 12 12"
             fill="none"
-            style={{
-                transform: open ? 'rotate(90deg)' : 'rotate(0deg)',
-                transition: 'transform 0.2s ease',
-                flexShrink: 0,
-            }}
+            style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease', flexShrink: 0 }}
         >
-            <path
-                d="M4 2.5L7.5 6L4 9.5"
-                stroke="#6b7280"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-            />
+            <path d="M4 2.5L7.5 6L4 9.5" stroke="#6b7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
     );
 }
@@ -71,14 +151,13 @@ function Chevron({ open }) {
 function NavSection({ section, items }) {
     const location = useLocation();
 
-    // Auto-open if any item in this section is currently active
     const hasActive = items.some(item =>
         location.pathname.includes(`/dashboard/desktop/${item.id}`)
     );
 
     const [open, setOpen] = useState(section.defaultOpen || hasActive);
 
-    // Re-open when navigating to a route inside this section
+    // Re-open when navigating into this section
     useEffect(() => {
         if (hasActive) setOpen(true);
     }, [hasActive]);
@@ -87,26 +166,20 @@ function NavSection({ section, items }) {
 
     return (
         <div>
-            {/* Section header — clickable to collapse */}
-            <button
-                onClick={() => setOpen(o => !o)}
-                className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors group"
-                style={{ background: 'transparent' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-            >
-                <span className="text-sm shrink-0" style={{ opacity: 0.5 }}>{section.icon}</span>
+            {/* Section header */}
+            <button className="sb-section-btn" onClick={() => setOpen(o => !o)}>
+                <span style={{ fontSize: 13, opacity: 0.5, flexShrink: 0 }}>{section.icon}</span>
                 <span
-                    className="flex-1 text-left text-[10px] font-bold uppercase tracking-widest"
-                    style={{ color: '#6b7280' }}
+                    className="flex-1 text-left"
+                    style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#6b7280' }}
                 >
                     {section.label}
                 </span>
                 <span
-                    className="text-[9px] font-bold tabular-nums px-1.5 py-0.5 rounded"
                     style={{
+                        fontSize: 9, fontWeight: 900, padding: '2px 6px', borderRadius: 4,
                         background: open ? 'rgba(249,115,22,0.12)' : 'rgba(255,255,255,0.06)',
-                        color:      open ? '#f97316'               : '#4b5563',
+                        color: open ? '#f97316' : '#4b5563',
                         transition: 'all 0.2s',
                     }}
                 >
@@ -115,7 +188,7 @@ function NavSection({ section, items }) {
                 <Chevron open={open} />
             </button>
 
-            {/* Items — animated slide */}
+            {/* Animated slide */}
             <div
                 style={{
                     overflow: 'hidden',
@@ -129,30 +202,12 @@ function NavSection({ section, items }) {
                         <NavLink
                             key={item.id}
                             to={`/dashboard/desktop/${item.id}`}
-                            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all"
-                            style={({ isActive }) => ({
-                                background: isActive
-                                    ? 'rgba(249,115,22,0.14)'
-                                    : 'transparent',
-                                color: isActive ? '#f97316' : '#9ca3af',
-                                borderLeft: isActive ? '2px solid #f97316' : '2px solid transparent',
-                                paddingLeft: isActive ? '10px' : '12px',
-                            })}
-                            onMouseEnter={e => {
-                                if (!e.currentTarget.getAttribute('aria-current')) {
-                                    e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                                    e.currentTarget.style.color = '#e5e7eb';
-                                }
-                            }}
-                            onMouseLeave={e => {
-                                if (!e.currentTarget.getAttribute('aria-current')) {
-                                    e.currentTarget.style.background = 'transparent';
-                                    e.currentTarget.style.color = '#9ca3af';
-                                }
-                            }}
+                            className={({ isActive }) => `sb-nav-link${isActive ? ' active' : ''}`}
                         >
-                            <span className="text-base shrink-0">{item.icon}</span>
-                            <span className="flex-1 truncate">{item.label}</span>
+                            <span style={{ fontSize: 16, flexShrink: 0 }}>{item.icon}</span>
+                            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {item.label}
+                            </span>
                             {item.badge && (
                                 <span style={{
                                     fontSize: 8, fontWeight: 900, padding: '2px 6px',
@@ -161,7 +216,9 @@ function NavSection({ section, items }) {
                                     color: '#f97316',
                                     border: '1px solid rgba(249,115,22,0.25)',
                                     letterSpacing: '0.04em',
-                                }}>{item.badge}</span>
+                                }}>
+                                    {item.badge}
+                                </span>
                             )}
                         </NavLink>
                     ))}
@@ -173,9 +230,9 @@ function NavSection({ section, items }) {
 
 /* ── Main sidebar ─────────────────────────────────────────────────────────── */
 const DesktopSidebar = ({ user, onLogout, navItems }) => {
-    const { activeProjectId, projects, dashboardData } = useConstruction();
+    const { dashboardData } = useConstruction();
 
-    // Inject live stats badge into the phases nav item
+    // Inject live data into nav items
     const enrichedNavItems = navItems.map(item => {
         if (item.id === 'phases' && dashboardData) {
             const t = (dashboardData.tasks  || []).length;
@@ -184,8 +241,6 @@ const DesktopSidebar = ({ user, onLogout, navItems }) => {
         }
         return item;
     });
-    const projectList   = Array.isArray(projects) ? projects : [];
-    const activeProject = projectList.find(p => p.id === activeProjectId) || null;
 
     const getInitials = (name = '') =>
         name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
@@ -195,11 +250,11 @@ const DesktopSidebar = ({ user, onLogout, navItems }) => {
             className="w-64 flex flex-col fixed h-full z-10"
             style={{ background: '#0d1117', borderRight: '1px solid #1f2937' }}
         >
-            {/* ── Logo / App Header ── */}
-            <div
-                className="flex items-center gap-3 px-5 py-5"
-                style={{ borderBottom: '1px solid #1f2937' }}
-            >
+            {/* Inject sidebar CSS once */}
+            <style>{SIDEBAR_CSS}</style>
+
+            {/* ── Logo / App Header → dashboard home ── */}
+            <NavLink to="/dashboard/desktop/home" className="sb-logo-link">
                 <div
                     className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xl"
                     style={{ background: '#ea580c' }}
@@ -207,68 +262,36 @@ const DesktopSidebar = ({ user, onLogout, navItems }) => {
                     🏗️
                 </div>
                 <div className="min-w-0">
-                    <h1 className="text-base font-black tracking-tight leading-none text-white">
-                        HCMS
-                    </h1>
-                    <p className="text-[10px] font-semibold uppercase tracking-widest mt-0.5"
-                        style={{ color: '#f97316' }}>
+                    <h1 className="text-base font-black tracking-tight leading-none text-white">HCMS</h1>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest mt-0.5" style={{ color: '#f97316' }}>
                         Construction Manager
                     </p>
                 </div>
-            </div>
+            </NavLink>
 
             {/* ── Project Switcher ── */}
             <div className="px-4 py-3" style={{ borderBottom: '1px solid #1f2937' }}>
                 <ProjectSwitcher />
             </div>
 
-            {/* ── Active Project Badge ── */}
-            {activeProject && (
-                <NavLink
-                    to={`/dashboard/desktop/projects/${activeProject.id}/overview`}
-                    className="flex items-center gap-2 px-4 py-2.5 transition-colors"
-                    style={({ isActive }) => ({
-                        background:   isActive ? 'rgba(249,115,22,0.10)' : 'rgba(249,115,22,0.05)',
-                        borderBottom: '1px solid #1f2937',
-                    })}>
-                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#22c55e' }} />
-                    <div className="min-w-0 flex-1">
-                        <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#f97316' }}>
-                            Active Project
-                        </p>
-                        <p className="text-xs font-semibold truncate text-white mt-0.5">
-                            {activeProject.name}
-                        </p>
-                    </div>
-                    <span className="text-[10px] shrink-0" style={{ color: '#4b5563' }}>→</span>
-                </NavLink>
-            )}
 
             {/* ── Navigation ── */}
             <nav className="flex-1 px-3 py-3 space-y-1 overflow-y-auto">
                 {NAV_SECTIONS.map((section) => {
-                    const sectionItems = enrichedNavItems.filter(item =>
-                        section.ids.includes(item.id)
-                    );
+                    const sectionItems = enrichedNavItems.filter(item => section.ids.includes(item.id));
                     return (
-                        <NavSection
-                            key={section.id}
-                            section={section}
-                            items={sectionItems}
-                        />
+                        <NavSection key={section.id} section={section} items={sectionItems} />
                     );
                 })}
             </nav>
 
             {/* ── Footer ── */}
             <div className="px-3 py-3 space-y-2" style={{ borderTop: '1px solid #1f2937' }}>
-                {/* User row */}
+
+                {/* User profile */}
                 <NavLink
                     to="/dashboard/desktop/profile"
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all"
-                    style={({ isActive }) => ({
-                        background: isActive ? 'rgba(249,115,22,0.14)' : 'transparent',
-                    })}
+                    className={({ isActive }) => `sb-profile-link${isActive ? ' active' : ''}`}
                 >
                     <div
                         className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden"
@@ -277,7 +300,7 @@ const DesktopSidebar = ({ user, onLogout, navItems }) => {
                         {user?.profile_image ? (
                             <img
                                 src={mediaUrl(user.profile_image)}
-                                alt={user.username}
+                                alt={user?.username}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
                                     e.target.onerror = null;
@@ -291,40 +314,34 @@ const DesktopSidebar = ({ user, onLogout, navItems }) => {
                     </div>
                     <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold truncate text-white">{user?.username}</p>
-                        <p className="text-[10px] uppercase tracking-wider" style={{ color: '#6b7280' }}>
+                        <p style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#6b7280' }}>
                             {user?.role?.name || 'Admin'}
                         </p>
                     </div>
                 </NavLink>
 
-                {/* Worker Portal quick-link */}
+                {/* Worker portal */}
                 <a
                     href="/worker"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-                    style={{ color: '#f97316', textDecoration: 'none' }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(249,115,22,0.08)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    className="sb-portal-link"
                     title="Open Worker Portal (phone + PIN login)"
                 >
                     <span style={{ fontSize: 15 }}>📱</span>
-                    <span className="flex-1 truncate">Worker Portal</span>
+                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        Worker Portal
+                    </span>
                     <span style={{ fontSize: 10, opacity: 0.6 }}>↗</span>
                 </a>
 
-                {/* Theme toggle + Logout */}
+                {/* Theme + Logout */}
                 <div className="flex items-center gap-2">
                     <ThemeToggle className="flex-shrink-0" />
-                    <button
-                        onClick={onLogout}
-                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-lg font-medium transition-colors"
-                        style={{ color: '#ef4444' }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                    >
+                    <button onClick={onLogout} className="sb-logout-btn">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            <path strokeLinecap="round" strokeLinejoin="round"
+                                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                         </svg>
                         Logout
                     </button>
@@ -336,9 +353,7 @@ const DesktopSidebar = ({ user, onLogout, navItems }) => {
                     className="flex items-center justify-center gap-2 pt-2 mt-1 transition-opacity hover:opacity-80"
                     style={{ borderTop: '1px solid #1f2937' }}
                 >
-                    <p className="text-[10px]" style={{ color: '#374151' }}>
-                        © 2026 Jitendra Khadka
-                    </p>
+                    <p style={{ fontSize: 10, color: '#374151' }}>© 2026 Jitendra Khadka</p>
                 </NavLink>
             </div>
         </aside>

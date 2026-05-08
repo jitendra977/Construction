@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { usePlatformBase } from '../../../shared/utils/platformNav';
 
 const SECTIONS = [
     {
