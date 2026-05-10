@@ -96,6 +96,9 @@ urlpatterns = [
 
     # ── Workforce (includes /workforce/teams/) ────────────────────────────────
     path('api/v1/workforce/', include('apps.workforce.urls')),
+
+    # ── Location Tracking ─────────────────────────────────────────────────────
+    path('api/v1/location/', include('apps.location_tracking.urls')),
 ]
 
 # Serve media files in development

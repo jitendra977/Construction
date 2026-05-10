@@ -49,6 +49,7 @@ const SECTIONS = [
         color: '#f59e0b',
         items: [
             { id: 'attendance', icon: '👷', label: 'Workforce' },
+            { id: 'location',   icon: '📍', label: 'Location'  },
         ],
     },
     {

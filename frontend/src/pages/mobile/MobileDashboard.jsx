@@ -6,6 +6,7 @@ import { useConstruction } from '../../context/ConstructionContext';
 import MobileHeader    from '../../components/mobile/MobileHeader';
 import MobileNav       from '../../components/mobile/MobileNav';
 import HouseConfigModal from '../../components/common/HouseConfigModal';
+import useGPSBackgroundTracker from '../../modules/location/hooks/useGPSBackgroundTracker';
 
 /**
  * Module routes have their own layout/header — don't show the mobile shell
@@ -14,6 +15,7 @@ import HouseConfigModal from '../../components/common/HouseConfigModal';
 const MODULE_PREFIXES = [
     '/projects', '/finance', '/resource',
     '/structure', '/timeline', '/accounts',
+    '/location',
 ];
 
 function MobileDashboard() {
@@ -21,6 +23,9 @@ function MobileDashboard() {
     const [showConfigModal, setShowConfigModal] = useState(false);
     const navigate  = useNavigate();
     const location  = useLocation();
+
+    // Start background GPS tracking automatically for mobile dashboard users
+    useGPSBackgroundTracker(true);
 
     const handleLogout = async () => {
         await authService.logout();

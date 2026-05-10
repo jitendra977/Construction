@@ -121,7 +121,7 @@ const NAV_SECTIONS = [
         id: 'team',
         label: 'Team & HR',
         icon: '👷',
-        ids: ['attendance', 'workforce'],
+        ids: ['attendance', 'workforce', 'location'],
         defaultOpen: true,
     },
     {

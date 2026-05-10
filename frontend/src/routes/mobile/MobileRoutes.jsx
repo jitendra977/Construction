@@ -26,6 +26,7 @@ import ResourceRoutes  from '../../modules/resource';
 import StructureRoutes from '../../modules/structure';
 import TimelineRoutes  from '../../modules/timeline';
 import AccountsRoutes  from '../../modules/accounts';
+import LocationRoutes  from '../../modules/location/LocationRoutes';
 
 import { useConstruction } from '../../context/ConstructionContext';
 
@@ -62,6 +63,7 @@ const MobileRoutes = () => {
             <Route path="structure/*"  element={<StructureRoutes projectId={activeProjectId} />}     />
             <Route path="timeline/*"   element={<TimelineRoutes />}                                  />
             <Route path="accounts/*"   element={<AccountsRoutes />}                                  />
+            <Route path="location/*"   element={<LocationRoutes projectId={activeProjectId} />}      />
 
             {/* ── Legacy redirects ───────────────────────────────────────── */}
             <Route path="account"      element={<Navigate to="/dashboard/mobile/accounts/profile"  replace />} />

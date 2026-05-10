@@ -79,6 +79,9 @@ INSTALLED_APPS = [
 
     # ── Workforce (includes Team model) ──────────────────────────────────────
     'apps.workforce',
+
+    # ── Location Tracking (Mobile GPS Geofencing) ────────────────────────────
+    'apps.location_tracking',
 ]
 
 # Explicitly map migration folders for nested apps to prevent loader errors
@@ -100,6 +103,7 @@ MIGRATION_MODULES = {
     'data_transfer': 'apps.data_transfer.migrations',
     'estimator': 'apps.estimator.migrations',
     'estimate': 'apps.estimate.migrations',
+    'location_tracking': 'apps.location_tracking.migrations',
 }
 
 # ─── Photo Intelligence (HCMS-2) ──────────────────────────────────────

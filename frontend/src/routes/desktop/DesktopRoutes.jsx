@@ -23,6 +23,7 @@ import StructureRoutes from '../../modules/structure';
 import ProjectsRoutes  from '../../modules/projects';
 import TimelineRoutes  from '../../modules/timeline';
 import AccountsRoutes  from '../../modules/accounts';
+import LocationRoutes  from '../../modules/location/LocationRoutes';
 
 import { useConstruction } from '../../context/ConstructionContext';
 
@@ -57,6 +58,9 @@ const DesktopRoutes = () => {
 
             {/* Accounts module — users, roles, profile, activity */}
             <Route path="accounts/*"  element={<AccountsRoutes />} />
+
+            {/* Location Tracking module */}
+            <Route path="location/*"  element={<LocationRoutes projectId={activeProjectId} />} />
 
             {/* Legacy redirects for old scattered account routes */}
             <Route path="profile"       element={<Navigate to="/dashboard/desktop/accounts/profile"  replace />} />

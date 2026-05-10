@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import workerPortalApi from '../../services/workerPortalApi';
+import useGPSBackgroundTracker from '../../modules/location/hooks/useGPSBackgroundTracker';
 
 // ── CSS Injection ─────────────────────────────────────────────────────────────
 const portalStyles = `
@@ -485,6 +486,9 @@ export default function WorkerPortal() {
         } catch (e) { console.error(e); }
         finally { setLoading(false); }
     };
+
+    // Track GPS in the background if the worker is logged in
+    useGPSBackgroundTracker(!!user, 'worker_access_token');
 
     useEffect(() => { load(); }, [user, selectedMonth]);
 
