@@ -31,10 +31,15 @@ import logging
 import os
 import signal
 import sys
+import time
 
 from django.core.management.base import BaseCommand, CommandParser
 
 logger = logging.getLogger(__name__)
+
+# Exponential backoff config for reconnects
+_MIN_BACKOFF = 2    # seconds
+_MAX_BACKOFF = 60   # seconds
 
 # Global announce topic — all devices publish here regardless of project
 ANNOUNCE_TOPIC = "nfc/announce"
@@ -114,7 +119,9 @@ class Command(BaseCommand):
         client.on_disconnect = self._on_disconnect
         client.on_message    = self._on_message
 
-        self._client = client
+        self._client          = client
+        self._reconnect_count = 0          # how many times we've had to reconnect
+        self._backoff         = _MIN_BACKOFF  # current backoff delay in seconds
 
         def _shutdown(signum, frame):
             self.stdout.write("\nShutting down MQTT listener…")
@@ -276,23 +283,33 @@ class Command(BaseCommand):
     def _on_connect(self, client, userdata, flags, rc):
         cfg = self.mqtt_config
         if rc == 0:
-            self.stdout.write(self.style.SUCCESS("✓ Connected to MQTT broker"))
+            is_reconnect = self._reconnect_count > 0
+            self._reconnect_count += 1
+            self._backoff = _MIN_BACKOFF  # reset backoff on successful connect
 
-            # Primary scan topic (e.g. nfc/+/state)
-            client.subscribe(self.topic)
-            self.stdout.write(f"  Subscribed to: {self.topic}")
+            if is_reconnect:
+                # Quiet reconnect — just a single line instead of 5
+                self.stdout.write(
+                    self.style.SUCCESS(f"✓ Reconnected to MQTT broker (attempt #{self._reconnect_count})")
+                )
+            else:
+                # First connect — print full subscription list
+                self.stdout.write(self.style.SUCCESS("✓ Connected to MQTT broker"))
+                client.subscribe(self.topic)
+                self.stdout.write(f"  Subscribed to: {self.topic}")
+                client.subscribe(ANNOUNCE_TOPIC)
+                self.stdout.write(f"  Subscribed to: {ANNOUNCE_TOPIC}")
+                client.subscribe("nfc/+/users/request")
+                self.stdout.write("  Subscribed to: nfc/+/users/request")
+                client.subscribe("nfc/+/error_state")
+                self.stdout.write("  Subscribed to: nfc/+/error_state")
 
-            # Global announce topic for fleet tracking
-            client.subscribe(ANNOUNCE_TOPIC)
-            self.stdout.write(f"  Subscribed to: {ANNOUNCE_TOPIC}")
-
-            # Device user-sync requests — firmware publishes this on every reconnect
-            client.subscribe("nfc/+/users/request")
-            self.stdout.write("  Subscribed to: nfc/+/users/request")
-
-            # Device error state — firmware publishes "No Wi-Fi", "No MQTT", "OK", etc.
-            client.subscribe("nfc/+/error_state")
-            self.stdout.write("  Subscribed to: nfc/+/error_state")
+            # Re-subscribe on every connect (Paho requires this even on resuming sessions)
+            if is_reconnect:
+                client.subscribe(self.topic)
+                client.subscribe(ANNOUNCE_TOPIC)
+                client.subscribe("nfc/+/users/request")
+                client.subscribe("nfc/+/error_state")
 
             cfg.mark_connected()
         else:
@@ -303,9 +320,21 @@ class Command(BaseCommand):
     def _on_disconnect(self, client, userdata, rc):
         self.mqtt_config.mark_disconnected()
         if rc != 0:
-            self.stdout.write(self.style.WARNING(
-                f"Unexpected disconnect (rc={rc}), will reconnect…"
-            ))
+            # rc=7 = server closed connection (broker keepalive / session limit)
+            reason = {
+                1: "unacceptable protocol version",
+                2: "client identifier rejected",
+                3: "server unavailable",
+                4: "bad credentials",
+                5: "not authorised",
+                7: "server closed connection (keepalive/session timeout)",
+            }.get(rc, f"code {rc}")
+            self.stdout.write(
+                self.style.WARNING(f"MQTT disconnected ({reason}) — reconnecting in {self._backoff}s…")
+            )
+            # Exponential backoff — sleep here so loop_forever doesn't spin wildly
+            time.sleep(self._backoff)
+            self._backoff = min(self._backoff * 2, _MAX_BACKOFF)
 
     def _on_message(self, client, userdata, msg):
         """Route message to the appropriate handler by topic."""
