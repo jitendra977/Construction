@@ -8,7 +8,7 @@ const getHeaders = () => {
     return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
-const api = axios.create({ baseURL: `${API_URL}/attendance/` });
+const api = axios.create({ baseURL: API_URL });
 api.interceptors.request.use(cfg => {
     cfg.headers = { ...cfg.headers, ...getHeaders() };
     return cfg;
@@ -17,10 +17,10 @@ attachResponseInterceptor(api);
 
 export const attendanceService = {
     // Workers
-    getWorkers:   (params = {}) => api.get('workers/', { params }).then(r => r.data),
-    createWorker: (data)        => api.post('workers/', data).then(r => r.data),
-    updateWorker: (id, data)    => api.patch(`workers/${id}/`, data).then(r => r.data),
-    deleteWorker: (id)          => api.delete(`workers/${id}/`).then(r => r.data),
+    getWorkers:   (params = {}) => api.get('/attendance/workers/', { params }).then(r => r.data),
+    createWorker: (data)        => api.post('/attendance/workers/', data).then(r => r.data),
+    updateWorker: (id, data)    => api.patch(`/attendance/workers/${id}/`, data).then(r => r.data),
+    deleteWorker: (id)          => api.delete(`/attendance/workers/${id}/`).then(r => r.data),
     getWorkerHistory: (id)      => api.get(`workers/${id}/history/`).then(r => r.data),
     getWorkerQRCode:  (id)      => api.get(`workers/${id}/qr-code/`).then(r => r.data),
     regenerateQR:     (id)      => api.post(`workers/${id}/regenerate-qr/`).then(r => r.data),
@@ -33,10 +33,10 @@ export const attendanceService = {
         api.post('workers/import-member/', payload).then(r => r.data),
 
     // Daily records
-    getRecords:   (params = {}) => api.get('records/', { params }).then(r => r.data),
-    createRecord: (data)        => api.post('records/', data).then(r => r.data),
-    updateRecord: (id, data)    => api.patch(`records/${id}/`, data).then(r => r.data),
-    deleteRecord: (id)          => api.delete(`records/${id}/`).then(r => r.data),
+    getRecords:   (params = {}) => api.get('/attendance/records/', { params }).then(r => r.data),
+    createRecord: (data)        => api.post('/attendance/records/', data).then(r => r.data),
+    updateRecord: (id, data)    => api.patch(`/attendance/records/${id}/`, data).then(r => r.data),
+    deleteRecord: (id)          => api.delete(`/attendance/records/${id}/`).then(r => r.data),
     bulkMark:     (payload)     => api.post('records/bulk/', payload).then(r => r.data),
     getLive:      (project)     => api.get('records/live/', { params: { project } }).then(r => r.data),
 
@@ -101,8 +101,8 @@ export const attendanceService = {
     getWorkerStats:(workerId)  => api.get(`workers/${workerId}/stats/`).then(r => r.data),
 
     // ── Project Attendance Settings ────────────────────────────────────────────
-    getSettings:    (project)        => api.get('settings/',  { params: { project } }).then(r => r.data),
-    updateSettings: (project, data)  => api.patch('settings/', { ...data, project }, { params: { project } }).then(r => r.data),
+    getSettings:    (project)        => api.get('/attendance/settings/',  { params: { project } }).then(r => r.data),
+    updateSettings: (project, data)  => api.patch('/attendance/settings/', { ...data, project }, { params: { project } }).then(r => r.data),
 
     // ── Holidays ───────────────────────────────────────────────────────────────
     getHolidays:    (project, year)  => api.get('holidays/', { params: { project, ...(year ? { year } : {}) } }).then(r => r.data),
@@ -110,7 +110,8 @@ export const attendanceService = {
     deleteHoliday:  (id)             => api.delete(`holidays/${id}/`).then(r => r.data),
     applyHoliday:   (id)             => api.post(`holidays/${id}/apply/`).then(r => r.data),
     // ── NFC Attendance ────────────────────────────────────────────────────────
-    nfcAttendanceScan: (payload) => api.post('nfc-attendance/', payload).then(r => r.data),
+    // Use the modern mqtt/nfc-scan/ endpoint which handles logging and v2 features
+    nfcAttendanceScan: (payload) => api.post('/attendance/mqtt/nfc-scan/', payload).then(r => r.data),
 
     // ── NFC Device Fleet ──────────────────────────────────────────────────────
     getNfcDevices: (project, params = {}) =>
