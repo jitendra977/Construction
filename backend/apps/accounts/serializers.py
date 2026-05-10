@@ -35,7 +35,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'username', 'email', 'first_name', 'last_name',
             'phone_number', 'profile_image', 'bio', 'address',
-            'preferred_language', 'notifications_enabled', 'typography_settings',
+            'preferred_language', 'notifications_enabled', 'digital_signature', 'typography_settings',
             'active_project_id',
             'role', 'role_id', 'is_verified', 'is_system_admin',
             'can_manage_phases', 'can_manage_finances', 'can_manage_users',

@@ -10,6 +10,7 @@ import accountsApi from '../services/accountsApi';
 import { mediaUrl } from '../../../services/createApiClient';
 import Avatar from '../components/shared/Avatar';
 import Badge from '../components/shared/Badge';
+import SignaturePad from '../../../components/common/SignaturePad';
 
 // ── Shared style constants ─────────────────────────────────────────────────────
 const inputStyle = {
@@ -61,17 +62,16 @@ function Feedback({ msg }) {
 }
 
 // ── Profile Tab ────────────────────────────────────────────────────────────────
-function ProfileTab({ user, updateProfile, refreshStats }) {
+function ProfileTab({ user, updateProfile, refreshStats, avatarFile, avatarPreview, setAvatarFile, setAvatarPreview }) {
     const [form, setForm] = useState({
         first_name: '', last_name: '', bio: '',
         phone_number: '', address: '',
         preferred_language: 'en', notifications_enabled: true,
+        digital_signature: '',
     });
-    const [avatarPreview, setAvatarPreview] = useState(null);
-    const [avatarFile,    setAvatarFile]    = useState(null);
-    const [busy, setBusy] = useState(false);
     const [msg,  setMsg]  = useState(null);
-    const fileRef = useRef();
+    const [busy, setBusy] = useState(false);
+    const [showPad, setShowPad] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -83,21 +83,11 @@ function ProfileTab({ user, updateProfile, refreshStats }) {
                 address:               user.address               || '',
                 preferred_language:    user.preferred_language    || 'en',
                 notifications_enabled: user.notifications_enabled ?? true,
+                digital_signature:     user.digital_signature     || '',
             });
         }
     }, [user]);
 
-    const handleAvatarChange = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        if (file.size > 5 * 1024 * 1024) {
-            setMsg({ type: 'error', text: 'Image must be under 5 MB.' });
-            return;
-        }
-        setAvatarFile(file);
-        setAvatarPreview(URL.createObjectURL(file));
-        setMsg(null);
-    };
 
     const handleSave = async (e) => {
         e.preventDefault();
@@ -115,6 +105,8 @@ function ProfileTab({ user, updateProfile, refreshStats }) {
             refreshStats?.();
             setMsg({ type: 'success', text: 'Profile updated successfully!' });
             setAvatarFile(null);
+            setAvatarPreview(null);
+            setShowPad(false);
         } catch (err) {
             setMsg({ type: 'error', text: err?.response?.data?.detail || err?.response?.data?.error || 'Update failed.' });
         } finally {
@@ -127,33 +119,6 @@ function ProfileTab({ user, updateProfile, refreshStats }) {
     return (
         <form onSubmit={handleSave}>
             <Feedback msg={msg} />
-
-            {/* Avatar card */}
-            <div style={{ ...cardStyle, display: 'flex', alignItems: 'center', gap: 20 }}>
-                <div style={{ position: 'relative', flexShrink: 0 }}>
-                    {currentAvatarUrl ? (
-                        <img src={currentAvatarUrl} alt="avatar"
-                            style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', border: '3px solid #6366f1' }}
-                            onError={e => { e.target.style.display = 'none'; }}
-                        />
-                    ) : (
-                        <Avatar user={user} size="xl" />
-                    )}
-                    <button type="button" onClick={() => fileRef.current?.click()} title="Change photo"
-                        style={{ position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: '50%', background: '#6366f1', color: '#fff', border: '2px solid var(--t-bg)', cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        📷
-                    </button>
-                    <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarChange} />
-                </div>
-                <div>
-                    <p style={{ margin: 0, fontSize: 15, fontWeight: 800, color: 'var(--t-text)' }}>Profile Photo</p>
-                    <p style={{ margin: '2px 0 8px', fontSize: 12, color: 'var(--t-text3)' }}>JPG, PNG or GIF — max 5 MB</p>
-                    <button type="button" onClick={() => fileRef.current?.click()}
-                        style={{ padding: '5px 14px', borderRadius: 8, border: '1px solid var(--t-border)', background: 'transparent', color: 'var(--t-text)', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                        {avatarFile ? '📁 ' + avatarFile.name.slice(0, 22) : 'Choose Photo'}
-                    </button>
-                </div>
-            </div>
 
             {/* Personal info */}
             <div style={cardStyle}>
@@ -209,6 +174,51 @@ function ProfileTab({ user, updateProfile, refreshStats }) {
                         </label>
                     </div>
                 </div>
+            </div>
+
+            {/* Digital Signature */}
+            <div style={cardStyle}>
+                <p style={sectionTitle}>🖋️ Digital Signature</p>
+                <p style={{ margin: '0 0 16px', fontSize: 12, color: 'var(--t-text3)' }}>
+                    Your signature will be automatically applied to purchase orders, payment receipts, and reports.
+                </p>
+                
+                {form.digital_signature && !showPad ? (
+                    <div style={{ textAlign: 'center', padding: 20, border: '1px dashed var(--t-border)', borderRadius: 12, background: 'var(--t-bg)' }}>
+                        <img src={form.digital_signature} alt="Saved Signature" style={{ maxHeight: 100, marginBottom: 16 }} />
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: 10 }}>
+                            <button type="button" onClick={() => setShowPad(true)}
+                                style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #6366f1', background: 'transparent', color: '#6366f1', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                                🔄 Update Signature
+                            </button>
+                            <button type="button" onClick={() => setForm(f => ({ ...f, digital_signature: '' }))}
+                                style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #ef4444', background: 'transparent', color: '#ef4444', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                                🗑️ Remove
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <div style={{ position: 'relative' }}>
+                        <SignaturePad 
+                            label={showPad ? "Draw new signature below" : "Draw your signature below"}
+                            initialValue={form.digital_signature}
+                            onSave={data => {
+                                setForm(f => ({ ...f, digital_signature: data }));
+                                setShowPad(false);
+                            }}
+                            onClear={() => {
+                                setForm(f => ({ ...f, digital_signature: '' }));
+                                setShowPad(false);
+                            }}
+                        />
+                        {showPad && (
+                            <button type="button" onClick={() => setShowPad(false)}
+                                style={{ position: 'absolute', top: 0, right: 0, padding: '4px 10px', fontSize: 11, color: 'var(--t-text3)', cursor: 'pointer', background: 'none', border: 'none' }}>
+                                Cancel
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
 
             <button type="submit" disabled={busy}
@@ -501,6 +511,22 @@ export default function ProfilePage() {
     const { refreshStats }                  = useAccounts();
     const [params]                          = useSearchParams();
 
+    const [avatarPreview, setAvatarPreview] = useState(null);
+    const [avatarFile,    setAvatarFile]    = useState(null);
+    const fileRef = useRef();
+
+    const handleAvatarChange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) {
+            // We'll handle errors via a global msg or local feedback
+            alert('Image must be under 5 MB.');
+            return;
+        }
+        setAvatarFile(file);
+        setAvatarPreview(URL.createObjectURL(file));
+    };
+
     const defaultTab = params.get('tab') === 'security' ? 'security'
                      : params.get('tab') === 'activity'  ? 'activity'
                      : 'profile';
@@ -519,14 +545,20 @@ export default function ProfilePage() {
 
             {/* ── User banner ──────────────────────────────────────────── */}
             <div style={{ ...cardStyle, display: 'flex', alignItems: 'center', gap: 20, marginBottom: 20 }}>
-                <div style={{ flexShrink: 0 }}>
-                    {user.profile_image
-                        ? <img src={mediaUrl(user.profile_image)} alt="avatar"
-                            style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover', border: '3px solid #6366f1' }}
+                <div style={{ position: 'relative', flexShrink: 0 }}>
+                    {avatarPreview || user.profile_image ? (
+                        <img src={avatarPreview || mediaUrl(user.profile_image)} alt="avatar"
+                            style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', border: '3px solid #6366f1' }}
                             onError={e => { e.target.style.display = 'none'; }}
-                          />
-                        : <Avatar user={user} size="xl" />
-                    }
+                        />
+                    ) : (
+                        <Avatar user={user} size="xl" />
+                    )}
+                    <button type="button" onClick={() => fileRef.current?.click()} title="Change photo"
+                        style={{ position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: '50%', background: '#6366f1', color: '#fff', border: '2px solid var(--t-bg)', cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        📷
+                    </button>
+                    <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarChange} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ margin: 0, fontSize: 20, fontWeight: 900, color: 'var(--t-text)' }}>
@@ -568,7 +600,17 @@ export default function ProfilePage() {
             </div>
 
             {/* ── Tab content ──────────────────────────────────────────── */}
-            {tab === 'profile'  && <ProfileTab  user={user} updateProfile={updateProfile} refreshStats={refreshStats} />}
+            {tab === 'profile'  && (
+                <ProfileTab 
+                    user={user} 
+                    updateProfile={updateProfile} 
+                    refreshStats={refreshStats}
+                    avatarFile={avatarFile}
+                    avatarPreview={avatarPreview}
+                    setAvatarFile={setAvatarFile}
+                    setAvatarPreview={setAvatarPreview}
+                />
+            )}
             {tab === 'security' && <SecurityTab user={user} setUser={setUser} />}
             {tab === 'activity' && <ActivityTab user={user} />}
         </div>

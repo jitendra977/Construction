@@ -128,6 +128,7 @@ class User(AbstractUser):
     address = models.TextField(blank=True)
     preferred_language = models.CharField(max_length=10, default='en')
     notifications_enabled = models.BooleanField(default=True)
+    digital_signature = models.TextField(blank=True, default="", help_text="Base64 encoded digital signature image")
     typography_settings = models.JSONField(null=True, blank=True)
     active_project = models.ForeignKey(
         'core.HouseProject',
