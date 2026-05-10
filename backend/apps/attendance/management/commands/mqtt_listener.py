@@ -141,8 +141,13 @@ class Command(BaseCommand):
             f"(topic: {self.topic})  [project: {cfg.project}]"
         )
         try:
-            client.connect(broker_host, broker_port, keepalive=60)
-            client.loop_forever()
+            # keepalive=25 sends a PINGREQ every 25 s — shorter than most
+            # cloud brokers' 30 s idle timeout, preventing server-side disconnects.
+            # reconnect_delay_set adds Paho's built-in jittered backoff on top
+            # of our manual exponential backoff in _on_disconnect.
+            client.reconnect_delay_set(min_delay=2, max_delay=60)
+            client.connect(broker_host, broker_port, keepalive=25)
+            client.loop_forever(retry_first_connection=True)
         except Exception as exc:
             err_msg = str(exc)
             self.stderr.write(self.style.ERROR(f"MQTT connection failed: {err_msg}"))
