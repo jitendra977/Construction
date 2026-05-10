@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useResource } from '../context/ResourceContext';
 import resourceApi from '../services/resourceApi';
-import StatusBadge from '../shared/StatusBadge';
+import StatusBadge from '../components/shared/StatusBadge';
 
 const fmt = (v) => Number(v || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
 const fmtCurr = (v) => Number(v || 0).toLocaleString('en-IN', { style: 'currency', currency: 'NPR', maximumFractionDigits: 0 });
