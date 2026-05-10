@@ -28,10 +28,9 @@ Config source (priority order):
 
 import json
 import logging
-import os
-import signal
 import sys
 import time
+import uuid
 
 from django.core.management.base import BaseCommand, CommandParser
 
@@ -100,16 +99,18 @@ class Command(BaseCommand):
         # Mosquitto: add  persistence true  to /etc/mosquitto/mosquitto.conf
         #            (it is the default in most Mosquitto packages).
         project_pk  = cfg.project.pk if hasattr(cfg.project, "pk") else "0"
-        client_id   = f"django-nfc-listener-proj{project_pk}"
-        self.stdout.write(f"  MQTT client_id: {client_id}  (clean_session=False → durable queue)")
+        # Adding a random suffix prevents 'ping-pong' disconnects if multiple
+        # instances of the listener are started (e.g. two terminals running make local).
+        client_id   = f"django-nfc-listener-proj{project_pk}-{uuid.uuid4().hex[:4]}"
+        self.stdout.write(f"  MQTT client_id: {client_id}")
         try:
             client = mqtt.Client(
                 mqtt.CallbackAPIVersion.VERSION1,
                 client_id=client_id,
-                clean_session=False,
+                clean_session=True,
             )
         except (AttributeError, TypeError):
-            client = mqtt.Client(client_id=client_id, clean_session=False)
+            client = mqtt.Client(client_id=client_id, clean_session=True)
 
         if username:
             client.username_pw_set(username, password or None)
@@ -332,7 +333,7 @@ class Command(BaseCommand):
                 3: "server unavailable",
                 4: "bad credentials",
                 5: "not authorised",
-                7: "server closed connection (keepalive/session timeout)",
+                7: "connection lost (check for Client ID conflict or broker timeout)",
             }.get(rc, f"code {rc}")
             self.stdout.write(
                 self.style.WARNING(f"MQTT disconnected ({reason}) — reconnecting in {self._backoff}s…")
