@@ -215,7 +215,12 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PurchaseOrder
-        fields = "__all__"
+        fields = [
+            "id", "po_number", "date", "supplier", "supplier_name",
+            "contractor", "contractor_name", "phase", "total_amount",
+            "status", "notes", "signature_data", "signature_name",
+            "project", "created_at", "updated_at",
+        ]
 
 
 class BillItemSerializer(serializers.ModelSerializer):
@@ -237,6 +242,7 @@ class BillPaymentSerializer(serializers.ModelSerializer):
         fields = [
             "id", "bill", "account", "account_name", "account_code",
             "amount", "date", "method", "reference_id",
+            "signature_data", "signature_name",
             "journal_entry", "created_at",
         ]
         read_only_fields = ["journal_entry"]
@@ -289,7 +295,8 @@ class PaymentSerializer(serializers.ModelSerializer):
         model = Payment
         fields = [
             "id", "expense", "funding_source", "amount", "date", "method",
-            "reference_id", "notes", "proof_photo", "send_receipt",
+            "reference_id", "notes", "signature_data", "signature_name",
+            "proof_photo", "send_receipt",
         ]
 
 

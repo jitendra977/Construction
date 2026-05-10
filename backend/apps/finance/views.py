@@ -158,6 +158,22 @@ class BillViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
             return Response({"error": str(e)}, status=drf_status.HTTP_400_BAD_REQUEST)
         return Response(BillPaymentSerializer(payment).data, status=drf_status.HTTP_201_CREATED)
 
+    @action(detail=True, methods=["get"], url_path="pdf")
+    def pdf(self, request, pk=None):
+        bill = self.get_object()
+        from apps.core.pdf_utils import generate_bill_pdf
+        from django.http import FileResponse
+        import io
+        
+        pdf_content = generate_bill_pdf(bill)
+        filename = f"Bill_{bill.bill_number or bill.id}.pdf"
+        return FileResponse(
+            io.BytesIO(pdf_content), 
+            as_attachment=True, 
+            filename=filename, 
+            content_type='application/pdf'
+        )
+
 
 class BillPaymentViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = BillPayment.objects.all().select_related("account", "bill").order_by("-date", "-id")
@@ -308,9 +324,14 @@ class ExpenseViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
 
         pdf_content = generate_expense_report_pdf(queryset, filter_metadata=meta_str)
         filename = f"expense_report_{_date.today().isoformat()}.pdf"
-        response = HttpResponse(pdf_content, content_type="application/pdf")
-        response["Content-Disposition"] = f'attachment; filename="{filename}"'
-        return response
+        from django.http import FileResponse
+        import io
+        return FileResponse(
+            io.BytesIO(pdf_content),
+            as_attachment=True,
+            filename=filename,
+            content_type="application/pdf"
+        )
 
     @action(detail=False, methods=["get"])
     def overview(self, request):
@@ -465,6 +486,22 @@ class PaymentViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         FinanceService.delete_payment(instance)
+
+    @action(detail=True, methods=["get"], url_path="pdf")
+    def pdf(self, request, pk=None):
+        payment = self.get_object()
+        from apps.core.pdf_utils import generate_payment_receipt_pdf
+        from django.http import FileResponse
+        import io
+        
+        pdf_content = generate_payment_receipt_pdf(payment)
+        filename = f"Receipt_{payment.id}.pdf"
+        return FileResponse(
+            io.BytesIO(pdf_content),
+            as_attachment=True,
+            filename=filename,
+            content_type='application/pdf'
+        )
 
     @action(detail=True, methods=["post"], url_path="email-receipt")
     def email_receipt(self, request, pk=None):

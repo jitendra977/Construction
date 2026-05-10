@@ -5,8 +5,11 @@ import { useState } from 'react';
 import Modal from '../shared/Modal';
 import financeApi from '../../services/financeApi';
 import { useFinance } from '../../context/FinanceContext';
+import { useConstruction } from '../../../../context/ConstructionContext';
+import SignaturePad from '../../../../components/common/SignaturePad';
 
 export default function PaymentModal({ bill, onClose }) {
+  const { user } = useConstruction();
   const { banks, refresh } = useFinance();
   const outstanding = Number(bill.outstanding || bill.total_amount || 0);
 
@@ -17,6 +20,7 @@ export default function PaymentModal({ bill, onClose }) {
     reference:       '',
   });
   const [busy, setBusy] = useState(false);
+  const [showSignaturePad, setShowSignaturePad] = useState(false);
   const [err,  setErr]  = useState('');
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -32,6 +36,8 @@ export default function PaymentModal({ bill, onClose }) {
         amount:       form.amount,
         description:  form.description,
         reference:    form.reference,
+        signature_data: form.signature_data,
+        signature_name: "Project Manager", // Could be dynamic
       });
       await refresh();
       onClose();
@@ -94,6 +100,45 @@ export default function PaymentModal({ bill, onClose }) {
             placeholder="Voucher / cheque no."
             value={form.reference} onChange={(e) => set('reference', e.target.value)}
           />
+        </div>
+
+        <div className="pt-2">
+          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+            Digital Signature *
+          </label>
+          {(form.signature_data || user?.digital_signature) && !showSignaturePad ? (
+            <div className="p-3 border border-gray-100 rounded-xl bg-gray-50 flex flex-col items-center">
+              <img src={form.signature_data || user.digital_signature} alt="Signature" className="max-h-16 mb-2" />
+              <button 
+                type="button"
+                onClick={() => setShowSignaturePad(true)}
+                className="text-[10px] font-bold text-blue-600 hover:underline"
+              >
+                Change Signature
+              </button>
+            </div>
+          ) : (
+            <div className="relative">
+              <SignaturePad 
+                label=""
+                initialValue={form.signature_data}
+                onSave={data => {
+                  set('signature_data', data);
+                  setShowSignaturePad(false);
+                }}
+                onClear={() => set('signature_data', '')}
+              />
+              {user?.digital_signature && (
+                <button 
+                  type="button"
+                  onClick={() => setShowSignaturePad(false)}
+                  className="absolute top-0 right-0 text-[10px] font-bold text-gray-400 hover:text-gray-600"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex gap-2 pt-2">

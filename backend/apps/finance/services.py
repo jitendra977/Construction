@@ -168,6 +168,8 @@ class BillService:
         date,
         method: str,
         reference_id: str = "",
+        signature_data: str = "",
+        signature_name: str = "",
     ) -> BillPayment:
         amount = Decimal(str(amount))
         if amount <= 0:
@@ -184,6 +186,8 @@ class BillService:
             date=date,
             method=method,
             reference_id=reference_id,
+            signature_data=signature_data,
+            signature_name=signature_name,
         )
 
         # Post the payment to GL: Dr AP, Cr Asset
@@ -413,6 +417,8 @@ class FinanceService:
         reference_id: str = "",
         notes: str = "",
         proof_photo=None,
+        signature_data: str = "",
+        signature_name: str = "",
     ) -> Payment:
         amount = Decimal(str(amount))
         if amount <= 0:
@@ -427,6 +433,8 @@ class FinanceService:
             reference_id=reference_id,
             notes=notes,
             proof_photo=proof_photo,
+            signature_data=signature_data,
+            signature_name=signature_name,
         )
 
         if funding_source:

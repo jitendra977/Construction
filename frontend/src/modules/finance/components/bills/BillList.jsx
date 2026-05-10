@@ -63,6 +63,23 @@ export default function BillList({ bills = [], onPay, onEdit }) {
                     </button>
                   )}
                   <button onClick={() => onEdit(b)} className="text-gray-300 hover:text-gray-600 transition-colors text-sm">✏️</button>
+                  <button 
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      try {
+                        const { getBillPDF } = await import('../../services/financeApi');
+                        const res = await getBillPDF(b.id);
+                        const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+                        window.open(url, '_blank');
+                      } catch (err) {
+                        alert('Failed to load PDF');
+                      }
+                    }}
+                    className="text-gray-300 hover:text-red-500 transition-colors text-sm"
+                    title="View PDF"
+                  >
+                    📄
+                  </button>
                 </div>
               </td>
             </tr>

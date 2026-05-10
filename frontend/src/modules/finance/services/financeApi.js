@@ -51,11 +51,13 @@ export const getBill             = (id)    => http.get(`/fin/bills/${id}/`);
 export const createBill          = (data)  => http.post('/fin/bills/', data);
 export const updateBill          = (id, data) => http.patch(`/fin/bills/${id}/`, data);
 export const payBill             = (id, data) => http.post(`/fin/bills/${id}/pay/`, data);
+export const getBillPDF          = (id)       => http.get(`/fin/bills/${id}/pdf/`, { responseType: 'blob' });
 
 // ── Bill Payments ─────────────────────────────────────────────────────────────
 export const getBillPayments     = (projectId, billId) =>
   http.get(`/fin/bill-payments/${qs(projectId, billId ? `bill=${billId}` : '')}`);
 export const createBillPayment   = (data) => http.post('/fin/bill-payments/', data);
+export const getPaymentPDF       = (id)   => http.get(`/fin/payments/${id}/pdf/`, { responseType: 'blob' });
 
 // ── Budget ────────────────────────────────────────────────────────────────────
 export const getBudgetCategories  = (projectId) => http.get(`/fin/budget-categories/${qs(projectId)}`);
@@ -151,8 +153,8 @@ const financeApi = {
   getTransfers, createTransfer,
   getDisbursements, createDisbursement,
   getEMIPayments, createEMIPayment,
-  getBills, getBill, createBill, updateBill, payBill,
-  getBillPayments, createBillPayment,
+  getBills, getBill, createBill, updateBill, payBill, getBillPDF,
+  getBillPayments, createBillPayment, getPaymentPDF,
   getBudgetCategories, createBudgetCategory, updateBudgetCategory, deleteBudgetCategory,
   getBudgetAllocations, createBudgetAllocation, updateBudgetAllocation,
   getContractorContracts, getContractorContract,

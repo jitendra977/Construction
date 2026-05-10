@@ -323,6 +323,8 @@ class PurchaseOrder(models.Model):
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=ZERO)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="DRAFT")
     notes = models.TextField(blank=True)
+    signature_data = models.TextField(blank=True, default="", help_text="Base64 encoded signature image")
+    signature_name = models.CharField(max_length=100, blank=True, default="", help_text="Name of person who signed")
     project = models.ForeignKey(
         "core.HouseProject", on_delete=models.CASCADE, related_name="purchase_orders",
         null=True, blank=True
@@ -418,6 +420,8 @@ class BillPayment(models.Model):
     date = models.DateField()
     method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES)
     reference_id = models.CharField(max_length=100, blank=True)
+    signature_data = models.TextField(blank=True, default="", help_text="Base64 encoded signature image")
+    signature_name = models.CharField(max_length=100, blank=True, default="", help_text="Name of person who signed")
     journal_entry = models.OneToOneField(JournalEntry, on_delete=models.SET_NULL, null=True, blank=True, related_name="bill_payment_source")
     project = models.ForeignKey(
         "core.HouseProject", on_delete=models.CASCADE, related_name="bill_payments",
@@ -560,6 +564,8 @@ class Payment(models.Model):
     method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES)
     reference_id = models.CharField(max_length=100, blank=True)
     notes = models.TextField(blank=True)
+    signature_data = models.TextField(blank=True, default="", help_text="Base64 encoded signature image")
+    signature_name = models.CharField(max_length=100, blank=True, default="", help_text="Name of person who signed")
     proof_photo = models.ImageField(upload_to="payments/proofs/", null=True, blank=True)
     project = models.ForeignKey(
         "core.HouseProject", on_delete=models.CASCADE, related_name="payments",
