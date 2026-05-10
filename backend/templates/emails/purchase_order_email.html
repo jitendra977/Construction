@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 650px;
+            margin: 20px auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .header {
+            background-color: #059669;
+            background: linear-gradient(to right, #059669, #0891b2);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .footer {
+            background: #f9fafb;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #6b7280;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .order-meta {
+            background: #f3f4f6;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .order-meta div {
+            flex: 1;
+        }
+
+        .order-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        .order-table th {
+            text-align: left;
+            border-bottom: 2px solid #e5e7eb;
+            padding: 10px;
+            font-size: 13px;
+            text-transform: uppercase;
+            color: #6b7280;
+        }
+
+        .order-table td {
+            padding: 15px 10px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        
+        .order-table .total-row td {
+            font-weight: bold;
+            color: #059669;
+            border-top: 2px solid #059669;
+            border-bottom: none;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: bold;
+            background: #ecfdf5;
+            color: #065f46;
+        }
+
+        .nepali-text {
+            color: #4b5563;
+            font-size: 14px;
+            display: block;
+            margin-bottom: 2px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 style="margin: 0; font-size: 24px;">खरिद अर्डर (Purchase Order)</h1>
+            <p style="margin: 5px 0 0; opacity: 0.9;">Dream Home Construction Project</p>
+        </div>
+        <div class="content">
+            <p>आदरणीय (Dear) <strong>{{ supplier_name }}</strong>,</p>
+            <p>हामीले नयाँ खरिद अर्डर पठाएका छौं। कृपया विवरणहरू हेर्नुहोस्।<br/>
+            <span style="color: #6b7280; font-size: 14px;">(We are placing a formal order. Please review the details below.)</span></p>
+
+            <div class="order-meta">
+                <div>
+                    <span class="nepali-text">अर्डर नम्बर (PO Number)</span>
+                    <strong>{{ order_number }}</strong><br>
+                    <span class="nepali-text" style="margin-top: 8px;">मिति (Date)</span>
+                    <strong>{{ order_date }}</strong>
+                </div>
+                <div>
+                    <span class="nepali-text">डेलिभरी मिति (Expected By)</span>
+                    <strong>{{ expected_date }}</strong><br>
+                    <span class="nepali-text" style="margin-top: 8px;">अवस्था (Status)</span>
+                    <span class="badge">URGENT</span>
+                </div>
+            </div>
+
+            <table class="order-table">
+                <thead>
+                    <tr>
+                        <th>विवरण (Description)</th>
+                        <th style="text-align: right;">परिमाण (Qty)</th>
+                        <th style="text-align: right;">दर (Rate)</th>
+                        <th style="text-align: right;">जम्मा (Total)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>
+                            <div style="font-weight: bold; color: #111827;">{{ item.description }}</div>
+                        </td>
+                        <td style="text-align: right;">
+                            <div style="font-weight: bold; color: #059669;">{{ item.quantity }}</div>
+                        </td>
+                        <td style="text-align: right; color: #6b7280;">NPR {{ item.unit_price }}</td>
+                        <td style="text-align: right; font-weight: bold;">NPR {{ item.total }}</td>
+                    </tr>
+                    {% endfor %}
+                    <tr class="total-row">
+                        <td colspan="3" style="text-align: right;">कुल जम्मा (GRAND TOTAL):</td>
+                        <td style="text-align: right;">NPR {{ total_amount }}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            {% if notes %}
+            <div style="background: #fdf2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 15px; margin-top: 20px;">
+                <p style="margin: 0; font-size: 14px; color: #991b1b; font-weight: bold;">अर्डर नोटहरू (Order Notes):</p>
+                <p style="margin: 5px 0 0; font-size: 14px; color: #b91c1c;">{{ notes }}</p>
+            </div>
+            {% endif %}
+
+            <p style="margin-top: 30px; font-size: 14px;">यस खरिद अर्डरको विस्तृत PDF फाइल यसै इमेलमा संलग्न गरिएको छ।<br/>
+            <span style="color: #6b7280;">(A detailed PDF version of this Purchase Order is attached to this email.)</span></p>
+
+            <div style="margin-top: 20px; border-top: 1px solid #e5e7eb; pt-4;">
+                <p style="font-size: 12px; color: #6b7280;">
+                    अर्डर गर्ने व्यक्ति (Ordered By): <strong>{{ signature_name }}</strong>
+                </p>
+            </div>
+        </div>
+        <div class="footer">
+            <p><strong>Dream Home Construction</strong><br>
+                Managed via Antigravity Construction System</p>
+            <p>© 2024 Construction Management. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+
+</html>

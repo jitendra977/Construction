@@ -11,7 +11,7 @@ from django.template.loader import render_to_string
 from django.conf import settings
 from datetime import datetime
 
-from .pdf_utils import generate_purchase_order_pdf
+from .pdf_utils import generate_purchase_order_pdf, generate_full_purchase_order_pdf
 
 def send_material_order_email(material, quantity, user=None, custom_subject=None, custom_body=None):
     """
@@ -83,6 +83,168 @@ def send_material_order_email(material, quantity, user=None, custom_subject=None
         log_entry.save()
         return False
 
+
+def send_purchase_order_email(order, user=None):
+    """
+    Send an enhanced HTML email with PDF PO to a supplier for a full PurchaseOrder.
+    """
+    from .models import EmailLog
+    recipient = order.supplier
+    
+    if not recipient:
+        logger.info(f"Skipping email for PO {order.id}: no associated supplier")
+        return False
+    
+    if not recipient.email:
+        error_msg = f"Supplier '{recipient.name}' has no email address"
+        logger.warning(f"Skipping email for PO {order.id}: {error_msg}")
+        EmailLog.objects.create(
+            email_type='PURCHASE_ORDER',
+            recipient_name=recipient.name,
+            recipient_email='',
+            subject=f"Purchase Order: {order.order_number}",
+            sent_by=user if user and getattr(user, 'is_authenticated', False) else None,
+            status='FAILED',
+            error_message=error_msg
+        )
+        return False
+    
+    subject = f"Purchase Order: {order.order_number or str(order.id)[:8]} - Dream Home Construction"
+    user_email = user.email if user and hasattr(user, 'email') else None
+    
+    items_data = []
+    for item in order.items.all():
+        items_data.append({
+            'description': item.description or (item.material.name if item.material else 'Custom Item'),
+            'quantity': item.quantity,
+            'unit_price': f"{item.unit_price:,.2f}",
+            'total': f"{(item.quantity * item.unit_price):,.2f}"
+        })
+        
+    context = {
+        'supplier_name': recipient.contact_person or recipient.name,
+        'order_number': order.order_number or str(order.id)[:8],
+        'order_date': order.order_date.strftime("%Y-%m-%d") if order.order_date else datetime.now().strftime("%Y-%m-%d"),
+        'expected_date': order.expected_date.strftime("%Y-%m-%d") if order.expected_date else 'TBD',
+        'items': items_data,
+        'total_amount': f"{order.total_amount:,.2f}",
+        'notes': order.notes,
+        'signature_name': order.signature_name or "Project Manager",
+        'project_name': "Dream Home Construction"
+    }
+    
+    html_content = render_to_string('emails/purchase_order_email.html', context)
+    text_content = strip_tags(html_content)
+    
+    try:
+        pdf_content = generate_full_purchase_order_pdf(order)
+    except Exception as pdf_err:
+        logger.error("Failed to generate PDF for full PO: %s", pdf_err)
+        pdf_content = None
+
+    log_entry = EmailLog.objects.create(
+        email_type='PURCHASE_ORDER',
+        recipient_name=recipient.name,
+        recipient_email=recipient.email,
+        subject=subject,
+        sent_by=user if user and getattr(user, 'is_authenticated', False) else None
+    )
+
+    try:
+        email = EmailMultiAlternatives(
+            subject=subject,
+            body=text_content,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[recipient.email],
+            reply_to=[user_email] if user_email else None
+        )
+        email.attach_alternative(html_content, "text/html")
+        
+        if pdf_content:
+            po_filename = f"PurchaseOrder_{order.order_number or str(order.id)[:8]}_{datetime.now().strftime('%Y%m%d')}.pdf"
+            email.attach(po_filename, pdf_content, 'application/pdf')
+            
+        email.send()
+        log_entry.status = 'SENT'
+        log_entry.save()
+        return True
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error sending PO email: %s", error_msg)
+        log_entry.status = 'FAILED'
+        log_entry.error_message = error_msg
+        log_entry.save()
+        return False
+
+
+def send_purchase_order_received_email(order, user=None):
+    """
+    Send an HTML confirmation email to a supplier when an order is marked as RECEIVED.
+    """
+    from .models import EmailLog
+    recipient = order.supplier
+    
+    if not recipient or not recipient.email:
+        error_msg = f"Supplier '{recipient.name if recipient else 'None'}' has no email address"
+        logger.warning(f"Skipping received confirmation for PO {order.id}: {error_msg}")
+        EmailLog.objects.create(
+            email_type='PURCHASE_RECEIVED',
+            recipient_name=recipient.name if recipient else 'Unknown',
+            recipient_email='',
+            subject=f"Order Received: {order.order_number}",
+            sent_by=user if user and getattr(user, 'is_authenticated', False) else None,
+            status='FAILED',
+            error_message=error_msg
+        )
+        return False
+    
+    subject = f"Order Received Confirmation: {order.order_number or str(order.id)[:8]} - Dream Home Construction"
+    user_email = user.email if user and hasattr(user, 'email') else None
+    
+    items_data = []
+    for item in order.items.all():
+        items_data.append({
+            'description': item.description or (item.material.name if item.material else 'Custom Item'),
+            'quantity': item.quantity,
+        })
+        
+    context = {
+        'supplier_name': recipient.contact_person or recipient.name,
+        'order_number': order.order_number or str(order.id)[:8],
+        'received_date': datetime.now().strftime("%Y-%m-%d %H:%M"),
+        'items': items_data,
+        'project_name': "Dream Home Construction"
+    }
+    
+    html_content = render_to_string('emails/purchase_order_received_email.html', context)
+    text_content = strip_tags(html_content)
+    
+    log_entry = EmailLog.objects.create(
+        email_type='PURCHASE_RECEIVED',
+        recipient_name=recipient.name,
+        recipient_email=recipient.email,
+        subject=subject,
+        sent_by=user if user and getattr(user, 'is_authenticated', False) else None
+    )
+
+    try:
+        email = EmailMultiAlternatives(
+            subject=subject,
+            body=text_content,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[recipient.email],
+            reply_to=[user_email] if user_email else None
+        )
+        email.attach_alternative(html_content, "text/html")
+        email.send()
+        log_entry.status = 'SENT'
+        log_entry.save()
+        return True
+    except Exception as e:
+        log_entry.status = 'FAILED'
+        log_entry.error_message = str(e)
+        log_entry.save()
+        return False
 
 def send_contractor_notification(contractor, subject, message, user=None):
     """
@@ -159,6 +321,7 @@ def send_payment_receipt_email(payment, user=None, custom_subject=None, custom_m
         'reference_id': payment.reference_id or 'N/A',
         'description': payment.expense.title,
         'custom_message': custom_message,
+        'signature_name': payment.signature_name or "Authorized Signature",
         'project_name': "Dream Home Construction"
     }
     

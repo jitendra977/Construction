@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 650px;
+            margin: 20px auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .header {
+            background-color: #0284c7;
+            background: linear-gradient(to right, #0284c7, #0369a1);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .footer {
+            background: #f9fafb;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #6b7280;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .order-meta {
+            background: #f0f9ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .order-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        .order-table th {
+            text-align: left;
+            border-bottom: 2px solid #e5e7eb;
+            padding: 10px;
+            font-size: 13px;
+            text-transform: uppercase;
+            color: #6b7280;
+        }
+
+        .order-table td {
+            padding: 15px 10px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: bold;
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+
+        .nepali-text {
+            color: #4b5563;
+            font-size: 14px;
+            display: block;
+            margin-bottom: 2px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 style="margin: 0; font-size: 24px;">अर्डर प्राप्त भएको जानकारी (Order Received)</h1>
+            <p style="margin: 5px 0 0; opacity: 0.9;">Dream Home Construction Project</p>
+        </div>
+        <div class="content">
+            <p>आदरणीय (Dear) <strong>{{ supplier_name }}</strong>,</p>
+            <p>हामीले अर्डर <strong>#{{ order_number }}</strong> का सामानहरू सफलतापूर्वक प्राप्त गरेका छौं।<br/>
+            <span style="color: #6b7280; font-size: 14px;">(This is a formal confirmation that we have successfully received your delivery.)</span></p>
+
+            <div class="order-meta">
+                <div>
+                    <span class="nepali-text">अर्डर नम्बर (PO Number)</span>
+                    <strong>{{ order_number }}</strong><br>
+                    <span class="nepali-text" style="margin-top: 8px;">प्राप्त मिति (Received Date)</span>
+                    <strong>{{ received_date }}</strong>
+                </div>
+                <div>
+                    <span class="nepali-text">अवस्था (Status)</span>
+                    <span class="badge">RECEIVED</span>
+                </div>
+            </div>
+
+            <table class="order-table">
+                <thead>
+                    <tr>
+                        <th>विवरण (Description)</th>
+                        <th style="text-align: right;">प्राप्त परिमाण (Qty Received)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>
+                            <div style="font-weight: bold; color: #111827;">{{ item.description }}</div>
+                        </td>
+                        <td style="text-align: right;">
+                            <div style="font-weight: bold; color: #0284c7;">{{ item.quantity }}</div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <p style="margin-top: 30px; font-size: 14px;">समयमै सामान डेलिभरी गरिदिनुभएकोमा धन्यवाद। कृपया अन्तिम बिल (Invoice) पठाउनुहोला।<br/>
+            <span style="color: #6b7280;">(Thank you for your timely delivery. Please forward the final invoice.)</span></p>
+        </div>
+        <div class="footer">
+            <p><strong>Dream Home Construction</strong><br>
+                Managed via Antigravity Construction System</p>
+            <p>© 2024 Construction Management. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+
+</html>

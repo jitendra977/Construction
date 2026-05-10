@@ -74,12 +74,13 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1 style="margin: 0; font-size: 24px;">Payment Receipt</h1>
+            <h1 style="margin: 0; font-size: 24px;">भुक्तानी रसिद (Payment Receipt)</h1>
             <p style="margin: 5px 0 0; opacity: 0.9;">{{ project_name }}</p>
         </div>
         <div class="content">
-            <p>Dear <strong>{{ recipient_name }}</strong>,</p>
-            <p>This email confirms that a payment has been processed for the expense described below.</p>
+            <p>आदरणीय (Dear) <strong>{{ recipient_name }}</strong>,</p>
+            <p>तपाईंको भुक्तानी सफलतापुर्वक सम्पन्न भएको छ। विवरणहरू तल दिइएको छ।<br/>
+            <span style="color: #6b7280; font-size: 14px;">(This email confirms that your payment has been processed. Details below.)</span></p>
 
             <div class="payment-amount">
                 Rs. {{ amount }}
@@ -88,19 +89,19 @@
             <table class="details-table">
                 <tbody>
                     <tr>
-                        <th>Date</th>
+                        <th>मिति (Date)</th>
                         <td>{{ date }}</td>
                     </tr>
                     <tr>
-                        <th>Payment Method</th>
+                        <th>भुक्तानी विधि (Method)</th>
                         <td>{{ method }}</td>
                     </tr>
                     <tr>
-                        <th>Reference ID</th>
+                        <th>सन्दर्भ नम्बर (Reference)</th>
                         <td>{{ reference_id }}</td>
                     </tr>
                     <tr>
-                        <th>Description</th>
+                        <th>विवरण (Description)</th>
                         <td>{{ description }}</td>
                     </tr>
                 </tbody>
@@ -113,7 +114,8 @@
             </div>
             {% endif %}
 
-            <p style="margin-top: 30px;">Thank you for your business. The official PDF receipt is attached to this email.</p>
+            <p style="margin-top: 30px;">सहकार्यको लागि धन्यवाद। आधिकारिक PDF रसिद यसै इमेलमा संलग्न छ।<br/>
+            <span style="color: #6b7280; font-size: 14px;">(Thank you for your business. The official PDF receipt is attached.)</span></p>
         </div>
         <div class="footer">
             <p><strong>{{ project_name }}</strong><br>

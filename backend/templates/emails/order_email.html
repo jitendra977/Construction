@@ -86,20 +86,20 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1 style="margin: 0; font-size: 24px;">Purchase Order Request</h1>
+            <h1 style="margin: 0; font-size: 24px;">खरिद अर्डर अनुरोध (Purchase Order Request)</h1>
             <p style="margin: 5px 0 0; opacity: 0.9;">Dream Home Construction Project</p>
         </div>
         <div class="content">
-            <p>Dear <strong>{{ supplier_name }}</strong>,</p>
-            <p>We are placing a formal order for the following items. Please review the details below and confirm
-                availability.</p>
+            <p>आदरणीय (Dear) <strong>{{ supplier_name }}</strong>,</p>
+            <p>हामीले नयाँ खरिद अर्डरको अनुरोध पठाएका छौं। कृपया विवरणहरू हेरी सामान उपलब्ध छ छैन जानकारी दिनुहोला।<br/>
+            <span style="color: #6b7280; font-size: 14px;">(We are placing a formal order request. Please review the details below and confirm availability.)</span></p>
 
             <table class="order-table">
                 <thead>
                     <tr>
-                        <th>Material</th>
-                        <th>Quantity</th>
-                        <th>Status</th>
+                        <th>सामान (Material)</th>
+                        <th>परिमाण (Quantity)</th>
+                        <th>अवस्था (Status)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -112,7 +112,7 @@
                             <div style="font-weight: bold; color: #059669;">{{ quantity }} {{ unit }}</div>
                         </td>
                         <td>
-                            <span class="badge">Urgent</span>
+                            <span class="badge">Urgent (जरुरी)</span>
                         </td>
                     </tr>
                 </tbody>
@@ -120,13 +120,13 @@
 
             <div
                 style="background: #fdf2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 15px; margin-top: 20px;">
-                <p style="margin: 0; font-size: 14px; color: #991b1b; font-weight: bold;">Message from Project Manager:
+                <p style="margin: 0; font-size: 14px; color: #991b1b; font-weight: bold;">परियोजना प्रबन्धकको सन्देश (Message from PM):
                 </p>
                 <p style="margin: 5px 0 0; font-size: 14px; color: #b91c1c;">{{ custom_message }}</p>
             </div>
 
-            <p style="margin-top: 30px;">Please provide a quote or invoice for the above items at your earliest
-                convenience.</p>
+            <p style="margin-top: 30px;">कृपया माथिका सामानहरूको कोटेसन (Quote) वा बिल चाँडै उपलब्ध गराईदिनुहोला।<br/>
+            <span style="color: #6b7280; font-size: 14px;">(Please provide a quote or invoice for the above items at your earliest convenience.)</span></p>
         </div>
         <div class="footer">
             <p><strong>Dream Home Construction</strong><br>
