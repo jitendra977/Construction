@@ -26,6 +26,7 @@ import EquipmentPage     from '../pages/EquipmentPage';
 import LaborPage         from '../pages/LaborPage';
 import SuppliersPage     from '../pages/SuppliersPage';
 import PurchasesPage     from '../pages/PurchasesPage';
+import PurchaseDetailPage from '../pages/PurchaseDetailPage';
 import HelpPage          from '../pages/HelpPage';
 
 export default function ResourceRoutes({ projectId }) {
@@ -39,6 +40,7 @@ export default function ResourceRoutes({ projectId }) {
           <Route path="labor"         element={<LaborPage />} />
           <Route path="suppliers"     element={<SuppliersPage />} />
           <Route path="purchases"     element={<PurchasesPage />} />
+          <Route path="purchases/:id" element={<PurchaseDetailPage />} />
           <Route path="help"          element={<HelpPage />} />
           <Route path="*"             element={<Navigate to="" replace />} />
         </Routes>

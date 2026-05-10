@@ -10,6 +10,10 @@ const http = createApiClient();
 const qs = (pid, extra = '') =>
   pid ? `?project=${pid}${extra ? '&' + extra : ''}` : extra ? `?${extra}` : '';
 
+// ── Construction Phases (from core app — used for stock-out linking) ──────────
+export const getPhases = (projectId) =>
+  http.get(`/phases/${qs(projectId)}`);
+
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 export const getDashboard = (projectId) =>
   http.get(`/resource/dashboard/${qs(projectId)}`);
@@ -19,6 +23,7 @@ export const getMaterials    = (projectId)     => http.get(`/resource/materials/
 export const getMaterial     = (id)            => http.get(`/resource/materials/${id}/`);
 export const createMaterial  = (data)          => http.post('/resource/materials/', data);
 export const updateMaterial  = (id, data)      => http.patch(`/resource/materials/${id}/`, data);
+export const deleteMaterial  = (id)            => http.delete(`/resource/materials/${id}/`);
 export const stockIn         = (id, data)      => http.post(`/resource/materials/${id}/stock-in/`, data);
 export const stockOut        = (id, data)      => http.post(`/resource/materials/${id}/stock-out/`, data);
 
@@ -27,6 +32,7 @@ export const getEquipment    = (projectId, status) =>
   http.get(`/resource/equipment/${qs(projectId, status ? `status=${status}` : '')}`);
 export const createEquipment = (data)          => http.post('/resource/equipment/', data);
 export const updateEquipment = (id, data)      => http.patch(`/resource/equipment/${id}/`, data);
+export const deleteEquipment = (id)            => http.delete(`/resource/equipment/${id}/`);
 
 // ── Workers ───────────────────────────────────────────────────────────────────
 export const getWorkers      = (projectId, isActive) =>
@@ -52,9 +58,12 @@ export const updateSupplier  = (id, data)      => http.patch(`/resource/supplier
 
 // ── Purchase Orders ───────────────────────────────────────────────────────────
 export const getPurchaseOrders    = (projectId)  => http.get(`/resource/purchase-orders/${qs(projectId)}`);
+export const getPurchaseOrder     = (id)         => http.get(`/resource/purchase-orders/${id}/`);
 export const createPurchaseOrder  = (data)       => http.post('/resource/purchase-orders/', data);
 export const updatePurchaseOrder  = (id, data)   => http.patch(`/resource/purchase-orders/${id}/`, data);
-export const receivePurchaseOrder = (id)         => http.post(`/resource/purchase-orders/${id}/receive/`);
+export const receivePurchaseOrder    = (id, data)  => http.post(`/resource/purchase-orders/${id}/receive/`, data);
+export const bulkDeletePurchaseOrders = (ids)       => http.post('/resource/purchase-orders/bulk-delete/', { ids });
+export const getPurchaseOrderPDF     = (id)         => http.get(`/resource/purchase-orders/${id}/pdf/`, { responseType: 'blob' });
 
 // ── Purchase Items ────────────────────────────────────────────────────────────
 export const getPurchaseItems    = (orderId)   =>
@@ -74,12 +83,14 @@ export const getStockMovements = (projectId, materialId) => {
 // ── Named export bundle (for components that import everything at once) ────────
 const resourceApi = {
   getDashboard,
-  getMaterials, getMaterial, createMaterial, updateMaterial, stockIn, stockOut,
-  getEquipment, createEquipment, updateEquipment,
+  getPhases,
+  getMaterials, getMaterial, createMaterial, updateMaterial, deleteMaterial, stockIn, stockOut,
+  getEquipment, createEquipment, updateEquipment, deleteEquipment,
   getWorkers, createWorker, updateWorker,
   getAttendance, createAttendance, updateAttendance,
   getSuppliers, createSupplier, updateSupplier,
-  getPurchaseOrders, createPurchaseOrder, updatePurchaseOrder, receivePurchaseOrder,
+  getPurchaseOrders, getPurchaseOrder, createPurchaseOrder, updatePurchaseOrder,
+  receivePurchaseOrder, bulkDeletePurchaseOrders, getPurchaseOrderPDF,
   getPurchaseItems, createPurchaseItem, updatePurchaseItem,
   getStockMovements,
 };

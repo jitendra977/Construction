@@ -3,21 +3,25 @@
  * Loads orders directly from API (not from context).
  */
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useResource } from '../context/ResourceContext';
 import PageHeader from '../components/shared/PageHeader';
 import EmptyState from '../components/shared/EmptyState';
 import PurchaseList from '../components/purchases/PurchaseList';
 import PurchaseForm from '../components/purchases/PurchaseForm';
 import Modal from '../components/shared/Modal';
+import ReceiptModal from '../components/purchases/ReceiptModal';
 import resourceApi from '../services/resourceApi';
 
 export default function PurchasesPage() {
+  const navigate = useNavigate();
   const { projectId, loading: ctxLoading } = useResource();
   const [orders,     setOrders]     = useState([]);
   const [fetching,   setFetching]   = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [editing,    setEditing]    = useState(null);
   const [receiving,  setReceiving]  = useState(false);
+  const [confirm,    setConfirm]    = useState({ isOpen: false, order: null });
 
   const loadOrders = async () => {
     if (!projectId) return;
@@ -40,14 +44,22 @@ export default function PurchasesPage() {
     loadOrders();
   };
 
-  const handleReceive = async (order) => {
-    if (!window.confirm(`Receive order "${order.order_number}"? This will update stock.`)) return;
+  const handleReceive = (order) => {
+    setConfirm({ isOpen: true, order });
+  };
+
+  // payload = { receipts: { item_id: qty, ... }, vehicle_number, delivered_by, document_ref, notes }
+  const confirmReceive = async (payload) => {
+    const { order } = confirm;
+    if (!order) return;
+
+    setConfirm({ isOpen: false, order: null });
     setReceiving(true);
     try {
-      await resourceApi.receivePurchaseOrder(order.id);
+      await resourceApi.receivePurchaseOrder(order.id, payload);
       loadOrders();
     } catch (err) {
-      alert(err?.response?.data?.detail || 'Failed to receive order.');
+      alert(err?.response?.data?.error || err?.response?.data?.detail || 'Failed to receive order.');
     } finally {
       setReceiving(false);
     }
@@ -82,7 +94,7 @@ export default function PurchasesPage() {
           action={{ label: '+ New Order', onClick: () => setShowCreate(true) }}
         />
       ) : (
-        <PurchaseList orders={orders} onReceive={handleReceive} onEdit={setEditing} />
+        <PurchaseList orders={orders} onReceive={handleReceive} onEdit={setEditing} onDeleted={loadOrders} />
       )}
 
       {/* Create modal */}
@@ -94,6 +106,15 @@ export default function PurchasesPage() {
       <Modal isOpen={!!editing} onClose={() => setEditing(null)} title="Edit Purchase Order" maxWidth="max-w-2xl">
         {editing && <PurchaseForm order={editing} onDone={handleDone} />}
       </Modal>
+
+      {/* GRN Receipt modal */}
+      <ReceiptModal
+        isOpen={confirm.isOpen}
+        order={confirm.order}
+        onClose={() => setConfirm({ isOpen: false, order: null })}
+        onConfirm={confirmReceive}
+        processing={receiving}
+      />
     </div>
   );
 }
