@@ -4,6 +4,7 @@ from ..models.purchase import PurchaseOrder, PurchaseOrderItem, StockMovement
 
 class StockMovementSerializer(serializers.ModelSerializer):
     is_in         = serializers.BooleanField(read_only=True)
+    material_name = serializers.CharField(source="material.name",          read_only=True, default=None)
     phase_name    = serializers.CharField(source="phase.name",          read_only=True, default=None)
     supplier_name = serializers.CharField(source="supplier.name",       read_only=True, default=None)
     po_number     = serializers.CharField(source="purchase_order.order_number", read_only=True, default=None)
@@ -11,7 +12,7 @@ class StockMovementSerializer(serializers.ModelSerializer):
     class Meta:
         model  = StockMovement
         fields = [
-            "id", "project", "material", "movement_type",
+            "id", "project", "material", "material_name", "movement_type",
             "quantity", "unit_price", "reference", "notes",
             "phase", "phase_name",
             "supplier", "supplier_name",

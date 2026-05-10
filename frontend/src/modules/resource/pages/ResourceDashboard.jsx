@@ -8,7 +8,7 @@ import { useResource } from '../context/ResourceContext';
 import resourceApi from '../services/resourceApi';
 import StatusBadge from '../components/shared/StatusBadge';
 
-const fmt = (v) => Number(v || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+const fmt = (v) => Number(v || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
 const fmtCurr = (v) => Number(v || 0).toLocaleString('en-IN', { style: 'currency', currency: 'NPR', maximumFractionDigits: 0 });
 
 /* ── KPI Components ─────────────────────────────────────── */
@@ -103,7 +103,7 @@ export default function ResourceDashboard() {
           <div className="flex -space-x-2">
             {[1,2,3].map(i => (
               <div key={i} className="w-7 h-7 rounded-full border-2 border-white bg-gray-100 overflow-hidden shadow-sm">
-                <img src={`https://i.pravatar.cc/100?u=${i+10}`} alt="user" />
+                <img src={`https://i.pravatar.cc/100?u=${i+20}`} alt="user" />
               </div>
             ))}
           </div>
@@ -232,7 +232,7 @@ export default function ResourceDashboard() {
               {/* Vertical line for timeline */}
               <div className="absolute left-10 top-8 bottom-8 w-px bg-gray-100" />
               
-              <div className="space-y-6 relative">
+              <div className="space-y-8 relative">
                 {movements.length > 0 ? movements.map((mv, i) => (
                   <div key={mv.id || i} className="flex items-start gap-4 group">
                     <div className="w-8 h-8 rounded-full bg-white border border-gray-100 shadow-sm flex items-center justify-center z-10 shrink-0 group-hover:border-emerald-200 group-hover:scale-110 transition-all">
@@ -242,20 +242,39 @@ export default function ResourceDashboard() {
                     </div>
                     <div className="flex-1 pt-0.5">
                       <div className="flex items-center justify-between">
-                        <p className="text-xs font-black text-gray-900 group-hover:text-emerald-600 transition-colors">
-                          {mv.material_name || mv.material}
+                        <p className="text-sm font-black text-gray-900 group-hover:text-emerald-600 transition-colors">
+                          {mv.material_name || "Unknown Material"}
                         </p>
-                        <p className={`text-xs font-black ${mv.movement_type === 'IN' ? 'text-green-600' : 'text-red-600'}`}>
+                        <p className={`text-sm font-black ${mv.movement_type === 'IN' ? 'text-green-600' : 'text-red-600'}`}>
                           {mv.movement_type === 'IN' ? '+' : '−'}{fmt(mv.quantity)}
                         </p>
                       </div>
-                      <div className="flex items-center justify-between mt-1">
-                        <p className="text-[10px] font-medium text-gray-400 uppercase tracking-tight">
-                          {mv.reference || mv.notes || 'Warehouse adjustment'}
-                        </p>
-                        <p className="text-[9px] font-bold text-gray-300 uppercase">
-                          {new Date(mv.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
+                      
+                      <div className="flex flex-col mt-1 gap-1">
+                        <div className="flex items-center gap-2">
+                           <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tight">
+                            {mv.reference || mv.notes || 'Warehouse adjustment'}
+                          </p>
+                          {mv.po_number && (
+                            <span className="text-[9px] font-black bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded uppercase">
+                              PO: {mv.po_number}
+                            </span>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {mv.supplier_name && (
+                              <p className="text-[9px] text-gray-400 font-bold uppercase italic">via {mv.supplier_name}</p>
+                            )}
+                            {mv.delivered_by && (
+                              <p className="text-[9px] text-gray-400 font-bold uppercase italic">· {mv.delivered_by}</p>
+                            )}
+                          </div>
+                          <p className="text-[10px] font-black text-gray-300 uppercase tabular-nums">
+                            {new Date(mv.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -321,7 +340,7 @@ export default function ResourceDashboard() {
             <div className="mt-8 pt-6 border-t border-gray-50">
               <button 
                 onClick={() => navigate('equipment')}
-                className="w-full py-3 bg-gray-900 text-white text-[10px] font-black rounded-xl hover:bg-black transition-all shadow-lg shadow-black/10 uppercase tracking-widest"
+                className="w-full py-3 bg-gray-900 text-white text-[10px) font-black rounded-xl hover:bg-black transition-all shadow-lg shadow-black/10 uppercase tracking-widest"
               >
                 Manage Fleet Status
               </button>
