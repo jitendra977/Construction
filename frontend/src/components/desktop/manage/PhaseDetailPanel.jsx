@@ -60,12 +60,15 @@ function TaskMiniRow({ task, isSelected, onClick, onTaskClick, canDelete, onDele
     const sm = STATUS_COLOR[task.status] || STATUS_COLOR.PENDING;
     const dl = daysLeft(task.due_date);
     const overdue = dl !== null && dl < 0 && task.status !== 'COMPLETED';
+    const isMobile = window.innerWidth < 768;
 
     return (
         <div
             onClick={() => onClick(task)}
             style={{
-                display: 'flex', alignItems: 'center', gap: 8,
+                display: 'grid', 
+                gridTemplateColumns: isMobile ? '1fr 120px' : '1fr 100px 100px 100px 120px',
+                alignItems: 'center', gap: 8,
                 padding: '8px 12px', borderRadius: 8, cursor: 'pointer',
                 background: isSelected ? 'rgba(249,115,22,0.08)' : 'var(--t-surface2)',
                 border: `1px solid ${isSelected ? 'rgba(249,115,22,0.4)' : 'var(--t-border)'}`,
@@ -73,35 +76,53 @@ function TaskMiniRow({ task, isSelected, onClick, onTaskClick, canDelete, onDele
                 marginBottom: 4,
             }}
         >
-            {/* priority strip */}
-            <div style={{
-                width: 3, height: 32, borderRadius: 2, flexShrink: 0,
-                background: PRIORITY_COLOR[task.priority] || '#6b7280',
-            }} />
-
-            <div style={{ flex: 1, minWidth: 0 }}>
+            {/* Task Info */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                 <div style={{
-                    fontSize: 12, fontWeight: 700, color: 'var(--t-text)',
-                    textDecoration: task.status === 'COMPLETED' ? 'line-through' : 'none',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>
-                    {task.title}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                    <span style={{
-                        fontSize: 9, fontWeight: 800, padding: '1px 6px', borderRadius: 4,
-                        background: sm.bg, color: sm.color,
-                    }}>{sm.label}</span>
-                    {task.due_date && (
+                    width: 3, height: 32, borderRadius: 2, flexShrink: 0,
+                    background: PRIORITY_COLOR[task.priority] || '#6b7280',
+                }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                        fontSize: 12, fontWeight: 700, color: 'var(--t-text)',
+                        textDecoration: task.status === 'COMPLETED' ? 'line-through' : 'none',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>
+                        {task.title}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
                         <span style={{
-                            fontSize: 9, fontWeight: 700,
-                            color: overdue ? '#ef4444' : 'var(--t-text3)',
-                        }}>
-                            {overdue ? `⚠ ${Math.abs(dl)}d over` : `📅 ${fmtShort(task.due_date)}`}
-                        </span>
-                    )}
+                            fontSize: 9, fontWeight: 800, padding: '1px 6px', borderRadius: 4,
+                            background: sm.bg, color: sm.color,
+                        }}>{sm.label}</span>
+                        {isMobile && task.due_date && (
+                             <span style={{
+                                 fontSize: 9, fontWeight: 700,
+                                 color: overdue ? '#ef4444' : 'var(--t-text3)',
+                             }}>
+                                 {overdue ? `⚠ ${Math.abs(dl)}d over` : `📅 ${fmtShort(task.due_date)}`}
+                             </span>
+                        )}
+                    </div>
                 </div>
             </div>
+
+            {!isMobile && (
+                <>
+                    <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--t-text2)', fontWeight: 600 }}>
+                        {task.start_date ? fmtShort(task.start_date) : '—'}
+                    </div>
+                    <div style={{ 
+                        textAlign: 'center', fontSize: 11, fontWeight: 700,
+                        color: overdue ? '#ef4444' : 'var(--t-text2)'
+                    }}>
+                        {task.due_date ? fmtShort(task.due_date) : '—'}
+                    </div>
+                    <div style={{ textAlign: 'center', fontSize: 11, color: '#10b981', fontWeight: 800 }}>
+                        {task.estimated_cost > 0 ? `Rs.${Number(task.estimated_cost).toLocaleString()}` : '—'}
+                    </div>
+                </>
+            )}
 
             {/* Actions */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
@@ -128,17 +149,6 @@ function TaskMiniRow({ task, isSelected, onClick, onTaskClick, canDelete, onDele
                         }}
                     >Detail →</button>
                 </div>
-                {task.technical_requirement && isSelected && (
-                    <div style={{
-                        marginTop: 4, padding: '6px 10px', borderRadius: 6,
-                        background: 'var(--t-surface)', border: '1px solid #f9731630',
-                        fontSize: 10, color: 'var(--t-text2)', fontStyle: 'italic',
-                        maxWidth: 240, borderLeft: '2px solid #f97316',
-                    }}>
-                        <div style={{ fontWeight: 800, color: '#f97316', fontSize: 8, textTransform: 'uppercase', marginBottom: 2 }}>Engineer's Specs:</div>
-                        {task.technical_requirement}
-                    </div>
-                )}
             </div>
         </div>
     );
@@ -250,6 +260,8 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
     const [editingMatId,   setEditingMatId]   = useState(null);
     const [editMatData,    setEditMatData]     = useState({});
     const [confirmCfg,     setConfirmCfg]     = useState({ isOpen: false });
+    const [showMediaUploadModal, setShowMediaUploadModal] = useState(false);
+    const [uploadMediaTaskId, setUploadMediaTaskId] = useState('');
     const [activeTab,      setActiveTab]      = useState('tasks'); // 'tasks' | 'media' | 'materials' | 'assignments'
 
     // ── Task management state ──
@@ -322,6 +334,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
     );
     const selectedTask   = phaseTasks.find(t => t.id === selectedTaskId) || null;
     const liveTask       = selectedTask ? (dashboardData.tasks || []).find(t => t.id === selectedTask.id) || selectedTask : null;
+    const livePhase      = (dashboardData.phases || []).find(p => p.id === phase?.id) || phase;
 
     const handleSave = async () => {
         setSaving(true);
@@ -334,9 +347,10 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
         finally { setSaving(false); }
     };
 
-    const handleUploadMedia = async (e) => {
+    const handleUploadMedia = async (e, forcedTaskId) => {
         const raw = e.target.files[0];
-        if (!raw || !selectedTask) return;
+        const targetTaskId = forcedTaskId || selectedTask?.id;
+        if (!raw || !targetTaskId) return;
         setUploading(true);
         let file = raw;
         let mediaType = 'DOCUMENT';
@@ -347,7 +361,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
             mediaType = 'VIDEO';
         }
         const fd = new FormData();
-        fd.append('task', selectedTask.id);
+        fd.append('task', targetTaskId);
         fd.append('file', file);
         fd.append('media_type', mediaType);
         try { await constructionService.uploadTaskMedia(fd); refreshData(); }
@@ -414,6 +428,66 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
         } finally {
             setSaving(false);
         }
+    };
+
+    const handleDocumentUpload = async (e, documentType) => {
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
+        setSaving(true);
+        try {
+            for (let i = 0; i < files.length; i++) {
+                const fd = new FormData();
+                fd.append('phase', phase.id);
+                fd.append('document_type', documentType);
+                fd.append('file', files[i]);
+                await constructionService.uploadPhaseDocument(fd);
+            }
+            refreshData();
+            setConfirmCfg({
+                isOpen: true,
+                title: 'Success',
+                message: 'Documents uploaded successfully!',
+                confirmText: 'OK',
+                type: 'success',
+                onConfirm: () => setConfirmCfg(c => ({ ...c, isOpen: false }))
+            });
+        } catch (err) {
+            console.error(err);
+            setConfirmCfg({
+                isOpen: true,
+                title: 'Error',
+                message: 'Failed to upload documents.',
+                confirmText: 'OK',
+                type: 'danger',
+                onConfirm: () => setConfirmCfg(c => ({ ...c, isOpen: false }))
+            });
+        } finally {
+            setSaving(false);
+            e.target.value = ''; // Reset input
+        }
+    };
+
+    const handleDocumentDelete = (docId) => {
+        setConfirmCfg({
+            isOpen: true,
+            title: 'Delete Document',
+            message: 'Are you sure you want to delete this document? This cannot be undone.',
+            confirmText: 'Delete',
+            type: 'danger',
+            onConfirm: async () => {
+                setConfirmCfg(c => ({ ...c, isOpen: false }));
+                setSaving(true);
+                try {
+                    await constructionService.deletePhaseDocument(docId);
+                    refreshData();
+                } catch (err) {
+                    console.error(err);
+                    alert('Failed to delete document.');
+                } finally {
+                    setSaving(false);
+                }
+            }
+        });
     };
 
     const handleAddToCart = (e) => {
@@ -739,8 +813,8 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                     }}>
                         {[
                             { id: 'tasks',       label: `Execution Tasks (${phaseTasks.length})` },
-                            { id: 'design',      label: `Design & Specs` },
-                            { id: 'media',       label: `Media (${liveTask?.media?.length ?? 0})` },
+                            { id: 'design',      label: `Design & Specs (${livePhase.documents?.length || 0})` },
+                            { id: 'media',       label: `Media (${selectedTaskId ? (liveTask?.media?.length || 0) : phaseTasks.reduce((acc, t) => acc + (t.media?.length || 0), 0)})` },
                             { id: 'materials',   label: `Materials (${phaseMaterials.length})` },
                             { id: 'assignments', label: `Workforce & Team (${phaseAssignments.length})` },
                         ].map(tab => (
@@ -819,19 +893,35 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                                 <div>
                                     {/* Column headers */}
                                     <div style={{
-                                        display: 'grid', gridTemplateColumns: '1fr 120px',
+                                        display: 'grid', 
+                                        gridTemplateColumns: window.innerWidth < 768 ? '1fr 120px' : '1fr 100px 100px 100px 120px',
                                         padding: '0 12px 6px',
                                         fontSize: 9, fontWeight: 900, color: 'var(--t-text3)',
                                         textTransform: 'uppercase', letterSpacing: '0.1em',
                                     }}>
                                         <span>Task</span>
+                                        {window.innerWidth >= 768 && (
+                                            <>
+                                                <span style={{ textAlign: 'center' }}>Start</span>
+                                                <span style={{ textAlign: 'center' }}>Due</span>
+                                                <span style={{ textAlign: 'center' }}>Budget</span>
+                                            </>
+                                        )}
                                         <span style={{ textAlign: 'right' }}>Action</span>
                                     </div>
 
                                     {[...phaseTasks].sort((a, b) => {
+                                        // 1. Due Date (Ascending) - nulls/TBD at bottom
+                                        const da = a.due_date ? new Date(a.due_date).getTime() : 9999999999999;
+                                        const db = b.due_date ? new Date(b.due_date).getTime() : 9999999999999;
+                                        if (da !== db) return da - db;
+
+                                        // 2. Status (COMPLETED at bottom)
                                         if (a.status === 'COMPLETED' && b.status !== 'COMPLETED') return 1;
                                         if (a.status !== 'COMPLETED' && b.status === 'COMPLETED') return -1;
-                                        return 0;
+
+                                        // 3. ID (Tie-breaker)
+                                        return (a.id || 0) - (b.id || 0);
                                     }).map(task => (
                                         <TaskMiniRow
                                             key={task.id}
@@ -897,18 +987,56 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                                     : phaseTasks.flatMap(t => (t.media || []).map(m => ({ ...m, taskTitle: t.title })))
                                 }
                                 uploading={uploading}
-                                canUpload={!!selectedTaskId && canManage} // Can only upload if task selected AND canManage
+                                canUpload={canManage}
                                 onDelete={canManage ? handleDeleteMedia : null}
-                                onUpload={() => fileInputRef.current?.click()}
+                                onUpload={() => {
+                                    if (selectedTaskId) {
+                                        fileInputRef.current?.click();
+                                    } else {
+                                        setShowMediaUploadModal(true);
+                                    }
+                                }}
                             />
                             <input type="file" ref={fileInputRef} style={{ display: 'none' }}
                                 accept="image/*,video/*,.pdf,.doc,.docx"
                                 onChange={handleUploadMedia} />
-                            
-                            {!selectedTaskId && (
-                                <p style={{ fontSize: 10, color: 'var(--t-text3)', marginTop: 12, textAlign: 'center', fontStyle: 'italic' }}>
-                                    Select a task in the "Tasks" tab to upload new media.
-                                </p>
+
+                            {showMediaUploadModal && (
+                                <div style={{
+                                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                                    background: 'rgba(0,0,0,0.5)', zIndex: 9999,
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                }}>
+                                    <div style={{
+                                        background: 'var(--t-surface)', padding: 24, borderRadius: 12,
+                                        width: '90%', maxWidth: 400
+                                    }}>
+                                        <h3 style={{ marginTop: 0, fontSize: 16 }}>Upload Media</h3>
+                                        <div style={{ marginBottom: 16 }}>
+                                            <label style={{ fontSize: 12, fontWeight: 700, marginBottom: 8, display: 'block' }}>Select Task</label>
+                                            <select 
+                                                value={uploadMediaTaskId} 
+                                                onChange={e => setUploadMediaTaskId(e.target.value)}
+                                                style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid var(--t-border)', background: 'var(--t-bg)', color: 'var(--t-text)' }}
+                                            >
+                                                <option value="">-- Choose a task --</option>
+                                                {phaseTasks.map(t => (
+                                                    <option key={t.id} value={t.id}>{t.title}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <input type="file" id="general-media-upload" accept="image/*,video/*,.pdf,.doc,.docx" style={{ display: 'none' }} onChange={(e) => {
+                                            if (!uploadMediaTaskId) { alert('Please select a task first'); return; }
+                                            handleUploadMedia(e, uploadMediaTaskId);
+                                            setShowMediaUploadModal(false);
+                                            setUploadMediaTaskId('');
+                                        }} />
+                                        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                                            <button onClick={() => setShowMediaUploadModal(false)} style={{ padding: '8px 16px', border: '1px solid var(--t-border)', background: 'transparent', color: 'var(--t-text)', borderRadius: 8, cursor: 'pointer' }}>Cancel</button>
+                                            <button onClick={() => document.getElementById('general-media-upload').click()} disabled={!uploadMediaTaskId} style={{ padding: '8px 16px', border: 'none', background: '#3b82f6', color: '#fff', borderRadius: 8, opacity: uploadMediaTaskId ? 1 : 0.5, cursor: uploadMediaTaskId ? 'pointer' : 'default' }}>Select File & Upload</button>
+                                        </div>
+                                    </div>
+                                </div>
                             )}
                         </div>
                     )}
@@ -1272,41 +1400,59 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                                 )}
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                            <div style={{ 
+                                display: 'grid', 
+                                gridTemplateColumns: window.innerWidth < 768 ? '1fr' : '1fr 1fr 1fr', 
+                                gap: 20 
+                            }}>
                                 {/* Naksa / Blueprint */}
                                 <div style={{
                                     background: 'var(--t-surface)', borderRadius: 12, border: '1px solid var(--t-border)',
                                     padding: 20,
                                 }}>
                                     <SectionHead label="Architectural Blueprint (Naksa)" />
-                                    {phase.naksa_file ? (
-                                        <div style={{ marginBottom: 16 }}>
-                                            <a href={getMediaUrl(phase.naksa_file)} target="_blank" rel="noopener noreferrer" style={{
-                                                display: 'flex', alignItems: 'center', gap: 10, padding: 12,
-                                                background: 'var(--t-surface2)', borderRadius: 8, textDecoration: 'none',
-                                                border: '1px solid var(--t-border)',
-                                            }}>
-                                                <span style={{ fontSize: 24 }}>🗺️</span>
-                                                <div style={{ flex: 1, minWidth: 0 }}>
-                                                    <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--t-text)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                        {phase.naksa_file.split('/').pop()}
+                                    <div style={{ marginBottom: 16 }}>
+                                        {livePhase.documents && livePhase.documents.filter(d => d.document_type === 'NAKSA').length > 0 ? (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                                {livePhase.documents.filter(d => d.document_type === 'NAKSA').map(doc => (
+                                                    <div key={doc.id} style={{
+                                                        display: 'flex', alignItems: 'center', gap: 10, padding: 12,
+                                                        background: 'var(--t-surface2)', borderRadius: 8,
+                                                        border: '1px solid var(--t-border)', position: 'relative'
+                                                    }}>
+                                                        <span style={{ fontSize: 24 }}>🗺️</span>
+                                                        <a href={getMediaUrl(doc.file)} target="_blank" rel="noopener noreferrer" style={{ flex: 1, minWidth: 0, textDecoration: 'none' }}>
+                                                            <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--t-text)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                {doc.name}
+                                                            </div>
+                                                            <div style={{ fontSize: 9, color: '#f97316', fontWeight: 700 }}>Click to view</div>
+                                                        </a>
+                                                        {canManage && (
+                                                            <button onClick={() => handleDocumentDelete(doc.id)} style={{
+                                                                background: 'none', border: 'none', color: '#ef4444',
+                                                                cursor: 'pointer', fontSize: 14, opacity: 0.6, padding: '4px 8px'
+                                                            }}>✕</button>
+                                                        )}
                                                     </div>
-                                                    <div style={{ fontSize: 9, color: '#f97316', fontWeight: 700 }}>Click to open blueprint</div>
-                                                </div>
-                                            </a>
-                                        </div>
-                                    ) : (
-                                        <div style={{ padding: '20px 0', textAlign: 'center', border: '1px dashed var(--t-border)', borderRadius: 8, marginBottom: 16, color: 'var(--t-text3)', fontSize: 11 }}>
-                                            No naksa file uploaded
-                                        </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div style={{ padding: '20px 0', textAlign: 'center', border: '1px dashed var(--t-border)', borderRadius: 8, color: 'var(--t-text3)', fontSize: 11 }}>
+                                                No naksa files uploaded
+                                            </div>
+                                        )}
+                                    </div>
+                                    {canManage && (
+                                        <>
+                                            <input type="file" id="naksa-upload" multiple style={{ display: 'none' }} onChange={e => handleDocumentUpload(e, 'NAKSA')} />
+                                            <button onClick={() => document.getElementById('naksa-upload').click()} style={{
+                                                width: '100%', padding: '10px', borderRadius: 8, border: '1px solid var(--t-border)',
+                                                background: 'var(--t-surface2)', color: 'var(--t-text)', fontSize: 11, fontWeight: 800, cursor: 'pointer',
+                                            }}>
+                                                + Upload Naksa Files
+                                            </button>
+                                        </>
                                     )}
-                                    <input type="file" id="naksa-upload" style={{ display: 'none' }} onChange={e => handleFileUpload(e, 'naksa_file')} />
-                                    <button onClick={() => document.getElementById('naksa-upload').click()} style={{
-                                        width: '100%', padding: '10px', borderRadius: 8, border: '1px solid var(--t-border)',
-                                        background: 'var(--t-surface2)', color: 'var(--t-text)', fontSize: 11, fontWeight: 800, cursor: 'pointer',
-                                    }}>
-                                        {phase.naksa_file ? 'Replace Naksa' : 'Upload Naksa File'}
-                                    </button>
                                 </div>
 
                                 {/* Structural Design */}
@@ -1315,34 +1461,98 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                                     padding: 20,
                                 }}>
                                     <SectionHead label="Structural Design" />
-                                    {phase.structure_design ? (
-                                        <div style={{ marginBottom: 16 }}>
-                                            <a href={getMediaUrl(phase.structure_design)} target="_blank" rel="noopener noreferrer" style={{
-                                                display: 'flex', alignItems: 'center', gap: 10, padding: 12,
-                                                background: 'var(--t-surface2)', borderRadius: 8, textDecoration: 'none',
-                                                border: '1px solid var(--t-border)',
-                                            }}>
-                                                <span style={{ fontSize: 24 }}>🏗️</span>
-                                                <div style={{ flex: 1, minWidth: 0 }}>
-                                                    <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--t-text)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                        {phase.structure_design.split('/').pop()}
+                                    <div style={{ marginBottom: 16 }}>
+                                        {livePhase.documents && livePhase.documents.filter(d => d.document_type === 'STRUCTURE').length > 0 ? (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                                {livePhase.documents.filter(d => d.document_type === 'STRUCTURE').map(doc => (
+                                                    <div key={doc.id} style={{
+                                                        display: 'flex', alignItems: 'center', gap: 10, padding: 12,
+                                                        background: 'var(--t-surface2)', borderRadius: 8,
+                                                        border: '1px solid var(--t-border)', position: 'relative'
+                                                    }}>
+                                                        <span style={{ fontSize: 24 }}>🏗️</span>
+                                                        <a href={getMediaUrl(doc.file)} target="_blank" rel="noopener noreferrer" style={{ flex: 1, minWidth: 0, textDecoration: 'none' }}>
+                                                            <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--t-text)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                {doc.name}
+                                                            </div>
+                                                            <div style={{ fontSize: 9, color: '#3b82f6', fontWeight: 700 }}>Click to view</div>
+                                                        </a>
+                                                        {canManage && (
+                                                            <button onClick={() => handleDocumentDelete(doc.id)} style={{
+                                                                background: 'none', border: 'none', color: '#ef4444',
+                                                                cursor: 'pointer', fontSize: 14, opacity: 0.6, padding: '4px 8px'
+                                                            }}>✕</button>
+                                                        )}
                                                     </div>
-                                                    <div style={{ fontSize: 9, color: '#3b82f6', fontWeight: 700 }}>Click to open structural design</div>
-                                                </div>
-                                            </a>
-                                        </div>
-                                    ) : (
-                                        <div style={{ padding: '20px 0', textAlign: 'center', border: '1px dashed var(--t-border)', borderRadius: 8, marginBottom: 16, color: 'var(--t-text3)', fontSize: 11 }}>
-                                            No structural design uploaded
-                                        </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div style={{ padding: '20px 0', textAlign: 'center', border: '1px dashed var(--t-border)', borderRadius: 8, color: 'var(--t-text3)', fontSize: 11 }}>
+                                                No structural designs uploaded
+                                            </div>
+                                        )}
+                                    </div>
+                                    {canManage && (
+                                        <>
+                                            <input type="file" id="structure-upload" multiple style={{ display: 'none' }} onChange={e => handleDocumentUpload(e, 'STRUCTURE')} />
+                                            <button onClick={() => document.getElementById('structure-upload').click()} style={{
+                                                width: '100%', padding: '10px', borderRadius: 8, border: '1px solid var(--t-border)',
+                                                background: 'var(--t-surface2)', color: 'var(--t-text)', fontSize: 11, fontWeight: 800, cursor: 'pointer',
+                                            }}>
+                                                + Upload Structural Files
+                                            </button>
+                                        </>
                                     )}
-                                    <input type="file" id="structure-upload" style={{ display: 'none' }} onChange={e => handleFileUpload(e, 'structure_design')} />
-                                    <button onClick={() => document.getElementById('structure-upload').click()} style={{
-                                        width: '100%', padding: '10px', borderRadius: 8, border: '1px solid var(--t-border)',
-                                        background: 'var(--t-surface2)', color: 'var(--t-text)', fontSize: 11, fontWeight: 800, cursor: 'pointer',
-                                    }}>
-                                        {phase.structure_design ? 'Replace Structural' : 'Upload Structural File'}
-                                    </button>
+                                </div>
+
+                                {/* 3D Model / Design */}
+                                <div style={{
+                                    background: 'var(--t-surface)', borderRadius: 12, border: '1px solid var(--t-border)',
+                                    padding: 20,
+                                }}>
+                                    <SectionHead label="3D Model / Design" />
+                                    <div style={{ marginBottom: 16 }}>
+                                        {livePhase.documents && livePhase.documents.filter(d => d.document_type === '3D_MODEL').length > 0 ? (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                                {livePhase.documents.filter(d => d.document_type === '3D_MODEL').map(doc => (
+                                                    <div key={doc.id} style={{
+                                                        display: 'flex', alignItems: 'center', gap: 10, padding: 12,
+                                                        background: 'var(--t-surface2)', borderRadius: 8,
+                                                        border: '1px solid var(--t-border)', position: 'relative'
+                                                    }}>
+                                                        <span style={{ fontSize: 24 }}>🧊</span>
+                                                        <a href={getMediaUrl(doc.file)} target="_blank" rel="noopener noreferrer" style={{ flex: 1, minWidth: 0, textDecoration: 'none' }}>
+                                                            <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--t-text)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                {doc.name}
+                                                            </div>
+                                                            <div style={{ fontSize: 9, color: '#10b981', fontWeight: 700 }}>Click to view</div>
+                                                        </a>
+                                                        {canManage && (
+                                                            <button onClick={() => handleDocumentDelete(doc.id)} style={{
+                                                                background: 'none', border: 'none', color: '#ef4444',
+                                                                cursor: 'pointer', fontSize: 14, opacity: 0.6, padding: '4px 8px'
+                                                            }}>✕</button>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div style={{ padding: '20px 0', textAlign: 'center', border: '1px dashed var(--t-border)', borderRadius: 8, color: 'var(--t-text3)', fontSize: 11 }}>
+                                                No 3D models uploaded
+                                            </div>
+                                        )}
+                                    </div>
+                                    {canManage && (
+                                        <>
+                                            <input type="file" id="3d-upload" multiple style={{ display: 'none' }} onChange={e => handleDocumentUpload(e, '3D_MODEL')} />
+                                            <button onClick={() => document.getElementById('3d-upload').click()} style={{
+                                                width: '100%', padding: '10px', borderRadius: 8, border: '1px solid var(--t-border)',
+                                                background: 'var(--t-surface2)', color: 'var(--t-text)', fontSize: 11, fontWeight: 800, cursor: 'pointer',
+                                            }}>
+                                                + Upload 3D Models
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </div>

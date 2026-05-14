@@ -1,1235 +1,450 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useConstruction } from '../../context/ConstructionContext';
-import MobileLayout from './MobileLayout';
+import { useMobileTracker } from '../../modules/location/context/MobileTrackerContext';
 import ThemeToggle from '../common/ThemeToggle';
 import { getMediaUrl } from '../../services/api';
-import { authService } from '../../services/auth';
 import attendanceService from '../../services/attendanceService';
 
-/* ─────────────────────────────────────────────
-   LIVE CLOCK HOOK
-───────────────────────────────────────────── */
+/* ─── Clock ─────────────────────────────────────────────────────── */
 const useClock = () => {
     const [t, setT] = useState(new Date());
-    useEffect(() => {
-        const id = setInterval(() => setT(new Date()), 1000);
-        return () => clearInterval(id);
-    }, []);
+    useEffect(() => { const id = setInterval(() => setT(new Date()), 1000); return () => clearInterval(id); }, []);
     return t;
 };
 
-/* ─────────────────────────────────────────────
-   CSS DESIGN SYSTEM
-───────────────────────────────────────────── */
-const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Bebas+Neue&family=Outfit:wght@300;400;600;700&display=swap');
-
-
-
-.ht * { box-sizing: border-box; margin: 0; padding: 0; }
-
-.ht {
-  background: var(--t-bg);
-  color: var(--t-text);
-  font-family: var(--f-body);
-  padding-bottom: 100px;
-  position: relative;
-  overflow-x: hidden;
-  min-height: 100vh;
-}
-
-.ht::before {
-  content: '';
-  position: fixed; inset: 0;
-  background-image:
-    linear-gradient(color-mix(in srgb, var(--t-primary) 1.8%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--t-primary) 1.8%, transparent) 1px, transparent 1px);
-  background-size: 32px 32px;
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* TICKER */
-.ht-ticker {
-  background: var(--t-primary);
-  overflow: hidden;
-  height: 26px;
-  display: flex;
-  align-items: center;
-  position: relative;
-  z-index: 10;
-}
-.ht-ticker-track {
-  display: flex;
-  white-space: nowrap;
-  animation: htTick 30s linear infinite;
-}
-.ht-ticker-seg {
-  font-family: var(--f-mono);
-  font-size: 10px;
-  letter-spacing: .12em;
-  color: var(--t-bg);
-  padding: 0 20px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.ht-ticker-sep { opacity: .35; }
-@keyframes htTick { from { transform: translateX(0) } to { transform: translateX(-50%) } }
-
-/* HERO */
-.ht-hero {
-  background: var(--t-surface);
-  padding: 28px 18px 0;
-  position: relative;
-  z-index: 1;
-  border-bottom: 1px solid var(--t-border);
-  overflow: hidden;
-}
-.ht-hero-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  position: relative;
-  z-index: 1;
-}
-.ht-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--f-mono);
-  font-size: 9px;
-  letter-spacing: .25em;
-  color: var(--t-primary);
-  text-transform: uppercase;
-  margin-bottom: 10px;
-}
-.ht-badge-dot {
-  width: 6px; height: 6px;
-  background: var(--t-primary);
-  border-radius: 50%;
-  animation: htPulse 1.8s ease infinite;
-}
-@keyframes htPulse {
-  0%,100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--t-primary) 50%, transparent) }
-  50%      { box-shadow: 0 0 0 5px color-mix(in srgb, var(--t-primary) 0%, transparent) }
-}
-.ht-proj-name {
-  font-family: var(--f-disp);
-  font-size: 44px;
-  line-height: .92;
-  letter-spacing: .02em;
-  color: var(--t-text);
-}
-.ht-proj-name em { font-style: normal; color: var(--t-primary); }
-.ht-proj-sub {
-  font-family: var(--f-mono);
-  font-size: 9px;
-  letter-spacing: .2em;
-  color: var(--t-text2);
-  text-transform: uppercase;
-  margin-top: 8px;
-}
-.ht-clock-block { text-align: right; flex-shrink: 0; }
-.ht-clock {
-  font-family: var(--f-disp);
-  font-size: 36px;
-  line-height: 1;
-  color: var(--t-text);
-  letter-spacing: .03em;
-}
-.ht-clock-date {
-  font-family: var(--f-mono);
-  font-size: 9px;
-  color: var(--t-text2);
-  letter-spacing: .15em;
-  text-transform: uppercase;
-  margin-top: 5px;
-}
-
-/* MASTER PROGRESS */
-.ht-master-prog {
-  margin-top: 22px;
-  position: relative;
-  z-index: 1;
-  padding-bottom: 20px;
-}
-.ht-mp-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-.ht-mp-label {
-  font-family: var(--f-mono);
-  font-size: 9px;
-  letter-spacing: .25em;
-  color: var(--t-text2);
-  text-transform: uppercase;
-}
-.ht-mp-pct {
-  font-family: var(--f-disp);
-  font-size: 22px;
-  color: var(--t-primary);
-  line-height: 1;
-}
-.ht-mp-track {
-  height: 4px;
-  background: var(--t-surface3);
-  border-radius: 2px;
-  overflow: hidden;
-  margin-bottom: 10px;
-}
-.ht-mp-fill {
-  height: 100%;
-  background: var(--t-primary);
-  border-radius: 2px;
-  transition: width 1.2s cubic-bezier(.16,1,.3,1);
-}
-.ht-milestones { display: flex; justify-content: space-between; }
-.ht-ms { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.ht-ms-dot {
-  width: 7px; height: 7px;
-  border-radius: 50%;
-  border: 1px solid var(--t-border2);
-  background: var(--t-surface2);
-  transition: background .3s, border-color .3s;
-}
-.ht-ms-dot.done { background: var(--t-primary); border-color: var(--t-primary); }
-.ht-ms-dot.cur  { background: var(--t-danger);  border-color: var(--t-danger); animation: htPulse 1.8s ease infinite; }
-.ht-ms-lbl { font-family: var(--f-mono); font-size: 8px; color: var(--t-text3); letter-spacing: .08em; text-transform: uppercase; }
-
-/* KPI ROW */
-.ht-kpi-row {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1px;
-  background: var(--t-border);
-  border-bottom: 1px solid var(--t-border);
-  position: relative;
-  z-index: 1;
-}
-.ht-kpi {
-  background: var(--t-surface);
-  padding: 14px 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  cursor: pointer;
-  transition: background .15s;
-  position: relative;
-  overflow: hidden;
-}
-.ht-kpi::after {
-  content: '';
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  height: 2px;
-  background: var(--t-primary);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform .3s;
-}
-.ht-kpi:hover { background: var(--t-surface2); }
-.ht-kpi:hover::after { transform: scaleX(1); }
-.ht-kpi-val { font-family: var(--f-disp); font-size: 26px; line-height: 1; color: var(--t-text); }
-.ht-kpi-val.lime  { color: var(--t-primary2); }
-.ht-kpi-val.red   { color: var(--t-danger); }
-.ht-kpi-val.amber { color: var(--t-warn); }
-.ht-kpi-lbl { font-family: var(--f-mono); font-size: 8px; letter-spacing: .18em; color: var(--t-text2); text-transform: uppercase; }
-
-/* SECTION */
-.ht-sec { padding: 0 16px; position: relative; z-index: 1; }
-.ht-sec-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 24px 0 12px;
-}
-.ht-sec-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--f-mono);
-  font-size: 9px;
-  letter-spacing: .28em;
-  color: var(--t-text2);
-  text-transform: uppercase;
-}
-.ht-sec-label::before {
-  content: '';
-  width: 3px; height: 3px;
-  background: var(--t-primary);
-  border-radius: 50%;
-}
-.ht-sec-right { display: flex; gap: 4px; }
-.ht-ctrl {
-  font-family: var(--f-mono);
-  font-size: 8px;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  background: transparent;
-  border: 1px solid var(--t-border);
-  color: var(--t-text2);
-  padding: 5px 9px;
-  cursor: pointer;
-  border-radius: 2px;
-  transition: border-color .15s, color .15s;
-}
-.ht-ctrl:hover { border-color: var(--t-primary); color: var(--t-primary); }
-
-/* SCHEDULE */
-.ht-schedule {
-  background: var(--t-surface);
-  border: 1px solid var(--t-border);
-  border-radius: 3px;
-  padding: 20px;
-  position: relative;
-  overflow: hidden;
-}
-.ht-schedule::after {
-  content: 'SCHEDULE';
-  position: absolute; top: 14px; right: 16px;
-  font-family: var(--f-mono); font-size: 7px;
-  letter-spacing: .4em; color: var(--t-border);
-}
-.ht-sch-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 14px;
-}
-.ht-sch-title { font-family: var(--f-disp); font-size: 20px; letter-spacing: .04em; }
-.ht-edit-btn {
-  font-family: var(--f-mono); font-size: 8px; letter-spacing: .15em; text-transform: uppercase;
-  background: transparent; border: 1px solid var(--t-primary); color: var(--t-primary);
-  padding: 7px 13px; cursor: pointer; border-radius: 2px;
-  transition: background .2s, color .2s;
-}
-.ht-edit-btn:hover { background: var(--t-primary); color: var(--t-bg); }
-.ht-sch-dates { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.ht-sch-date {
-  background: var(--t-surface2); border: 1px solid var(--t-border);
-  padding: 13px; border-radius: 2px;
-}
-.ht-sch-date-lbl {
-  font-family: var(--f-mono); font-size: 8px; letter-spacing: .2em;
-  color: var(--t-text2); text-transform: uppercase; margin-bottom: 7px;
-}
-.ht-sch-date-val { font-family: var(--f-disp); font-size: 30px; line-height: 1; color: var(--t-text); }
-.ht-sch-date-val em {
-  font-style: normal; font-family: var(--f-mono); font-size: 10px;
-  color: var(--t-primary); margin-left: 3px;
-}
-.ht-sch-date.end .ht-sch-date-val { color: var(--t-danger); }
-.ht-sch-date.end .ht-sch-date-val em { color: var(--t-danger); }
-
-/* WEEK CHART */
-.ht-wchart {
-  background: var(--t-surface); border: 1px solid var(--t-border);
-  border-radius: 3px; padding: 14px 16px;
-}
-.ht-wchart-head {
-  display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;
-}
-.ht-wchart-lbl { font-family: var(--f-mono); font-size: 9px; letter-spacing: .25em; color: var(--t-text2); text-transform: uppercase; }
-.ht-wchart-sub { font-family: var(--f-mono); font-size: 9px; color: var(--t-primary2); }
-.ht-wchart-bars { display: flex; align-items: flex-end; gap: 4px; height: 52px; }
-.ht-wbar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; height: 100%; justify-content: flex-end; }
-.ht-wbar-fill { width: 100%; border-radius: 1px; min-height: 2px; transition: height .8s cubic-bezier(.16,1,.3,1); }
-.ht-wbar-lbl { font-family: var(--f-mono); font-size: 8px; color: var(--t-text3); }
-
-/* PHASE LIST */
-.ht-phases { display: flex; flex-direction: column; gap: 2px; }
-.ht-phase {
-  border: 1px solid var(--t-border); background: var(--t-surface);
-  border-radius: 2px; overflow: hidden;
-  transition: border-color .2s;
-  animation: htFadeUp .3s ease both;
-}
-.ht-phase.open { border-color: var(--t-primary); }
-.ht-phase.wip  { border-left: 2px solid var(--t-danger); }
-.ht-phase.wip.open { border-color: var(--t-primary); border-left-color: var(--t-primary); }
-@keyframes htFadeUp { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:translateY(0) } }
-
-.ht-phase-hd { display: flex; align-items: stretch; cursor: pointer; user-select: none; }
-.ht-phase-idx {
-  width: 38px; background: var(--t-surface2);
-  display: flex; align-items: center; justify-content: center;
-  font-family: var(--f-mono); font-size: 9px; color: var(--t-text2);
-  flex-shrink: 0; border-right: 1px solid var(--t-border);
-  transition: background .2s, color .2s;
-}
-.ht-phase.open .ht-phase-idx { background: var(--t-primary); color: var(--t-bg); border-color: var(--t-primary); font-weight: 500; }
-.ht-phase-info { flex: 1; padding: 13px 12px; }
-.ht-phase-name { font-family: var(--f-body); font-size: 13px; font-weight: 600; color: var(--t-text); line-height: 1.2; }
-.ht-phase-meta { font-family: var(--f-mono); font-size: 8px; letter-spacing: .15em; color: var(--t-text2); text-transform: uppercase; margin-top: 4px; }
-.ht-phase-right { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; padding: 13px 14px; gap: 3px; min-width: 56px; }
-.ht-phase-pct { font-family: var(--f-disp); font-size: 22px; line-height: 1; color: var(--t-text); transition: color .2s; }
-.ht-phase.open .ht-phase-pct { color: var(--t-primary); }
-.ht-phase-status { font-family: var(--f-mono); font-size: 7px; letter-spacing: .15em; text-transform: uppercase; }
-.ht-phase-status.done   { color: var(--t-primary2); }
-.ht-phase-status.wip    { color: var(--t-danger); }
-.ht-phase-status.wait   { color: var(--t-text3); }
-.ht-phase-bar { height: 2px; background: var(--t-surface3); }
-.ht-phase-bar-fill { height: 100%; background: var(--t-primary); transition: width .9s cubic-bezier(.16,1,.3,1); }
-
-/* TASKS */
-.ht-tasks { background: var(--t-bg); border-top: 1px solid var(--t-border); padding: 0 14px 14px; }
-.ht-task {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 0; border-bottom: 1px solid var(--t-border);
-  cursor: pointer; transition: opacity .15s;
-  animation: htSlideIn .2s ease both;
-}
-.ht-task:last-of-type { border-bottom: none; }
-.ht-task:active { opacity: .7; }
-@keyframes htSlideIn { from { opacity:0; transform:translateX(-6px) } to { opacity:1; transform:translateX(0) } }
-.ht-task-chk {
-  width: 18px; height: 18px; border: 1px solid var(--t-border2); border-radius: 2px;
-  flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-  transition: border-color .2s, background .2s; background: var(--t-surface2);
-}
-.ht-task.done .ht-task-chk { border-color: var(--t-primary); background: var(--t-primary); }
-.ht-task-chk svg { display: none; }
-.ht-task.done .ht-task-chk svg { display: block; }
-.ht-task-lbl { flex: 1; font-family: var(--f-body); font-size: 12px; color: var(--t-text); }
-.ht-task.done .ht-task-lbl { color: var(--t-text3); text-decoration: line-through; text-decoration-color: var(--t-border2); }
-.ht-task-badge {
-  font-family: var(--f-mono); font-size: 7px; letter-spacing: .12em;
-  text-transform: uppercase; padding: 2px 6px; border-radius: 1px;
-  background: var(--t-surface3); color: var(--t-text3);
-}
-.ht-task.done .ht-task-badge { background: transparent; color: var(--t-primary2); }
-.ht-analytics-btn {
-  width: 100%; margin-top: 10px; padding: 11px;
-  background: transparent; border: 1px dashed var(--t-border);
-  color: var(--t-text2); font-family: var(--f-mono); font-size: 8px;
-  letter-spacing: .2em; text-transform: uppercase; cursor: pointer;
-  border-radius: 2px; transition: border-color .2s, color .2s, background .2s;
-}
-.ht-analytics-btn:hover { border-color: var(--t-primary); color: var(--t-primary); background: color-mix(in srgb, var(--t-primary) 3%, transparent); }
-
-/* BUDGET */
-.ht-budget-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.ht-bc {
-  background: var(--t-surface); border: 1px solid var(--t-border);
-  border-radius: 3px; padding: 14px; display: flex; flex-direction: column; gap: 8px;
-}
-.ht-bc-lbl { font-family: var(--f-mono); font-size: 8px; letter-spacing: .2em; color: var(--t-text2); text-transform: uppercase; }
-.ht-bc-val { font-family: var(--f-disp); font-size: 24px; line-height: 1; color: var(--t-text); }
-.ht-bc-val em { font-family: var(--f-mono); font-style: normal; font-size: 9px; color: var(--t-text2); margin-left: 2px; }
-.ht-bc-bar { height: 2px; background: var(--t-surface3); border-radius: 1px; overflow: hidden; }
-.ht-bc-fill { height: 100%; background: var(--t-primary2); border-radius: 1px; transition: width 1s cubic-bezier(.16,1,.3,1); }
-.ht-bc-fill.red { background: var(--t-danger); }
-.ht-bc-sub { font-family: var(--f-mono); font-size: 8px; color: var(--t-text3); }
-
-/* ACTIVITY */
-.ht-activity { display: flex; flex-direction: column; gap: 2px; }
-.ht-act-item {
-  display: flex; align-items: center; gap: 12px;
-  padding: 14px 16px; background: var(--t-surface);
-  border: 1px solid var(--t-border); border-radius: 2px;
-  animation: htFadeUp .3s ease both; cursor: pointer; transition: border-color .15s;
-}
-.ht-act-item:hover { border-color: var(--t-border2); }
-.ht-act-icon {
-  width: 30px; height: 30px; border: 1px solid var(--t-border); border-radius: 2px;
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-}
-.ht-act-dot { width: 8px; height: 8px; border-radius: 50%; }
-.ht-act-body { flex: 1; min-width: 0; }
-.ht-act-title { font-family: var(--f-body); font-size: 12px; font-weight: 600; color: var(--t-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ht-act-sub { font-family: var(--f-mono); font-size: 9px; color: var(--t-text2); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ht-act-time { font-family: var(--f-mono); font-size: 9px; color: var(--t-text3); white-space: nowrap; }
-.ht-empty { padding: 40px 20px; border: 1px dashed var(--t-border); text-align: center; border-radius: 2px; }
-.ht-empty p { font-family: var(--f-mono); font-size: 9px; letter-spacing: .25em; color: var(--t-text2); text-transform: uppercase; }
-
-/* GEO */
-.ht-geo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.ht-geo-sync {
-  background: var(--t-surface); border: 1px solid var(--t-primary); border-radius: 3px;
-  padding: 20px 14px; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 10px; position: relative; overflow: hidden;
-}
-.ht-geo-sync::before {
-  content: ''; position: absolute; inset: 0;
-  background: repeating-linear-gradient(-45deg,transparent,transparent 5px,color-mix(in srgb, var(--t-primary) 2.5%, transparent) 5px,color-mix(in srgb, var(--t-primary) 2.5%, transparent) 10px);
-}
-.ht-geo-orb {
-  position: relative; width: 50px; height: 50px;
-  display: flex; align-items: center; justify-content: center; z-index: 1;
-}
-.ht-geo-r1 { position: absolute; width: 50px; height: 50px; border: 1px solid var(--t-primary); border-radius: 50%; opacity: .4; animation: htGPulse 3s ease infinite; }
-.ht-geo-r2 { position: absolute; width: 34px; height: 34px; border: 1px dashed var(--t-primary); border-radius: 50%; opacity: .6; }
-.ht-geo-r3 { position: absolute; width: 22px; height: 22px; border: 1px solid var(--t-primary); border-radius: 50%; animation: htGSpin 8s linear infinite; }
-@keyframes htGPulse { 0%,100% { opacity: .4 } 50% { opacity: .9 } }
-@keyframes htGSpin  { to { transform: rotate(360deg) } }
-.ht-geo-core { width: 8px; height: 8px; background: var(--t-primary); border-radius: 50%; animation: htPulse 2s ease infinite; z-index: 1; }
-.ht-geo-lbl { font-family: var(--f-mono); font-size: 8px; letter-spacing: .18em; color: var(--t-primary); text-transform: uppercase; text-align: center; line-height: 1.7; z-index: 1; }
-.ht-geo-coords {
-  background: var(--t-surface); border: 1px solid var(--t-border); border-radius: 3px;
-  padding: 16px; display: flex; flex-direction: column; justify-content: center; gap: 14px;
-}
-.ht-coord-lbl { font-family: var(--f-mono); font-size: 8px; letter-spacing: .2em; color: var(--t-text2); text-transform: uppercase; margin-bottom: 3px; }
-.ht-coord-val { font-family: var(--f-disp); font-size: 20px; line-height: 1; color: var(--t-text); }
-.ht-coord-val em { font-style: normal; font-family: var(--f-mono); font-size: 9px; color: var(--t-primary); margin-left: 2px; }
-
-/* ALERT BANNER */
-.ht-alert {
-  margin: 0 16px 0;
-  padding: 10px 14px;
-  background: rgba(239,68,68,0.07);
-  border: 1px solid rgba(239,68,68,0.28);
-  border-radius: 8px;
-  display: flex; align-items: center; gap: 10px;
-}
-.ht-alert-icon { font-size: 18px; flex-shrink: 0; }
-.ht-alert-body { flex: 1; min-width: 0; }
-.ht-alert-title { font-family: var(--f-mono); font-size: 9px; font-weight: 700; color: #ef4444; letter-spacing: .12em; text-transform: uppercase; }
-.ht-alert-sub   { font-family: var(--f-body); font-size: 11px; color: var(--t-text3); margin-top: 2px; }
-.ht-alert-btn {
-  padding: 5px 11px; border-radius: 6px; font-size: 10px; font-weight: 800;
-  background: #ef4444; color: #fff; border: none; cursor: pointer; flex-shrink: 0;
-  font-family: var(--f-mono);
-}
-
-/* QUICK ACTIONS */
-.ht-quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-.ht-qa {
-  display: flex; flex-direction: column; align-items: center; gap: 5px;
-  padding: 12px 4px; border-radius: 12px;
-  background: var(--t-surface); border: 1px solid var(--t-border);
-  cursor: pointer; transition: border-color .15s, background .15s;
-  -webkit-tap-highlight-color: transparent;
-}
-.ht-qa:active { background: var(--t-surface2); }
-.ht-qa-icon { font-size: 22px; }
-.ht-qa-lbl { font-family: var(--f-mono); font-size: 7.5px; color: var(--t-text3); letter-spacing: .1em; text-transform: uppercase; text-align: center; line-height: 1.3; }
-
-/* HOME HEADER */
-.ht-header {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: var(--t-surface);
-  border-bottom: 1px solid var(--t-border);
-  padding: 10px 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-.ht-header-brand { display: flex; flex-direction: column; gap: 1px; }
-.ht-header-title {
-  font-family: var(--f-disp);
-  font-size: 22px;
-  letter-spacing: 0.04em;
-  line-height: 1;
-  color: var(--t-text);
-}
-.ht-header-title em { font-style: normal; color: var(--t-primary); }
-.ht-header-badge {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-family: var(--f-mono);
-  font-size: 8px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--t-text3);
-}
-.ht-header-dot {
-  width: 5px; height: 5px;
-  background: var(--t-primary);
-  border-radius: 50%;
-  animation: htPulse 2s ease infinite;
-}
-.ht-header-actions { display: flex; align-items: center; gap: 8px; }
-.ht-header-btn {
-  width: 36px; height: 36px;
-  background: var(--t-surface2);
-  border: 1px solid var(--t-border);
-  border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 16px;
-  color: var(--t-text2);
-  text-decoration: none;
-}
-.ht-header-btn:hover { border-color: var(--t-primary); color: var(--t-primary); }
-.ht-header-btn.danger:hover {
-  border-color: var(--t-danger);
-  color: var(--t-danger);
-}
-`;
-
-/* ─────────────────────────────────────────────
-   HELPERS
-───────────────────────────────────────────── */
-const fmtDay = (d) => (d ? new Date(d).getDate().toString().padStart(2, '0') : '--');
-const fmtMon = (d) => (d ? new Date(d).toLocaleDateString(undefined, { month: 'short' }).toUpperCase() : '---');
-
-const getPhaseStatus = (phase, tasks) => {
-    if (!tasks.length) return 'wait';
-    const done = tasks.filter(t => t.status === 'COMPLETED').length;
-    if (done === tasks.length) return 'done';
-    if (phase.status === 'IN_PROGRESS' || done > 0) return 'wip';
-    return 'wait';
+/* ─── Helpers ───────────────────────────────────────────────────── */
+const greet = h => h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+const fmtTime = d => d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+const fmtDay  = d => d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+const fmtShort = d => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+const fmt$ = n => {
+    if (!n) return '0';
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+    if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
+    return String(n);
 };
 
-const STATUS_LABEL = { done: 'Complete', wip: 'In progress', wait: 'Queued' };
-
-const formatMoney = (n) => {
-    if (!n) return '$0';
-    if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-    if (n >= 1_000) return `$${Math.round(n / 1_000)}K`;
-    return `$${n}`;
-};
-
-const actDotColor = (update) => {
-    const txt = ((update?.message || '') + (update?.title || '')).toLowerCase();
-    if (txt.includes('delay') || txt.includes('error') || txt.includes('fail')) return 'var(--t-danger)';
-    if (txt.includes('warn') || txt.includes('pending')) return 'var(--t-warn)';
-    return 'var(--t-primary)';
-};
-
-/* ─────────────────────────────────────────────
-   ATTENDANCE LIVE CARD
-───────────────────────────────────────────── */
-const AttendanceLiveCard = ({ projectId }) => {
-    const navigate = useNavigate();
-    const [data, setData] = useState(null);
-    const [loading, setLoad] = useState(true);
-
-    useEffect(() => {
-        if (!projectId) { setLoad(false); return; }
-        attendanceService.getLive(projectId)
-            .then(d => setData(d))
-            .catch(() => { })
-            .finally(() => setLoad(false));
-    }, [projectId]);
-
-    const present = data?.present_count ?? data?.present ?? 0;
-    const absent = data?.absent_count ?? data?.absent ?? 0;
-    const total = data?.total_workers ?? data?.total ?? (present + absent);
-    const rate = total > 0 ? Math.round((present / total) * 100) : 0;
-
+/* ─── GPS status ────────────────────────────────────────────────── */
+function GPSBadge() {
+    const tracker = useMobileTracker();
+    if (!tracker || tracker.status === 'idle') return null;
+    const cfg = {
+        tracking: { dot: '#f97316', label: 'Tracking'  },
+        on_site:  { dot: '#22c55e', label: 'On Site'   },
+        off_site: { dot: '#94a3b8', label: 'Off Site'  },
+        error:    { dot: '#ef4444', label: 'GPS Error' },
+    }[tracker.status];
+    if (!cfg) return null;
     return (
-        <button
-            onClick={() => navigate('/dashboard/mobile/attendance')}
-            style={{
-                width: '100%', background: 'var(--t-surface)',
-                border: '1px solid var(--t-border)', borderRadius: 3,
-                padding: 0, cursor: 'pointer', textAlign: 'left',
-                overflow: 'hidden', display: 'block',
-            }}
-        >
-            {/* header strip */}
-            <div style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '10px 14px 8px',
-                borderBottom: '1px solid var(--t-border)',
-            }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 14 }}>🕐</span>
-                    <span style={{
-                        fontFamily: 'var(--f-mono)', fontSize: 9,
-                        letterSpacing: '.25em', textTransform: 'uppercase',
-                        color: 'var(--t-text2)',
-                    }}>Today's Attendance</span>
-                </div>
-                <span style={{
-                    fontFamily: 'var(--f-mono)', fontSize: 8, color: 'var(--t-primary)',
-                    letterSpacing: '.1em', textTransform: 'uppercase',
-                }}>View →</span>
-            </div>
-
-            {loading ? (
-                <div style={{ padding: '18px 14px', fontFamily: 'var(--f-mono)', fontSize: 9, color: 'var(--t-text3)', letterSpacing: '.15em' }}>
-                    Loading…
-                </div>
-            ) : (
-                <>
-                    {/* stats row */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, background: 'var(--t-border)' }}>
-                        {[
-                            { label: 'Present', val: present, color: '#10b981' },
-                            { label: 'Absent', val: absent, color: '#ef4444' },
-                            { label: 'Total', val: total, color: 'var(--t-text)' },
-                        ].map(s => (
-                            <div key={s.label} style={{ background: 'var(--t-surface)', padding: '12px 10px' }}>
-                                <div style={{ fontFamily: 'var(--f-disp)', fontSize: 28, lineHeight: 1, color: s.color }}>{s.val}</div>
-                                <div style={{ fontFamily: 'var(--f-mono)', fontSize: 8, letterSpacing: '.18em', color: 'var(--t-text2)', textTransform: 'uppercase', marginTop: 3 }}>{s.label}</div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* attendance rate bar */}
-                    <div style={{ padding: '10px 14px 12px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                            <span style={{ fontFamily: 'var(--f-mono)', fontSize: 8, color: 'var(--t-text2)', letterSpacing: '.15em', textTransform: 'uppercase' }}>Attendance rate</span>
-                            <span style={{ fontFamily: 'var(--f-disp)', fontSize: 14, color: rate >= 80 ? '#10b981' : rate >= 60 ? '#f59e0b' : '#ef4444' }}>{rate}%</span>
-                        </div>
-                        <div style={{ height: 3, background: 'var(--t-surface3)', borderRadius: 2, overflow: 'hidden' }}>
-                            <div style={{
-                                height: '100%', borderRadius: 2,
-                                width: `${rate}%`,
-                                background: rate >= 80 ? '#10b981' : rate >= 60 ? '#f59e0b' : '#ef4444',
-                                transition: 'width 1s cubic-bezier(.16,1,.3,1)',
-                            }} />
-                        </div>
-                    </div>
-                </>
-            )}
-        </button>
+        <Link to="/dashboard/mobile/tracking" style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '4px 10px', borderRadius: 20,
+            background: 'var(--t-surface2)', border: '1px solid var(--t-border)',
+            textDecoration: 'none',
+        }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.dot, display: 'block', flexShrink: 0 }} />
+            <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--t-text2)' }}>{cfg.label}</span>
+        </Link>
     );
-};
+}
 
-/* ─────────────────────────────────────────────
-   WEEK CHART — uses real task counts by day
-───────────────────────────────────────────── */
-const WeekChart = ({ tasks }) => {
-    const today = new Date().getDay(); // 0=Sun
-    const days = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-    // count completed tasks per day-of-week based on updated_at if available, else spread evenly
-    const counts = Array(7).fill(0);
-    tasks.forEach(t => {
-        if (t.status === 'COMPLETED' && t.updated_at) {
-            const d = new Date(t.updated_at).getDay();
-            counts[d]++;
-        }
-    });
-    // if no timestamps, show a plausible bar chart
-    const hasData = counts.some(c => c > 0);
-    const display = hasData ? counts : [2, 4, 3, 5, 4, 2, 1];
-    const max = Math.max(...display, 1);
+/* ─── GPS permission banner ─────────────────────────────────────── */
+function GPSPermissionBanner() {
+    const tracker = useMobileTracker();
+    if (!tracker) return null;
+    const { permission, requestPermission } = tracker;
+
+    if (permission === 'granted') return null;
+
+    const isDenied  = permission === 'denied';
+    const isPrompt  = permission === 'prompt' || permission === 'unknown';
+    if (!isDenied && !isPrompt) return null;
 
     return (
-        <div className="ht-wchart">
-            <div className="ht-wchart-head">
-                <span className="ht-wchart-lbl">Weekly output</span>
-                <span className="ht-wchart-sub">tasks / day</span>
+        <div style={{
+            margin: '0 16px 16px',
+            background: 'var(--t-surface)',
+            border: `1px solid ${isDenied ? '#ef444440' : 'var(--t-primary)40'}`,
+            borderLeft: `3px solid ${isDenied ? '#ef4444' : 'var(--t-primary)'}`,
+            borderRadius: 12,
+            padding: '12px 14px',
+            display: 'flex', alignItems: 'center', gap: 12,
+        }}>
+            <span style={{ fontSize: 20, flexShrink: 0 }}>{isDenied ? '📵' : '📍'}</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text)', marginBottom: 2 }}>
+                    {isDenied ? 'Location access blocked' : 'Enable GPS for auto check-in'}
+                </p>
+                <p style={{ fontSize: 11, color: 'var(--t-text3)', lineHeight: 1.4 }}>
+                    {isDenied
+                        ? 'Allow location in browser settings to track your attendance.'
+                        : 'Tap to allow GPS so your arrival is logged automatically.'}
+                </p>
             </div>
-            <div className="ht-wchart-bars">
-                {days.map((d, i) => (
-                    <div key={i} className="ht-wbar-wrap">
-                        <div
-                            className="ht-wbar-fill"
-                            style={{
-                                height: `${Math.round((display[i] / max) * 44)}px`,
-                                background: i === today ? 'var(--t-primary)' : 'var(--t-surface3)',
-                            }}
-                        />
-                        <span className="ht-wbar-lbl">{d}</span>
-                    </div>
-                ))}
-            </div>
+            {isPrompt ? (
+                /* Popup is auto-triggered — show a subtle spinner/label while browser dialog is pending */
+                <span style={{
+                    flexShrink: 0, fontSize: 10, fontWeight: 600,
+                    color: 'var(--t-primary)', opacity: 0.7,
+                }}>
+                    …
+                </span>
+            ) : (
+                <Link to="/dashboard/mobile/tracking" style={{
+                    flexShrink: 0, padding: '7px 12px', borderRadius: 8,
+                    background: 'var(--t-surface2)', color: 'var(--t-text2)',
+                    border: '1px solid var(--t-border)', textDecoration: 'none',
+                    fontSize: 11, fontWeight: 700,
+                }}>
+                    Fix →
+                </Link>
+            )}
         </div>
     );
+}
+
+/* ─── Donut ring ────────────────────────────────────────────────── */
+function Donut({ pct = 0, size = 64, stroke = 6, color = 'var(--t-primary)' }) {
+    const r = (size - stroke) / 2;
+    const c = 2 * Math.PI * r;
+    return (
+        <svg width={size} height={size} style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
+            <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--t-border)" strokeWidth={stroke} />
+            <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={stroke}
+                strokeDasharray={`${(Math.min(pct,100)/100)*c} ${c}`} strokeLinecap="round"
+                style={{ transition: 'stroke-dasharray 1s ease' }} />
+        </svg>
+    );
+}
+
+/* ─── Thin progress bar ─────────────────────────────────────────── */
+function Bar({ pct = 0, color = 'var(--t-primary)' }) {
+    return (
+        <div style={{ height: 3, borderRadius: 99, background: 'var(--t-border)', overflow: 'hidden' }}>
+            <div style={{ height: '100%', borderRadius: 99, width: `${Math.min(pct, 100)}%`, background: color, transition: 'width 1s ease' }} />
+        </div>
+    );
+}
+
+/* ─── Section label ─────────────────────────────────────────────── */
+function SectionLabel({ children, action, onAction }) {
+    return (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text)', letterSpacing: '-0.01em' }}>{children}</p>
+            {action && (
+                <button onClick={onAction} style={{ fontSize: 11, color: 'var(--t-text3)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 500 }}>
+                    {action}
+                </button>
+            )}
+        </div>
+    );
+}
+
+/* ─── Card wrapper ──────────────────────────────────────────────── */
+function Card({ children, onClick, style = {} }) {
+    return (
+        <div onClick={onClick}
+            style={{
+                background: 'var(--t-surface)',
+                border: '1px solid var(--t-border)',
+                borderRadius: 16,
+                padding: '16px',
+                cursor: onClick ? 'pointer' : 'default',
+                ...style,
+            }}>
+            {children}
+        </div>
+    );
+}
+
+/* ─── Attendance ────────────────────────────────────────────────── */
+function AttendanceCard({ projectId }) {
+    const navigate = useNavigate();
+    const [data, setData] = useState(null);
+    const [busy, setBusy] = useState(true);
+    useEffect(() => {
+        if (!projectId) { setBusy(false); return; }
+        attendanceService.getLive(projectId).then(setData).catch(() => {}).finally(() => setBusy(false));
+    }, [projectId]);
+    const present = data?.present_count ?? data?.present ?? 0;
+    const absent  = data?.absent_count  ?? data?.absent  ?? 0;
+    const total   = data?.total_workers ?? data?.total   ?? (present + absent);
+    const rate    = total > 0 ? Math.round(present / total * 100) : 0;
+
+    return (
+        <Card onClick={() => navigate('/dashboard/mobile/attendance')}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--t-text3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Workforce Today</p>
+                <span style={{ fontSize: 9, fontWeight: 700, color: '#22c55e', background: '#22c55e12', padding: '3px 8px', borderRadius: 20, border: '1px solid #22c55e25', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Live</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div style={{ position: 'relative', flexShrink: 0 }}>
+                    <Donut pct={busy ? 0 : rate} size={60} stroke={5} color="#22c55e" />
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--t-text)' }}>{busy ? '—' : `${rate}%`}</span>
+                    </div>
+                </div>
+                <div style={{ flex: 1, display: 'flex', gap: 0 }}>
+                    {[
+                        { n: present, l: 'Present', c: '#22c55e' },
+                        { n: absent,  l: 'Absent',  c: '#ef4444' },
+                        { n: total,   l: 'Total',   c: 'var(--t-text)' },
+                    ].map((s, i) => (
+                        <div key={s.l} style={{ flex: 1, paddingLeft: i > 0 ? 12 : 0, borderLeft: i > 0 ? '1px solid var(--t-border)' : 'none', marginLeft: i > 0 ? 12 : 0 }}>
+                            <p style={{ fontSize: 22, fontWeight: 800, color: s.c, lineHeight: 1, marginBottom: 3 }}>{s.n}</p>
+                            <p style={{ fontSize: 9, color: 'var(--t-text3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{s.l}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </Card>
+    );
+}
+
+/* ─── Quick nav ─────────────────────────────────────────────────── */
+const NAV = [
+    { icon: '📋', label: 'Phases',    path: '/dashboard/mobile/phases'    },
+    { icon: '💰', label: 'Finance',   path: '/dashboard/mobile/finance'   },
+    { icon: '👷', label: 'Workforce', path: '/dashboard/mobile/attendance'},
+    { icon: '📅', label: 'Timeline',  path: '/dashboard/mobile/timeline'  },
+    { icon: '🗺️', label: 'Site Map',  path: '/dashboard/mobile/location'  },
+    { icon: '🧱', label: 'Resources', path: '/dashboard/mobile/resource'  },
+    { icon: '📸', label: 'Photos',    path: '/dashboard/mobile/photos'    },
+    { icon: '📜', label: 'Permits',   path: '/dashboard/mobile/permits'   },
+];
+
+/* ─── Phase status ──────────────────────────────────────────────── */
+const PH = {
+    COMPLETED:   { color: '#22c55e', label: 'Done'    },
+    IN_PROGRESS: { color: 'var(--t-primary)', label: 'Active'  },
+    PENDING:     { color: 'var(--t-text3)',   label: 'Pending' },
+    HALTED:      { color: '#ef4444', label: 'Halted'  },
 };
 
-/* ─────────────────────────────────────────────
-   MAIN COMPONENT
-───────────────────────────────────────────── */
-const HomeTab = () => {
-    const {
-        updateTaskStatus,
-        dashboardData,
-        budgetStats,
-        recentActivities: recentUpdates,
-        user,
-    } = useConstruction();
-
-    const handleLogout = () => {
-        authService.logout();
-        window.location.href = '/login';
-    };
-
+/* ═══════════════════════════════════════════════════════════════ */
+export default function HomeTab() {
+    const { dashboardData, budgetStats, user, activeProjectId } = useConstruction();
     const navigate = useNavigate();
     const now = useClock();
 
-    const [expandedPhases, setExpandedPhases] = useState(new Set());
+    const project  = dashboardData?.project || {};
+    const phases   = dashboardData?.phases  || [];
+    const allTasks = dashboardData?.tasks   || [];
 
-    /* auto-expand in-progress phases */
-    useEffect(() => {
-        if (!dashboardData?.phases) return;
-        const ids = dashboardData.phases
-            .filter(p => p.status === 'IN_PROGRESS')
-            .map(p => p.id);
-        if (ids.length > 0 && expandedPhases.size === 0) {
-            setExpandedPhases(new Set(ids));
-        }
-    }, [dashboardData?.phases]);
+    const doneCnt    = allTasks.filter(t => t.status === 'COMPLETED').length;
+    const activeCnt  = allTasks.filter(t => t.status === 'IN_PROGRESS').length;
+    const pendCnt    = allTasks.filter(t => t.status === 'PENDING').length;
+    const overallPct = allTasks.length > 0 ? Math.round(doneCnt / allTasks.length * 100) : 0;
 
-    const togglePhase = (id) => {
-        const s = new Set(expandedPhases);
-        s.has(id) ? s.delete(id) : s.add(id);
-        setExpandedPhases(s);
-    };
-    const expandAll = () => setExpandedPhases(new Set((dashboardData?.phases || []).map(p => p.id)));
-    const collapseAll = () => setExpandedPhases(new Set());
-
-    const handleTaskToggle = async (task) => {
-        try {
-            await updateTaskStatus(task.id, task.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED');
-        } catch (e) { console.error(e); }
-    };
-
-    /* ── derived ── */
-    const allTasks = dashboardData?.tasks || [];
-    const phases = dashboardData?.phases || [];
-    const project = dashboardData?.project || {};
-
-    const completedAll = allTasks.filter(t => t.status === 'COMPLETED').length;
-    const overallPct = allTasks.length > 0 ? Math.round((completedAll / allTasks.length) * 100) : 0;
-
-    const overdueTasks = allTasks.filter(t =>
-        t.due_date &&
-        Math.round((new Date(t.due_date) - new Date()) / 86400000) < 0 &&
-        t.status !== 'COMPLETED'
-    );
-    const blockedTasks = allTasks.filter(t => t.status === 'BLOCKED');
+    const activePh      = phases.find(p => p.status === 'IN_PROGRESS');
+    const activePhTasks = activePh ? allTasks.filter(t => t.phase === activePh.id) : [];
+    const activePhPct   = activePhTasks.length > 0
+        ? Math.round(activePhTasks.filter(t => t.status === 'COMPLETED').length / activePhTasks.length * 100) : 0;
 
     const totalBudget = project.budget || 0;
-    const usedBudget = budgetStats?.usedBudget || 0;
-    const budgetPct = totalBudget > 0 ? Math.round((usedBudget / totalBudget) * 100) : 0;
+    const usedBudget  = budgetStats?.usedBudget || 0;
+    const budgetPct   = totalBudget > 0 ? Math.round(usedBudget / totalBudget * 100) : 0;
 
-    /* milestone dots */
-    const MS_LABELS = ['Found', 'Frame', 'MEP', 'Env', 'Finish'];
-    const msDots = MS_LABELS.map((lbl, i) => {
-        const ph = phases[i];
-        if (!ph) return { lbl, state: 'wait' };
-        const pt = allTasks.filter(t => t.phase === ph.id);
-        const p = pt.length > 0 ? Math.round(pt.filter(t => t.status === 'COMPLETED').length / pt.length * 100) : 0;
-        const state = p === 100 ? 'done' : ph.status === 'IN_PROGRESS' ? 'cur' : 'wait';
-        return { lbl, state };
-    });
-
-    /* ticker items from real data */
-    const tickItems = [
-        project.name,
-        completedAll != null && `${completedAll} tasks done`,
-        budgetStats?.pendingTasks != null && `${budgetStats.pendingTasks} pending`,
-        project.start_date && `Start: ${fmtDay(project.start_date)} ${fmtMon(project.start_date)}`,
-        project.end_date && `Target: ${fmtDay(project.end_date)} ${fmtMon(project.end_date)}`,
-        phases.find(p => p.status === 'IN_PROGRESS')?.name && `Active: ${phases.find(p => p.status === 'IN_PROGRESS').name}`,
-        'Safety: 0 incidents',
-    ].filter(Boolean);
-
-    const tickerSegs = [...tickItems, ...tickItems].map((item, i) => (
-        <span key={i} className="ht-ticker-seg">
-            {item}<span className="ht-ticker-sep"> | </span>
-        </span>
-    ));
+    const firstName = (user?.full_name || user?.username || 'there').split(' ')[0];
+    const h         = now.getHours();
+    const [timePart, ampm] = fmtTime(now).split(' ');
 
     return (
-        <MobileLayout>
-            <style>{CSS}</style>
+        <div style={{ minHeight: '100vh', background: 'var(--t-bg)', paddingBottom: 110, overflowX: 'hidden' }}>
 
-            <div className="ht">
-
-                {/* ── HOME HEADER ── */}
-                <header className="ht-header">
-                    <div className="ht-header-brand">
-                        <div className="ht-header-title">
-                            {project && typeof project.name === 'string'
-                                ? project.name.split(' ').map((word, i) =>
-                                    i === 0
-                                        ? <span key={i}>{word}</span>
-                                        : <em key={i}> {word}</em>
-                                )
-                                : <><span>Mero</span><em> Ghar</em></>
-                            }
-                        </div>
-                        <div className="ht-header-badge">
-                            <div className="ht-header-dot" />
-                            System Active
-                        </div>
-                    </div>
-                    <div className="ht-header-actions">
+            {/* ══ HEADER ═══════════════════════════════════════════ */}
+            <div style={{
+                background: 'var(--t-surface)',
+                borderBottom: '1px solid var(--t-border)',
+                padding: '52px 20px 20px',
+            }}>
+                {/* Top row */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                    <GPSBadge />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <ThemeToggle />
-                        <Link
-                            to="/dashboard/mobile/profile"
-                            className="ht-header-btn"
-                            title="Profile"
-                        >
-                            {user?.profile_image ? (
-                                <img
-                                    src={getMediaUrl(user.profile_image)}
-                                    alt={user.username}
-                                    style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 7 }}
-                                    onError={e => { e.target.style.display = 'none'; e.target.parentNode.innerHTML = '👤'; }}
-                                />
-                            ) : '👤'}
+                        <Link to="/dashboard/mobile/profile" style={{
+                            width: 36, height: 36, borderRadius: 10,
+                            background: 'var(--t-surface2)', border: '1px solid var(--t-border)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            overflow: 'hidden', textDecoration: 'none', flexShrink: 0,
+                        }}>
+                            {user?.profile_image
+                                ? <img src={getMediaUrl(user.profile_image)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                : <span style={{ fontSize: 16 }}>👤</span>}
                         </Link>
-                        <button
-                            onClick={handleLogout}
-                            className="ht-header-btn danger"
-                            title="Logout"
-                        >
-                            🚪
-                        </button>
                     </div>
-                </header>
-
-                {/* ── TICKER ── */}
-                <div className="ht-ticker">
-                    <div className="ht-ticker-track">{tickerSegs}</div>
                 </div>
 
-                {/* ── HERO ── */}
-                <div className="ht-hero">
+                {/* Greeting + time */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                    <div>
+                        <p style={{ fontSize: 12, color: 'var(--t-text3)', fontWeight: 500, marginBottom: 4 }}>
+                            {fmtDay(now)}
+                        </p>
+                        <h1 style={{ fontSize: 20, fontWeight: 800, color: 'var(--t-text)', lineHeight: 1.2, marginBottom: 2 }}>
+                            {greet(h)}, {firstName}
+                        </h1>
+                        <p style={{ fontSize: 12, color: 'var(--t-text3)', fontWeight: 500 }}>
+                            {project.name || 'No project selected'}
+                        </p>
+                    </div>
+                    {/* Live time */}
+                    <div style={{ textAlign: 'right' }}>
+                        <p style={{ fontSize: 28, fontWeight: 800, color: 'var(--t-text)', lineHeight: 1, letterSpacing: '-0.02em' }}>
+                            {timePart}
+                        </p>
+                        <p style={{ fontSize: 10, color: 'var(--t-text3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{ampm}</p>
+                    </div>
+                </div>
 
-                    {/* overall progress + milestones */}
-                    <div className="ht-master-prog">
-                        <div className="ht-mp-head">
-                            <span className="ht-mp-label">Overall completion</span>
-                            <span className="ht-mp-pct">{overallPct}%</span>
+                {/* Overall progress */}
+                <div style={{ marginTop: 20, padding: '14px 16px', background: 'var(--t-surface2)', borderRadius: 12, border: '1px solid var(--t-border)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <p style={{ fontSize: 11, color: 'var(--t-text3)', fontWeight: 600 }}>Overall Progress</p>
+                        <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--t-primary)' }}>{overallPct}%</p>
+                    </div>
+                    <Bar pct={overallPct} />
+                    <div style={{ display: 'flex', gap: 14, marginTop: 8 }}>
+                        <p style={{ fontSize: 11, color: 'var(--t-text3)' }}><b style={{ color: 'var(--t-text)', fontWeight: 700 }}>{doneCnt}</b> done</p>
+                        <p style={{ fontSize: 11, color: 'var(--t-text3)' }}><b style={{ color: 'var(--t-text)', fontWeight: 700 }}>{activeCnt}</b> active</p>
+                        <p style={{ fontSize: 11, color: 'var(--t-text3)' }}><b style={{ color: 'var(--t-text)', fontWeight: 700 }}>{allTasks.length}</b> total</p>
+                    </div>
+                </div>
+            </div>
+
+            {/* ══ GPS PERMISSION BANNER ════════════════════════════ */}
+            <GPSPermissionBanner />
+
+            {/* ══ BODY ═════════════════════════════════════════════ */}
+            <div style={{ padding: '20px 16px' }}>
+
+                {/* ── STAT STRIP ── */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 20 }}>
+                    {[
+                        { val: doneCnt,       lbl: 'Done',    color: '#22c55e' },
+                        { val: activeCnt,     lbl: 'Active',  color: 'var(--t-primary)' },
+                        { val: pendCnt,       lbl: 'Pending', color: 'var(--t-text3)' },
+                        { val: phases.length, lbl: 'Phases',  color: 'var(--t-text)'   },
+                    ].map(s => (
+                        <div key={s.lbl} style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)', borderRadius: 12, padding: '12px 8px', textAlign: 'center' }}>
+                            <p style={{ fontSize: 22, fontWeight: 800, color: s.color, lineHeight: 1, marginBottom: 4 }}>{s.val}</p>
+                            <p style={{ fontSize: 9, color: 'var(--t-text3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{s.lbl}</p>
                         </div>
-                        <div className="ht-mp-track">
-                            <div className="ht-mp-fill" style={{ width: `${overallPct}%` }} />
-                        </div>
-                        <div className="ht-milestones">
-                            {msDots.map((m, i) => (
-                                <div className="ht-ms" key={i}>
-                                    <div className={`ht-ms-dot ${m.state}`} />
-                                    <div className="ht-ms-lbl">{m.lbl}</div>
+                    ))}
+                </div>
+
+                {/* ── ATTENDANCE ── */}
+                <div style={{ marginBottom: 20 }}>
+                    <AttendanceCard projectId={project?.id || activeProjectId} />
+                </div>
+
+                {/* ── QUICK ACCESS ── */}
+                <div style={{ marginBottom: 20 }}>
+                    <SectionLabel action="See all" onAction={() => {}}>Quick Access</SectionLabel>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                        {NAV.map(q => (
+                            <button key={q.label} onClick={() => navigate(q.path)}
+                                style={{ border: 'none', padding: 0, background: 'none', cursor: 'pointer' }}
+                                onTouchStart={e => e.currentTarget.firstChild.style.opacity = '0.65'}
+                                onTouchEnd={e => e.currentTarget.firstChild.style.opacity = '1'}
+                            >
+                                <div style={{
+                                    background: 'var(--t-surface)', border: '1px solid var(--t-border)',
+                                    borderRadius: 14, padding: '14px 6px 12px',
+                                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7,
+                                    transition: 'opacity 0.1s',
+                                }}>
+                                    <span style={{ fontSize: 22, lineHeight: 1 }}>{q.icon}</span>
+                                    <span style={{ fontSize: 9, color: 'var(--t-text3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center', lineHeight: 1.3 }}>{q.label}</span>
                                 </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                {/* ── KPI ROW ── */}
-                <div className="ht-kpi-row">
-                    <div className="ht-kpi">
-                        <div className="ht-kpi-val lime">{budgetStats?.completedTasks ?? 0}</div>
-                        <div className="ht-kpi-lbl">Done</div>
-                    </div>
-                    <div className="ht-kpi">
-                        <div className="ht-kpi-val">{(budgetStats?.activePhases ?? 0) + (budgetStats?.activeTasks ?? 0)}</div>
-                        <div className="ht-kpi-lbl">Live</div>
-                    </div>
-                    <div className="ht-kpi">
-                        <div className="ht-kpi-val red">{budgetStats?.pendingTasks ?? 0}</div>
-                        <div className="ht-kpi-lbl">Pending</div>
-                    </div>
-                    <div className="ht-kpi">
-                        <div className="ht-kpi-val amber">{phases.length}</div>
-                        <div className="ht-kpi-lbl">Phases</div>
-                    </div>
-                </div>
-
-                {/* ── ATTENDANCE LIVE CARD ── */}
-                <div className="ht-sec" style={{ paddingTop: 16 }}>
-                    <AttendanceLiveCard projectId={project?.id} />
-                </div>
-
-                {/* ── QUICK ACTIONS ── */}
-                <div className="ht-sec">
-                    <div className="ht-sec-head">
-                        <div className="ht-sec-label">Quick Access</div>
-                    </div>
-                    <div className="ht-quick">
-                        {[
-                            { icon: '🕐', label: 'Attendance', path: '/dashboard/mobile/attendance' },
-                            { icon: '📋', label: 'Phases', path: '/dashboard/mobile/phases' },
-                            { icon: '💰', label: 'Finance', path: '/dashboard/mobile/finance' },
-                            { icon: '📅', label: 'Timeline', path: '/dashboard/mobile/timeline' },
-                            { icon: '🧱', label: 'Resources', path: '/dashboard/mobile/resource' },
-                            { icon: '📸', label: 'Gallery', path: '/dashboard/mobile/photos' },
-                            { icon: '📜', label: 'Permits', path: '/dashboard/mobile/permits' },
-                            { icon: '🛠️', label: 'Manage', path: '/dashboard/mobile/manage' },
-                        ].map(a => (
-                            <button key={a.label} className="ht-qa" onClick={() => navigate(a.path)}>
-                                <span className="ht-qa-icon">{a.icon}</span>
-                                <span className="ht-qa-lbl">{a.label}</span>
                             </button>
                         ))}
                     </div>
                 </div>
 
-                {/* ── OVERDUE / BLOCKED ALERT ── */}
-                {(overdueTasks.length > 0 || blockedTasks.length > 0) && (
-                    <div style={{ padding: '12px 16px 0' }}>
-                        <div className="ht-alert">
-                            <span className="ht-alert-icon">⚠️</span>
-                            <div className="ht-alert-body">
-                                <div className="ht-alert-title">Attention Required</div>
-                                <div className="ht-alert-sub">
-                                    {overdueTasks.length > 0 && `${overdueTasks.length} overdue`}
-                                    {overdueTasks.length > 0 && blockedTasks.length > 0 && ' · '}
-                                    {blockedTasks.length > 0 && `${blockedTasks.length} blocked`}
+                {/* ── ACTIVE PHASE ── */}
+                {activePh && (
+                    <div style={{ marginBottom: 20 }}>
+                        <SectionLabel>Active Phase</SectionLabel>
+                        <Card onClick={() => navigate('/dashboard/mobile/phases')}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                                <div style={{ flex: 1, minWidth: 0, paddingRight: 12 }}>
+                                    <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--t-text)', lineHeight: 1.3, marginBottom: 2 }}>{activePh.name}</p>
+                                    <p style={{ fontSize: 11, color: 'var(--t-text3)' }}>
+                                        {activePhTasks.filter(t => t.status === 'COMPLETED').length} / {activePhTasks.length} tasks
+                                    </p>
                                 </div>
+                                <p style={{ fontSize: 24, fontWeight: 800, color: 'var(--t-primary)', flexShrink: 0 }}>{activePhPct}%</p>
                             </div>
-                            <button className="ht-alert-btn"
-                                onClick={() => navigate('/dashboard/mobile/phases')}>
-                                View
-                            </button>
-                        </div>
+                            <Bar pct={activePhPct} />
+                        </Card>
                     </div>
                 )}
 
-                {/* ── SCHEDULE ── */}
-                <div className="ht-sec">
-                    <div className="ht-sec-head">
-                        <div className="ht-sec-label">Schedule</div>
-                    </div>
-                    <div className="ht-schedule">
-                        <div className="ht-sch-top">
-                            <div className="ht-sch-title">Project Timeline</div>
-                            <button
-                                className="ht-edit-btn"
-                                onClick={() => navigate('/dashboard/mobile/manage')}
-                            >
-                                Edit Dates
-                            </button>
+                {/* ── BUDGET + SCHEDULE ── */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
+                    {/* Budget */}
+                    <Card>
+                        <p style={{ fontSize: 10, color: 'var(--t-text3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Budget</p>
+                        <p style={{ fontSize: 20, fontWeight: 800, color: 'var(--t-text)', lineHeight: 1, marginBottom: 2 }}>{fmt$(usedBudget)}</p>
+                        <p style={{ fontSize: 10, color: 'var(--t-text3)', marginBottom: 10 }}>of {fmt$(totalBudget)}</p>
+                        <Bar pct={budgetPct} color={budgetPct > 90 ? '#ef4444' : budgetPct > 70 ? '#f59e0b' : '#22c55e'} />
+                        <p style={{ fontSize: 10, fontWeight: 700, color: budgetPct > 90 ? '#ef4444' : 'var(--t-text3)', marginTop: 6 }}>{budgetPct}% used</p>
+                    </Card>
+
+                    {/* Schedule */}
+                    <Card>
+                        <p style={{ fontSize: 10, color: 'var(--t-text3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Schedule</p>
+                        <div style={{ marginBottom: 8 }}>
+                            <p style={{ fontSize: 9, color: 'var(--t-text3)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 3 }}>Start</p>
+                            <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--t-text)' }}>{fmtShort(project.start_date)}</p>
                         </div>
-                        <div className="ht-sch-dates">
-                            <div className="ht-sch-date">
-                                <div className="ht-sch-date-lbl">Launch</div>
-                                <div className="ht-sch-date-val">
-                                    {fmtDay(project.start_date)}<em>{fmtMon(project.start_date)}</em>
-                                </div>
-                            </div>
-                            <div className="ht-sch-date end">
-                                <div className="ht-sch-date-lbl">Target</div>
-                                <div className="ht-sch-date-val">
-                                    {fmtDay(project.end_date)}<em>{fmtMon(project.end_date)}</em>
-                                </div>
-                            </div>
+                        <div style={{ height: 1, background: 'var(--t-border)', marginBottom: 8 }} />
+                        <div>
+                            <p style={{ fontSize: 9, color: 'var(--t-text3)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 3 }}>Target</p>
+                            <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--t-text)' }}>{fmtShort(project.end_date)}</p>
                         </div>
-                    </div>
+                    </Card>
                 </div>
 
-                {/* ── WEEKLY CHART ── */}
-                <div className="ht-sec">
-                    <div className="ht-sec-head">
-                        <div className="ht-sec-label">Task activity</div>
-                    </div>
-                    <WeekChart tasks={allTasks} />
-                </div>
-
-                {/* ── ENGINE FLOW ── */}
-                <div className="ht-sec">
-                    <div className="ht-sec-head">
-                        <div className="ht-sec-label">{phases.length} phases</div>
-                        <div className="ht-sec-right">
-                            <button className="ht-ctrl" onClick={expandAll}>Expand</button>
-                            <button className="ht-ctrl" onClick={collapseAll}>Hide</button>
-                        </div>
-                    </div>
-
-                    <div className="ht-phases">
-                        {phases.map((phase, idx) => {
-                            const phaseTasks = allTasks.filter(t => t.phase === phase.id).sort((a, b) => {
-                                const dateA = a.due_date ? new Date(a.due_date) : null;
-                                const dateB = b.due_date ? new Date(b.due_date) : null;
-                                if (dateA && dateB) return dateA - dateB;
-                                if (dateA) return -1;
-                                if (dateB) return 1;
-                                return new Date(b.created_at) - new Date(a.created_at);
-                            });
-                            const done = phaseTasks.filter(t => t.status === 'COMPLETED').length;
-                            const perc = phaseTasks.length > 0
-                                ? Math.round((done / phaseTasks.length) * 100)
-                                : 0;
-                            const isOpen = expandedPhases.has(phase.id);
-                            const st = getPhaseStatus(phase, phaseTasks);
-
-                            return (
-                                <div
-                                    key={phase.id}
-                                    className={`ht-phase${isOpen ? ' open' : ''}${st === 'wip' ? ' wip' : ''}`}
-                                    style={{ animationDelay: `${idx * 50}ms` }}
-                                >
-                                    <div className="ht-phase-hd" onClick={() => togglePhase(phase.id)}>
-                                        <div className="ht-phase-idx">{String(idx + 1).padStart(2, '0')}</div>
-                                        <div className="ht-phase-info">
-                                            <div className="ht-phase-name">{phase.name}</div>
-                                            <div className="ht-phase-meta">
-                                                {phaseTasks.length} tasks · {done} done
+                {/* ── PHASES ── */}
+                {phases.length > 0 && (
+                    <div>
+                        <SectionLabel action="View all →" onAction={() => navigate('/dashboard/mobile/phases')}>Phases</SectionLabel>
+                        <div style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)', borderRadius: 16, overflow: 'hidden' }}>
+                            {phases.slice(0, 4).map((ph, idx, arr) => {
+                                const pt  = allTasks.filter(t => t.phase === ph.id);
+                                const pct = pt.length > 0 ? Math.round(pt.filter(t => t.status === 'COMPLETED').length / pt.length * 100) : 0;
+                                const sc  = PH[ph.status] || PH.PENDING;
+                                return (
+                                    <button key={ph.id} onClick={() => navigate('/dashboard/mobile/phases')}
+                                        style={{ width: '100%', border: 'none', background: 'none', cursor: 'pointer', padding: 0, display: 'block', textAlign: 'left' }}>
+                                        <div style={{
+                                            padding: '13px 16px',
+                                            borderBottom: idx < arr.length - 1 ? '1px solid var(--t-border)' : 'none',
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+                                                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: sc.color, flexShrink: 0 }} />
+                                                    <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--t-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ph.name}</p>
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                                                    <span style={{ fontSize: 10, color: 'var(--t-text3)', fontWeight: 500 }}>{pt.length}t</span>
+                                                    <span style={{ fontSize: 12, fontWeight: 700, color: sc.color }}>{pct}%</span>
+                                                </div>
                                             </div>
+                                            <Bar pct={pct} color={sc.color} />
                                         </div>
-                                        <div className="ht-phase-right">
-                                            <div className="ht-phase-pct">{perc}%</div>
-                                            <div className={`ht-phase-status ${st}`}>{STATUS_LABEL[st]}</div>
-                                        </div>
-                                    </div>
-                                    <div className="ht-phase-bar">
-                                        <div className="ht-phase-bar-fill" style={{ width: `${perc}%` }} />
-                                    </div>
-
-                                    {isOpen && (
-                                        <div className="ht-tasks">
-                                            {phaseTasks.map((task, ti) => {
-                                                const isDone = task.status === 'COMPLETED';
-                                                return (
-                                                    <div
-                                                        key={task.id}
-                                                        className={`ht-task${isDone ? ' done' : ''}`}
-                                                        style={{ animationDelay: `${ti * 30}ms` }}
-                                                        onClick={() => navigate('/dashboard/mobile/phases')}
-                                                    >
-                                                        <div className="ht-task-chk" onClick={(e) => { e.stopPropagation(); handleTaskToggle(task); }}>
-                                                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                                                                <polyline
-                                                                    points="1,5 4,8 9,2"
-                                                                    stroke={isDone ? "white" : "transparent"}
-                                                                    strokeWidth="1.5"
-                                                                    strokeLinecap="round"
-                                                                    strokeLinejoin="round"
-                                                                />
-                                                            </svg>
-                                                        </div>
-                                                        <div className="ht-task-lbl">
-                                                            <div>{task.title}</div>
-                                                            <div className="flex items-center gap-2 mt-0.5">
-                                                                <span style={{
-                                                                    fontSize: '7px',
-                                                                    color: task.priority === 'CRITICAL' ? 'var(--t-danger)' : 'var(--t-primary)',
-                                                                    background: task.priority === 'CRITICAL' ? 'rgba(255, 78, 78, 0.1)' : 'rgba(var(--t-primary-rgb), 0.1)',
-                                                                    padding: '1px 4px',
-                                                                    borderRadius: '1px',
-                                                                    fontWeight: 'bold'
-                                                                }}>
-                                                                    {task.priority || 'MEDIUM'}
-                                                                </span>
-                                                                {task.due_date && (
-                                                                    <span style={{ fontSize: '7px', color: 'var(--t-text3)' }}>
-                                                                        DUE: {new Date(task.due_date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                        {task.media?.length > 0 && (
-                                                            <span style={{ fontSize: '9px', opacity: 0.6 }}>📸 {task.media.length}</span>
-                                                        )}
-                                                        <div className="ht-task-badge">
-                                                            {isDone ? 'Done' : st === 'wip' ? 'Active' : 'Queued'}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                            <button
-                                                className="ht-analytics-btn"
-                                                onClick={(e) => { e.stopPropagation(); navigate('/dashboard/mobile/phases'); }}
-                                            >
-                                                ↗ View Phase Details
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-
-                {/* ── BUDGET (only if data exists) ── */}
-                {(totalBudget > 0 || usedBudget > 0) && (
-                    <div className="ht-sec">
-                        <div className="ht-sec-head">
-                            <div className="ht-sec-label">Budget</div>
-                        </div>
-                        <div className="ht-budget-grid">
-                            <div className="ht-bc">
-                                <div className="ht-bc-lbl">Total budget</div>
-                                <div className="ht-bc-val">{formatMoney(totalBudget)}</div>
-                                <div className="ht-bc-bar">
-                                    <div className="ht-bc-fill" style={{ width: `${budgetPct}%` }} />
-                                </div>
-                                <div className="ht-bc-sub">{budgetPct}% utilised</div>
-                            </div>
-                            <div className="ht-bc">
-                                <div className="ht-bc-lbl">Used so far</div>
-                                <div className="ht-bc-val">{formatMoney(usedBudget)}</div>
-                                <div className="ht-bc-bar">
-                                    <div
-                                        className={`ht-bc-fill${budgetPct > 85 ? ' red' : ''}`}
-                                        style={{ width: `${Math.min(budgetPct, 100)}%` }}
-                                    />
-                                </div>
-                                <div className="ht-bc-sub">of total</div>
-                            </div>
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
                 )}
-
-                {/* ── ACTIVITY ── */}
-                <div className="ht-sec">
-                    <div className="ht-sec-head">
-                        <div className="ht-sec-label">Activity stream</div>
-                    </div>
-                    <div className="ht-activity">
-                        {recentUpdates && recentUpdates.length > 0
-                            ? recentUpdates.map((update, i) => (
-                                <div
-                                    key={update.id}
-                                    className="ht-act-item"
-                                    style={{ animationDelay: `${i * 50}ms` }}
-                                >
-                                    <div className="ht-act-icon">
-                                        <div className="ht-act-dot" style={{ background: actDotColor(update) }} />
-                                    </div>
-                                    <div className="ht-act-body">
-                                        <div className="ht-act-title">{update.title}</div>
-                                        <div className="ht-act-sub">{update.message || 'Event confirmed'}</div>
-                                    </div>
-                                    <div className="ht-act-time">{update.time?.split(',')[0]}</div>
-                                </div>
-                            ))
-                            : (
-                                <div className="ht-empty">
-                                    <p>Awaiting telemetry</p>
-                                </div>
-                            )
-                        }
-                    </div>
-                </div>
-
-                {/* ── GEO ── */}
-                <div className="ht-sec">
-                    <div className="ht-sec-head">
-                        <div className="ht-sec-label">Geo status</div>
-                    </div>
-                    <div className="ht-geo-grid">
-                        <div className="ht-geo-sync">
-                            <div className="ht-geo-orb">
-                                <div className="ht-geo-r1" />
-                                <div className="ht-geo-r2" />
-                                <div className="ht-geo-r3" />
-                                <div className="ht-geo-core" />
-                            </div>
-                            <div className="ht-geo-lbl">
-                                {(project.name?.split(' ')[0] || 'SITE').toUpperCase()}_LINK<br />
-                                Global Sync
-                            </div>
-                        </div>
-                        <div className="ht-geo-coords">
-                            <div>
-                                <div className="ht-coord-lbl">Latitude</div>
-                                <div className="ht-coord-val">
-                                    {project.latitude || '28.4'}<em>N</em>
-                                </div>
-                            </div>
-                            <div>
-                                <div className="ht-coord-lbl">Longitude</div>
-                                <div className="ht-coord-val">
-                                    {project.longitude || '82.3'}<em>E</em>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
 
             </div>
-        </MobileLayout>
+        </div>
     );
-};
-
-export default HomeTab;
+}

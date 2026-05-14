@@ -277,10 +277,18 @@ function TaskRow({ task, onUpdate, onDelete, onTaskClick }) {
                 {task.priority}
             </button>
 
+            {/* Start date */}
+            <span style={{
+                fontSize: 10, fontWeight: 700, flexShrink: 0, whiteSpace: 'nowrap',
+                width: 80, textAlign: 'right', color: 'var(--t-text3)',
+            }}>
+                {task.start_date ? `🛫 ${fmtDate(task.start_date)}` : ''}
+            </span>
+
             {/* Due date */}
             <span style={{
                 fontSize: 10, fontWeight: 700, flexShrink: 0, whiteSpace: 'nowrap',
-                minWidth: 80, textAlign: 'right',
+                width: 80, textAlign: 'right',
                 color: dl !== null && dl < 0 ? '#ef4444'
                      : dl !== null && dl <= 3 ? '#f59e0b'
                      : 'var(--t-text3)',
@@ -535,7 +543,8 @@ function SortablePhaseAccordion({
                             { label: 'Task (click to edit)', flex: 1 },
                             { label: 'Status ↗', width: 84 },
                             { label: 'Priority ↗', width: 68 },
-                            { label: 'Due', width: 88 },
+                            { label: 'Start', width: 80 },
+                            { label: 'Due', width: 80 },
                             { label: 'Assigned', width: 98 },
                             { label: 'Cost', width: 78 },
                             { label: '', width: 32 },
@@ -565,12 +574,17 @@ function SortablePhaseAccordion({
                             visibleTasks
                                 .slice()
                                 .sort((a, b) => {
-                                    // Sort: overdue first, then by due date, then by priority
-                                    const da = a.due_date ? new Date(a.due_date) : null;
-                                    const db = b.due_date ? new Date(b.due_date) : null;
-                                    if (da && db) return da - db;
-                                    if (da) return -1; if (db) return 1;
-                                    return 0;
+                                    // 1. Due Date (Ascending) - nulls/TBD at bottom
+                                    const da = a.due_date ? new Date(a.due_date).getTime() : 9999999999999;
+                                    const db = b.due_date ? new Date(b.due_date).getTime() : 9999999999999;
+                                    if (da !== db) return da - db;
+
+                                    // 2. Status (COMPLETED at bottom)
+                                    if (a.status === 'COMPLETED' && b.status !== 'COMPLETED') return 1;
+                                    if (a.status !== 'COMPLETED' && b.status === 'COMPLETED') return -1;
+
+                                    // 3. ID (Tie-breaker)
+                                    return (a.id || 0) - (b.id || 0);
                                 })
                                 .map(task => (
                                     <TaskRow
