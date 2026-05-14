@@ -7,11 +7,24 @@ from ..serializers import (
 )
 
 class WorkerAssignmentViewSet(viewsets.ModelViewSet):
-    queryset = WorkerAssignment.objects.all()
+    queryset = WorkerAssignment.objects.select_related('worker', 'project', 'phase', 'task').all()
     serializer_class = WorkerAssignmentSerializer
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['worker', 'project', 'phase', 'status']
     ordering_fields = ['start_date', 'end_date']
+
+    def perform_create(self, serializer):
+        """
+        Create the assignment, then auto-link the worker to the project
+        by setting current_project if it is not already set.
+        This is the unified hook that keeps Workforce ↔ Project Team
+        ↔ Phase Workers ↔ Task Assignment all in sync.
+        """
+        assignment = serializer.save(assigned_by=self.request.user)
+        worker = assignment.worker
+        if not worker.current_project_id:
+            worker.current_project = assignment.project
+            worker.save(update_fields=['current_project'])
 
 class WorkerEvaluationViewSet(viewsets.ModelViewSet):
     queryset = WorkerEvaluation.objects.all()

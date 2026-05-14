@@ -53,6 +53,19 @@ const workforceService = {
     seedFromAttendance: (body = {}) =>
         api.post('members/seed_from_attendance/', body).then(r => r.data),
 
+    // ── Project Assignment ────────────────────────────────────────────────────
+    // Links / unlinks a WorkforceMember to a project (sets current_project).
+    // This is the unified hook — once linked, the worker appears in:
+    //   dashboardData.contractors, PhaseDetailPanel, TeamPage Workers, WorkforceHub
+    assignToProject: (memberId, projectId) =>
+        api.post(`members/${memberId}/assign_project/`, { project_id: projectId }).then(r => r.data),
+    removeFromProject: (memberId) =>
+        api.post(`members/${memberId}/assign_project/`, {}).then(r => r.data),
+
+    // Get all workers assigned to a specific project
+    getProjectWorkers: (projectId, extraParams = {}) =>
+        api.get('members/', { params: { current_project: projectId, status: 'ACTIVE', page_size: 500, ...extraParams } }).then(r => r.data),
+
     // Create worker portal account (phone + PIN)
     // Returns { employee_id, username, pin, email } — PIN shown ONCE
     // Send portal credentials via email (call immediately after createAccount)

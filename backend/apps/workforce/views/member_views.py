@@ -117,6 +117,39 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
         return Response({'status': 'unlinked'})
 
     @action(detail=True, methods=['post'])
+    def assign_project(self, request, pk=None):
+        """
+        POST /api/v1/workforce/members/{id}/assign_project/
+        Body: { "project_id": <int> }   — set current_project
+              {}  or { "project_id": null } — clear current_project
+
+        This is the unified hook for linking a worker to a project.
+        Once linked, the worker appears in:
+          - dashboardData.contractors (task assignment dropdown)
+          - PhaseDetailPanel workforce tab (phase worker select)
+          - ProjectTeam > Workers tab (WorkforceMembersView)
+          - WorkforceHub filtered by project
+        """
+        from apps.core.models import HouseProject
+        member = self.get_object()
+        project_id = request.data.get('project_id')
+        if project_id:
+            try:
+                project = HouseProject.objects.get(pk=project_id)
+            except HouseProject.DoesNotExist:
+                return Response({'error': 'Project not found.'}, status=status.HTTP_404_NOT_FOUND)
+            member.current_project = project
+        else:
+            member.current_project = None
+        member.save(update_fields=['current_project', 'updated_at'])
+        return Response({
+            'status': 'ok',
+            'current_project': project_id,
+            'member_id': str(member.id),
+            'full_name': member.full_name,
+        })
+
+    @action(detail=True, methods=['post'])
     def create_account(self, request, pk=None):
         """
         POST /api/v1/workforce/members/{id}/create_account/

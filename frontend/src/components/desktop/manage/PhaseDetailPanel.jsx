@@ -436,12 +436,16 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
         if (!phase?.id) return;
         setLoadingAssign(true);
         try {
-            const data = await workforceService.getAssignments({ phase: phase.id });
-            setPhaseAssignments(Array.isArray(data) ? data : (data.results || []));
-            
-            // Also fetch members if editing
-            const mems = await workforceService.getMembers({ limit: 100 });
-            setAllMembers(Array.isArray(mems) ? mems : (mems.results || []));
+            // Load assignments for this phase AND project workers in parallel.
+            // Only workers already linked to this project (current_project) appear
+            // in the dropdown — same source as dashboardData.contractors (task dropdown)
+            // and TeamPage > Workers tab. This is the unified link.
+            const [assignData, memsData] = await Promise.all([
+                workforceService.getAssignments({ phase: phase.id }),
+                workforceService.getProjectWorkers(phase.project),
+            ]);
+            setPhaseAssignments(Array.isArray(assignData) ? assignData : (assignData.results || []));
+            setAllMembers(Array.isArray(memsData) ? memsData : (memsData.results || []));
         } catch (err) {
             console.error("Failed to fetch assignments", err);
         } finally {
@@ -653,6 +657,9 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
         if (!selMember) return;
         setSaving(true);
         try {
+            // Creating a WorkerAssignment auto-sets current_project on the worker
+            // (handled in WorkerAssignmentViewSet.perform_create on the backend).
+            // This keeps Workforce Hub ↔ Project Team ↔ Phase Workers in sync.
             await workforceService.createAssignment({
                 worker: selMember,
                 project: phase.project,
@@ -664,6 +671,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
             setSelMember('');
             setSelTask('');
             fetchPhaseAssignments();
+            refreshData(); // update dashboardData.contractors so task dropdown is current
         } catch { alert('Failed to create assignment.'); }
         finally { setSaving(false); }
     };

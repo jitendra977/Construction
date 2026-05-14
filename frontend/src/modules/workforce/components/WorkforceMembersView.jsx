@@ -291,7 +291,7 @@ function CreateAccountModal({ member, onClose }) {
 
 // ── MAIN VIEW COMPONENT ───────────────────────────────────────────────────────
 export default function WorkforceMembersView({ projectId, hideProjectFilter = false }) {
-    const { projects } = useConstruction();
+    const { projects, activeProjectId } = useConstruction();
     const [selectedProject, setSelectedProject] = useState(projectId || '');
     const [members, setMembers]     = useState([]);
     const [stats, setStats]         = useState(null);
@@ -306,6 +306,8 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
     const [showIDCard, setShowIDCard]       = useState(false);
     const [idCardMemberId, setIdCardMemberId] = useState(null);
     const [portalTarget, setPortalTarget]   = useState(null);
+    // Assign-to-project state (used in Workforce Hub where hideProjectFilter=false)
+    const [assigningProject, setAssigningProject] = useState({}); // { [memberId]: bool }
 
     // Sync selectedProject when prop changes (e.g. navigation)
     useEffect(() => {
@@ -355,6 +357,21 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
             await workforceService.updateMember(member.id, { status: newStatus });
             load();
         } catch { /* ignore */ }
+    };
+
+    // Assign/remove worker from project — the unified link that makes the worker
+    // appear in task dropdowns, phase workforce tab, and project team workers tab.
+    const handleAssignProject = async (member, targetProjectId) => {
+        setAssigningProject(p => ({ ...p, [member.id]: true }));
+        try {
+            if (targetProjectId) {
+                await workforceService.assignToProject(member.id, targetProjectId);
+            } else {
+                await workforceService.removeFromProject(member.id);
+            }
+            load();
+        } catch { alert('Failed to update project assignment.'); }
+        finally { setAssigningProject(p => ({ ...p, [member.id]: false })); }
     };
 
     return (
@@ -442,6 +459,7 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
                                 <th style={{ padding: '9px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Role / Trade</th>
                                 <th style={{ padding: '9px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Type</th>
                                 <th style={{ padding: '9px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Status</th>
+                                <th style={{ padding: '9px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Project</th>
                                 <th style={{ padding: '9px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Today</th>
                                 <th style={{ padding: '9px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Rate/day</th>
                                 <th style={{ padding: '9px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Contact</th>
@@ -459,7 +477,6 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
                                     <td style={{ padding: '9px 10px', color: 'var(--t-text-muted)', fontSize: 12 }}>{m.role_name || '—'}</td>
                                     <td style={{ padding: '9px 10px' }}><TypeBadge type={m.worker_type} /></td>
                                     <td style={{ padding: '9px 10px' }}>
-                                        {/* Inline quick-status dropdown */}
                                         <div style={{ position: 'relative', display: 'inline-block' }}>
                                             <select
                                                 value={m.status}
@@ -482,6 +499,39 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
                                             <span style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', fontSize: 8, pointerEvents: 'none' }}>▼</span>
                                         </div>
                                     </td>
+
+                                    {/* ── Project assignment column ─────────────────────────
+                                        Inline dropdown to link/unlink this worker to a project.
+                                        Changing this affects task dropdowns, phase workforce tab,
+                                        and team page workers — all read current_project.          */}
+                                    <td style={{ padding: '9px 10px', minWidth: 140 }}>
+                                        {assigningProject[m.id] ? (
+                                            <span style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>Saving…</span>
+                                        ) : (
+                                            <div style={{ position: 'relative', display: 'inline-block' }}>
+                                                <select
+                                                    value={m.current_project || ''}
+                                                    onChange={e => handleAssignProject(m, e.target.value || null)}
+                                                    title="Assign worker to project"
+                                                    style={{
+                                                        appearance: 'none', WebkitAppearance: 'none',
+                                                        padding: '3px 22px 3px 8px', borderRadius: 7, fontSize: 11, fontWeight: 600,
+                                                        border: `1px solid ${m.current_project ? '#86efac' : '#fcd34d'}`,
+                                                        background: m.current_project ? '#f0fdf4' : '#fffbeb',
+                                                        color: m.current_project ? '#065f46' : '#92400e',
+                                                        cursor: 'pointer', outline: 'none', maxWidth: 130,
+                                                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                                    }}>
+                                                    <option value="">No Project</option>
+                                                    {projects.map(p => (
+                                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                                    ))}
+                                                </select>
+                                                <span style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', fontSize: 8, pointerEvents: 'none' }}>▼</span>
+                                            </div>
+                                        )}
+                                    </td>
+
                                     <td style={{ padding: '9px 10px' }}>
                                         <TodayDot status={m.today_status || 'NOT_MARKED'} checkIn={m.today_check_in} checkOut={m.today_check_out} />
                                     </td>
