@@ -188,9 +188,9 @@ function MediaGrid({ media, onUpload, uploading, canUpload, onDelete }) {
                                     display: 'block', aspectRatio: '16/9', borderRadius: 8, overflow: 'hidden',
                                     background: 'var(--t-surface2)', border: '1px solid var(--t-border)',
                                 }}>
-                                {m.media_type === 'IMAGE' ? (
+                                {m.media_type?.toUpperCase() === 'IMAGE' ? (
                                     <img src={getMediaUrl(m.file)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                ) : m.media_type === 'VIDEO' ? (
+                                ) : m.media_type?.toUpperCase() === 'VIDEO' ? (
                                     <video src={getMediaUrl(m.file)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                 ) : (
                                     <div style={{

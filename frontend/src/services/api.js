@@ -660,20 +660,31 @@ export const permitCopilotService = {
  */
 export const getMediaUrl = (url) => {
     if (!url) return '';
-    if (url.startsWith('http')) return url;
-
-    // In production, media is served by Nginx on the same domain as the frontend
-    // even if the API is on a subdomain (api.example.com).
-    // Prepending the absolute API base in production would break media links.
-    const isProd = import.meta.env.MODE === 'production';
     
-    if (isProd) {
-        return url; // Return as relative path (e.g., /media/...)
+    let path = url;
+    // If it's an absolute URL, check if it's from our system
+    if (url.startsWith('http')) {
+        const isInternal = url.includes('nishanaweb.cloud') || url.includes('localhost') || url.includes('127.0.0.1') || url.includes('192.168.');
+        if (isInternal) {
+            try {
+                path = new URL(url).pathname;
+            } catch (e) {
+                return url;
+            }
+        } else {
+            return url; // Keep external links as is
+        }
     }
 
-    // In local dev, we need to prepend the backend server URL (e.g., http://localhost:8000)
+    // Now 'path' is relative (e.g. /media/...)
+    const isProd = import.meta.env.MODE === 'production';
+    if (isProd) {
+        return path; // In prod, let Nginx on main domain handle it
+    }
+
+    // In local dev, prepend the backend host
     const base = API_URL.replace('/api/v1', '').replace(/\/$/, '');
-    return `${base}${url}`;
+    return `${base}${path}`;
 };
 
 export default api;
