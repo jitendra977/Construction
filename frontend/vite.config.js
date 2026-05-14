@@ -1,9 +1,27 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import fs from 'fs'
+import path from 'path'
+
+// ── HTTPS for local dev (enables GPS on LAN devices) ──────────────────────────
+// Run once: mkcert 192.168.0.129 localhost 127.0.0.1
+// Cert files land in the project root as:
+//   192.168.0.129+2.pem  /  192.168.0.129+2-key.pem
+// Set VITE_HTTPS=true in your shell to activate, e.g.:
+//   VITE_HTTPS=true npm run dev
+const certFile = path.resolve('192.168.0.129+2.pem');
+const keyFile  = path.resolve('192.168.0.129+2-key.pem');
+const useHttps = process.env.VITE_HTTPS === 'true'
+    && fs.existsSync(certFile)
+    && fs.existsSync(keyFile);
 
 // https://vite.dev/config/
 export default defineConfig({
+  server: useHttps ? {
+    https: { cert: fs.readFileSync(certFile), key: fs.readFileSync(keyFile) },
+    host: true,   // bind to 0.0.0.0 so LAN devices can reach it
+  } : { host: true },
   plugins: [
     react(),
     VitePWA({

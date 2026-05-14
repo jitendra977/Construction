@@ -60,10 +60,16 @@ help: ## Show this help message
 #  🚀 DEPLOY
 # ════════════════════════════════════════════════════════════
 
-# Local only — push code to git, server is NOT touched
+# Push local changes and deploy to the cloud using the simplified workflow
 .PHONY: deploy
-deploy: ## Deploy — push code to git only (server unchanged)
-	@bash scripts/deploy.sh
+deploy: ## Deploy — simple deploy using the provided cloud commands
+	@echo "📡 Deploying to cloud..."
+	@ssh -t $${VPS_USER:-nishanaweb}@$${VPS_HOST:-nishanaweb.cloud} "cd /home/\$${VPS_USER:-nishanaweb}/project/Construction/ && \
+		git fetch origin && \
+		git reset --hard origin/main && \
+		docker compose -f docker-compose.prod.yml build && \
+		docker compose -f docker-compose.prod.yml run --rm backend python manage.py migrate && \
+		docker compose -f docker-compose.prod.yml up -d"
 
 # Server side — SSH in, pull, build, migrate, restart
 .PHONY: server-deploy

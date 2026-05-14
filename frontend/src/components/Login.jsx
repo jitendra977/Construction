@@ -139,6 +139,159 @@ function strengthOf(pw) {
 const STRENGTH_LABEL = ['', 'Weak', 'Fair', 'Good', 'Strong'];
 const STRENGTH_COLOR = ['', '#ef4444', '#f59e0b', '#3b82f6', '#10b981'];
 
+// ── GPS permission hook (login page) ─────────────────────────────────────────
+function useGeoPermission() {
+    // 'checking' | 'prompting' | 'granted' | 'denied' | 'unavailable'
+    const [geoStatus, setGeoStatus] = useState('checking');
+
+    useEffect(() => {
+        if (!navigator?.geolocation) {
+            setGeoStatus('unavailable');
+            return;
+        }
+
+        const tryAutoPrompt = () => {
+            setGeoStatus('prompting');
+            navigator.geolocation.getCurrentPosition(
+                () => setGeoStatus('granted'),
+                (err) => setGeoStatus(err.code === 1 ? 'denied' : 'granted'), // non-permission errors → still let them proceed
+                { enableHighAccuracy: true, timeout: 12_000, maximumAge: 0 },
+            );
+        };
+
+        if (!navigator?.permissions) {
+            // Permissions API not available — trigger prompt directly
+            tryAutoPrompt();
+            return;
+        }
+
+        navigator.permissions.query({ name: 'geolocation' }).then(result => {
+            if (result.state === 'granted') {
+                setGeoStatus('granted');
+            } else if (result.state === 'denied') {
+                setGeoStatus('denied');
+            } else {
+                // 'prompt' — auto-show browser dialog immediately
+                tryAutoPrompt();
+            }
+
+            result.onchange = () => {
+                if (result.state === 'granted')      setGeoStatus('granted');
+                else if (result.state === 'denied')  setGeoStatus('denied');
+                else                                  tryAutoPrompt();
+            };
+        }).catch(tryAutoPrompt);
+    }, []);
+
+    const retry = useCallback(() => {
+        if (!navigator?.geolocation) return;
+        setGeoStatus('prompting');
+        navigator.geolocation.getCurrentPosition(
+            () => setGeoStatus('granted'),
+            (err) => setGeoStatus(err.code === 1 ? 'denied' : 'granted'),
+            { enableHighAccuracy: true, timeout: 12_000, maximumAge: 0 },
+        );
+    }, []);
+
+    return { geoStatus, retry };
+}
+
+// ── GPS status widget ─────────────────────────────────────────────────────────
+function GeoGate({ geoStatus, onRetry }) {
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    const isIOS     = /iPhone|iPad/i.test(navigator.userAgent);
+
+    const deniedSteps = isIOS
+        ? ['Open iPhone Settings', 'Scroll down → tap Safari (or your browser)', 'Tap Location → select "While Using"', 'Return here and tap Try Again']
+        : isAndroid
+            ? ['Tap the 🔒 lock icon in the address bar', 'Tap Permissions → Location → Allow', 'Reload the page']
+            : ['Click the 🔒 lock icon in the address bar', 'Allow Location for this site', 'Reload the page'];
+
+    if (geoStatus === 'granted') {
+        return (
+            <div style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '10px 14px', borderRadius: 10, marginBottom: 20,
+                background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)',
+            }}>
+                <span style={{ color: '#10b981', fontSize: 15 }}>✓</span>
+                <span style={{ fontSize: 12, color: '#6ee7b7', fontWeight: 600 }}>Location verified — GPS active</span>
+            </div>
+        );
+    }
+
+    if (geoStatus === 'checking' || geoStatus === 'prompting') {
+        return (
+            <div style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '10px 14px', borderRadius: 10, marginBottom: 20,
+                background: 'rgba(249,115,22,0.07)', border: '1px solid rgba(249,115,22,0.18)',
+            }}>
+                <span style={{
+                    width: 14, height: 14, border: '2px solid rgba(249,115,22,0.3)',
+                    borderTopColor: '#f97316', borderRadius: '50%',
+                    animation: 'spin 0.8s linear infinite', display: 'inline-block', flexShrink: 0,
+                }} />
+                <span style={{ fontSize: 12, color: '#fdba74', fontWeight: 600 }}>
+                    {geoStatus === 'checking' ? 'Checking location access…' : 'Waiting for location permission…'}
+                </span>
+            </div>
+        );
+    }
+
+    if (geoStatus === 'unavailable') {
+        return (
+            <div style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '10px 14px', borderRadius: 10, marginBottom: 20,
+                background: 'rgba(107,114,128,0.1)', border: '1px solid rgba(107,114,128,0.2)',
+            }}>
+                <span style={{ fontSize: 15 }}>📡</span>
+                <span style={{ fontSize: 12, color: '#9ca3af', fontWeight: 600 }}>GPS not available on this device</span>
+            </div>
+        );
+    }
+
+    // denied
+    return (
+        <div style={{
+            padding: '14px', borderRadius: 12, marginBottom: 20,
+            background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)',
+        }}>
+            <p style={{ fontSize: 12, fontWeight: 700, color: '#fca5a5', marginBottom: 6 }}>
+                📵 Location access required to sign in
+            </p>
+            <p style={{ fontSize: 11, color: '#f87171', marginBottom: 12, lineHeight: 1.5, opacity: 0.85 }}>
+                This app requires GPS to track site attendance. Enable location in your browser settings, then try again.
+            </p>
+            <div style={{ marginBottom: 12 }}>
+                {deniedSteps.map((step, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 7, alignItems: 'flex-start' }}>
+                        <div style={{
+                            width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+                            background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.25)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 9, fontWeight: 800, color: '#fca5a5', marginTop: 1,
+                        }}>{i + 1}</div>
+                        <p style={{ fontSize: 11, color: '#fca5a5', lineHeight: 1.5, opacity: 0.9 }}>{step}</p>
+                    </div>
+                ))}
+            </div>
+            <button
+                type="button"
+                onClick={onRetry}
+                style={{
+                    width: '100%', padding: '10px', borderRadius: 8,
+                    background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)',
+                    color: '#fca5a5', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                }}
+            >
+                Try Again
+            </button>
+        </div>
+    );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function Login() {
     const [username, setUsername]     = useState('');
@@ -152,6 +305,10 @@ export default function Login() {
     const [shake,     setShake]       = useState(false);
     const [success,   setSuccess]     = useState(false);
     const [capsLock,  setCapsLock]    = useState(false);
+
+    const { geoStatus, retry } = useGeoPermission();
+    const geoBlocked = geoStatus === 'denied';             // hard block
+    const geoPending = geoStatus === 'checking' || geoStatus === 'prompting'; // soft pending
 
     const pwStrength = strengthOf(password);
     const lockTimer  = useRef(null);
@@ -191,6 +348,9 @@ export default function Login() {
         e.preventDefault();
         setError('');
         setExpired(false);
+
+        // Block submission if GPS not granted
+        if (geoBlocked || geoPending) return;
 
         if (isRateLimited()) {
             setLocked(true);
@@ -329,13 +489,13 @@ export default function Login() {
         }),
         btn: {
             width: '100%', padding: '14px',
-            background: loading || locked || success
+            background: loading || locked || success || geoBlocked || geoPending
                 ? 'rgba(249,115,22,0.4)'
                 : 'linear-gradient(135deg, #f97316, #ea580c)',
             color: '#fff', border: 'none', borderRadius: 10,
-            fontSize: 14, fontWeight: 700, cursor: loading || locked ? 'not-allowed' : 'pointer',
+            fontSize: 14, fontWeight: 700, cursor: loading || locked || geoBlocked || geoPending ? 'not-allowed' : 'pointer',
             letterSpacing: '0.04em',
-            boxShadow: loading || locked ? 'none' : '0 4px 20px rgba(249,115,22,0.35)',
+            boxShadow: loading || locked || geoBlocked || geoPending ? 'none' : '0 4px 20px rgba(249,115,22,0.35)',
             transition: 'all 0.2s',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         },
@@ -401,6 +561,9 @@ export default function Login() {
                     </span>
                 </div>
 
+                {/* GPS gate */}
+                <GeoGate geoStatus={geoStatus} onRetry={retry} />
+
                 {/* Alerts */}
                 {expired && (
                     <div style={S.alert('warning')}>
@@ -454,7 +617,7 @@ export default function Login() {
                                 value={username}
                                 onChange={e => setUsername(e.target.value)}
                                 required
-                                disabled={loading || locked || success}
+                                disabled={loading || locked || success || geoBlocked || geoPending}
                                 placeholder="you@company.com"
                                 style={S.input}
                             />
@@ -481,7 +644,7 @@ export default function Login() {
                                 onChange={e => setPassword(e.target.value)}
                                 onKeyUp={handleKey}
                                 required
-                                disabled={loading || locked || success}
+                                disabled={loading || locked || success || geoBlocked || geoPending}
                                 placeholder="Enter your password"
                                 style={{ ...S.input, paddingRight: 44 }}
                             />
@@ -522,10 +685,21 @@ export default function Login() {
                     {/* Submit */}
                     <button
                         type="submit"
-                        disabled={loading || locked || success}
+                        disabled={loading || locked || success || geoBlocked || geoPending}
                         style={S.btn}
                     >
-                        {loading ? (
+                        {geoBlocked ? (
+                            <>📵 Allow Location to Sign In</>
+                        ) : geoPending ? (
+                            <>
+                                <span style={{
+                                    width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)',
+                                    borderTopColor: '#fff', borderRadius: '50%',
+                                    animation: 'spin 0.8s linear infinite', display: 'inline-block',
+                                }} />
+                                Waiting for Location…
+                            </>
+                        ) : loading ? (
                             <>
                                 <span style={{
                                     width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)',

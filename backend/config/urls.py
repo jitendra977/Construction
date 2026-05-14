@@ -25,7 +25,7 @@ def health_check(request):
 
 from apps.accounts.views import UserViewSet, RoleViewSet, ActivityLogViewSet
 from apps.accounts.urls import accounts_urlpatterns, worker_urlpatterns
-from apps.core.views import HouseProjectViewSet, ConstructionPhaseViewSet, RoomViewSet, FloorViewSet, UserGuideViewSet, UserGuideStepViewSet, UserGuideFAQViewSet, UserGuideSectionViewSet, EmailLogViewSet, DashboardDataView, ProjectMemberViewSet
+from apps.core.views import HouseProjectViewSet, ConstructionPhaseViewSet, PhaseDocumentViewSet, RoomViewSet, FloorViewSet, UserGuideViewSet, UserGuideStepViewSet, UserGuideFAQViewSet, UserGuideSectionViewSet, EmailLogViewSet, DashboardDataView, ProjectMemberViewSet
 from apps.core.gallery_views import GalleryViewSet
 from apps.tasks.views import TaskViewSet, TaskUpdateViewSet, TaskMediaViewSet
 
@@ -38,6 +38,7 @@ router.register(r'roles', RoleViewSet)
 router.register(r'activity-logs', ActivityLogViewSet)
 router.register(r'projects', HouseProjectViewSet, basename='project')
 router.register(r'phases', ConstructionPhaseViewSet)
+router.register(r'phase-documents', PhaseDocumentViewSet)
 router.register(r'floors', FloorViewSet, basename='floor')
 router.register(r'rooms', RoomViewSet, basename='room')
 router.register(r'tasks', TaskViewSet)

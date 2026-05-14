@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import HouseProject, ConstructionPhase, Room, Floor, UserGuide, UserGuideStep, UserGuideFAQ, UserGuideSection, UserGuideProgress, EmailLog, ProjectMember
+from .models import HouseProject, ConstructionPhase, PhaseDocument, Room, Floor, UserGuide, UserGuideStep, UserGuideFAQ, UserGuideSection, UserGuideProgress, EmailLog, ProjectMember
 
 # ── Project Member ─────────────────────────────────────────────────────────────
 class ProjectMemberSerializer(serializers.ModelSerializer):
@@ -83,9 +83,16 @@ class HouseProjectSerializer(serializers.ModelSerializer):
         except Exception:
             return 0
 
+# ── Phase Document ─────────────────────────────────────────────────────────────
+class PhaseDocumentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PhaseDocument
+        fields = '__all__'
+
 # ── Construction Phase ─────────────────────────────────────────────────────────
 class ConstructionPhaseSerializer(serializers.ModelSerializer):
     total_spent = serializers.SerializerMethodField()
+    documents = PhaseDocumentSerializer(many=True, read_only=True)
 
     class Meta:
         model  = ConstructionPhase

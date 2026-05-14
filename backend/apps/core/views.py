@@ -3,8 +3,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from .models import HouseProject, ConstructionPhase, Room, Floor, UserGuide, UserGuideStep, UserGuideFAQ, UserGuideSection, UserGuideProgress, EmailLog, ProjectMember
-from .serializers import HouseProjectSerializer, ConstructionPhaseSerializer, RoomSerializer, FloorSerializer, UserGuideSerializer, UserGuideStepSerializer, UserGuideFAQSerializer, UserGuideSectionSerializer, UserGuideProgressSerializer, EmailLogSerializer, ProjectMemberSerializer
+from .models import HouseProject, ConstructionPhase, PhaseDocument, Room, Floor, UserGuide, UserGuideStep, UserGuideFAQ, UserGuideSection, UserGuideProgress, EmailLog, ProjectMember
+from .serializers import HouseProjectSerializer, ConstructionPhaseSerializer, PhaseDocumentSerializer, RoomSerializer, FloorSerializer, UserGuideSerializer, UserGuideStepSerializer, UserGuideFAQSerializer, UserGuideSectionSerializer, UserGuideProgressSerializer, EmailLogSerializer, ProjectMemberSerializer
 from apps.accounts.permissions import IsSystemAdmin, CanManagePhases, CanManageStructure
 from apps.core.mixins import ProjectScopedMixin
 
@@ -264,6 +264,18 @@ class ConstructionPhaseViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
             return Response({'status': 'success'}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class PhaseDocumentViewSet(viewsets.ModelViewSet):
+    queryset = PhaseDocument.objects.all()
+    serializer_class = PhaseDocumentSerializer
+    permission_classes = [IsAuthenticated, CanManagePhases]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        phase_id = self.request.query_params.get('phase')
+        if phase_id:
+            qs = qs.filter(phase_id=phase_id)
+        return qs
 
 class DashboardDataView(APIView):
     permission_classes = [IsAuthenticated]

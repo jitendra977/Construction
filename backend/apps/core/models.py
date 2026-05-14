@@ -199,6 +199,34 @@ class ConstructionPhase(models.Model):
     def __str__(self):
         return f"{self.order}. {self.name}"
 
+class PhaseDocument(models.Model):
+    """
+    Multiple documents for a specific phase (e.g., Naksa, Structure Design).
+    """
+    DOCUMENT_TYPES = [
+        ('NAKSA', 'Naksa / Blueprint'),
+        ('STRUCTURE', 'Structural Design'),
+        ('3D_MODEL', '3D Model / Design'),
+        ('OTHER', 'Other Document'),
+    ]
+
+    phase = models.ForeignKey(ConstructionPhase, on_delete=models.CASCADE, related_name='documents')
+    document_type = models.CharField(max_length=20, choices=DOCUMENT_TYPES, default='OTHER')
+    file = models.FileField(upload_to='phases/documents/')
+    name = models.CharField(max_length=255, blank=True, help_text="Original filename or custom name")
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-uploaded_at']
+
+    def __str__(self):
+        return f"{self.phase.name} - {self.get_document_type_display()} ({self.name})"
+
+    def save(self, *args, **kwargs):
+        if not self.name and self.file:
+            self.name = self.file.name.split('/')[-1]
+        super().save(*args, **kwargs)
+
 class Floor(models.Model):
     """
     Represents a floor level in the house.

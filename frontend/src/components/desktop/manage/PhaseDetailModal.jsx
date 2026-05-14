@@ -379,12 +379,12 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks, initialMode = 'read' 
                         
                         <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
                             {tasks?.length > 0 ? [...tasks].filter(t => !pendingTaskDeletions.has(t.id)).sort((a, b) => {
-                                const dateA = a.due_date ? new Date(a.due_date) : null;
-                                const dateB = b.due_date ? new Date(b.due_date) : null;
-                                if (dateA && dateB) return dateA - dateB;
-                                if (dateA) return -1;
-                                if (dateB) return 1;
-                                return new Date(b.created_at) - new Date(a.created_at);
+                                if (a.status === 'COMPLETED' && b.status !== 'COMPLETED') return 1;
+                                if (a.status !== 'COMPLETED' && b.status === 'COMPLETED') return -1;
+                                const dateA = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+                                const dateB = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+                                if (dateA === Infinity && dateB === Infinity) return 0;
+                                return dateA - dateB;
                             }).map(task => (
                                 <div key={task.id} 
                                      onClick={() => setSelectedTask(task)}

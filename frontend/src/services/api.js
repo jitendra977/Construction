@@ -410,6 +410,19 @@ export const constructionService = {
         return response.data;
     },
 
+    // Phase Documents (Naksa / Structure)
+    uploadPhaseDocument: async (data) => {
+        const response = await api.post('phase-documents/', data, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+        return response.data;
+    },
+    deletePhaseDocument: async (id) => {
+        await api.delete(`phase-documents/${id}/`);
+    },
+
     // Task Media
     uploadTaskMedia: async (data) => {
         const response = await api.post('task-media/', data, {

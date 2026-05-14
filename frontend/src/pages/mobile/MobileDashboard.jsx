@@ -69,7 +69,7 @@ function MobileDashboard() {
                  *  - Module pages: pt-0 — their own sticky header sits at the very top.
                  *    pb-24 ensures content clears the fixed bottom nav.
                  */}
-                <main className={isModule ? 'pb-24' : ''}>
+                <main className={isModule ? 'pb-24' : 'pb-0'}>
                     <Outlet />
                 </main>
 
