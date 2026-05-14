@@ -11,14 +11,13 @@ from apps.core.mixins import ProjectScopedMixin
 from apps.tasks.models import Task
 from apps.tasks.serializers import TaskSerializer
 from apps.resource.models import Material, Supplier, StockMovement as MaterialTransaction
-from apps.resources.models import Document
-from apps.workforce.models import WorkforceMember as Contractor
+from apps.resources.models import Document, Contractor
+from apps.workforce.models import WorkforceMember
 from apps.accounting.models.payables import Vendor
 from apps.resource.serializers.material import MaterialSerializer
 from apps.resource.serializers.supplier import SupplierSerializer
 from apps.resource.serializers.purchase import StockMovementSerializer as MaterialTransactionSerializer
-from apps.workforce.serializers.member_serializers import WorkforceMemberListSerializer as ContractorSerializer
-from apps.resources.serializers import DocumentSerializer
+from apps.resources.serializers import DocumentSerializer, ContractorSerializer
 from apps.permits.models import PermitStep
 from apps.permits.serializers import PermitStepSerializer
 
@@ -32,11 +31,14 @@ class HouseProjectViewSet(viewsets.ModelViewSet):
         """
         Access control:
           • System admins → all projects.
-          • Everyone else → only projects where they are a ProjectMember.
+          • Everyone else → projects where they are a ProjectMember,
+            PLUS any projects that have NO members yet (bootstrap / legacy
+            projects created before the ProjectMember system was introduced).
         Attempting to access a project you're not a member of returns 404
         (the object is simply not in the queryset), which avoids leaking
         whether a project exists at all.
         """
+        from django.db.models import Q
         user = self.request.user
         if not user.is_authenticated:
             return HouseProject.objects.none()
@@ -46,8 +48,26 @@ class HouseProjectViewSet(viewsets.ModelViewSet):
         if getattr(user, 'is_system_admin', False):
             return qs.all()
 
-        # Regular users: only their assigned projects (via ProjectMember)
-        return qs.filter(members__user=user).distinct()
+        # Regular users: their assigned projects + any orphan projects (no members yet)
+        return qs.filter(
+            Q(members__user=user) | Q(members__isnull=True)
+        ).distinct()
+
+    def perform_create(self, serializer):
+        """Auto-register the creator as an OWNER ProjectMember."""
+        project = serializer.save()
+        member = ProjectMember.objects.create(
+            project=project,
+            user=self.request.user,
+            role='OWNER',
+        )
+        member.apply_role_defaults()
+        member.save(update_fields=member.permission_fields)
+        # Keep User.assigned_projects M2M in sync
+        try:
+            self.request.user.assigned_projects.add(project)
+        except Exception:
+            pass  # assigned_projects is optional convenience M2M
 
     @action(detail=True, methods=['get'], url_path='stats')
     def stats(self, request, pk=None):
@@ -293,7 +313,11 @@ class DashboardDataView(APIView):
         if is_admin:
             accessible_projects = HouseProject.objects.all()
         else:
-            accessible_projects = HouseProject.objects.filter(members__user=user).distinct()
+            from django.db.models import Q
+            # Include projects the user is a member of + orphan projects (no members)
+            accessible_projects = HouseProject.objects.filter(
+                Q(members__user=user) | Q(members__isnull=True)
+            ).distinct()
 
         project_id = request.query_params.get('project_id')
         if project_id:
@@ -333,9 +357,10 @@ class DashboardDataView(APIView):
             phase_allocations = PhaseBudgetAllocation.objects.select_related('category', 'phase').all()
             accounts = Account.objects.all()
 
-        contractors = Contractor.objects.filter(current_project=project) if project else Contractor.objects.all()
+        contractors = Contractor.objects.filter(project=project) if project else Contractor.objects.all()
         suppliers = Supplier.objects.filter(project=project) if project else Supplier.objects.all()
-        permits = PermitStep.objects.prefetch_related('documents').all()
+        if not project:
+            permits = PermitStep.objects.prefetch_related('documents').all()
 
         # Admins see all guides, regular users only active ones
         if getattr(request.user, 'is_system_admin', False):

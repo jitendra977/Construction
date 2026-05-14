@@ -24,6 +24,7 @@ def health_check(request):
     return JsonResponse({"status": "ok" if db_ok else "degraded", "db": db_ok}, status=status)
 
 from apps.accounts.views import UserViewSet, RoleViewSet, ActivityLogViewSet
+from apps.attendance.views import nfc_attendance_scan  # backward-compat alias
 from apps.accounts.urls import accounts_urlpatterns, worker_urlpatterns
 from apps.core.views import HouseProjectViewSet, ConstructionPhaseViewSet, PhaseDocumentViewSet, RoomViewSet, FloorViewSet, UserGuideViewSet, UserGuideStepViewSet, UserGuideFAQViewSet, UserGuideSectionViewSet, EmailLogViewSet, DashboardDataView, ProjectMemberViewSet
 from apps.core.gallery_views import GalleryViewSet
@@ -94,6 +95,8 @@ urlpatterns = [
 
     # ── Attendance ────────────────────────────────────────────────────────────
     path('api/v1/attendance/', include('apps.attendance.urls')),
+    # Backward-compat alias: old SW/build cached the URL without the /attendance/ prefix
+    path('api/v1/nfc-attendance/', nfc_attendance_scan, name='nfc-attendance-compat'),
 
     # ── Workforce (includes /workforce/teams/) ────────────────────────────────
     path('api/v1/workforce/', include('apps.workforce.urls')),

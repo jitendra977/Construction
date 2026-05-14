@@ -660,31 +660,35 @@ export const permitCopilotService = {
  */
 export const getMediaUrl = (url) => {
     if (!url) return '';
-    
+
     let path = url;
-    // If it's an absolute URL, check if it's from our system
+
+    // If it's an absolute URL, strip down to the pathname for internal hosts
     if (url.startsWith('http')) {
-        const isInternal = url.includes('nishanaweb.cloud') || url.includes('localhost') || url.includes('127.0.0.1') || url.includes('192.168.');
+        const isInternal = url.includes('nishanaweb.cloud')
+            || url.includes('localhost')
+            || url.includes('127.0.0.1')
+            || url.includes('192.168.');
         if (isInternal) {
-            try {
-                path = new URL(url).pathname;
-            } catch (e) {
-                return url;
-            }
+            try { path = new URL(url).pathname; } catch { return url; }
         } else {
-            return url; // Keep external links as is
+            return url; // external CDN — keep as-is
         }
     }
 
-    // Now 'path' is relative (e.g. /media/...)
+    // 'path' is now relative, e.g. /media/documents/foo.pdf
+
     const isProd = import.meta.env.MODE === 'production';
     if (isProd) {
-        return path; // In prod, let Nginx on main domain handle it
+        // In production Nginx serves /media/ on the same origin — return as-is
+        return path;
     }
 
-    // In local dev, prepend the backend host
-    const base = API_URL.replace('/api/v1', '').replace(/\/$/, '');
-    return `${base}${path}`;
+    // ── Local dev ─────────────────────────────────────────────────────────────
+    // Vite proxies /api and /media to Django (see vite.config.js).
+    // Return a relative URL so the proxy picks it up — works whether Vite is
+    // on port 5173 (HTTP) or using HTTPS with a local-IP cert.
+    return path;
 };
 
 export default api;

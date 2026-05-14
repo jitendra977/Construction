@@ -3,11 +3,113 @@
  * Shown inside PhasesPage when a phase is selected (no modal).
  */
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { constructionService, getMediaUrl } from '../../../services/api';
 import { useConstruction } from '../../../context/ConstructionContext';
 import ConfirmModal from '../../common/ConfirmModal';
 import imageCompression from 'browser-image-compression';
 import workforceService from '../../../services/workforceService';
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * FilePreviewModal
+ * Fullscreen overlay that renders images, PDFs and videos inline.
+ * Other file types get a download button.
+ * ───────────────────────────────────────────────────────────────────────────── */
+function FilePreviewModal({ file, name, onClose }) {
+    const url = getMediaUrl(file);
+    const ext = (file || '').split('.').pop().toLowerCase().split('?')[0];
+    const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(ext);
+    const isPdf   = ext === 'pdf';
+    const isVideo = ['mp4', 'webm', 'ogg', 'mov'].includes(ext);
+
+    // Close on Escape key
+    useEffect(() => {
+        const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+    }, [onClose]);
+
+    const modal = (
+        <div
+            onClick={onClose}
+            style={{
+                position: 'fixed', inset: 0, zIndex: 10001,
+                background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(8px)',
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center',
+            }}
+        >
+            {/* Header */}
+            <div
+                onClick={e => e.stopPropagation()}
+                style={{
+                    width: '100%', maxWidth: 1100, display: 'flex',
+                    alignItems: 'center', justifyContent: 'space-between',
+                    padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)',
+                    background: 'rgba(0,0,0,0.5)',
+                }}
+            >
+                <span style={{ color: '#fff', fontSize: 13, fontWeight: 700, maxWidth: '80%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {name || file?.split('/').pop()}
+                </span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                    <a
+                        href={url} target="_blank" rel="noopener noreferrer"
+                        style={{ padding: '6px 14px', borderRadius: 8, background: '#3b82f6', color: '#fff', fontSize: 11, fontWeight: 700, textDecoration: 'none' }}
+                    >↗ Open in Tab</a>
+                    <a
+                        href={url} download
+                        style={{ padding: '6px 14px', borderRadius: 8, background: 'rgba(255,255,255,0.12)', color: '#fff', fontSize: 11, fontWeight: 700, textDecoration: 'none' }}
+                    >⬇ Download</a>
+                    <button
+                        onClick={onClose}
+                        style={{ width: 32, height: 32, borderRadius: '50%', border: 'none', background: 'rgba(239,68,68,0.7)', color: '#fff', cursor: 'pointer', fontSize: 16, fontWeight: 900 }}
+                    >✕</button>
+                </div>
+            </div>
+
+            {/* Content */}
+            <div
+                onClick={e => e.stopPropagation()}
+                style={{ flex: 1, width: '100%', maxWidth: 1100, minHeight: 0, overflow: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+            >
+                {isImage && (
+                    <img
+                        src={url} alt={name}
+                        style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', borderRadius: 8, boxShadow: '0 4px 40px rgba(0,0,0,0.5)' }}
+                    />
+                )}
+                {isPdf && (
+                    <iframe
+                        src={url}
+                        title={name}
+                        style={{ width: '100%', height: '80vh', border: 'none', borderRadius: 8, background: '#fff' }}
+                    />
+                )}
+                {isVideo && (
+                    <video
+                        src={url} controls autoPlay
+                        style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: 8 }}
+                    />
+                )}
+                {!isImage && !isPdf && !isVideo && (
+                    <div style={{ textAlign: 'center', color: '#fff' }}>
+                        <div style={{ fontSize: 64, marginBottom: 16 }}>📄</div>
+                        <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>{name || file?.split('/').pop()}</div>
+                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 24 }}>
+                            This file type cannot be previewed inline.
+                        </div>
+                        <a
+                            href={url} download
+                            style={{ padding: '12px 24px', borderRadius: 8, background: '#3b82f6', color: '#fff', fontSize: 13, fontWeight: 700, textDecoration: 'none' }}
+                        >⬇ Download File</a>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+    return createPortal(modal, document.body);
+}
 
 /* ── helpers ── */
 const fmt = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'TBD';
@@ -156,8 +258,17 @@ function TaskMiniRow({ task, isSelected, onClick, onTaskClick, canDelete, onDele
 
 /* ── MediaGrid ── */
 function MediaGrid({ media, onUpload, uploading, canUpload, onDelete }) {
+    const [preview, setPreview] = useState(null); // { file, name }
+
     return (
         <div>
+            {preview && (
+                <FilePreviewModal
+                    file={preview.file}
+                    name={preview.name}
+                    onClose={() => setPreview(null)}
+                />
+            )}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                 <SectionHead label={`Evidence / Media (${media.length})`} />
                 {canUpload && (
@@ -183,11 +294,14 @@ function MediaGrid({ media, onUpload, uploading, canUpload, onDelete }) {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                     {media.map(m => (
                         <div key={m.id} style={{ position: 'relative' }}>
-                            <a href={getMediaUrl(m.file)} target="_blank" rel="noopener noreferrer"
+                            <div
+                                onClick={() => setPreview({ file: m.file, name: m.file?.split('/').pop() })}
                                 style={{
                                     display: 'block', aspectRatio: '16/9', borderRadius: 8, overflow: 'hidden',
                                     background: 'var(--t-surface2)', border: '1px solid var(--t-border)',
-                                }}>
+                                    cursor: 'pointer', position: 'relative',
+                                }}
+                            >
                                 {m.media_type?.toUpperCase() === 'IMAGE' ? (
                                     <img src={getMediaUrl(m.file)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                 ) : m.media_type?.toUpperCase() === 'VIDEO' ? (
@@ -199,11 +313,22 @@ function MediaGrid({ media, onUpload, uploading, canUpload, onDelete }) {
                                     }}>
                                         <span style={{ fontSize: 24 }}>📄</span>
                                         <span style={{ fontSize: 9, color: 'var(--t-text3)', fontWeight: 700 }}>
-                                            {m.file.split('/').pop().slice(0, 14)}
+                                            {m.file?.split('/').pop().slice(0, 14)}
                                         </span>
                                     </div>
                                 )}
-                            </a>
+                                {/* Preview hover overlay */}
+                                <div style={{
+                                    position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    opacity: 0, transition: 'opacity 0.15s',
+                                }}
+                                    onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+                                    onMouseLeave={e => e.currentTarget.style.opacity = '0'}
+                                >
+                                    <span style={{ fontSize: 20, color: '#fff', background: 'rgba(0,0,0,0.5)', borderRadius: 8, padding: '6px 10px' }}>👁 Preview</span>
+                                </div>
+                            </div>
                             {onDelete && (
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onDelete(m.id); }}
@@ -264,6 +389,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
     const [showMediaUploadModal, setShowMediaUploadModal] = useState(false);
     const [uploadMediaTaskId, setUploadMediaTaskId] = useState('');
     const [activeTab,      setActiveTab]      = useState('tasks'); // 'tasks' | 'media' | 'materials' | 'assignments'
+    const [previewDoc,     setPreviewDoc]     = useState(null);   // { file, name } for FilePreviewModal
 
     // ── Task management state ──
     const [newTaskTitle,    setNewTaskTitle]    = useState('');
@@ -613,6 +739,14 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
 
     return (
         <div style={{ minHeight: '100%' }}>
+            {/* ── File preview modal (blueprints / structural / media) ── */}
+            {previewDoc && (
+                <FilePreviewModal
+                    file={previewDoc.file}
+                    name={previewDoc.name}
+                    onClose={() => setPreviewDoc(null)}
+                />
+            )}
             {/* ── Breadcrumb bar ── */}
             <div style={{
                 display: 'flex', alignItems: 'center', gap: 10,
@@ -1421,15 +1555,15 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                                                         background: 'var(--t-surface2)', borderRadius: 8,
                                                         border: '1px solid var(--t-border)', position: 'relative'
                                                     }}>
-                                                        <a href={getMediaUrl(doc.file)} target="_blank" rel="noopener noreferrer" style={{ flex: 1, minWidth: 0, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                        <div onClick={() => setPreviewDoc({ file: doc.file, name: doc.name })} style={{ flex: 1, minWidth: 0, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
                                                             <span style={{ fontSize: 24 }}>🗺️</span>
                                                             <div style={{ flex: 1, minWidth: 0 }}>
                                                                 <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--t-text)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                                     {doc.name}
                                                                 </div>
-                                                                <div style={{ fontSize: 9, color: '#f97316', fontWeight: 700 }}>Click to view blueprint</div>
+                                                                <div style={{ fontSize: 9, color: '#f97316', fontWeight: 700 }}>👁 Click to preview blueprint</div>
                                                             </div>
-                                                        </a>
+                                                        </div>
                                                         {canManage && (
                                                             <button onClick={() => handleDocumentDelete(doc.id)} style={{
                                                                 background: 'none', border: 'none', color: '#ef4444',
@@ -1473,15 +1607,15 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                                                         background: 'var(--t-surface2)', borderRadius: 8,
                                                         border: '1px solid var(--t-border)', position: 'relative'
                                                     }}>
-                                                        <a href={getMediaUrl(doc.file)} target="_blank" rel="noopener noreferrer" style={{ flex: 1, minWidth: 0, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                        <div onClick={() => setPreviewDoc({ file: doc.file, name: doc.name })} style={{ flex: 1, minWidth: 0, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
                                                             <span style={{ fontSize: 24 }}>🏗️</span>
                                                             <div style={{ flex: 1, minWidth: 0 }}>
                                                                 <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--t-text)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                                     {doc.name}
                                                                 </div>
-                                                                <div style={{ fontSize: 9, color: '#3b82f6', fontWeight: 700 }}>Click to view structural design</div>
+                                                                <div style={{ fontSize: 9, color: '#3b82f6', fontWeight: 700 }}>👁 Click to preview structural design</div>
                                                             </div>
-                                                        </a>
+                                                        </div>
                                                         {canManage && (
                                                             <button onClick={() => handleDocumentDelete(doc.id)} style={{
                                                                 background: 'none', border: 'none', color: '#ef4444',
@@ -1525,15 +1659,15 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                                                         background: 'var(--t-surface2)', borderRadius: 8,
                                                         border: '1px solid var(--t-border)', position: 'relative'
                                                     }}>
-                                                        <a href={getMediaUrl(doc.file)} target="_blank" rel="noopener noreferrer" style={{ flex: 1, minWidth: 0, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                        <div onClick={() => setPreviewDoc({ file: doc.file, name: doc.name })} style={{ flex: 1, minWidth: 0, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
                                                             <span style={{ fontSize: 24 }}>🧊</span>
                                                             <div style={{ flex: 1, minWidth: 0 }}>
                                                                 <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--t-text)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                                     {doc.name}
                                                                 </div>
-                                                                <div style={{ fontSize: 9, color: '#10b981', fontWeight: 700 }}>Click to view 3D model</div>
+                                                                <div style={{ fontSize: 9, color: '#10b981', fontWeight: 700 }}>👁 Click to preview 3D model</div>
                                                             </div>
-                                                        </a>
+                                                        </div>
                                                         {canManage && (
                                                             <button onClick={() => handleDocumentDelete(doc.id)} style={{
                                                                 background: 'none', border: 'none', color: '#ef4444',

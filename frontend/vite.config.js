@@ -16,12 +16,25 @@ const useHttps = process.env.VITE_HTTPS === 'true'
     && fs.existsSync(certFile)
     && fs.existsSync(keyFile);
 
+// Django backend target for the local dev proxy
+const DJANGO_ORIGIN = process.env.VITE_DJANGO_URL || 'http://localhost:8000';
+
+// ── Proxy rules shared between HTTP and HTTPS modes ───────────────────────────
+// Vite forwards these paths to Django so media files and API calls resolve
+// correctly even when the frontend is served on a different port (5173).
+const proxyConfig = {
+  '/api':   { target: DJANGO_ORIGIN, changeOrigin: true },
+  '/media': { target: DJANGO_ORIGIN, changeOrigin: true },
+  '/admin': { target: DJANGO_ORIGIN, changeOrigin: true },
+};
+
 // https://vite.dev/config/
 export default defineConfig({
   server: useHttps ? {
     https: { cert: fs.readFileSync(certFile), key: fs.readFileSync(keyFile) },
     host: true,   // bind to 0.0.0.0 so LAN devices can reach it
-  } : { host: true },
+    proxy: proxyConfig,
+  } : { host: true, proxy: proxyConfig },
   plugins: [
     react(),
     VitePWA({
