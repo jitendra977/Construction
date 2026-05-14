@@ -662,7 +662,16 @@ export const getMediaUrl = (url) => {
     if (!url) return '';
     if (url.startsWith('http')) return url;
 
-    // API_URL might be "http://localhost:8000/api/v1" or just "/api/v1"
+    // In production, media is served by Nginx on the same domain as the frontend
+    // even if the API is on a subdomain (api.example.com).
+    // Prepending the absolute API base in production would break media links.
+    const isProd = import.meta.env.MODE === 'production';
+    
+    if (isProd) {
+        return url; // Return as relative path (e.g., /media/...)
+    }
+
+    // In local dev, we need to prepend the backend server URL (e.g., http://localhost:8000)
     const base = API_URL.replace('/api/v1', '').replace(/\/$/, '');
     return `${base}${url}`;
 };

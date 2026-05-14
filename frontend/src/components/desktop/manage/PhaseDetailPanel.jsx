@@ -1421,12 +1421,14 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                                                         background: 'var(--t-surface2)', borderRadius: 8,
                                                         border: '1px solid var(--t-border)', position: 'relative'
                                                     }}>
-                                                        <span style={{ fontSize: 24 }}>🗺️</span>
-                                                        <a href={getMediaUrl(doc.file)} target="_blank" rel="noopener noreferrer" style={{ flex: 1, minWidth: 0, textDecoration: 'none' }}>
-                                                            <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--t-text)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                                {doc.name}
+                                                        <a href={getMediaUrl(doc.file)} target="_blank" rel="noopener noreferrer" style={{ flex: 1, minWidth: 0, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                            <span style={{ fontSize: 24 }}>🗺️</span>
+                                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                                <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--t-text)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                    {doc.name}
+                                                                </div>
+                                                                <div style={{ fontSize: 9, color: '#f97316', fontWeight: 700 }}>Click to view blueprint</div>
                                                             </div>
-                                                            <div style={{ fontSize: 9, color: '#f97316', fontWeight: 700 }}>Click to view</div>
                                                         </a>
                                                         {canManage && (
                                                             <button onClick={() => handleDocumentDelete(doc.id)} style={{
@@ -1471,12 +1473,14 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                                                         background: 'var(--t-surface2)', borderRadius: 8,
                                                         border: '1px solid var(--t-border)', position: 'relative'
                                                     }}>
-                                                        <span style={{ fontSize: 24 }}>🏗️</span>
-                                                        <a href={getMediaUrl(doc.file)} target="_blank" rel="noopener noreferrer" style={{ flex: 1, minWidth: 0, textDecoration: 'none' }}>
-                                                            <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--t-text)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                                {doc.name}
+                                                        <a href={getMediaUrl(doc.file)} target="_blank" rel="noopener noreferrer" style={{ flex: 1, minWidth: 0, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                            <span style={{ fontSize: 24 }}>🏗️</span>
+                                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                                <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--t-text)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                    {doc.name}
+                                                                </div>
+                                                                <div style={{ fontSize: 9, color: '#3b82f6', fontWeight: 700 }}>Click to view structural design</div>
                                                             </div>
-                                                            <div style={{ fontSize: 9, color: '#3b82f6', fontWeight: 700 }}>Click to view</div>
                                                         </a>
                                                         {canManage && (
                                                             <button onClick={() => handleDocumentDelete(doc.id)} style={{
@@ -1521,12 +1525,14 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                                                         background: 'var(--t-surface2)', borderRadius: 8,
                                                         border: '1px solid var(--t-border)', position: 'relative'
                                                     }}>
-                                                        <span style={{ fontSize: 24 }}>🧊</span>
-                                                        <a href={getMediaUrl(doc.file)} target="_blank" rel="noopener noreferrer" style={{ flex: 1, minWidth: 0, textDecoration: 'none' }}>
-                                                            <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--t-text)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                                {doc.name}
+                                                        <a href={getMediaUrl(doc.file)} target="_blank" rel="noopener noreferrer" style={{ flex: 1, minWidth: 0, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                            <span style={{ fontSize: 24 }}>🧊</span>
+                                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                                <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--t-text)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                    {doc.name}
+                                                                </div>
+                                                                <div style={{ fontSize: 9, color: '#10b981', fontWeight: 700 }}>Click to view 3D model</div>
                                                             </div>
-                                                            <div style={{ fontSize: 9, color: '#10b981', fontWeight: 700 }}>Click to view</div>
                                                         </a>
                                                         {canManage && (
                                                             <button onClick={() => handleDocumentDelete(doc.id)} style={{
