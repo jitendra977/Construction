@@ -828,14 +828,14 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '', initialViewMode = '
                                     <select
                                         value={formData.contractor || ''}
                                         onChange={e => {
-                                            const c = dashboardData.contractors?.find(con => con.id === parseInt(e.target.value));
+                                            const c = dashboardData.contractors?.find(con => con.id === e.target.value);
                                             setFormData({ ...formData, contractor: e.target.value, paid_to: c ? (c.display_name || c.name) : formData.paid_to });
                                         }}
                                         className="w-full rounded-2xl border-[var(--t-border)] bg-[var(--t-surface2)] shadow-sm focus:ring-4 focus:ring-[var(--t-primary)]/10 focus:border-[var(--t-primary)] p-4 border outline-none appearance-none font-bold"
                                     >
-                                        <option value="">Select Contractor</option>
+                                        <option value="">Select Team Member</option>
                                         {dashboardData.contractors?.map(c => (
-                                            <option key={c.id} value={c.id}>{c.display_name || c.name} ({c.role})</option>
+                                            <option key={c.id} value={c.id}>{c.display_name || c.name} ({c.worker_type})</option>
                                         ))}
                                     </select>
                                     <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--t-text3)]">

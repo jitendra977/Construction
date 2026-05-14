@@ -11,13 +11,14 @@ from apps.core.mixins import ProjectScopedMixin
 from apps.tasks.models import Task
 from apps.tasks.serializers import TaskSerializer
 from apps.resource.models import Material, Supplier, StockMovement as MaterialTransaction
-from apps.resources.models import Document, Contractor
+from apps.resources.models import Document
 from apps.workforce.models import WorkforceMember
 from apps.accounting.models.payables import Vendor
 from apps.resource.serializers.material import MaterialSerializer
 from apps.resource.serializers.supplier import SupplierSerializer
 from apps.resource.serializers.purchase import StockMovementSerializer as MaterialTransactionSerializer
-from apps.resources.serializers import DocumentSerializer, ContractorSerializer
+from apps.resources.serializers import DocumentSerializer
+from apps.tasks.serializers import AssignedMemberSerializer as WorkforceMemberBriefSerializer
 from apps.permits.models import PermitStep
 from apps.permits.serializers import PermitStepSerializer
 
@@ -110,9 +111,9 @@ class HouseProjectViewSet(viewsets.ModelViewSet):
         material_count    = 0
         contractor_count  = 0
         try:
-            from apps.resources.models import Material, Contractor
+            from apps.resources.models import Material
             material_count   = Material.objects.filter(project=project).count()
-            contractor_count = Contractor.objects.filter(project=project).count()
+            contractor_count = WorkforceMember.objects.filter(current_project=project).count()
         except Exception:
             pass
 
@@ -357,7 +358,11 @@ class DashboardDataView(APIView):
             phase_allocations = PhaseBudgetAllocation.objects.select_related('category', 'phase').all()
             accounts = Account.objects.all()
 
-        contractors = Contractor.objects.filter(project=project) if project else Contractor.objects.all()
+        contractors = (
+            WorkforceMember.objects.filter(current_project=project, status='ACTIVE')
+            if project else
+            WorkforceMember.objects.filter(status='ACTIVE')
+        )
         suppliers = Supplier.objects.filter(project=project) if project else Supplier.objects.all()
         if not project:
             permits = PermitStep.objects.prefetch_related('documents').all()
@@ -404,7 +409,7 @@ class DashboardDataView(APIView):
             'expenses': ExpenseSerializer(expenses, many=True, context=ctx).data,
             'floors': FloorSerializer(floors, many=True, context=ctx).data,
             'materials': MaterialSerializer(materials, many=True, context=ctx).data,
-            'contractors': ContractorSerializer(contractors, many=True, context=ctx).data,
+            'contractors': WorkforceMemberBriefSerializer(contractors, many=True, context=ctx).data,
             'budgetCategories': BudgetCategorySerializer(budget_categories, many=True, context=ctx).data,
             'suppliers': SupplierSerializer(suppliers, many=True, context=ctx).data,
             'transactions': MaterialTransactionSerializer(transactions, many=True, context=ctx).data,

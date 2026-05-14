@@ -1,6 +1,6 @@
 from django.db import models
 from apps.core.models import ConstructionPhase, Room
-from apps.resources.models import Contractor, Document
+from apps.resources.models import Document
 
 class Task(models.Model):
     """
@@ -26,7 +26,7 @@ class Task(models.Model):
     category = models.ForeignKey('finance.BudgetCategory', on_delete=models.PROTECT, null=True, blank=True, related_name='tasks', help_text="Finance category this task belongs to")
     phase = models.ForeignKey(ConstructionPhase, on_delete=models.CASCADE, related_name='tasks')
     room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True, related_name='tasks')
-    assigned_to = models.ForeignKey(Contractor, on_delete=models.SET_NULL, null=True, blank=True, related_name='tasks')
+    assigned_to = models.ForeignKey('workforce.WorkforceMember', on_delete=models.SET_NULL, null=True, blank=True, related_name='tasks')
     
     blocked_by = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='blocking_tasks', help_text="This task cannot be completed until the blocked_by task is completed.")
     

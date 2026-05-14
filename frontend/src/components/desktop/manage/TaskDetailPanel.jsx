@@ -374,8 +374,8 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                                     </select>
                                 </div>
                                 <div>
-                                    <label style={{ fontSize: 9, fontWeight: 800, color: 'var(--t-text3)', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Contractor</label>
-                                    <select style={inp} value={formData.assigned_to || ''} onChange={e => setFormData(f => ({ ...f, assigned_to: e.target.value ? parseInt(e.target.value) : null }))}>
+                                    <label style={{ fontSize: 9, fontWeight: 800, color: 'var(--t-text3)', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Team Member</label>
+                                    <select style={inp} value={formData.assigned_to || ''} onChange={e => setFormData(f => ({ ...f, assigned_to: e.target.value || null }))}>
                                         <option value="">Unassigned</option>
                                         {(dashboardData.contractors || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                     </select>

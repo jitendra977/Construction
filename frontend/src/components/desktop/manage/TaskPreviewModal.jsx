@@ -286,11 +286,11 @@ const TaskPreviewModal = ({ isOpen, onClose, task, initialMode = 'read' }) => {
                         )}
                     </div>
                     <div className="bg-[var(--t-surface2)] rounded-xl p-3 border border-[var(--t-border)]">
-                        <div className="text-[9px] font-black text-[var(--t-text3)] uppercase tracking-widest mb-1">Contractor</div>
+                        <div className="text-[9px] font-black text-[var(--t-text3)] uppercase tracking-widest mb-1">Team Member</div>
                         {isEditing ? (
-                            <select 
+                            <select
                                 value={formData.assigned_to || ''}
-                                onChange={(e) => setFormData({...formData, assigned_to: parseInt(e.target.value)})}
+                                onChange={(e) => setFormData({...formData, assigned_to: e.target.value || null})}
                                 className="w-full text-xs font-bold bg-transparent outline-none"
                             >
                                 <option value="">Unassigned</option>
