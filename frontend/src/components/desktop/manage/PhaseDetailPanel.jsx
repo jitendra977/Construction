@@ -230,7 +230,8 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
     const {
         updatePhase, updateTask, createExpense, deleteExpense, updateExpense,
         createMaterialTransaction, refreshData, dashboardData, formatCurrency,
-        deleteTask, deleteTaskMedia, createTask, user
+        deleteTask, deleteTaskMedia, createTask, user,
+        uploadPhaseDocument, deletePhaseDocument
     } = useConstruction();
 
     const canManage = user?.is_system_admin || user?.can_manage_phases;
@@ -440,7 +441,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                 fd.append('phase', phase.id);
                 fd.append('document_type', documentType);
                 fd.append('file', files[i]);
-                await constructionService.uploadPhaseDocument(fd);
+                await uploadPhaseDocument(fd);
             }
             refreshData();
             setConfirmCfg({
@@ -478,7 +479,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                 setConfirmCfg(c => ({ ...c, isOpen: false }));
                 setSaving(true);
                 try {
-                    await constructionService.deletePhaseDocument(docId);
+                    await deletePhaseDocument(docId);
                     refreshData();
                 } catch (err) {
                     console.error(err);

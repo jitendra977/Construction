@@ -607,6 +607,8 @@ export const ConstructionProvider = ({ children }) => {
         createMaterialTransaction,
         updateProfile,
         updateGuideProgress,
+        uploadPhaseDocument: constructionService.uploadPhaseDocument,
+        deletePhaseDocument: constructionService.deletePhaseDocument,
         isCalculatorOpen,
         setIsCalculatorOpen: (val) => setIsCalculatorOpen(val),
         toggleCalculator: () => setIsCalculatorOpen(prev => !prev),
