@@ -655,6 +655,18 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
     const handleCreateAssignment = async (e) => {
         e.preventDefault();
         if (!selMember) return;
+
+        // ── Duplicate guard ──────────────────────────────────────────────────
+        // Prevent adding the same worker to the same phase+task slot twice.
+        const isDuplicate = phaseAssignments.some(a =>
+            String(a.worker) === String(selMember) &&
+            String(a.task || '') === String(selTask || '')
+        );
+        if (isDuplicate) {
+            alert('This worker is already assigned to this phase / task.');
+            return;
+        }
+
         setSaving(true);
         try {
             // Creating a WorkerAssignment auto-sets current_project on the worker

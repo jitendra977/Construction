@@ -19,6 +19,62 @@ class TaskViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, CanManagePhases]
     project_field = 'phase__project'
 
+    # ── sync helpers ──────────────────────────────────────────────────────────
+
+    def _sync_worker_assignment(self, task):
+        """
+        When Task.assigned_to is set (via create or update), ensure the
+        Phase Workforce tab reflects the same person:
+
+        1. Delete any WorkerAssignment for this task that references a
+           DIFFERENT worker — stale rows from a previous assignment.
+        2. Create one for the current worker if none exists yet.
+
+        This is the reverse bridge of WorkerAssignmentViewSet._sync_task_assignment().
+        """
+        if not task.assigned_to_id:
+            return
+        try:
+            from apps.workforce.models import WorkerAssignment
+            from django.utils import timezone
+
+            phase   = task.phase
+            project = phase.project
+            worker  = task.assigned_to
+            today   = task.start_date or timezone.now().date()
+
+            # ① Remove stale assignments (old worker replaced by new one)
+            WorkerAssignment.objects.filter(task=task).exclude(worker=worker).delete()
+
+            # ② Ensure exactly one assignment exists for the current worker
+            WorkerAssignment.objects.get_or_create(
+                task=task,
+                worker=worker,
+                defaults={
+                    'project':     project,
+                    'phase':       phase,
+                    'status':      'active',
+                    'start_date':  today,
+                    'assigned_by': getattr(self.request, 'user', None),
+                },
+            )
+
+            # ③ Ensure worker is linked to the project
+            if not worker.current_project_id:
+                worker.current_project = project
+                worker.save(update_fields=['current_project'])
+        except Exception:
+            # Never let a sync error break the task save
+            pass
+
+    def perform_create(self, serializer):
+        task = serializer.save()
+        self._sync_worker_assignment(task)
+
+    def perform_update(self, serializer):
+        task = serializer.save()
+        self._sync_worker_assignment(task)
+
     def get_queryset(self):
         qs = super().get_queryset()
         phase_id = self.request.query_params.get('phase')
