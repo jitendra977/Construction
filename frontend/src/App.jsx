@@ -8,14 +8,16 @@ import { ThemeProvider } from './context/ThemeContext';
 import SathiButton from './components/assistant/SathiButton';
 import OfflineStatus from './components/common/OfflineStatus';
 
+import { lazyWithRetry } from './utils/lazyRetry';
+
 // Lazy load dashboard components
-const DesktopDashboard = lazy(() => import('./pages/desktop/DesktopDashboard'));
-const MobileDashboard = lazy(() => import('./pages/mobile/MobileDashboard'));
-const DesktopRoutes = lazy(() => import('./routes/desktop/DesktopRoutes'));
-const MobileRoutes = lazy(() => import('./routes/mobile/MobileRoutes'));
-const AboutDeveloper = lazy(() => import('./pages/desktop/AboutDeveloper'));
-const WorkerPortal      = lazy(() => import('./modules/worker/WorkerPortal'));
-const AttendanceKiosk   = lazy(() => import('./modules/attendance/AttendanceKiosk'));
+const DesktopDashboard = lazyWithRetry(() => import('./pages/desktop/DesktopDashboard'));
+const MobileDashboard = lazyWithRetry(() => import('./pages/mobile/MobileDashboard'));
+const DesktopRoutes = lazyWithRetry(() => import('./routes/desktop/DesktopRoutes'));
+const MobileRoutes = lazyWithRetry(() => import('./routes/mobile/MobileRoutes'));
+const AboutDeveloper = lazyWithRetry(() => import('./pages/desktop/AboutDeveloper'));
+const WorkerPortal      = lazyWithRetry(() => import('./modules/worker/WorkerPortal'));
+const AttendanceKiosk   = lazyWithRetry(() => import('./modules/attendance/AttendanceKiosk'));
 
 const LoadingFallback = () => (
   <div className="flex justify-center items-center h-screen bg-[var(--t-bg)]">
