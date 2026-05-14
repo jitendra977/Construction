@@ -148,10 +148,11 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
     const pm   = PRIORITY_META[task.priority] || PRIORITY_META.MEDIUM;
     const dl   = daysLeft(task.due_date);
     const overdue = dl !== null && dl < 0 && task.status !== 'COMPLETED';
-    const phase = (dashboardData.phases    || []).find(p => p.id === task.phase);
-    const contractor = (dashboardData.contractors || []).find(c => c.id === task.assigned_to);
-    const room  = (dashboardData.rooms     || []).find(r => r.id === task.room);
-    const cat   = (dashboardData.budgetCategories || []).find(c => c.id === task.category);
+    const phase      = (dashboardData.phases         || []).find(p => p.id === task.phase);
+    const assignedMember = task.assigned_to_detail   // already embedded in task from API
+        || (dashboardData.contractors || []).find(c => String(c.id) === String(task.assigned_to));
+    const room       = (dashboardData.rooms          || []).find(r => r.id === task.room);
+    const cat        = (dashboardData.budgetCategories || []).find(c => c.id === task.category);
 
     const STATUS_STATUSES  = ['PENDING', 'IN_PROGRESS', 'BLOCKED', 'COMPLETED'];
     const PRIORITY_LEVELS  = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
@@ -403,7 +404,13 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                                 >
                                     <MetaCard label="Phase" value={phase ? `📋 ${phase.name}` : 'Unknown'} accent={onPhaseClick && phase ? '#f97316' : undefined} />
                                 </div>
-                                <MetaCard label="Contractor" value={contractor ? `👤 ${contractor.name}` : 'Unassigned'} />
+                                <MetaCard
+                                    label="Assigned Worker"
+                                    value={assignedMember
+                                        ? `👤 ${assignedMember.name}${assignedMember.employee_id ? ` · ${assignedMember.employee_id}` : ''}`
+                                        : 'Unassigned'}
+                                    accent={assignedMember ? '#3b82f6' : undefined}
+                                />
                                 <MetaCard label="Location" value={room ? `📍 ${room.name}` : 'General Area'} />
                                 <MetaCard label="Category" value={cat?.name || 'N/A'} />
                             </div>

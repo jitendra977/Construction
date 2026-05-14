@@ -49,7 +49,12 @@ const TaskPreviewModal = ({ isOpen, onClose, task, initialMode = 'read' }) => {
     const body = { fontFamily: 'var(--f-body)' };
 
     const getPhaseName = (id) => dashboardData.phases?.find(p => p.id === id)?.name || 'Unknown Phase';
-    const getContractorName = (id) => dashboardData.contractors?.find(c => c.id === id)?.name || 'Unassigned';
+    const getContractorName = (id) => {
+        if (!id) return 'Unassigned';
+        // Use embedded detail first, then fall back to dashboard lookup
+        if (task?.assigned_to_detail?.name) return task.assigned_to_detail.name;
+        return dashboardData.contractors?.find(c => String(c.id) === String(id))?.name || 'Unassigned';
+    };
 
     const getStatusStyle = (status) => {
         switch (status) {
