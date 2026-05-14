@@ -86,10 +86,14 @@ function FlyTo({ center }) {
     return null;
 }
 
-function ClickCapture({ onMapClick, active }) {
+// active  = always true (captures deselect clicks)
+// showCrosshair = only in pin-placement mode
+function ClickCapture({ onMapClick, showCrosshair }) {
     const map = useMap();
-    useEffect(() => { map.getContainer().style.cursor = active ? 'crosshair' : ''; }, [active, map]);
-    useMapEvents({ click(e) { if (active) onMapClick(e.latlng); } });
+    useEffect(() => {
+        map.getContainer().style.cursor = showCrosshair ? 'crosshair' : '';
+    }, [showCrosshair, map]);
+    useMapEvents({ click(e) { onMapClick(e.latlng); } });
     return null;
 }
 
@@ -202,10 +206,12 @@ function AddPinForm({ latlng, projectId, onSave, onCancel }) {
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 export default function LiveSiteMap({ projectId }) {
-    const navigate = useNavigate();
-    const match    = useMatch('/dashboard/desktop/location/*');
-    const base     = match ? match.pathnameBase : '/dashboard/desktop/location';
-    const goTo     = (tab) => navigate(`${base}/${tab}`, { replace: false });
+    const navigate      = useNavigate();
+    const desktopMatch  = useMatch('/dashboard/desktop/location/*');
+    const mobileMatch   = useMatch('/dashboard/mobile/location/*');
+    const match         = desktopMatch || mobileMatch;
+    const base          = match ? match.pathnameBase : '/dashboard/desktop/location';
+    const goTo          = (tab) => navigate(`${base}/${tab}`, { replace: false });
 
     const {
         geofences, pins,
@@ -399,7 +405,7 @@ export default function LiveSiteMap({ projectId }) {
                             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                         />
-                        <ClickCapture onMapClick={handleMapClick} active={pinMode || true} />
+                        <ClickCapture onMapClick={handleMapClick} showCrosshair={pinMode} />
                         {flyTarget && <FlyTo center={flyTarget} />}
 
                         {/* Geofence zones */}
@@ -693,10 +699,10 @@ export default function LiveSiteMap({ projectId }) {
                     {/* Summary footer */}
                     <div className="border-t border-gray-100 p-3 grid grid-cols-4 gap-2 shrink-0 bg-gray-50">
                         {[
-                            { label: 'On-Site', value: livePositions.filter(w => !w.is_off_site).length, color: 'text-emerald-600' },
-                            { label: 'Off-Site', value: livePositions.filter(w => w.is_off_site).length, color: 'text-gray-500' },
-                            { label: 'Zones',   value: projectGeofences.length, color: 'text-indigo-600' },
-                            { label: 'Pins',    value: projectPins.length, color: 'text-amber-600' },
+                            { label: 'On-Site', value: livePositions.length,                                 color: 'text-emerald-600' },
+                            { label: 'No GPS',  value: livePositions.filter(w => w.latitude == null).length, color: 'text-yellow-500'  },
+                            { label: 'Zones',   value: projectGeofences.length,                              color: 'text-indigo-600'  },
+                            { label: 'Pins',    value: projectPins.length,                                   color: 'text-amber-600'   },
                         ].map(s => (
                             <div key={s.label} className="text-center">
                                 <div className={`text-lg font-black ${s.color}`}>{s.value}</div>

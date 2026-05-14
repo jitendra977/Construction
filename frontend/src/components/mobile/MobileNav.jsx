@@ -8,6 +8,7 @@ import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { authService } from '../../services/auth';
 import ThemeToggle from '../common/ThemeToggle';
+import { useMobileTracker } from '../../modules/location/context/MobileTrackerContext';
 
 const BASE = '/dashboard/mobile';
 
@@ -48,8 +49,9 @@ const SECTIONS = [
         label: 'Team & HR',
         color: '#f59e0b',
         items: [
-            { id: 'attendance', icon: '👷', label: 'Workforce' },
-            { id: 'location',   icon: '📍', label: 'Location'  },
+            { id: 'attendance', icon: '👷', label: 'Workforce'  },
+            { id: 'tracking',   icon: '📍', label: 'My GPS'     },
+            { id: 'location',   icon: '🗺️', label: 'Site Map'  },
         ],
     },
     {
@@ -78,19 +80,61 @@ const SECTIONS = [
     },
 ];
 
+// ── GPS status dot (reads MobileTrackerContext) ───────────────────────────────
+const GPS_DOT = {
+    idle:      { color: '#9ca3af', pulse: false, title: 'GPS idle'      },
+    tracking:  { color: '#3b82f6', pulse: true,  title: 'GPS tracking'  },
+    on_site:   { color: '#10b981', pulse: true,  title: 'On-site ✓'    },
+    off_site:  { color: '#6b7280', pulse: false, title: 'Off-site'      },
+    error:     { color: '#ef4444', pulse: false, title: 'GPS error'     },
+};
+
+function GPSStatusDot() {
+    const tracker = useMobileTracker();
+    if (!tracker || tracker.status === 'idle') return null;
+
+    const cfg = GPS_DOT[tracker.status] || GPS_DOT.idle;
+
+    return (
+        <div
+            className="absolute -top-1 -right-1 flex items-center justify-center"
+            title={cfg.title}
+            style={{ zIndex: 10 }}
+        >
+            <span
+                className="relative flex h-2.5 w-2.5"
+            >
+                {cfg.pulse && (
+                    <span
+                        className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-50"
+                        style={{ background: cfg.color }}
+                    />
+                )}
+                <span
+                    className="relative inline-flex rounded-full h-2.5 w-2.5 border border-white"
+                    style={{ background: cfg.color }}
+                />
+            </span>
+        </div>
+    );
+}
+
 // ── NavLink tab ───────────────────────────────────────────────────────────────
-function Tab({ id, icon, label }) {
+function Tab({ id, icon, label, showGpsDot = false }) {
     return (
         <NavLink
             to={`${BASE}/${id}`}
-            className="flex-1 flex flex-col items-center justify-center gap-0.5 transition-all py-1"
+            className="flex-1 flex flex-col items-center justify-center gap-0.5 transition-all py-1 relative"
             style={({ isActive }) => ({
                 color:     isActive ? 'var(--t-primary)' : 'var(--t-text3)',
                 transform: isActive ? 'scale(1.12)'      : 'scale(1)',
                 filter:    isActive ? 'drop-shadow(0 0 6px var(--t-primary))' : 'none',
             })}
         >
-            <span className="text-xl leading-none">{icon}</span>
+            <span className="text-xl leading-none relative">
+                {icon}
+                {showGpsDot && <GPSStatusDot />}
+            </span>
             <span className="text-[7px] font-bold uppercase tracking-widest">{label}</span>
         </NavLink>
     );
@@ -187,7 +231,13 @@ export default function MobileNav() {
                         boxShadow:       '0 -8px 40px rgba(0,0,0,0.15)',
                     }}>
 
-                    {PRIMARY.map((item) => <Tab key={item.id} {...item} />)}
+                    {PRIMARY.map((item) => (
+                        <Tab
+                            key={item.id}
+                            {...item}
+                            showGpsDot={item.id === 'home'}
+                        />
+                    ))}
 
                     <div className="w-px h-8 mx-1 shrink-0" style={{ background: 'var(--t-border)' }} />
 

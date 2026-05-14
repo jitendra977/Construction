@@ -31,6 +31,8 @@ import logging
 import sys
 import time
 import uuid
+import signal
+import os
 
 from django.core.management.base import BaseCommand, CommandParser
 

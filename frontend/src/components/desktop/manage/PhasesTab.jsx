@@ -651,27 +651,45 @@ function SummaryBar({ phases, tasks }) {
 }
 
 /* ─── AddPhaseForm ───────────────────────────────────────────────────────── */
-function AddPhaseForm({ phaseCount, onCreated, onCancel }) {
+function AddPhaseForm({ phaseCount, projectId, onCreated, onCancel }) {
     const [form, setForm] = useState({
         name: '', status: 'PENDING',
         start_date: '', end_date: '',
         estimated_budget: '', description: '',
     });
-    const [busy, setBusy] = useState(false);
+    const [busy,   setBusy]   = useState(false);
+    const [errMsg, setErrMsg] = useState('');
     const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
     const submit = async (e) => {
         e.preventDefault();
         if (!form.name.trim()) return;
+        if (!projectId) { setErrMsg('No active project selected.'); return; }
         setBusy(true);
+        setErrMsg('');
         try {
             const phase = await constructionService.createPhase({
-                ...form,
-                order: phaseCount + 1,
+                name:             form.name.trim(),
+                status:           form.status,
+                description:      form.description,
+                order:            phaseCount + 1,
                 estimated_budget: form.estimated_budget || 0,
+                start_date:       form.start_date || null,
+                end_date:         form.end_date   || null,
+                project:          parseInt(projectId),
             });
             onCreated(phase);
-        } catch { /* silent */ }
+        } catch (err) {
+            const data = err?.response?.data;
+            if (data && typeof data === 'object') {
+                const msgs = Object.entries(data)
+                    .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
+                    .join(' | ');
+                setErrMsg(msgs);
+            } else {
+                setErrMsg('Failed to create phase. Please try again.');
+            }
+        }
         finally { setBusy(false); }
     };
 
@@ -722,6 +740,15 @@ function AddPhaseForm({ phaseCount, onCreated, onCancel }) {
                         value={form.description} onChange={e => set('description', e.target.value)} />
                 </div>
             </div>
+            {errMsg && (
+                <div style={{
+                    marginBottom: 10, padding: '8px 12px', borderRadius: 7, fontSize: 11,
+                    background: '#ef444415', color: '#ef4444',
+                    border: '1px solid #ef444430', fontWeight: 600,
+                }}>
+                    ⚠ {errMsg}
+                </div>
+            )}
             <div style={{ display: 'flex', gap: 8 }}>
                 <button type="submit" disabled={busy || !form.name.trim()} style={{
                     padding: '8px 22px', borderRadius: 8, fontWeight: 800, fontSize: 12,
@@ -886,6 +913,7 @@ const PhasesTab = ({ searchQuery = '', onPhaseClick, onTaskClick }) => {
             {showAddPhase && (
                 <AddPhaseForm
                     phaseCount={phases.length}
+                    projectId={activeProjectId}
                     onCreated={handlePhaseCreated}
                     onCancel={() => setShowAddPhase(false)}
                 />

@@ -6,7 +6,7 @@ import { useConstruction } from '../../context/ConstructionContext';
 import MobileHeader    from '../../components/mobile/MobileHeader';
 import MobileNav       from '../../components/mobile/MobileNav';
 import HouseConfigModal from '../../components/common/HouseConfigModal';
-import useGPSBackgroundTracker from '../../modules/location/hooks/useGPSBackgroundTracker';
+import { MobileTrackerProvider } from '../../modules/location/context/MobileTrackerContext';
 
 /**
  * Module routes have their own layout/header — don't show the mobile shell
@@ -19,13 +19,10 @@ const MODULE_PREFIXES = [
 ];
 
 function MobileDashboard() {
-    const { loading, dashboardData, stats } = useConstruction();
+    const { loading, dashboardData, stats, activeProjectId } = useConstruction();
     const [showConfigModal, setShowConfigModal] = useState(false);
     const navigate  = useNavigate();
     const location  = useLocation();
-
-    // Start background GPS tracking automatically for mobile dashboard users
-    useGPSBackgroundTracker(true);
 
     const handleLogout = async () => {
         await authService.logout();
@@ -51,34 +48,38 @@ function MobileDashboard() {
     const isModule = MODULE_PREFIXES.some(p => subPath.startsWith(p));
 
     return (
-        <div className="min-h-screen bg-[var(--t-bg)] overflow-x-hidden transition-colors duration-500">
+        // MobileTrackerProvider starts GPS tracking as soon as the user is on mobile.
+        // projectId can be null initially — the tracker waits until it is set.
+        <MobileTrackerProvider projectId={activeProjectId}>
+            <div className="min-h-screen bg-[var(--t-bg)] overflow-x-hidden transition-colors duration-500">
 
-            {/* Shell header — hidden on home (HomeTab has its own) and inside modules */}
-            {!isHome && !isModule && (
-                <MobileHeader
-                    project={dashboardData?.project}
-                    stats={stats ?? []}
-                    onLogout={handleLogout}
-                    onShowConfig={() => setShowConfigModal(true)}
-                />
-            )}
+                {/* Shell header — hidden on home (HomeTab has its own) and inside modules */}
+                {!isHome && !isModule && (
+                    <MobileHeader
+                        project={dashboardData?.project}
+                        stats={stats ?? []}
+                        onLogout={handleLogout}
+                        onShowConfig={() => setShowConfigModal(true)}
+                    />
+                )}
 
-            {/*
-             * Main content:
-             *  - Home / plain pages: no extra top margin (MobileLayout / HomeTab handle it)
-             *  - Module pages: pt-0 — their own sticky header sits at the very top.
-             *    pb-24 ensures content clears the fixed bottom nav.
-             */}
-            <main className={isModule ? 'pb-24' : ''}>
-                <Outlet />
-            </main>
+                {/*
+                 * Main content:
+                 *  - Home / plain pages: no extra top margin (MobileLayout / HomeTab handle it)
+                 *  - Module pages: pt-0 — their own sticky header sits at the very top.
+                 *    pb-24 ensures content clears the fixed bottom nav.
+                 */}
+                <main className={isModule ? 'pb-24' : ''}>
+                    <Outlet />
+                </main>
 
-            <MobileNav />
+                <MobileNav />
 
-            {showConfigModal && (
-                <HouseConfigModal onClose={() => setShowConfigModal(false)} />
-            )}
-        </div>
+                {showConfigModal && (
+                    <HouseConfigModal onClose={() => setShowConfigModal(false)} />
+                )}
+            </div>
+        </MobileTrackerProvider>
     );
 }
 

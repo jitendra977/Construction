@@ -26,7 +26,8 @@ import ResourceRoutes  from '../../modules/resource';
 import StructureRoutes from '../../modules/structure';
 import TimelineRoutes  from '../../modules/timeline';
 import AccountsRoutes  from '../../modules/accounts';
-import LocationRoutes  from '../../modules/location/LocationRoutes';
+import LocationRoutes    from '../../modules/location/LocationRoutes';
+import MobileTrackingPage from '../../modules/location/pages/MobileTrackingPage';
 
 import { useConstruction } from '../../context/ConstructionContext';
 
@@ -63,6 +64,8 @@ const MobileRoutes = () => {
             <Route path="structure/*"  element={<StructureRoutes projectId={activeProjectId} />}     />
             <Route path="timeline/*"   element={<TimelineRoutes />}                                  />
             <Route path="accounts/*"   element={<AccountsRoutes />}                                  />
+            {/* Worker's own GPS status page — no map, just on-site indicator */}
+            <Route path="tracking"     element={<MobileTrackingPage />}                               />
             <Route path="location/*"   element={<LocationRoutes projectId={activeProjectId} />}      />
 
             {/* ── Legacy redirects ───────────────────────────────────────── */}

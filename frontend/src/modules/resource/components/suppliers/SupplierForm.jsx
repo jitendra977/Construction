@@ -3,8 +3,7 @@ import resourceApi from '../../services/resourceApi';
 import { useResource } from '../../context/ResourceContext';
 
 const SPECIALTIES = [
-  'CEMENT', 'STEEL', 'SAND', 'BRICK', 'WOOD',
-  'ELECTRICAL', 'PLUMBING', 'HARDWARE', 'PAINT', 'EQUIPMENT', 'GENERAL',
+  'Materials', 'Equipment', 'Labor', 'General'
 ];
 
 export default function SupplierForm({ supplier, onDone }) {
@@ -17,7 +16,7 @@ export default function SupplierForm({ supplier, onDone }) {
     phone:          supplier?.phone          || '',
     email:          supplier?.email          || '',
     address:        supplier?.address        || '',
-    specialty:      supplier?.specialty      || 'GENERAL',
+    specialty:      supplier?.specialty      || 'General',
     notes:          supplier?.notes          || '',
   });
   const [saving, setSaving] = useState(false);

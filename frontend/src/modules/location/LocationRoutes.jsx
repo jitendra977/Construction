@@ -3,9 +3,13 @@ import { Routes, Route, Navigate, NavLink, useMatch } from 'react-router-dom';
 import { LocationProvider, GeofenceConfigPage, LiveSiteMap, PresenceReports } from './index';
 
 function LocationLayout({ projectId }) {
-    // Get the absolute base path (e.g. "/dashboard/desktop/location")
-    const match = useMatch('/dashboard/desktop/location/*');
-    const base  = match ? match.pathnameBase : '/dashboard/desktop/location';
+    // Support both desktop (/dashboard/desktop/…) and mobile (/dashboard/mobile/…)
+    const desktopMatch = useMatch('/dashboard/desktop/location/*');
+    const mobileMatch  = useMatch('/dashboard/mobile/location/*');
+    const match = desktopMatch || mobileMatch;
+    const base  = match
+        ? match.pathnameBase
+        : '/dashboard/desktop/location';   // safe fallback
 
     const tabs = [
         { path: `${base}/live`,     label: '🗺 Live Map'   },
