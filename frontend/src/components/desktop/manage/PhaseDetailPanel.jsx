@@ -1394,12 +1394,30 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                                             <tr><td colSpan={4} style={{ padding: '24px', textAlign: 'center', fontSize: 12, color: 'var(--t-text3)', fontStyle: 'italic' }}>
                                                 No workers assigned to this phase yet
                                             </td></tr>
-                                        ) : phaseAssignments.map(a => {
+                                        ) : (() => {
+                                            // Build a map: taskId → count of workers assigned to that task
+                                            // Used to show "Team" badge when 2+ workers share the same task
+                                            const taskWorkerCount = {};
+                                            phaseAssignments.forEach(a => {
+                                                if (a.task) taskWorkerCount[a.task] = (taskWorkerCount[a.task] || 0) + 1;
+                                            });
+                                            return phaseAssignments.map(a => {
                                             const isEditingThis = editingAssignId === a.id;
+                                            const workerCountForTask = a.task ? (taskWorkerCount[a.task] || 1) : 1;
+                                            const isTeam = workerCountForTask > 1;
                                             return (
-                                                <tr key={a.id} style={{ borderBottom: '1px solid var(--t-border)', background: isEditingThis ? 'rgba(249,115,22,0.03)' : 'transparent' }}>
+                                                <tr key={a.id} style={{ borderBottom: '1px solid var(--t-border)', background: isEditingThis ? 'rgba(249,115,22,0.03)' : isTeam ? 'rgba(139,92,246,0.03)' : 'transparent' }}>
                                                     <td style={{ padding: '10px 14px' }}>
-                                                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text)' }}>{a.worker_name || a.worker}</div>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text)' }}>{a.worker_name || a.worker}</span>
+                                                            {isTeam && (
+                                                                <span style={{
+                                                                    fontSize: 9, fontWeight: 800, padding: '1px 5px', borderRadius: 4,
+                                                                    background: 'rgba(139,92,246,0.12)', color: '#8b5cf6',
+                                                                    border: '1px solid rgba(139,92,246,0.25)', textTransform: 'uppercase',
+                                                                }}>Team</span>
+                                                            )}
+                                                        </div>
                                                         <div style={{ fontSize: 10, color: 'var(--t-text3)' }}>
                                                             {isEditingThis ? (
                                                                 <input
@@ -1426,7 +1444,14 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                                                                 ))}
                                                             </select>
                                                         ) : (
-                                                            a.task_name || '—'
+                                                            <span>
+                                                                {a.task_name || '—'}
+                                                                {isTeam && (
+                                                                    <span style={{ marginLeft: 4, fontSize: 9, fontWeight: 800, color: '#8b5cf6' }}>
+                                                                        ({workerCountForTask} workers)
+                                                                    </span>
+                                                                )}
+                                                            </span>
                                                         )}
                                                     </td>
                                                     <td style={{ padding: '10px 14px' }}>
@@ -1476,7 +1501,8 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                                                     </td>
                                                 </tr>
                                             );
-                                        })}
+                                        });
+                                        })()}
                                     </tbody>
                                 </table>
                             </div>

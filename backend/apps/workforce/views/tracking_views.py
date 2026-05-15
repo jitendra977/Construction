@@ -15,13 +15,79 @@ class WorkerAssignmentViewSet(viewsets.ModelViewSet):
 
     def _sync_task_assignment(self, assignment):
         """
-        If this WorkerAssignment references a Task, keep Task.assigned_to
-        in sync with the assignment's worker.  This is the bridge that makes
-        the Phase Workforce tab and the Task Detail panel show the same person.
+        After any WorkerAssignment create/update/delete that references a Task,
+        recalculate how the task is assigned:
+
+          • 0 workers  → clear both assigned_to and assigned_team
+          • 1 worker   → set assigned_to = that worker, clear assigned_team
+                         (delete the auto-team if one was created for this task)
+          • 2+ workers → create / update an auto-Team, set assigned_team,
+                         clear assigned_to
+
+        Auto-teams are identified by name prefix "Task-<pk>:" so they can be
+        updated or deleted cleanly without touching manually created teams.
         """
-        if assignment.task_id:
-            from apps.tasks.models import Task
-            Task.objects.filter(pk=assignment.task_id).update(assigned_to=assignment.worker)
+        if not assignment.task_id:
+            return
+
+        from apps.tasks.models import Task
+        from apps.workforce.models import WorkerAssignment, WorkforceMember, Team
+
+        task = Task.objects.select_related('phase__project').get(pk=assignment.task_id)
+
+        # Distinct workers currently assigned to this task
+        worker_ids = list(
+            WorkerAssignment.objects
+            .filter(task=task)
+            .values_list('worker_id', flat=True)
+            .distinct()
+        )
+
+        if len(worker_ids) == 0:
+            # ── No workers: clear everything ────────────────────────────────
+            self._delete_auto_team(task)
+            Task.objects.filter(pk=task.pk).update(
+                assigned_to=None, assigned_team=None
+            )
+
+        elif len(worker_ids) == 1:
+            # ── Single worker: individual assignment ─────────────────────────
+            self._delete_auto_team(task)
+            Task.objects.filter(pk=task.pk).update(
+                assigned_to_id=worker_ids[0], assigned_team=None
+            )
+
+        else:
+            # ── Multiple workers: create / refresh auto-team ─────────────────
+            project  = task.phase.project
+            workers  = WorkforceMember.objects.filter(pk__in=worker_ids)
+            team_name = f'Task-{task.pk}: {task.title[:50]}'
+
+            team, _ = Team.objects.get_or_create(
+                project=project,
+                name=team_name,
+                defaults={'description': f'auto:task:{task.pk}'},
+            )
+            team.members.set(workers)
+            if not team.leader_id:
+                team.leader = workers.first()
+                team.save(update_fields=['leader'])
+
+            Task.objects.filter(pk=task.pk).update(
+                assigned_team=team, assigned_to=None
+            )
+
+    @staticmethod
+    def _delete_auto_team(task):
+        """Delete the auto-created team for a task if it exists."""
+        from apps.workforce.models import Team
+        if task.assigned_team_id:
+            try:
+                team = task.assigned_team
+                if team.description.startswith('auto:task:'):
+                    team.delete()
+            except Exception:
+                pass
 
     def perform_create(self, serializer):
         """
@@ -37,11 +103,24 @@ class WorkerAssignmentViewSet(viewsets.ModelViewSet):
         self._sync_task_assignment(assignment)
 
     def perform_update(self, serializer):
-        """
-        On update keep Task.assigned_to in sync with the (possibly new) worker.
-        """
+        """On update recalculate individual vs team assignment."""
         assignment = serializer.save()
         self._sync_task_assignment(assignment)
+
+    def perform_destroy(self, instance):
+        """
+        When a WorkerAssignment is deleted, re-evaluate the remaining workers
+        for that task so the task flips back to individual or unassigned.
+        """
+        task_id = instance.task_id
+        instance.delete()
+        if task_id:
+            # Re-run sync with a minimal stub pointing at the task
+            class _Stub:
+                pass
+            stub = _Stub()
+            stub.task_id = task_id
+            self._sync_task_assignment(stub)
 
 class WorkerEvaluationViewSet(viewsets.ModelViewSet):
     queryset = WorkerEvaluation.objects.all()
