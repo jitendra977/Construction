@@ -12,9 +12,24 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AlterField(
-            model_name='task',
-            name='assigned_to',
-            field=models.ForeignKey(blank=True, help_text='Primary individual worker (auto-cleared when 2+ workers are assigned).', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='tasks', to='workforce.workforcemember'),
+        # help_text-only change — no DB-level SQL needed.
+        # Column is already uuid after tasks/0002; wrapping in
+        # SeparateDatabaseAndState prevents a redundant ALTER TABLE.
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.AlterField(
+                    model_name='task',
+                    name='assigned_to',
+                    field=models.ForeignKey(
+                        blank=True,
+                        help_text='Primary individual worker (auto-cleared when 2+ workers are assigned).',
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name='tasks',
+                        to='workforce.workforcemember',
+                    ),
+                ),
+            ],
+            database_operations=[],
         ),
     ]
