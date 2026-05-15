@@ -1372,140 +1372,187 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                     {/* Assignments tab */}
                     {activeTab === 'assignments' && (
                         <div>
-                            {/* Assignment table */}
-                            <div style={{
-                                border: '1px solid var(--t-border)', borderRadius: 10, overflow: 'hidden', marginBottom: 16,
-                            }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                    <thead>
-                                        <tr style={{ background: 'var(--t-surface2)' }}>
-                                            {['Worker', 'Task (Optional)', 'Role', ''].map(h => (
-                                                <th key={h} style={{
-                                                    padding: '8px 14px', textAlign: 'left',
-                                                    fontSize: 9, fontWeight: 900, color: 'var(--t-text3)',
-                                                    textTransform: 'uppercase', letterSpacing: '0.1em',
+                            {/* ── Workforce list grouped by team / individual ── */}
+                            {phaseAssignments.length === 0 ? (
+                                <div style={{
+                                    padding: '28px', textAlign: 'center', fontSize: 12,
+                                    color: 'var(--t-text3)', fontStyle: 'italic',
+                                    border: '1px dashed var(--t-border)', borderRadius: 10, marginBottom: 16,
+                                }}>No workers assigned to this phase yet</div>
+                            ) : (() => {
+                                /* ── Build groups ─────────────────────────────────────────────
+                                   Groups keyed by task id (or '__individual__' for solo/no-task).
+                                   A group with 2+ members is a "team", otherwise individual.    */
+                                const taskGroups = {};   // taskId → { taskName, assignments[] }
+                                const soloGroup  = [];   // assignments with no task or unique task
+
+                                // Count workers per task
+                                const taskCount = {};
+                                phaseAssignments.forEach(a => {
+                                    if (a.task) taskCount[a.task] = (taskCount[a.task] || 0) + 1;
+                                });
+
+                                phaseAssignments.forEach(a => {
+                                    if (a.task && taskCount[a.task] > 1) {
+                                        if (!taskGroups[a.task]) {
+                                            taskGroups[a.task] = { taskId: a.task, taskName: a.task_name || 'Task', assignments: [] };
+                                        }
+                                        taskGroups[a.task].assignments.push(a);
+                                    } else {
+                                        soloGroup.push(a);
+                                    }
+                                });
+
+                                // ── Worker row (shared between team & individual) ──────────────
+                                const WorkerRow = ({ a, isTeam }) => {
+                                    const isEditingThis = editingAssignId === a.id;
+                                    return (
+                                        <div key={a.id} style={{
+                                            display: 'grid', gridTemplateColumns: '1fr auto auto',
+                                            alignItems: 'center', gap: 12,
+                                            padding: '10px 14px',
+                                            borderBottom: '1px solid var(--t-border)',
+                                            background: isEditingThis ? 'rgba(249,115,22,0.04)' : 'transparent',
+                                        }}>
+                                            {/* Left: name + date / edit input */}
+                                            <div>
+                                                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text)', marginBottom: 2 }}>
+                                                    {a.worker_name || a.worker}
+                                                </div>
+                                                {isEditingThis ? (
+                                                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                                                        {/* Task */}
+                                                        <select value={editAssignData.task || ''} onChange={e => setEditAssignData({ ...editAssignData, task: e.target.value })}
+                                                            style={{ ...inp, padding: '2px 4px', fontSize: 10, height: 'auto', flex: 1, minWidth: 100 }}>
+                                                            <option value="">Whole Phase</option>
+                                                            {phaseTasks.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
+                                                        </select>
+                                                        {/* Role */}
+                                                        <select value={editAssignData.role_override || ''} onChange={e => setEditAssignData({ ...editAssignData, role_override: e.target.value })}
+                                                            style={{ ...inp, padding: '2px 4px', fontSize: 10, height: 'auto', flex: 1, minWidth: 100 }}>
+                                                            <option value="">Default Role</option>
+                                                            {allRoles.map(r => <option key={r.id} value={r.id}>{r.title}</option>)}
+                                                        </select>
+                                                        {/* Start date */}
+                                                        <input type="date" value={editAssignData.start_date || ''} onChange={e => setEditAssignData({ ...editAssignData, start_date: e.target.value })}
+                                                            style={{ ...inp, padding: '2px 4px', fontSize: 10, height: 'auto' }} />
+                                                    </div>
+                                                ) : (
+                                                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                                                        <span style={{ fontSize: 10, color: 'var(--t-text3)' }}>
+                                                            Since {fmtShort(a.start_date)}
+                                                        </span>
+                                                        <span style={{
+                                                            fontSize: 10, fontWeight: 800, padding: '1px 6px', borderRadius: 4,
+                                                            background: 'var(--t-surface2)', color: 'var(--t-text3)',
+                                                            border: '1px solid var(--t-border)',
+                                                        }}>
+                                                            {a.role_name || a.role_override_name || 'Standard'}
+                                                        </span>
+                                                        {!isTeam && a.task_name && (
+                                                            <span style={{ fontSize: 10, color: 'var(--t-text3)' }}>
+                                                                · {a.task_name}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Right: save/cancel or edit/delete */}
+                                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                                {isEditingThis ? (
+                                                    <>
+                                                        <button onClick={() => handleUpdateAssignment(a.id)} disabled={saving}
+                                                            style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', fontSize: 11, fontWeight: 800 }}>
+                                                            {saving ? '...' : 'SAVE'}
+                                                        </button>
+                                                        <button onClick={() => setEditingAssignId(null)}
+                                                            style={{ background: 'none', border: 'none', color: 'var(--t-text3)', cursor: 'pointer', fontSize: 11, fontWeight: 800 }}>
+                                                            ✕
+                                                        </button>
+                                                    </>
+                                                ) : canManage ? (
+                                                    <>
+                                                        <button onClick={() => startEditAssignment(a)}
+                                                            style={{ background: 'none', border: 'none', color: 'var(--t-text3)', cursor: 'pointer', fontSize: 13 }}>✏️</button>
+                                                        <button onClick={() => handleDeleteAssignment(a.id)}
+                                                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 13 }}>🗑</button>
+                                                    </>
+                                                ) : null}
+                                            </div>
+                                        </div>
+                                    );
+                                };
+
+                                return (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+
+                                        {/* ── Team groups ────────────────────────────────────── */}
+                                        {Object.values(taskGroups).map(group => (
+                                            <div key={group.taskId} style={{
+                                                border: '1px solid rgba(139,92,246,0.3)',
+                                                borderRadius: 10, overflow: 'hidden',
+                                                background: 'rgba(139,92,246,0.03)',
+                                            }}>
+                                                {/* Team header */}
+                                                <div style={{
+                                                    display: 'flex', alignItems: 'center', gap: 8,
+                                                    padding: '8px 14px',
+                                                    background: 'rgba(139,92,246,0.08)',
+                                                    borderBottom: '1px solid rgba(139,92,246,0.2)',
+                                                }}>
+                                                    <span style={{ fontSize: 13 }}>👥</span>
+                                                    <span style={{ fontSize: 11, fontWeight: 900, color: '#8b5cf6', flex: 1 }}>
+                                                        Team · {group.taskName}
+                                                    </span>
+                                                    <span style={{
+                                                        fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 20,
+                                                        background: 'rgba(139,92,246,0.15)', color: '#8b5cf6',
+                                                        border: '1px solid rgba(139,92,246,0.3)',
+                                                    }}>
+                                                        {group.assignments.length} workers
+                                                    </span>
+                                                </div>
+                                                {/* Team members */}
+                                                {group.assignments.map(a => (
+                                                    <WorkerRow key={a.id} a={a} isTeam={true} />
+                                                ))}
+                                            </div>
+                                        ))}
+
+                                        {/* ── Individual / whole-phase workers ──────────────── */}
+                                        {soloGroup.length > 0 && (
+                                            <div style={{
+                                                border: '1px solid var(--t-border)',
+                                                borderRadius: 10, overflow: 'hidden',
+                                            }}>
+                                                {/* Section header */}
+                                                <div style={{
+                                                    display: 'flex', alignItems: 'center', gap: 8,
+                                                    padding: '8px 14px',
+                                                    background: 'var(--t-surface2)',
                                                     borderBottom: '1px solid var(--t-border)',
-                                                }}>{h}</th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {phaseAssignments.length === 0 ? (
-                                            <tr><td colSpan={4} style={{ padding: '24px', textAlign: 'center', fontSize: 12, color: 'var(--t-text3)', fontStyle: 'italic' }}>
-                                                No workers assigned to this phase yet
-                                            </td></tr>
-                                        ) : (() => {
-                                            // Build a map: taskId → count of workers assigned to that task
-                                            // Used to show "Team" badge when 2+ workers share the same task
-                                            const taskWorkerCount = {};
-                                            phaseAssignments.forEach(a => {
-                                                if (a.task) taskWorkerCount[a.task] = (taskWorkerCount[a.task] || 0) + 1;
-                                            });
-                                            return phaseAssignments.map(a => {
-                                            const isEditingThis = editingAssignId === a.id;
-                                            const workerCountForTask = a.task ? (taskWorkerCount[a.task] || 1) : 1;
-                                            const isTeam = workerCountForTask > 1;
-                                            return (
-                                                <tr key={a.id} style={{ borderBottom: '1px solid var(--t-border)', background: isEditingThis ? 'rgba(249,115,22,0.03)' : isTeam ? 'rgba(139,92,246,0.03)' : 'transparent' }}>
-                                                    <td style={{ padding: '10px 14px' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text)' }}>{a.worker_name || a.worker}</span>
-                                                            {isTeam && (
-                                                                <span style={{
-                                                                    fontSize: 9, fontWeight: 800, padding: '1px 5px', borderRadius: 4,
-                                                                    background: 'rgba(139,92,246,0.12)', color: '#8b5cf6',
-                                                                    border: '1px solid rgba(139,92,246,0.25)', textTransform: 'uppercase',
-                                                                }}>Team</span>
-                                                            )}
-                                                        </div>
-                                                        <div style={{ fontSize: 10, color: 'var(--t-text3)' }}>
-                                                            {isEditingThis ? (
-                                                                <input
-                                                                    type="date"
-                                                                    value={editAssignData.start_date || ''}
-                                                                    onChange={e => setEditAssignData({ ...editAssignData, start_date: e.target.value })}
-                                                                    style={{ ...inp, padding: '2px 4px', fontSize: 10, height: 'auto', marginTop: 4 }}
-                                                                />
-                                                            ) : (
-                                                                `Joined: ${fmtShort(a.start_date)}`
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                    <td style={{ padding: '10px 14px', fontSize: 11, color: 'var(--t-text2)' }}>
-                                                        {isEditingThis ? (
-                                                            <select
-                                                                value={editAssignData.task || ''}
-                                                                onChange={e => setEditAssignData({ ...editAssignData, task: e.target.value })}
-                                                                style={{ ...inp, padding: '4px', fontSize: 11, height: 'auto' }}
-                                                            >
-                                                                <option value="">Whole Phase</option>
-                                                                {phaseTasks.map(t => (
-                                                                    <option key={t.id} value={t.id}>{t.title}</option>
-                                                                ))}
-                                                            </select>
-                                                        ) : (
-                                                            <span>
-                                                                {a.task_name || '—'}
-                                                                {isTeam && (
-                                                                    <span style={{ marginLeft: 4, fontSize: 9, fontWeight: 800, color: '#8b5cf6' }}>
-                                                                        ({workerCountForTask} workers)
-                                                                    </span>
-                                                                )}
-                                                            </span>
-                                                        )}
-                                                    </td>
-                                                    <td style={{ padding: '10px 14px' }}>
-                                                        {isEditingThis ? (
-                                                            <select
-                                                                value={editAssignData.role_override || ''}
-                                                                onChange={e => setEditAssignData({ ...editAssignData, role_override: e.target.value })}
-                                                                style={{ ...inp, padding: '4px', fontSize: 11, height: 'auto' }}
-                                                            >
-                                                                <option value="">Default (Profile)</option>
-                                                                {allRoles.map(r => (
-                                                                    <option key={r.id} value={r.id}>{r.title}</option>
-                                                                ))}
-                                                            </select>
-                                                        ) : (
-                                                            <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 6px', borderRadius: 4, background: 'var(--t-bg)', color: 'var(--t-text3)', border: '1px solid var(--t-border)' }}>
-                                                                {a.role_name || a.role_override_name || 'Standard'}
-                                                            </span>
-                                                        )}
-                                                    </td>
-                                                    <td style={{ padding: '10px 14px', textAlign: 'right' }}>
-                                                        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                                                            {isEditingThis ? (
-                                                                <>
-                                                                    <button onClick={() => handleUpdateAssignment(a.id)} disabled={saving} style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', fontSize: 12, fontWeight: 800 }}>
-                                                                        {saving ? '...' : 'SAVE'}
-                                                                    </button>
-                                                                    <button onClick={() => setEditingAssignId(null)} style={{ background: 'none', border: 'none', color: 'var(--t-text3)', cursor: 'pointer', fontSize: 12, fontWeight: 800 }}>
-                                                                        X
-                                                                    </button>
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    {canManage && (
-                                                                        <button onClick={() => startEditAssignment(a)} style={{ background: 'none', border: 'none', color: 'var(--t-text3)', cursor: 'pointer', fontSize: 12 }}>
-                                                                            ✏️
-                                                                        </button>
-                                                                    )}
-                                                                    {canManage && (
-                                                                        <button onClick={() => handleDeleteAssignment(a.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 12 }}>
-                                                                            🗑
-                                                                        </button>
-                                                                    )}
-                                                                </>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        });
-                                        })()}
-                                    </tbody>
-                                </table>
-                            </div>
+                                                }}>
+                                                    <span style={{ fontSize: 13 }}>👤</span>
+                                                    <span style={{ fontSize: 11, fontWeight: 900, color: 'var(--t-text2)', flex: 1 }}>
+                                                        Individual Assignments
+                                                    </span>
+                                                    <span style={{
+                                                        fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 20,
+                                                        background: 'var(--t-surface)', color: 'var(--t-text3)',
+                                                        border: '1px solid var(--t-border)',
+                                                    }}>
+                                                        {soloGroup.length} {soloGroup.length === 1 ? 'worker' : 'workers'}
+                                                    </span>
+                                                </div>
+                                                {soloGroup.map(a => (
+                                                    <WorkerRow key={a.id} a={a} isTeam={false} />
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })()}
 
                             {/* Assign worker form */}
                             {canManage && (

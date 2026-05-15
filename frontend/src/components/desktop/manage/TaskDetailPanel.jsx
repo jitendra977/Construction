@@ -148,13 +148,11 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
     const pm   = PRIORITY_META[task.priority] || PRIORITY_META.MEDIUM;
     const dl   = daysLeft(task.due_date);
     const overdue = dl !== null && dl < 0 && task.status !== 'COMPLETED';
-    const phase          = (dashboardData.phases         || []).find(p => p.id === task.phase);
-    const assignedMember = task.assigned_to_detail
+    const phase      = (dashboardData.phases         || []).find(p => p.id === task.phase);
+    const assignedMember = task.assigned_to_detail   // already embedded in task from API
         || (dashboardData.contractors || []).find(c => String(c.id) === String(task.assigned_to));
-    const assignedTeam   = task.assigned_team_detail || null;
-    const assignmentType = task.assignment_type || (assignedTeam ? 'team' : assignedMember ? 'individual' : 'unassigned');
-    const room           = (dashboardData.rooms         || []).find(r => r.id === task.room);
-    const cat            = (dashboardData.budgetCategories || []).find(c => c.id === task.category);
+    const room       = (dashboardData.rooms          || []).find(r => r.id === task.room);
+    const cat        = (dashboardData.budgetCategories || []).find(c => c.id === task.category);
 
     const STATUS_STATUSES  = ['PENDING', 'IN_PROGRESS', 'BLOCKED', 'COMPLETED'];
     const PRIORITY_LEVELS  = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
@@ -377,25 +375,11 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                                     </select>
                                 </div>
                                 <div>
-                                    <label style={{ fontSize: 9, fontWeight: 800, color: 'var(--t-text3)', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>
-                                        {assignmentType === 'team'
-                                            ? '👥 Team Assignment (edit via Workforce tab)'
-                                            : 'Assign Worker (Individual)'}
-                                    </label>
-                                    {assignmentType === 'team' ? (
-                                        <div style={{
-                                            padding: '6px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700,
-                                            background: 'rgba(139,92,246,0.08)', color: '#8b5cf6',
-                                            border: '1px solid rgba(139,92,246,0.2)',
-                                        }}>
-                                            👥 {assignedTeam?.name} — managed in Workforce tab
-                                        </div>
-                                    ) : (
-                                        <select style={inp} value={formData.assigned_to || ''} onChange={e => setFormData(f => ({ ...f, assigned_to: e.target.value || null }))}>
-                                            <option value="">Unassigned</option>
-                                            {(dashboardData.contractors || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                        </select>
-                                    )}
+                                    <label style={{ fontSize: 9, fontWeight: 800, color: 'var(--t-text3)', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Team Member</label>
+                                    <select style={inp} value={formData.assigned_to || ''} onChange={e => setFormData(f => ({ ...f, assigned_to: e.target.value || null }))}>
+                                        <option value="">Unassigned</option>
+                                        {(dashboardData.contractors || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    </select>
                                 </div>
                                 <div>
                                     <label style={{ fontSize: 9, fontWeight: 800, color: 'var(--t-text3)', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Room / Location</label>
@@ -421,35 +405,12 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                                     <MetaCard label="Phase" value={phase ? `📋 ${phase.name}` : 'Unknown'} accent={onPhaseClick && phase ? '#f97316' : undefined} />
                                 </div>
                                 <MetaCard
-                                    label={assignmentType === 'team' ? 'Assigned Team' : 'Assigned Worker'}
-                                    value={
-                                        assignmentType === 'team' && assignedTeam
-                                            ? `👥 ${assignedTeam.name} (${assignedTeam.member_count} members)`
-                                            : assignedMember
-                                                ? `👤 ${assignedMember.name}${assignedMember.employee_id ? ` · ${assignedMember.employee_id}` : ''}`
-                                                : 'Unassigned'
-                                    }
-                                    accent={assignmentType === 'team' ? '#8b5cf6' : assignedMember ? '#3b82f6' : undefined}
+                                    label="Assigned Worker"
+                                    value={assignedMember
+                                        ? `👤 ${assignedMember.name}${assignedMember.employee_id ? ` · ${assignedMember.employee_id}` : ''}`
+                                        : 'Unassigned'}
+                                    accent={assignedMember ? '#3b82f6' : undefined}
                                 />
-                                {/* Team members tooltip row */}
-                                {assignmentType === 'team' && assignedTeam?.members?.length > 0 && (
-                                    <div style={{
-                                        gridColumn: '1 / -1',
-                                        background: 'rgba(139,92,246,0.06)',
-                                        border: '1px solid rgba(139,92,246,0.2)',
-                                        borderRadius: 10, padding: '8px 14px',
-                                        display: 'flex', flexWrap: 'wrap', gap: 6,
-                                    }}>
-                                        {assignedTeam.members.map(m => (
-                                            <span key={m.id} style={{
-                                                fontSize: 10, fontWeight: 700,
-                                                background: 'rgba(139,92,246,0.12)',
-                                                color: '#8b5cf6',
-                                                padding: '2px 8px', borderRadius: 6,
-                                            }}>👤 {m.name}</span>
-                                        ))}
-                                    </div>
-                                )}
                                 <MetaCard label="Location" value={room ? `📍 ${room.name}` : 'General Area'} />
                                 <MetaCard label="Category" value={cat?.name || 'N/A'} />
                             </div>

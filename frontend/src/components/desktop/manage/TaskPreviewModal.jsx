@@ -49,26 +49,9 @@ const TaskPreviewModal = ({ isOpen, onClose, task, initialMode = 'read' }) => {
     const body = { fontFamily: 'var(--f-body)' };
 
     const getPhaseName = (id) => dashboardData.phases?.find(p => p.id === id)?.name || 'Unknown Phase';
-    // ── Assignment helpers ───────────────────────────────────────────────────
-    const assignmentType = task?.assignment_type
-        || (task?.assigned_team_detail ? 'team' : task?.assigned_to ? 'individual' : 'unassigned');
-
-    const getAssignmentLabel = () => {
-        if (assignmentType === 'team' && task?.assigned_team_detail) {
-            const t = task.assigned_team_detail;
-            return { icon: '👥', text: `${t.name} (${t.member_count} members)`, isTeam: true };
-        }
-        if (task?.assigned_to_detail?.name)
-            return { icon: '👤', text: task.assigned_to_detail.name, isTeam: false };
-        const fallback = task?.assigned_to
-            ? dashboardData.contractors?.find(c => String(c.id) === String(task.assigned_to))?.name
-            : null;
-        return { icon: '👤', text: fallback || 'Unassigned', isTeam: false };
-    };
-
-    // Legacy helper kept for backward compat (edit form dropdown)
     const getContractorName = (id) => {
         if (!id) return 'Unassigned';
+        // Use embedded detail first, then fall back to dashboard lookup
         if (task?.assigned_to_detail?.name) return task.assigned_to_detail.name;
         return dashboardData.contractors?.find(c => String(c.id) === String(id))?.name || 'Unassigned';
     };
@@ -308,35 +291,23 @@ const TaskPreviewModal = ({ isOpen, onClose, task, initialMode = 'read' }) => {
                         )}
                     </div>
                     <div className="bg-[var(--t-surface2)] rounded-xl p-3 border border-[var(--t-border)]">
-                        <div className="text-[9px] font-black text-[var(--t-text3)] uppercase tracking-widest mb-1">
-                            {assignmentType === 'team' ? 'Team Assignment' : 'Assigned Worker'}
-                        </div>
+                        <div className="text-[9px] font-black text-[var(--t-text3)] uppercase tracking-widest mb-1">Team Member</div>
                         {isEditing ? (
-                            assignmentType === 'team' ? (
-                                <div className="text-xs font-bold" style={{ color: '#8b5cf6' }}>
-                                    👥 Team — manage in Workforce tab
-                                </div>
-                            ) : (
-                                <select
-                                    value={formData.assigned_to || ''}
-                                    onChange={(e) => setFormData({...formData, assigned_to: e.target.value || null})}
-                                    className="w-full text-xs font-bold bg-transparent outline-none"
-                                >
-                                    <option value="">Unassigned</option>
-                                    {dashboardData.contractors?.map(c => (
-                                        <option key={c.id} value={c.id}>{c.name}</option>
-                                    ))}
-                                </select>
-                            )
-                        ) : (() => {
-                            const { icon, text, isTeam } = getAssignmentLabel();
-                            return (
-                                <div className="text-sm font-bold flex items-center gap-2"
-                                    style={{ color: isTeam ? '#8b5cf6' : 'var(--t-text)' }}>
-                                    <span>{icon}</span> {text}
-                                </div>
-                            );
-                        })()}
+                            <select
+                                value={formData.assigned_to || ''}
+                                onChange={(e) => setFormData({...formData, assigned_to: e.target.value || null})}
+                                className="w-full text-xs font-bold bg-transparent outline-none"
+                            >
+                                <option value="">Unassigned</option>
+                                {dashboardData.contractors?.map(c => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                ))}
+                            </select>
+                        ) : (
+                            <div className="text-sm font-bold text-[var(--t-text)] flex items-center gap-2">
+                                <span>👤</span> {getContractorName(task.assigned_to)}
+                            </div>
+                        )}
                     </div>
                     <div className="bg-[var(--t-surface2)] rounded-xl p-3 border border-[var(--t-border)]">
                         <div className="text-[9px] font-black text-[var(--t-text3)] uppercase tracking-widest mb-1">Location</div>

@@ -26,20 +26,7 @@ class Task(models.Model):
     category = models.ForeignKey('finance.BudgetCategory', on_delete=models.PROTECT, null=True, blank=True, related_name='tasks', help_text="Finance category this task belongs to")
     phase = models.ForeignKey(ConstructionPhase, on_delete=models.CASCADE, related_name='tasks')
     room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True, related_name='tasks')
-    assigned_to = models.ForeignKey(
-        'workforce.WorkforceMember',
-        on_delete=models.SET_NULL,
-        null=True, blank=True,
-        related_name='tasks',
-        help_text='Primary individual worker (auto-cleared when 2+ workers are assigned).',
-    )
-    assigned_team = models.ForeignKey(
-        'workforce.Team',
-        on_delete=models.SET_NULL,
-        null=True, blank=True,
-        related_name='assigned_tasks',
-        help_text='Auto-set when 2+ workers are assigned to this task via WorkerAssignment.',
-    )
+    assigned_to = models.ForeignKey('workforce.WorkforceMember', on_delete=models.SET_NULL, null=True, blank=True, related_name='tasks')
     
     blocked_by = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='blocking_tasks', help_text="This task cannot be completed until the blocked_by task is completed.")
     
