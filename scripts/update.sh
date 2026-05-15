@@ -68,20 +68,20 @@ run_migrations() {
   echo '==> Running migrations (bypassing entrypoint)'
   if ! docker compose -f '${COMPOSE_FILE}' run --rm --no-deps \
         --entrypoint /bin/sh backend \
-        -c "python manage.py migrate --noinput"; then
-    echo ""
-    echo "!! ═══════════════════════════════════════════════════════════"
-    echo "!! Migration FAILED — update aborted. Read the error above."
-    echo "!!"
-    echo "!! How to fix:"
-    echo "!!  1. Fix the broken migration file, commit, push, re-run."
-    echo "!!  2. Columns already exist?  → make migrate-fake-initial"
-    echo "!!  3. Completely fresh DB?    → make server-db-reset"
-    echo "!!"
-    echo "!! ⚠ Do NOT delete django_migrations and --fake everything."
-    echo "!!   That marks unapplied migrations as done, silently breaking"
-    echo "!!   your schema. Fix the migration file instead."
-    echo "!! ═══════════════════════════════════════════════════════════"
+        -c 'python manage.py migrate --noinput'; then
+    echo ''
+    echo '!! ═══════════════════════════════════════════════════════════'
+    echo '!! Migration FAILED — update aborted. Read the error above.'
+    echo '!!'
+    echo '!! How to fix:'
+    echo '!!  1. Fix the broken migration file, commit, push, re-run.'
+    echo '!!  2. Columns already exist?  -> make migrate-fake-initial'
+    echo '!!  3. Completely fresh DB?    -> make server-db-reset'
+    echo '!!'
+    echo '!! Do NOT delete django_migrations and --fake everything.'
+    echo '!!   That marks unapplied migrations as done, silently breaking'
+    echo '!!   your schema. Fix the migration file instead.'
+    echo '!! ═══════════════════════════════════════════════════════════'
     exit 1
   fi
 }

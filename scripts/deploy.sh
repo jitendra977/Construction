@@ -210,27 +210,27 @@ ssh_exec "
   # --no-deps prevents starting dependent services unnecessarily.
   if ! docker compose -f '${COMPOSE_FILE}' run --rm --no-deps \
         --entrypoint /bin/sh backend \
-        -c "python manage.py migrate --noinput"; then
-    echo ""
-    echo "!! ═══════════════════════════════════════════════════════════"
-    echo "!! Migration FAILED — deploy aborted. Read the error above."
-    echo "!!"
-    echo "!! How to fix:"
-    echo "!!  1. Fix the broken migration file, commit, push, redeploy."
-    echo "!!  2. Columns already exist?  → make migrate-fake-initial"
-    echo "!!  3. Completely fresh DB?    → make server-db-reset"
-    echo "!!"
-    echo "!! ⚠ Do NOT delete django_migrations and --fake everything."
-    echo "!!   That marks unapplied migrations as done, silently breaking"
-    echo "!!   your schema and making future migrations impossible to trust."
-    echo "!! ═══════════════════════════════════════════════════════════"
+        -c 'python manage.py migrate --noinput'; then
+    echo ''
+    echo '!! ═══════════════════════════════════════════════════════════'
+    echo '!! Migration FAILED — deploy aborted. Read the error above.'
+    echo '!!'
+    echo '!! How to fix:'
+    echo '!!  1. Fix the broken migration file, commit, push, redeploy.'
+    echo '!!  2. Columns already exist?  -> make migrate-fake-initial'
+    echo '!!  3. Completely fresh DB?    -> make server-db-reset'
+    echo '!!'
+    echo '!! Do NOT delete django_migrations and --fake everything.'
+    echo '!!   That marks unapplied migrations as done, silently breaking'
+    echo '!!   your schema and making future migrations impossible to trust.'
+    echo '!! ═══════════════════════════════════════════════════════════'
     exit 1
   fi
 
   echo '==> Collect static files (one-shot, bypasses entrypoint)'
   docker compose -f '${COMPOSE_FILE}' run --rm --no-deps \
     --entrypoint /bin/sh backend \
-    -c "python manage.py collectstatic --noinput --clear"
+    -c 'python manage.py collectstatic --noinput --clear'
 
   echo '==> Restart app containers only (db + redis stay untouched)'
   docker compose -f '${COMPOSE_FILE}' up -d \
