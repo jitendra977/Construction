@@ -1,5 +1,8 @@
-version: '3.8'
-
+# ============================================================
+#  ConstructPro — Development Stack
+#  Frontend: http://localhost:5173
+#  Backend:  http://localhost:8000
+# ============================================================
 services:
   backend:
     image: construction-backend-dev:latest

@@ -84,6 +84,20 @@ deploy-*.log
 # Backups
 backups/
 
+# Scratch / debug / one-off test scripts in backend root
+backend/scratch/
+backend/test_*.py
+backend/test_*.pdf
+backend/*.pdf
+seed_local.py
+
+# Frontend — project uses bun, not npm
+frontend/package-lock.json
+frontend/media_proxy/
+
+# Deployment docs live in docs/ — ignore the old location
+backend/deployment/
+
 # docs/DEPLOY.md is intentionally tracked — it is the deployment guide
 
 _cleanup_backup_*/
