@@ -402,7 +402,8 @@ def mqtt_nfc_scan(request):
     """
     from apps.attendance.views import _process_attendance_scan
 
-    nfc_uid    = (request.data.get("nfc_uid", "") or "").replace(" ", "").upper()
+    # Accept both "nfc_uid" (canonical) and "uid" (legacy / frontend alias)
+    nfc_uid    = (request.data.get("nfc_uid") or request.data.get("uid") or "").replace(" ", "").upper()
     project_id = request.data.get("project")
 
     if not nfc_uid:

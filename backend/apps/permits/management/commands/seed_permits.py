@@ -100,9 +100,9 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f'Created step: {step.title}'))
 
         # Create sample documents for each permit step
-        from apps.resources.models import Document
+        from apps.permits.models import PermitDocument as Document
         from django.core.files.base import ContentFile
-        
+
         # Clear existing documents to avoid duplicates
         Document.objects.filter(document_type__in=['LALPURJA', 'PERMIT', 'NAKSHA']).delete()
         

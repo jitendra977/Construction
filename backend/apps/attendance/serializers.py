@@ -20,12 +20,11 @@ class AttendanceWorkerSerializer(serializers.ModelSerializer):
     account_name       = serializers.SerializerMethodField()
     workforce_id       = serializers.SerializerMethodField()
 
-    # ── Linked Contractor (resources.Contractor) ───────────────────────────────
-    contractor_id      = serializers.IntegerField(source="contractor.id",   read_only=True, default=None)
+    # ── Linked Worker (resource.Worker) ───────────────────────────────────────
+    contractor_id      = serializers.CharField(source="contractor.id",   read_only=True, default=None)
     contractor_name    = serializers.CharField(source="contractor.name",    read_only=True, default=None)
     contractor_role    = serializers.CharField(source="contractor.role",    read_only=True, default=None)
     contractor_phone   = serializers.CharField(source="contractor.phone",   read_only=True, default=None)
-    contractor_email   = serializers.CharField(source="contractor.email",   read_only=True, default=None)
     has_contractor     = serializers.SerializerMethodField()
 
     class Meta:
@@ -43,9 +42,9 @@ class AttendanceWorkerSerializer(serializers.ModelSerializer):
             "custom_checkin_start", "custom_checkin_end",
             "custom_checkout_start", "custom_checkout_end",
             "qr_token", "nfc_uid",
-            # Contractor link
+            # Contractor link (now resource.Worker)
             "contractor", "contractor_id", "contractor_name",
-            "contractor_role", "contractor_phone", "contractor_email",
+            "contractor_role", "contractor_phone",
             "has_contractor",
             "workforce_id",
             "created_at", "updated_at",

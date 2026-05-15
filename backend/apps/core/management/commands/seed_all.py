@@ -195,7 +195,7 @@ class Command(BaseCommand):
             pass
 
         try:
-            from apps.resources.models import Supplier as OldSupplier, Material as OldMat
+            from apps.resource.models import Supplier as OldSupplier, Material as OldMat
             wipe_order += [OldSupplier, OldMat]
         except Exception:
             pass

@@ -44,8 +44,10 @@ function MobileDashboard() {
 
     // Strip /dashboard/mobile prefix to get the sub-path
     const subPath = location.pathname.replace('/dashboard/mobile', '');
-    const isHome   = subPath === '/home' || subPath === '' || subPath === '/';
-    const isModule = MODULE_PREFIXES.some(p => subPath.startsWith(p));
+    const isHome     = subPath === '/home' || subPath === '' || subPath === '/';
+    const isModule   = MODULE_PREFIXES.some(p => subPath.startsWith(p));
+    // Full-viewport modules (maps need a real height — h-full alone collapses on mobile)
+    const isFullBleed = subPath.startsWith('/location');
 
     return (
         // MobileTrackerProvider starts GPS tracking as soon as the user is on mobile.
@@ -69,7 +71,20 @@ function MobileDashboard() {
                  *  - Module pages: pt-0 — their own sticky header sits at the very top.
                  *    pb-24 ensures content clears the fixed bottom nav.
                  */}
-                <main className={isModule ? 'pb-24' : 'pb-0'}>
+                <main
+                    className={
+                        isFullBleed
+                            ? 'fixed inset-x-0 top-0 z-0 flex flex-col overflow-hidden'
+                            : isModule
+                                ? 'pb-24'
+                                : 'pb-0'
+                    }
+                    style={
+                        isFullBleed
+                            ? { bottom: 'calc(58px + 6px + max(env(safe-area-inset-bottom, 8px))' }
+                            : undefined
+                    }
+                >
                     <Outlet />
                 </main>
 

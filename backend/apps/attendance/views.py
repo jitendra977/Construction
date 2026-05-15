@@ -850,10 +850,10 @@ class AttendanceWorkerViewSet(viewsets.ModelViewSet):
         """
         POST /api/v1/attendance/workers/{id}/link-contractor/
         Body: { "contractor_id": <int>, "sync_data": true/false }
-        Links a resources.Contractor to this AttendanceWorker.
+        Links a resource.Worker to this AttendanceWorker.
         Optionally syncs name/phone/daily_rate from contractor.
         """
-        from apps.resources.models import Contractor
+        from apps.resource.models import Worker
 
         worker        = self.get_object()
         contractor_id = request.data.get("contractor_id")
@@ -863,15 +863,24 @@ class AttendanceWorkerViewSet(viewsets.ModelViewSet):
             return Response({"error": "contractor_id is required."}, status=400)
 
         try:
-            contractor = Contractor.objects.get(pk=contractor_id, project=worker.project)
-        except Contractor.DoesNotExist:
-            return Response({"error": "Contractor not found in this project."}, status=404)
+            contractor = Worker.objects.get(pk=contractor_id, project=worker.project)
+        except Worker.DoesNotExist:
+            return Response({"error": "Worker not found in this project."}, status=404)
 
-        # Check if contractor is already linked to another worker
-        if hasattr(contractor, "attendance_worker") and contractor.attendance_worker != worker:
+        # Check if worker is already linked to another attendance worker
+        try:
+            existing = contractor.attendance_worker
+            if existing and existing != worker:
+                pass  # fall through to error below
+            elif existing == worker:
+                pass  # already linked to this worker, ok
+        except Exception:
+            existing = None
+
+        if existing and existing != worker:
             return Response({
-                "error": f"Contractor '{contractor.name}' is already linked to attendance worker "
-                         f"'{contractor.attendance_worker.name}' (id={contractor.attendance_worker_id})."
+                "error": f"Worker '{contractor.name}' is already linked to attendance worker "
+                         f"'{existing.name}' (id={existing.id})."
             }, status=400)
 
         worker.contractor = contractor
@@ -959,14 +968,14 @@ def unlinked_contractors(request):
     Returns contractors in this project that have NO linked attendance worker yet.
     Useful for the "Link to Resource" picker in ManpowerTab.
     """
-    from apps.resources.models import Contractor
+    from apps.resource.models import Worker
 
     project_id = request.query_params.get("project")
     if not project_id:
         return Response({"error": "project is required."}, status=400)
 
-    # Contractors in this project with no attendance_worker reverse relation
-    contractors = Contractor.objects.filter(
+    # Workers in this project with no attendance_worker reverse relation
+    contractors = Worker.objects.filter(
         project_id=project_id,
         attendance_worker__isnull=True,
         is_active=True,
@@ -974,12 +983,11 @@ def unlinked_contractors(request):
 
     data = [
         {
-            "id":         c.id,
-            "name":       c.display_name,
+            "id":         str(c.id),
+            "name":       c.name,
             "role":       c.role,
             "role_label": c.get_role_display(),
-            "phone":      c.display_phone,
-            "email":      c.display_email,
+            "phone":      c.phone,
             "daily_wage": float(c.daily_wage) if c.daily_wage else None,
         }
         for c in contractors
@@ -1256,7 +1264,7 @@ def persons_list(request):
     AttendanceWorker is the master record. Contractors with no worker are included as
     'orphan_contractors' so the UI can offer to bring them into the system.
     """
-    from apps.resources.models import Contractor
+    from apps.resource.models import Worker
 
     project_id = request.query_params.get("project")
     if not project_id:
@@ -1304,17 +1312,17 @@ def persons_list(request):
     except Exception:
         pass   # workforce app may not be migrated yet; fail gracefully
 
-    # Contractors not yet linked to any attendance worker (orphans)
-    orphans = Contractor.objects.filter(
+    # Workers not yet linked to any attendance worker (orphans)
+    orphans = Worker.objects.filter(
         project_id=project_id,
         attendance_worker__isnull=True,
         is_active=True,
-    ).select_related("user").order_by("name")
+    ).order_by("name")
 
     orphan_contractors = [
         {
-            "contractor_id":    c.id,
-            "name":             c.name or (c.user.get_full_name() if c.user else ""),
+            "contractor_id":    str(c.id),
+            "name":             c.name,
             "role":             c.role,
             "role_label":       c.get_role_display(),
             "phone":            c.phone,
@@ -1361,15 +1369,30 @@ def person_add(request):
         role_payment:     bool   (default false — create Contractor)
     }
     """
-    from apps.resources.models import Contractor
+    from apps.resource.models import Worker
     from django.db import transaction
     from django.db.models.signals import post_save
     from apps.attendance.signals import contractor_post_save
 
+    # Map legacy contractor role names → resource.Worker role choices
+    LEGACY_TO_WORKER_ROLE = {
+        "THEKEDAAR":  "SUPERVISOR",
+        "ENGINEER":   "ENGINEER",
+        "MISTRI":     "MASON",
+        "LABOUR":     "LABORER",
+        "ELECTRICIAN":"ELECTRICIAN",
+        "PLUMBER":    "PLUMBER",
+        "CARPENTER":  "CARPENTER",
+        "PAINTER":    "PAINTER",
+        "TILE_MISTRI":"OTHER",
+        "WELDER":     "OTHER",
+        "OTHER":      "OTHER",
+    }
+
     project_id       = request.data.get("project")
     name             = (request.data.get("name") or "").strip()
     trade            = request.data.get("trade", "OTHER")
-    contractor_role  = request.data.get("contractor_role", "LABOUR")
+    contractor_role  = request.data.get("contractor_role", "LABORER")
     phone            = (request.data.get("phone") or "").strip()
     daily_rate       = request.data.get("daily_rate", 0) or 0
     worker_type      = request.data.get("worker_type", "LABOUR")
@@ -1387,18 +1410,21 @@ def person_add(request):
     worker     = None
     contractor = None
 
+    # Map the role to resource.Worker choices (supports both old and new values)
+    worker_role = LEGACY_TO_WORKER_ROLE.get(contractor_role, contractor_role)
+
     # Disconnect the auto-link signal while we manually create to avoid double-worker
-    post_save.disconnect(contractor_post_save, sender=Contractor)
+    post_save.disconnect(contractor_post_save, sender=Worker)
     try:
         with transaction.atomic():
-            # ── Create Contractor (payment role) ──────────────────────────────
+            # ── Create Worker (payment role) ──────────────────────────────────
             if role_payment:
-                contractor = Contractor.objects.create(
+                contractor = Worker.objects.create(
                     project_id=project_id,
                     name=name,
-                    role=contractor_role,
+                    role=worker_role,
                     phone=phone,
-                    daily_wage=daily_rate if daily_rate else None,
+                    daily_wage=daily_rate if daily_rate else 0,
                 )
 
             # ── Create AttendanceWorker (attendance role) ─────────────────────
@@ -1427,7 +1453,7 @@ def person_add(request):
                     contractor         = contractor,
                 )
     finally:
-        post_save.connect(contractor_post_save, sender=Contractor)
+        post_save.connect(contractor_post_save, sender=Worker)
 
     logger.info(
         "person_add: created worker=%s contractor=%s for project=%s name='%s'",
@@ -1671,9 +1697,9 @@ def person_toggle_role(request, worker_id):
     login   enable  → call existing create-account logic
     login   disable → detach linked_user (does NOT delete user account)
     """
-    from apps.resources.models import Contractor
+    from apps.resource.models import Worker
     from django.db.models.signals import post_save
-    from apps.attendance.signals import contractor_post_save
+    from apps.attendance.signals import contractor_post_save, WORKER_ROLE_TO_TRADE
 
     try:
         worker = AttendanceWorker.objects.select_related(
@@ -1690,21 +1716,21 @@ def person_toggle_role(request, worker_id):
         if enable:
             if worker.contractor_id:
                 return Response({"message": "Payment role already enabled."})
-            # Create new Contractor linked to this worker
-            post_save.disconnect(contractor_post_save, sender=Contractor)
+            # Create new Worker linked to this attendance worker
+            post_save.disconnect(contractor_post_save, sender=Worker)
             try:
-                c = Contractor.objects.create(
+                c = Worker.objects.create(
                     project_id = worker.project_id,
                     name       = worker.name,
-                    role       = request.data.get("contractor_role", "LABOUR"),
+                    role       = request.data.get("contractor_role", "LABORER"),
                     phone      = worker.phone,
-                    daily_wage = worker.daily_rate or None,
+                    daily_wage = worker.daily_rate or 0,
                 )
                 worker.contractor = c
                 worker.save(update_fields=["contractor"])
             finally:
-                post_save.connect(contractor_post_save, sender=Contractor)
-            return Response({"enabled": True, "contractor_id": c.id})
+                post_save.connect(contractor_post_save, sender=Worker)
+            return Response({"enabled": True, "contractor_id": str(c.id)})
         else:
             # Disable: detach but keep Contractor record (expense history!)
             worker.contractor = None
@@ -1761,27 +1787,30 @@ def person_adopt_contractor(request):
     by auto-creating an AttendanceWorker for them.
     Body: { "contractor_id": int, "trade": "MASON" }
     """
-    from apps.resources.models import Contractor
+    from apps.resource.models import Worker
     from django.db.models.signals import post_save
-    from apps.attendance.signals import contractor_post_save, CONTRACTOR_ROLE_TO_TRADE
+    from apps.attendance.signals import contractor_post_save, WORKER_ROLE_TO_TRADE
 
     contractor_id = request.data.get("contractor_id")
     trade         = request.data.get("trade")
 
     try:
-        c = Contractor.objects.get(pk=contractor_id)
-    except Contractor.DoesNotExist:
-        return Response({"error": "Contractor not found."}, status=404)
+        c = Worker.objects.get(pk=contractor_id)
+    except Worker.DoesNotExist:
+        return Response({"error": "Worker not found."}, status=404)
 
-    if hasattr(c, "attendance_worker") and c.attendance_worker_id:
-        return Response({"error": "This contractor already has an attendance worker linked."}, status=400)
+    try:
+        if c.attendance_worker:
+            return Response({"error": "This worker already has an attendance worker linked."}, status=400)
+    except Exception:
+        pass  # no linked worker, continue
 
     if not c.project_id:
-        return Response({"error": "Contractor has no project — cannot create worker."}, status=400)
+        return Response({"error": "Worker has no project — cannot create attendance worker."}, status=400)
 
     # Resolve trade
-    resolved_trade = trade or CONTRACTOR_ROLE_TO_TRADE.get(c.role, "OTHER")
-    name = c.name or (c.user.get_full_name() if c.user else "Unnamed")
+    resolved_trade = trade or WORKER_ROLE_TO_TRADE.get(c.role, "OTHER")
+    name = c.name or "Unnamed"
 
     final_name = name
     counter    = 1
@@ -1789,7 +1818,7 @@ def person_adopt_contractor(request):
         final_name = f"{name} ({counter})"
         counter   += 1
 
-    post_save.disconnect(contractor_post_save, sender=Contractor)
+    post_save.disconnect(contractor_post_save, sender=Worker)
     try:
         worker = AttendanceWorker.objects.create(
             project_id  = c.project_id,
@@ -1797,15 +1826,14 @@ def person_adopt_contractor(request):
             trade       = resolved_trade,
             daily_rate  = c.daily_wage or 0,
             phone       = c.phone or "",
-            linked_user = c.user,
             contractor  = c,
         )
     finally:
-        post_save.connect(contractor_post_save, sender=Contractor)
+        post_save.connect(contractor_post_save, sender=Worker)
 
     return Response({
         "worker_id":     worker.id,
-        "contractor_id": c.id,
+        "contractor_id": str(c.id),
         "name":          worker.name,
         "trade":         worker.trade,
     }, status=status.HTTP_201_CREATED)
@@ -1828,7 +1856,7 @@ def manpower_overview(request):
       "summary": { "total": N, "linked": N, "workers_only": N, "contractors_only": N }
     }
     """
-    from apps.resources.models import Contractor
+    from apps.resource.models import Worker
     from datetime import date as date_type
 
     project_id = request.query_params.get("project")
@@ -1842,8 +1870,8 @@ def manpower_overview(request):
         project_id=project_id,
     ).select_related("contractor", "linked_user")
 
-    # ── Contractors with no worker link ───────────────────────────────────────
-    solo_contractors = Contractor.objects.filter(
+    # ── Workers with no attendance link ───────────────────────────────────────
+    solo_contractors = Worker.objects.filter(
         project_id=project_id,
         attendance_worker__isnull=True,
         is_active=True,
@@ -1888,12 +1916,11 @@ def manpower_overview(request):
         if w.contractor_id:
             c = w.contractor
             entry.update({
-                "contractor_id":    c.id,
+                "contractor_id":    str(c.id),
                 "contractor_name":  c.name,
                 "contractor_role":  c.role,
                 "contractor_role_label": c.get_role_display(),
                 "contractor_phone": c.phone,
-                "contractor_email": c.email,
                 "contractor_daily_wage": float(c.daily_wage) if c.daily_wage else None,
                 "in_sync": (
                     c.name == w.name and
@@ -1911,12 +1938,11 @@ def manpower_overview(request):
 
     contractors_only_list = [
         {
-            "contractor_id":    c.id,
+            "contractor_id":    str(c.id),
             "contractor_name":  c.name,
             "contractor_role":  c.role,
             "contractor_role_label": c.get_role_display(),
             "contractor_phone": c.phone,
-            "contractor_email": c.email,
             "contractor_daily_wage": float(c.daily_wage) if c.daily_wage else None,
             "worker_id":   None,
             "worker_name": None,

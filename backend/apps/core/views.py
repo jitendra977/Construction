@@ -11,13 +11,12 @@ from apps.core.mixins import ProjectScopedMixin
 from apps.tasks.models import Task
 from apps.tasks.serializers import TaskSerializer
 from apps.resource.models import Material, Supplier, StockMovement as MaterialTransaction
-from apps.resources.models import Document
 from apps.workforce.models import WorkforceMember
 from apps.accounting.models.payables import Vendor
 from apps.resource.serializers.material import MaterialSerializer
 from apps.resource.serializers.supplier import SupplierSerializer
 from apps.resource.serializers.purchase import StockMovementSerializer as MaterialTransactionSerializer
-from apps.resources.serializers import DocumentSerializer
+
 from apps.tasks.serializers import AssignedMemberSerializer as WorkforceMemberBriefSerializer
 from apps.permits.models import PermitStep
 from apps.permits.serializers import PermitStepSerializer
@@ -111,7 +110,7 @@ class HouseProjectViewSet(viewsets.ModelViewSet):
         material_count    = 0
         contractor_count  = 0
         try:
-            from apps.resources.models import Material
+            from apps.resource.models import Material
             material_count   = Material.objects.filter(project=project).count()
             contractor_count = WorkforceMember.objects.filter(current_project=project).count()
         except Exception:

@@ -571,12 +571,13 @@ function PayrollTab({ projectId }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// TAB: ASSIGNMENTS
+// TAB: ASSIGNMENTS — grouped by Phase
 // ═══════════════════════════════════════════════════════════════════
 function AssignmentsTab({ projectId }) {
-    const [items, setItems]     = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError]     = useState('');
+    const [items, setItems]         = useState([]);
+    const [loading, setLoading]     = useState(true);
+    const [error, setError]         = useState('');
+    const [collapsed, setCollapsed] = useState({});
 
     const load = useCallback(async () => {
         setLoading(true); setError('');
@@ -592,62 +593,161 @@ function AssignmentsTab({ projectId }) {
     useEffect(() => { load(); }, [load]);
 
     const statusColors = {
-        scheduled: '#dbeafe', active: '#d1fae5',
-        completed: '#f3f4f6', cancelled: '#fee2e2', on_hold: '#fef3c7',
+        scheduled: { bg: '#dbeafe', color: '#1e40af' },
+        active:    { bg: '#d1fae5', color: '#065f46' },
+        completed: { bg: '#f3f4f6', color: '#6b7280' },
+        cancelled: { bg: '#fee2e2', color: '#991b1b' },
+        on_hold:   { bg: '#fef3c7', color: '#92400e' },
     };
+
+    // Build phase groups: { phaseId: { phaseName, phaseId, items[] } }
+    const phaseGroups = (() => {
+        const map = {};
+        items.forEach(a => {
+            const key  = a.phase || '__no_phase__';
+            const name = a.phase_name || 'Unassigned Phase';
+            if (!map[key]) map[key] = { key, name, items: [] };
+            map[key].items.push(a);
+        });
+        // Sort: named phases first (by name), then unassigned
+        return Object.values(map).sort((a, b) => {
+            if (a.key === '__no_phase__') return 1;
+            if (b.key === '__no_phase__') return -1;
+            return a.name.localeCompare(b.name);
+        });
+    })();
+
+    const toggleGroup = key => setCollapsed(prev => ({ ...prev, [key]: !prev[key] }));
+
+    const phaseColors = ['#3b82f6','#8b5cf6','#10b981','#f59e0b','#ef4444','#ec4899','#06b6d4','#f97316'];
+    const phaseColor  = (idx) => phaseColors[idx % phaseColors.length];
 
     return (
         <div>
+            {/* Header row */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                <div>
+                    <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>Assignments by Phase</h3>
+                    <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--t-text-muted)' }}>
+                        {items.length} assignment{items.length !== 1 ? 's' : ''} across {phaseGroups.length} phase{phaseGroups.length !== 1 ? 's' : ''}
+                    </p>
+                </div>
+                <button onClick={load} style={{ padding: '7px 14px', borderRadius: 9, fontSize: 12, fontWeight: 700, border: '1px solid var(--t-border)', background: 'var(--t-bg)', color: 'var(--t-text)', cursor: 'pointer' }}>
+                    🔄 Refresh
+                </button>
+            </div>
+
             {error && <div style={{ color: '#ef4444', marginBottom: 12, fontSize: 13 }}>{error}</div>}
+
             {loading ? <Spinner /> : items.length === 0 ? (
                 <EmptyState icon="📌" title="No assignments" subtitle="Create assignments to track which workers are assigned to which projects." />
             ) : (
-                <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                        <thead>
-                            <tr style={{ borderBottom: '2px solid var(--t-border)', color: 'var(--t-text-muted)', textAlign: 'left' }}>
-                                <th style={{ padding: '8px 10px' }}>Worker</th>
-                                <th style={{ padding: '8px 10px' }}>Phase / Task</th>
-                                <th style={{ padding: '8px 10px' }}>Start</th>
-                                <th style={{ padding: '8px 10px' }}>End</th>
-                                <th style={{ padding: '8px 10px' }}>Est. Days</th>
-                                <th style={{ padding: '8px 10px' }}>Actual Days</th>
-                                <th style={{ padding: '8px 10px' }}>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {items.map(a => (
-                                <tr key={a.id} style={{ borderBottom: '1px solid var(--t-border)' }}>
-                                    <td style={{ padding: '8px 10px', fontWeight: 600 }}>{a.worker_name || a.worker}</td>
-                                    <td style={{ padding: '8px 10px' }}>
-                                        <div style={{ fontSize: 12, fontWeight: 700 }}>
-                                            {a.phase ? (
-                                                <Link to={`/dashboard/desktop/phases?phase=${a.phase}`} style={{ color: 'var(--t-primary)', textDecoration: 'none' }}>
-                                                    {a.phase_name}
-                                                </Link>
-                                            ) : '—'}
-                                        </div>
-                                        <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>
-                                            {a.task ? (
-                                                <Link to={`/dashboard/desktop/phases?task=${a.task}`} style={{ color: 'var(--t-text-muted)', textDecoration: 'none' }}>
-                                                    {a.task_name}
-                                                </Link>
-                                            ) : '—'}
-                                        </div>
-                                    </td>
-                                    <td style={{ padding: '8px 10px', fontSize: 12 }}>{a.start_date}</td>
-                                    <td style={{ padding: '8px 10px', fontSize: 12 }}>{a.end_date || '—'}</td>
-                                    <td style={{ padding: '8px 10px' }}>{a.estimated_days ?? '—'}</td>
-                                    <td style={{ padding: '8px 10px', fontWeight: 700 }}>{a.actual_days ?? '—'}</td>
-                                    <td style={{ padding: '8px 10px' }}>
-                                        <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 99, fontSize: 11, fontWeight: 700, background: statusColors[a.status] || '#f3f4f6', color: '#374151' }}>
-                                            {a.status?.replace('_', ' ').toUpperCase()}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    {phaseGroups.map((group, gIdx) => {
+                        const isOpen    = !collapsed[group.key];
+                        const color     = group.key === '__no_phase__' ? '#6b7280' : phaseColor(gIdx);
+                        const activeCount = group.items.filter(a => a.status === 'active').length;
+
+                        return (
+                            <div key={group.key} style={{ border: `1.5px solid ${color}22`, borderRadius: 14, overflow: 'hidden', background: 'var(--t-surface)' }}>
+                                {/* Phase header */}
+                                <button
+                                    onClick={() => toggleGroup(group.key)}
+                                    style={{
+                                        width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                                        padding: '14px 18px', border: 'none', cursor: 'pointer',
+                                        background: `${color}12`, textAlign: 'left',
+                                        borderBottom: isOpen ? `1px solid ${color}22` : 'none',
+                                    }}>
+                                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                                    <div style={{ flex: 1 }}>
+                                        <span style={{ fontWeight: 800, fontSize: 14, color: 'var(--t-text)' }}>
+                                            {group.key === '__no_phase__' ? '📂 No Phase' : `📋 ${group.name}`}
                                         </span>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                                        {group.key !== '__no_phase__' && (
+                                            <Link
+                                                to={`/dashboard/desktop/phases?phase=${group.key}`}
+                                                onClick={e => e.stopPropagation()}
+                                                style={{ marginLeft: 10, fontSize: 11, color, textDecoration: 'none', fontWeight: 600 }}>
+                                                View Phase ↗
+                                            </Link>
+                                        )}
+                                    </div>
+                                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                        {activeCount > 0 && (
+                                            <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: '#d1fae5', color: '#065f46' }}>
+                                                {activeCount} active
+                                            </span>
+                                        )}
+                                        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--t-text-muted)', padding: '2px 8px', borderRadius: 99, background: 'var(--t-bg)' }}>
+                                            {group.items.length} worker{group.items.length !== 1 ? 's' : ''}
+                                        </span>
+                                        <span style={{ fontSize: 12, color: 'var(--t-text-muted)', fontWeight: 700, opacity: 0.5, transform: isOpen ? 'rotate(180deg)' : 'rotate(0)', display: 'inline-block', transition: 'transform 0.2s' }}>▼</span>
+                                    </div>
+                                </button>
+
+                                {/* Assignment rows */}
+                                {isOpen && (
+                                    <div style={{ overflowX: 'auto' }}>
+                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                                            <thead>
+                                                <tr style={{ borderBottom: '1px solid var(--t-border)', color: 'var(--t-text-muted)', textAlign: 'left', background: 'var(--t-bg)' }}>
+                                                    <th style={{ padding: '8px 16px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Worker</th>
+                                                    <th style={{ padding: '8px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Task</th>
+                                                    <th style={{ padding: '8px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Start</th>
+                                                    <th style={{ padding: '8px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>End</th>
+                                                    <th style={{ padding: '8px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Est.</th>
+                                                    <th style={{ padding: '8px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Actual</th>
+                                                    <th style={{ padding: '8px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {group.items.map((a, idx) => {
+                                                    const sc = statusColors[a.status] || { bg: '#f3f4f6', color: '#374151' };
+                                                    return (
+                                                        <tr key={a.id} style={{ borderBottom: '1px solid var(--t-border)', background: idx % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.015)' }}>
+                                                            <td style={{ padding: '9px 16px', fontWeight: 700 }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                                    <div style={{
+                                                                        width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+                                                                        background: `${color}22`, color,
+                                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                        fontSize: 11, fontWeight: 900,
+                                                                    }}>
+                                                                        {(a.worker_name || '?').charAt(0).toUpperCase()}
+                                                                    </div>
+                                                                    <div>
+                                                                        <div style={{ fontSize: 13, fontWeight: 700 }}>{a.worker_name || a.worker}</div>
+                                                                        {a.worker_id_display && <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>{a.worker_id_display}</div>}
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td style={{ padding: '9px 10px' }}>
+                                                                {a.task ? (
+                                                                    <Link to={`/dashboard/desktop/phases?task=${a.task}`} style={{ fontSize: 12, color: 'var(--t-primary)', textDecoration: 'none', fontWeight: 600 }}>
+                                                                        {a.task_name || `Task #${a.task}`}
+                                                                    </Link>
+                                                                ) : <span style={{ color: 'var(--t-text-muted)', fontSize: 12 }}>Phase-level</span>}
+                                                            </td>
+                                                            <td style={{ padding: '9px 10px', fontSize: 12, color: 'var(--t-text-muted)' }}>{a.start_date || '—'}</td>
+                                                            <td style={{ padding: '9px 10px', fontSize: 12, color: 'var(--t-text-muted)' }}>{a.end_date || '—'}</td>
+                                                            <td style={{ padding: '9px 10px', fontSize: 12 }}>{a.estimated_days ?? '—'}</td>
+                                                            <td style={{ padding: '9px 10px', fontSize: 12, fontWeight: 700 }}>{a.actual_days ?? '—'}</td>
+                                                            <td style={{ padding: '9px 10px' }}>
+                                                                <span style={{ display: 'inline-block', padding: '3px 9px', borderRadius: 99, fontSize: 11, fontWeight: 700, background: sc.bg, color: sc.color }}>
+                                                                    {a.status?.replace('_', ' ').toUpperCase()}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
                 </div>
             )}
 
@@ -673,7 +773,7 @@ function AssignmentsTab({ projectId }) {
                     </div>
                 </div>
                 <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px dashed var(--t-border)', fontSize: 12, color: 'var(--t-text-muted)' }}>
-                    🛠️ **कसरी (How):** 'New Assignment' बटन थिच्नुहोस्, कामदार र फेज छान्नुहोस्, र सुरु हुने मिति तय गर्नुहोस्। कामदारले हाजिरी गर्दा यो स्वतः गणना हुनेछ।
+                    🛠️ <strong>कसरी (How):</strong> Phase Detail मा गएर 'Workforce' ट्याबबाट कामदार थप्नुहोस्। कामदारले हाजिरी गर्दा यो स्वतः गणना हुनेछ।
                 </div>
             </div>
         </div>

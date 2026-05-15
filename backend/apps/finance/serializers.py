@@ -305,7 +305,7 @@ class ExpenseSerializer(serializers.ModelSerializer):
     phase_name = serializers.CharField(source="phase.name", read_only=True)
     supplier_name = serializers.CharField(source="supplier.name", read_only=True)
     contractor_name = serializers.CharField(source="contractor.name", read_only=True)
-    contractor_photo = serializers.ImageField(source="contractor.photo", read_only=True)
+    contractor_photo = serializers.SerializerMethodField()  # resource.Worker has no photo field
     supplier_photo = serializers.ImageField(source="supplier.photo", read_only=True)
     funding_source_name = serializers.CharField(source="funding_source.name", read_only=True)
     task_name = serializers.CharField(source="task.title", read_only=True)
@@ -319,6 +319,10 @@ class ExpenseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Expense
         fields = "__all__"
+
+    def get_contractor_photo(self, obj):
+        # resource.Worker has no photo field; return None for API compatibility
+        return None
 
     def get_total_paid(self, obj):
         return _as_float(obj.total_paid)

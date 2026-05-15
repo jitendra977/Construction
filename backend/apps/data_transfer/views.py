@@ -123,8 +123,8 @@ class ExportSystemView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        if not request.user.is_superuser:
-            return Response({'error': 'Superuser access required.'}, status=403)
+        if not _is_admin(request.user):
+            return Response({'error': 'Admin access required.'}, status=403)
 
         try:
             from .exporter import export_all_projects_sql
@@ -162,19 +162,28 @@ class ExportStatsView(APIView):
         return Response(stats)
 
 
+def _is_admin(user) -> bool:
+    """Return True for superusers, staff, and system-admins."""
+    return bool(
+        getattr(user, 'is_superuser', False)
+        or getattr(user, 'is_staff', False)
+        or getattr(user, 'is_system_admin', False)
+    )
+
+
 class ImportSqlView(APIView):
     """
     POST /api/v1/data-transfer/import/
     Upload a .sql file and execute it atomically.
-    Superusers only.
+    Available to superusers, staff, and system-admins.
     """
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser]
 
     def post(self, request):
-        if not request.user.is_superuser:
+        if not _is_admin(request.user):
             return Response(
-                {'success': False, 'error': 'Superuser access required for SQL import.'},
+                {'success': False, 'error': 'Admin access required for SQL import.'},
                 status=status.HTTP_403_FORBIDDEN
             )
 

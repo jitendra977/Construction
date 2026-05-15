@@ -145,7 +145,7 @@ class ChecklistItem(models.Model):
         related_name="permit_items",
     )
     attached_documents = models.ManyToManyField(
-        "resources.Document", blank=True, related_name="permit_items"
+        "permits.PermitDocument", blank=True, related_name="permit_items"
     )
     fee_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     completed_at = models.DateField(null=True, blank=True)

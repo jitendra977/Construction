@@ -64,13 +64,13 @@ class AttendanceWorker(models.Model):
     joined_date  = models.DateField(null=True, blank=True)
     notes        = models.TextField(blank=True)
 
-    # ── Resource Contractor link ───────────────────────────────
-    # Links this attendance record to a resources.Contractor entry (same physical person).
-    # OneToOne: one contractor → one attendance worker per project.
+    # ── Resource Worker link ───────────────────────────────────
+    # Links this attendance record to a resource.Worker entry (same physical person).
+    # OneToOne: one worker → one attendance worker per project.
     contractor = models.OneToOneField(
-        "resources.Contractor", null=True, blank=True,
+        "resource.Worker", null=True, blank=True,
         on_delete=models.SET_NULL, related_name="attendance_worker",
-        help_text="Linked resource/contractor record for this attendance worker",
+        help_text="Linked resource worker record for this attendance worker",
     )
 
     # ── Per-worker custom scan time window ─────────────────────

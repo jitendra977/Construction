@@ -8,30 +8,8 @@ from .ledger import Account
 
 ZERO = Decimal("0.00")
 
-
-class Vendor(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=255)
-    phone = models.CharField(max_length=50, blank=True, null=True)
-    address = models.CharField(max_length=500, blank=True, null=True)
-    pan_number = models.CharField(max_length=20, blank=True, null=True, help_text="PAN/VAT registration number")
-    category = models.CharField(
-        max_length=50, blank=True, null=True,
-        help_text="e.g. Civil Contractor, Electrical, Material Supplier, Labor"
-    )
-    
-    # Fields imported from legacy Supplier
-    contact_person = models.CharField(max_length=100, blank=True, null=True)
-    email = models.EmailField(blank=True, null=True)
-    photo = models.ImageField(upload_to='vendors/', null=True, blank=True)
-    bank_name = models.CharField(max_length=100, blank=True, null=True)
-    account_number = models.CharField(max_length=50, blank=True, null=True)
-    branch = models.CharField(max_length=100, blank=True, null=True)
-    
-    is_active = models.BooleanField(default=True)
-
-    def __str__(self):
-        return self.name
+# Vendor has moved to apps.fin — re-export for backward compatibility
+from apps.fin.models.vendor import Vendor  # noqa: F401
 
 
 class PurchaseOrder(models.Model):

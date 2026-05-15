@@ -30,7 +30,13 @@ from apps.core.views import HouseProjectViewSet, ConstructionPhaseViewSet, Phase
 from apps.core.gallery_views import GalleryViewSet
 from apps.tasks.views import TaskViewSet, TaskUpdateViewSet, TaskMediaViewSet
 
-from apps.resources.views import ContractorViewSet, MaterialViewSet, DocumentViewSet, SupplierViewSet, WastageAlertViewSet, WastageThresholdViewSet
+# ── Legacy resources API — backward-compat URL paths mapped to new resource app ──
+from apps.resource.views.labor import WorkerViewSet as ContractorViewSet
+from apps.resource.views.material import MaterialViewSet
+from apps.resource.views.supplier import SupplierViewSet
+from apps.permits.views import PermitDocumentViewSet as DocumentViewSet
+# WastageAlert/Threshold have no equivalent in the new resource app yet; keep legacy
+from apps.resources.views import WastageAlertViewSet, WastageThresholdViewSet
 from apps.resource.views.transactions import MaterialTransactionViewSet as NewMaterialTransactionViewSet
 
 router = DefaultRouter()
@@ -45,11 +51,10 @@ router.register(r'rooms', RoomViewSet, basename='room')
 router.register(r'tasks', TaskViewSet)
 router.register(r'updates', TaskUpdateViewSet)
 router.register(r'task-media', TaskMediaViewSet)
-router.register(r'contractors', ContractorViewSet)
-router.register(r'suppliers', SupplierViewSet)
-router.register(r'materials', MaterialViewSet)
-
-router.register(r'documents', DocumentViewSet)
+router.register(r'contractors', ContractorViewSet, basename='contractor')
+router.register(r'suppliers', SupplierViewSet, basename='supplier')
+router.register(r'materials', MaterialViewSet, basename='material')
+router.register(r'documents', DocumentViewSet, basename='document')
 router.register(r'gallery', GalleryViewSet, basename='gallery')
 router.register(r'wastage-alerts', WastageAlertViewSet, basename='wastage-alerts')
 router.register(r'wastage-thresholds', WastageThresholdViewSet, basename='wastage-thresholds')

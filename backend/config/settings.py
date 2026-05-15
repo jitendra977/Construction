@@ -54,8 +54,8 @@ INSTALLED_APPS = [
     'apps.core',
     'apps.tasks',
     'apps.finance',
-    'apps.accounting',
-    'apps.resources',
+    'apps.accounting',   # LEGACY — only Vendor + PhaseBudgetLine still used externally; moving to fin
+    'apps.resources',    # LEGACY — no other app imports from here; kept for DB tables + wastage endpoints
     'apps.estimator',
     'apps.permits',
     'apps.photo_intel',

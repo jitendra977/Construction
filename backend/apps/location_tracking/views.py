@@ -15,6 +15,19 @@ from .serializers import (
 from .utils import haversine_distance, is_point_in_geofence
 
 
+def _user_avatar_url(request, user):
+    """Absolute URL for the user's profile photo, or None if not set."""
+    if not user or not user.profile_image:
+        return None
+    try:
+        url = user.profile_image.url
+        if request:
+            return request.build_absolute_uri(url)
+        return url
+    except (ValueError, AttributeError):
+        return None
+
+
 class GeofenceViewSet(viewsets.ModelViewSet):
     """
     Full CRUD for Project Geofences.
@@ -250,7 +263,7 @@ class LivePositionsView(views.APIView):
                 "user_id": s.user.id,
                 "username": s.user.username,
                 "full_name": full_name,
-                "avatar_url": f"https://ui-avatars.com/api/?name={full_name.replace(' ', '+')}&background=random&size=80",
+                "avatar_url": _user_avatar_url(request, s.user),
                 "latitude": lat,
                 "longitude": lon,
                 "last_ping_at": ping_time,
@@ -271,7 +284,7 @@ class LivePositionsView(views.APIView):
                     "user_id": log.user.id,
                     "username": log.user.username,
                     "full_name": f"{full_name} (Off-Site)",
-                    "avatar_url": f"https://ui-avatars.com/api/?name={full_name.replace(' ', '+')}&background=random&size=80",
+                    "avatar_url": _user_avatar_url(request, log.user),
                     "latitude": float(log.latitude) if log.latitude else None,
                     "longitude": float(log.longitude) if log.longitude else None,
                     "last_ping_at": log.timestamp,

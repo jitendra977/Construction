@@ -524,7 +524,7 @@ class EmailLog(models.Model):
     # Optional links to related objects
     payment = models.ForeignKey('finance.Payment', on_delete=models.SET_NULL, null=True, blank=True, related_name='email_logs')
     expense = models.ForeignKey('finance.Expense', on_delete=models.SET_NULL, null=True, blank=True, related_name='email_logs')
-    material = models.ForeignKey('resources.Material', on_delete=models.SET_NULL, null=True, blank=True, related_name='email_logs')
+    material = models.ForeignKey('resource.Material', on_delete=models.SET_NULL, null=True, blank=True, related_name='email_logs')
     
     sent_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='sent_emails')
     error_message = models.TextField(blank=True)

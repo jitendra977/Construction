@@ -53,8 +53,8 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_contractor_profile(self, obj):
         try:
-            from apps.resources.serializers import ContractorSerializer
-            return ContractorSerializer(obj.contractor_profile).data
+            from apps.resource.serializers.labor import WorkerSerializer
+            return WorkerSerializer(obj.contractor_profile).data
         except Exception:
             return None
         

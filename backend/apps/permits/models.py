@@ -1,5 +1,34 @@
 from django.db import models
 
+
+class PermitDocument(models.Model):
+    """
+    Documents owned by the permits app (blueprints, land certs, permit letters, etc.).
+    Replaces the old resources.Document dependency.
+    """
+    TYPE_CHOICES = [
+        ('NAKSHA',    'Naksha (Blueprint/Map)'),
+        ('LALPURJA',  'Lalpurja (Land Cert)'),
+        ('NAGRIKTA',  'Nagrikta (Citizenship)'),
+        ('TIRO',      'Tiro Rasid (Tax Receipt)'),
+        ('CHARKILLA', 'Charkilla (Boundary)'),
+        ('PERMIT',    'Nagar Palika Permit'),
+        ('BILL',      'Bill/Invoice'),
+        ('PHOTO',     'Site Photo'),
+        ('AGREEMENT', 'Samjhauta Patra (Contract)'),
+        ('OTHER',     'Other'),
+    ]
+
+    title         = models.CharField(max_length=200)
+    file          = models.FileField(upload_to='permit-documents/%Y/%m/')
+    document_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='OTHER')
+    description   = models.TextField(blank=True)
+    uploaded_at   = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.title} ({self.get_document_type_display()})"
+
+
 # Re-export Permit Co-Pilot models
 from .copilot_models import (  # noqa: F401
     ChecklistItem,
@@ -32,7 +61,7 @@ class PermitStep(models.Model):
     
     # Document attachments for this permit step
     documents = models.ManyToManyField(
-        'resources.Document',
+        'permits.PermitDocument',
         blank=True,
         related_name='permit_steps',
         help_text='Documents required/submitted for this permit step'

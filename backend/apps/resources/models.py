@@ -111,7 +111,7 @@ class Material(models.Model):
     name = models.CharField(max_length=100, help_text="e.g., OPC Cement, Baluwa (Sand), Gitti (Aggregates)")
     category = models.CharField(max_length=50, blank=True, help_text="e.g., Civil, Plumbing, Electrical")
     unit = models.CharField(max_length=10, choices=UNIT_CHOICES)
-    supplier = models.ForeignKey('accounting.Vendor', on_delete=models.SET_NULL, null=True, blank=True, related_name='materials')
+    supplier = models.ForeignKey('fin.Vendor', on_delete=models.SET_NULL, null=True, blank=True, related_name='materials')
     budget_category = models.ForeignKey('finance.BudgetCategory', on_delete=models.SET_NULL, null=True, blank=True, related_name='materials')
     image = models.ImageField(upload_to='materials/', null=True, blank=True)
     project = models.ForeignKey(
@@ -200,7 +200,7 @@ class MaterialTransaction(models.Model):
     date = models.DateField()
     
     # Related entities
-    supplier = models.ForeignKey('accounting.Vendor', on_delete=models.SET_NULL, null=True, blank=True, related_name='material_transactions')
+    supplier = models.ForeignKey('fin.Vendor', on_delete=models.SET_NULL, null=True, blank=True, related_name='material_transactions')
     expense = models.ForeignKey('finance.Expense', on_delete=models.SET_NULL, null=True, blank=True, related_name='material_transactions')
     funding_source = models.ForeignKey('finance.FundingSource', on_delete=models.SET_NULL, null=True, blank=True, related_name='material_transactions')
     room = models.ForeignKey('core.Room', on_delete=models.SET_NULL, null=True, blank=True, related_name='material_usage')

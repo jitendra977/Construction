@@ -20,7 +20,7 @@ from django.db.models import Count, Sum
 from django.utils import timezone
 
 from apps.finance.models import Expense
-from apps.resources.models import MaterialTransaction
+from apps.resource.models import StockMovement as MaterialTransaction
 from apps.tasks.models import Task, TaskMedia
 
 from apps.photo_intel.models import PhotoAnalysis, Timelapse, WeeklyDigest
@@ -51,8 +51,8 @@ def build_weekly_digest(week_start: date, week_end: date) -> WeeklyDigest:
 
     mat_used = (
         MaterialTransaction.objects.filter(
-            transaction_type="OUT", status="RECEIVED",
-            date__gte=week_start, date__lte=week_end,
+            movement_type="OUT",
+            created_at__date__gte=week_start, created_at__date__lte=week_end,
         ).aggregate(total=Sum("quantity"))["total"] or Decimal("0")
     )
 

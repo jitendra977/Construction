@@ -1129,6 +1129,245 @@ function CreateContractForm({ projectId, onSaved, onCancel }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// QuickPayDashboard — flat list of all unpaid installments across all contracts
+// ─────────────────────────────────────────────────────────────────────────────
+function QuickPayDashboard({ contracts, bankAccounts, onRefresh }) {
+  const [payingInst, setPayingInst] = useState(null);
+  const [collapsed,  setCollapsed]  = useState(false);
+  const [filterMode, setFilterMode] = useState('urgent'); // 'urgent' | 'partial' | 'all'
+
+  // Flatten all installments from all contracts, annotate with contractor info
+  const allUnpaid = useMemo(() => {
+    const list = [];
+    for (const c of contracts) {
+      for (const inst of (c.installments || [])) {
+        if (inst.status === 'PAID') continue;
+        list.push({ ...inst, _contractName: c.contractor_name, _contractId: c.id });
+      }
+    }
+    return list;
+  }, [contracts]);
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  const overdue  = allUnpaid.filter(i => i.status === 'OVERDUE' || (i.due_date && i.due_date < today && i.status !== 'PAID'));
+  const partial  = allUnpaid.filter(i => i.status === 'PARTIAL' && !(i.due_date && i.due_date < today));
+  const dueSoon  = allUnpaid.filter(i =>
+    i.status === 'PENDING' && i.due_date && i.due_date >= today &&
+    i.due_date <= new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)
+  );
+
+  // Priority sort: overdue → partial → due-soon → rest
+  const urgentList = useMemo(() => {
+    const weight = i => {
+      if (i.status === 'OVERDUE' || (i.due_date && i.due_date < today)) return 0;
+      if (i.status === 'PARTIAL') return 1;
+      if (i.due_date && i.due_date <= new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)) return 2;
+      return 3;
+    };
+    return [...allUnpaid].sort((a, b) => {
+      const wa = weight(a), wb = weight(b);
+      if (wa !== wb) return wa - wb;
+      const da = a.due_date || '9999', db = b.due_date || '9999';
+      return da < db ? -1 : da > db ? 1 : 0;
+    });
+  }, [allUnpaid, today]);
+
+  const shownList = filterMode === 'urgent'  ? urgentList
+                  : filterMode === 'partial' ? allUnpaid.filter(i => i.status === 'PARTIAL')
+                  : allUnpaid;
+
+  if (allUnpaid.length === 0) return null;
+
+  const urgentCount = overdue.length + partial.length;
+  const totalDue    = allUnpaid.reduce((s, i) => s + Number(i.remaining || 0), 0);
+
+  return (
+    <div className={`rounded-2xl border overflow-hidden shadow-sm transition-all ${
+      overdue.length > 0 ? 'border-red-200 bg-red-50/40' : urgentCount > 0 ? 'border-amber-200 bg-amber-50/30' : 'border-gray-200 bg-white'
+    }`}>
+      {/* ── Header bar ── */}
+      <button
+        onClick={() => setCollapsed(c => !c)}
+        className="w-full px-5 py-3.5 flex items-center justify-between gap-3 hover:bg-white/60 transition-colors"
+      >
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <span className="text-base">⚡</span>
+            <span className="text-sm font-black text-gray-900">Quick Pay Dashboard</span>
+            <span className="text-[10px] font-bold text-gray-400">किस्ता भुक्तानी</span>
+          </div>
+          {/* Urgency chips */}
+          {overdue.length > 0 && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-[10px] font-black border border-red-200">
+              ⚠ {overdue.length} Overdue
+            </span>
+          )}
+          {partial.length > 0 && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[10px] font-black border border-amber-200">
+              ◑ {partial.length} Partial
+            </span>
+          )}
+          {dueSoon.length > 0 && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-black border border-blue-200">
+              🗓 {dueSoon.length} Due soon
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <span className="text-[10px] font-black text-gray-400 hidden sm:block">
+            NPR {fmt(totalDue)} total remaining
+          </span>
+          <span className="text-gray-400 text-sm">{collapsed ? '▼' : '▲'}</span>
+        </div>
+      </button>
+
+      {/* ── Body ── */}
+      {!collapsed && (
+        <div className="border-t border-white/80 bg-white/80">
+          {/* Filter tabs */}
+          <div className="flex gap-1 px-4 pt-3 pb-2">
+            {[
+              { id: 'urgent',  label: `Urgent (${overdue.length + partial.length + dueSoon.length})` },
+              { id: 'partial', label: `Partial (${partial.length})` },
+              { id: 'all',     label: `All Pending (${allUnpaid.length})` },
+            ].map(tab => (
+              <button key={tab.id} onClick={() => setFilterMode(tab.id)}
+                className={`px-3 py-1.5 rounded-full text-[10px] font-bold transition-all ${
+                  filterMode === tab.id ? 'bg-gray-900 text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                }`}>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Column headers */}
+          <div className="hidden sm:grid grid-cols-[1fr_1fr_auto_auto_auto] gap-2 px-5 pb-1.5 text-[9px] font-black text-gray-400 uppercase tracking-widest">
+            <span>Contractor · Milestone</span>
+            <span>Remaining</span>
+            <span>Due Date</span>
+            <span>Status</span>
+            <span />
+          </div>
+
+          {/* Installment rows */}
+          <div className="divide-y divide-gray-100 max-h-[380px] overflow-y-auto">
+            {shownList.length === 0 ? (
+              <div className="px-5 py-8 text-center text-xs text-gray-400">Nothing to show for this filter.</div>
+            ) : shownList.map(inst => {
+              const isOverdue = inst.status === 'OVERDUE' || (inst.due_date && inst.due_date < today);
+              const isPartial = inst.status === 'PARTIAL';
+              const remaining = Number(inst.remaining || 0);
+              const pct = Number(inst.amount || 0) > 0
+                ? Math.min(100, (Number(inst.total_paid || 0) / Number(inst.amount || 0)) * 100)
+                : 0;
+
+              return (
+                <div key={inst.id} className={`px-5 py-3 flex items-center gap-3 group transition-colors ${
+                  isOverdue ? 'hover:bg-red-50' : isPartial ? 'hover:bg-amber-50' : 'hover:bg-blue-50/30'
+                }`}>
+                  {/* Status dot */}
+                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                    isOverdue ? 'bg-red-400' : isPartial ? 'bg-amber-400' : 'bg-gray-300'
+                  }`} />
+
+                  {/* Contractor + Milestone */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-1.5 flex-wrap">
+                      <span className="text-[11px] font-black text-gray-700 truncate">{inst._contractName}</span>
+                      <span className="text-[10px] text-gray-400">›</span>
+                      <span className="text-[11px] font-semibold text-gray-600 truncate">{inst.milestone}</span>
+                    </div>
+                    {/* Progress bar */}
+                    {isPartial && (
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="flex-1 h-1 bg-gray-200 rounded-full overflow-hidden" style={{ maxWidth: '120px' }}>
+                          <div className="h-full bg-amber-400 rounded-full" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="text-[9px] text-gray-400">{Math.round(pct)}%</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Amount remaining */}
+                  <div className="text-right flex-shrink-0 hidden sm:block">
+                    <p className={`text-[12px] font-black ${isOverdue ? 'text-red-700' : isPartial ? 'text-amber-700' : 'text-gray-700'}`}>
+                      NPR {fmt(remaining)}
+                    </p>
+                    {isPartial && (
+                      <p className="text-[9px] text-gray-400">of {fmt(inst.amount)}</p>
+                    )}
+                  </div>
+
+                  {/* Due date */}
+                  <div className="text-right flex-shrink-0 w-20 hidden sm:block">
+                    {inst.due_date ? (
+                      <span className={`text-[10px] font-semibold ${
+                        isOverdue ? 'text-red-600 font-black' : 'text-gray-500'
+                      }`}>
+                        {isOverdue ? '⚠ ' : ''}{fmtShort(inst.due_date)}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-gray-300">No date</span>
+                    )}
+                  </div>
+
+                  {/* Status badge */}
+                  <div className="flex-shrink-0 hidden sm:block">
+                    <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${
+                      STATUS_STYLE[inst.status]?.badge || 'bg-gray-100 text-gray-500'
+                    }`}>
+                      {STATUS_STYLE[inst.status]?.label || inst.status}
+                    </span>
+                  </div>
+
+                  {/* Pay Now button */}
+                  <button
+                    onClick={() => setPayingInst(inst)}
+                    className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-black transition-all active:scale-95 ${
+                      isOverdue
+                        ? 'bg-red-600 hover:bg-red-700 text-white shadow-sm'
+                        : isPartial
+                        ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm'
+                        : 'bg-gray-900 hover:bg-gray-700 text-white shadow-sm'
+                    }`}
+                  >
+                    Pay Now
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Footer summary */}
+          <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between gap-2 bg-gray-50/60">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-[10px] text-gray-500">
+                <strong className="text-gray-700">{allUnpaid.length}</strong> pending installments across{' '}
+                <strong className="text-gray-700">{contracts.filter(c => c.installments?.some(i => i.status !== 'PAID')).length}</strong> contracts
+              </span>
+            </div>
+            <span className="text-[11px] font-black text-gray-600 flex-shrink-0">
+              NPR {fmt(totalDue)} due
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Pay modal (reuse existing PaymentModal) */}
+      {payingInst && (
+        <PaymentModal
+          inst={payingInst}
+          bankAccounts={bankAccounts}
+          onClose={() => setPayingInst(null)}
+          onSaved={() => { setPayingInst(null); onRefresh(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ContractorPage
 // ─────────────────────────────────────────────────────────────────────────────
 export default function ContractorPage() {
@@ -1230,6 +1469,15 @@ export default function ContractorPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Quick Pay Dashboard ──────────────────────────────────────────── */}
+      {!loading && contracts.length > 0 && (
+        <QuickPayDashboard
+          contracts={contracts}
+          bankAccounts={bankAccounts}
+          onRefresh={load}
+        />
       )}
 
       {/* ── Status filter tabs ───────────────────────────────────────────── */}

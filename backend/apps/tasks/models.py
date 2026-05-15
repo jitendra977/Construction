@@ -1,6 +1,27 @@
 from django.db import models
 from apps.core.models import ConstructionPhase, Room
-from apps.resources.models import Document
+
+
+class TaskDocument(models.Model):
+    """
+    Documents and attachments owned by the tasks app.
+    Replaces the old resources.Document dependency.
+    """
+    TYPE_CHOICES = [
+        ('IMAGE',    'Image / Photo'),
+        ('VIDEO',    'Video'),
+        ('DOCUMENT', 'Document / PDF'),
+        ('OTHER',    'Other'),
+    ]
+
+    title         = models.CharField(max_length=200)
+    file          = models.FileField(upload_to='task-documents/%Y/%m/')
+    document_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='DOCUMENT')
+    description   = models.TextField(blank=True)
+    uploaded_at   = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.title} ({self.get_document_type_display()})"
 
 class Task(models.Model):
     """
@@ -86,7 +107,7 @@ class TaskUpdate(models.Model):
     date = models.DateTimeField(auto_now_add=True)
     
     # Photos/Documents related to this update
-    attachments = models.ManyToManyField(Document, blank=True, related_name='task_updates')
+    attachments = models.ManyToManyField(TaskDocument, blank=True, related_name='task_updates')
 
     def __str__(self):
         return f"Update for {self.task.title} on {self.date.strftime('%Y-%m-%d')}"

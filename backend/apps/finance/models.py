@@ -16,12 +16,34 @@ from django.db import models
 from django.db.models import Sum, Q
 
 from apps.core.models import ConstructionPhase
-from apps.resources.models import Document
 from apps.resource.models import Material, Worker, Supplier
 from simple_history.models import HistoricalRecords
 
 
 ZERO = Decimal("0.00")
+
+
+# -----------------------------------------------------------------------------
+# Finance-owned document model (replaces reference to resources.Document)
+# -----------------------------------------------------------------------------
+
+class ExpenseDocument(models.Model):
+    """Receipt / supporting document attached to an Expense."""
+    TYPE_CHOICES = [
+        ('BILL',      'Bill/Invoice'),
+        ('RECEIPT',   'Receipt'),
+        ('PHOTO',     'Site Photo'),
+        ('AGREEMENT', 'Samjhauta Patra (Contract)'),
+        ('OTHER',     'Other'),
+    ]
+    title         = models.CharField(max_length=200)
+    file          = models.FileField(upload_to='expense-documents/%Y/%m/')
+    document_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='RECEIPT')
+    description   = models.TextField(blank=True)
+    uploaded_at   = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.title} ({self.get_document_type_display()})"
 
 
 # -----------------------------------------------------------------------------
@@ -317,8 +339,8 @@ class PurchaseOrder(models.Model):
 
     po_number = models.CharField(max_length=50, unique=True)
     date = models.DateField()
-    supplier = models.ForeignKey("accounting.Vendor", on_delete=models.SET_NULL, null=True, blank=True, related_name="legacy_purchase_orders")
-    contractor = models.ForeignKey("resources.Contractor", on_delete=models.SET_NULL, null=True, blank=True, related_name="purchase_orders")
+    supplier = models.ForeignKey("fin.Vendor", on_delete=models.SET_NULL, null=True, blank=True, related_name="legacy_purchase_orders")
+    contractor = models.ForeignKey("resource.Worker", on_delete=models.SET_NULL, null=True, blank=True, related_name="finance_purchase_orders")
     phase = models.ForeignKey(ConstructionPhase, on_delete=models.SET_NULL, null=True, blank=True)
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=ZERO)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="DRAFT")
@@ -348,8 +370,8 @@ class Bill(models.Model):
 
     bill_number = models.CharField(max_length=50, blank=True)
     purchase_order = models.ForeignKey(PurchaseOrder, on_delete=models.SET_NULL, null=True, blank=True, related_name="bills")
-    supplier = models.ForeignKey("accounting.Vendor", on_delete=models.SET_NULL, null=True, blank=True, related_name="legacy_bills")
-    contractor = models.ForeignKey("resources.Contractor", on_delete=models.SET_NULL, null=True, blank=True, related_name="bills")
+    supplier = models.ForeignKey("fin.Vendor", on_delete=models.SET_NULL, null=True, blank=True, related_name="legacy_bills")
+    contractor = models.ForeignKey("resource.Worker", on_delete=models.SET_NULL, null=True, blank=True, related_name="finance_bills")
     date_issued = models.DateField()
     due_date = models.DateField()
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=ZERO)
@@ -389,7 +411,7 @@ class BillItem(models.Model):
     bill = models.ForeignKey(Bill, on_delete=models.CASCADE, related_name="items")
     category = models.ForeignKey("BudgetCategory", on_delete=models.SET_NULL, null=True, blank=True, related_name="bill_items")
     phase = models.ForeignKey(ConstructionPhase, on_delete=models.SET_NULL, null=True, blank=True, related_name="bill_items")
-    material = models.ForeignKey("resources.Material", on_delete=models.SET_NULL, null=True, blank=True, related_name="bill_items")
+    material = models.ForeignKey("resource.Material", on_delete=models.SET_NULL, null=True, blank=True, related_name="finance_bill_items")
     description = models.CharField(max_length=255)
     quantity = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("1"))
     unit_price = models.DecimalField(max_digits=12, decimal_places=2)
@@ -494,7 +516,7 @@ class Expense(models.Model):
     date = models.DateField()
     paid_to = models.CharField(max_length=200)
     is_paid = models.BooleanField(default=False)
-    receipt = models.ForeignKey(Document, on_delete=models.SET_NULL, null=True, blank=True, related_name="expenses")
+    receipt = models.ForeignKey(ExpenseDocument, on_delete=models.SET_NULL, null=True, blank=True, related_name="expenses")
     notes = models.TextField(blank=True)
     is_inventory_usage = models.BooleanField(
         default=False,

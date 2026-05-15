@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 from apps.core.models import ConstructionPhase, Room, HouseProject, Floor
-from apps.resources.models import Material, Contractor, Supplier
+from apps.resource.models import Material, Worker as Contractor, Supplier
 from apps.finance.models import BudgetCategory, Expense
 from apps.tasks.models import Task
 from django.utils import timezone
@@ -105,80 +105,81 @@ class Command(BaseCommand):
             
         self.stdout.write(self.style.SUCCESS(f'Created {len(rooms)} Rooms'))
 
-        # 3. Contractors / Resource People
+        # 3. Workers (formerly Contractors)
+        LEGACY_ROLE_MAP = {
+            'THEKEDAAR': 'SUPERVISOR', 'ENGINEER': 'ENGINEER', 'MISTRI': 'MASON',
+            'PLUMBER': 'PLUMBER', 'ELECTRICIAN': 'ELECTRICIAN', 'WELDER': 'OTHER',
+            'PAINTER': 'PAINTER',
+        }
         contractors_data = [
-            {'name': 'Hari Krishna (Thekedaar)', 'role': 'THEKEDAAR', 'phone': '9841000001', 'rate': 0},
-            {'name': 'Er. Binod Sharma', 'role': 'ENGINEER', 'phone': '9851000002', 'rate': 5000},
-            {'name': 'Kancha Bhai (Mason Head)', 'role': 'MISTRI', 'phone': '9801000003', 'rate': 1200},
-            {'name': 'Ramesh (Plumber)', 'role': 'PLUMBER', 'phone': '9812000004', 'rate': 1500},
-            {'name': 'Suresh (Electrician)', 'role': 'ELECTRICIAN', 'phone': '9860000005', 'rate': 1500},
-            {'name': 'Shyam (Welder)', 'role': 'WELDER', 'phone': '9841000006', 'rate': 0},
-            {'name': 'Bishnu (Painter)', 'role': 'PAINTER', 'phone': '9843000007', 'rate': 1100},
+            {'name': 'Hari Krishna (Thekedaar)', 'role': 'THEKEDAAR', 'phone': '9841000001', 'daily_wage': 2500},
+            {'name': 'Er. Binod Sharma', 'role': 'ENGINEER', 'phone': '9851000002', 'daily_wage': 5000},
+            {'name': 'Kancha Bhai (Mason Head)', 'role': 'MISTRI', 'phone': '9801000003', 'daily_wage': 1200},
+            {'name': 'Ramesh (Plumber)', 'role': 'PLUMBER', 'phone': '9812000004', 'daily_wage': 1500},
+            {'name': 'Suresh (Electrician)', 'role': 'ELECTRICIAN', 'phone': '9860000005', 'daily_wage': 1500},
+            {'name': 'Shyam (Welder)', 'role': 'WELDER', 'phone': '9841000006', 'daily_wage': 1000},
+            {'name': 'Bishnu (Painter)', 'role': 'PAINTER', 'phone': '9843000007', 'daily_wage': 1100},
         ]
-        
+
         contractors = {}
         for c in contractors_data:
+            worker_role = LEGACY_ROLE_MAP.get(c['role'], 'OTHER')
             obj = Contractor.objects.create(
+                project=project,
                 name=c['name'],
-                role=c['role'],
+                role=worker_role,
                 phone=c['phone'],
-                rate=c['rate']
+                daily_wage=c['daily_wage'],
             )
             contractors[c['role']] = obj
 
-        self.stdout.write(self.style.SUCCESS(f'Created {len(contractors)} Contractors'))
+        self.stdout.write(self.style.SUCCESS(f'Created {len(contractors)} Workers'))
 
         # 3.5 Suppliers
         suppliers_data = [
-            {'name': 'Pashupati Hardware', 'contact': 'Rajesh Hamal', 'phone': '9851012345', 'cat': 'Civil Materials'},
-            {'name': 'Arniko Itta Udhyog', 'contact': 'Shiva Shrestha', 'phone': '9841054321', 'cat': 'Bricks'},
-            {'name': 'Everest Marble & Granite', 'contact': 'Madan Krishna', 'phone': '9801122334', 'cat': 'Flooring'},
-            {'name': 'Nepal Pipe & Fittings', 'contact': 'Hari Bansha', 'phone': '9860111222', 'cat': 'Plumbing'},
-            {'name': 'Lumbini Electricals', 'contact': 'Pradeep Khadka', 'phone': '9843666777', 'cat': 'Electrical'},
+            {'name': 'Pashupati Hardware', 'contact': 'Rajesh Hamal', 'phone': '9851012345'},
+            {'name': 'Arniko Itta Udhyog', 'contact': 'Shiva Shrestha', 'phone': '9841054321'},
+            {'name': 'Everest Marble & Granite', 'contact': 'Madan Krishna', 'phone': '9801122334'},
+            {'name': 'Nepal Pipe & Fittings', 'contact': 'Hari Bansha', 'phone': '9860111222'},
+            {'name': 'Lumbini Electricals', 'contact': 'Pradeep Khadka', 'phone': '9843666777'},
         ]
-        
+
         suppliers = {}
         for s in suppliers_data:
             obj = Supplier.objects.create(
+                project=project,
                 name=s['name'],
                 contact_person=s['contact'],
                 phone=s['phone'],
-                category=s['cat']
+                specialty='Materials',
             )
             suppliers[s['name']] = obj
 
         self.stdout.write(self.style.SUCCESS(f'Created {len(suppliers)} Suppliers'))
 
         # 4. Materials Inventory
+        UNIT_MAP = {'BORA': 'BAG', 'KG': 'KG', 'TRACTOR': 'PIECE', 'TIPPER': 'CU_METER', 'PCS': 'PIECE'}
         materials_data = [
-            {'name': 'OPC Cement (Shivam)', 'unit': 'BORA', 'cat': 'Civil', 'est': 500, 'bought': 200, 'used': 150, 'cost': 850},
-            {'name': 'PPC Cement (Jagdamba)', 'unit': 'BORA', 'cat': 'Civil', 'est': 300, 'bought': 0, 'used': 0, 'cost': 750},
-            {'name': 'TMT Bars 12mm (Ambe)', 'unit': 'KG', 'cat': 'Civil', 'est': 5000, 'bought': 2500, 'used': 2000, 'cost': 110},
-            {'name': 'TMT Bars 16mm (Ambe)', 'unit': 'KG', 'cat': 'Civil', 'est': 3000, 'bought': 3000, 'used': 2800, 'cost': 112},
-            {'name': 'Red Bricks (No. 1)', 'unit': 'TRACTOR', 'cat': 'Civil', 'est': 50, 'bought': 20, 'used': 15, 'cost': 18000},
-            {'name': 'Sand (River Washed)', 'unit': 'TIPPER', 'cat': 'Civil', 'est': 15, 'bought': 8, 'used': 6, 'cost': 28000},
-            {'name': 'Aggregates (Gitti)', 'unit': 'TIPPER', 'cat': 'Civil', 'est': 12, 'bought': 7, 'used': 5, 'cost': 26000},
-            {'name': 'Water Tank (1000L)', 'unit': 'PCS', 'cat': 'Plumbing', 'est': 2, 'bought': 0, 'used': 0, 'cost': 15000},
+            {'name': 'OPC Cement (Shivam)',    'unit': 'BORA', 'cat': 'CEMENT',    'stock': 50,  'cost': 850},
+            {'name': 'PPC Cement (Jagdamba)',   'unit': 'BORA', 'cat': 'CEMENT',    'stock': 0,   'cost': 750},
+            {'name': 'TMT Bars 12mm (Ambe)',    'unit': 'KG',   'cat': 'STEEL',     'stock': 500, 'cost': 110},
+            {'name': 'TMT Bars 16mm (Ambe)',    'unit': 'KG',   'cat': 'STEEL',     'stock': 200, 'cost': 112},
+            {'name': 'Red Bricks (No. 1)',      'unit': 'TRACTOR','cat': 'BRICK',   'stock': 5,   'cost': 18000},
+            {'name': 'Sand (River Washed)',     'unit': 'TIPPER','cat': 'SAND',     'stock': 2,   'cost': 28000},
+            {'name': 'Aggregates (Gitti)',      'unit': 'TIPPER','cat': 'AGGREGATE','stock': 2,   'cost': 26000},
+            {'name': 'Water Tank (1000L)',      'unit': 'PCS',  'cat': 'PLUMBING',  'stock': 0,   'cost': 15000},
         ]
 
         for m in materials_data:
-            # Randomly assign a supplier based on category
-            m_cat = m['cat']
-            matching_suppliers = [s for s in suppliers.values() if m_cat in s.category]
-            supplier = random.choice(matching_suppliers) if matching_suppliers else random.choice(list(suppliers.values()))
-
             Material.objects.create(
+                project=project,
                 name=m['name'],
-                unit=m['unit'],
-                category=m_cat,
-                quantity_estimated=m['est'],
-                quantity_purchased=m['bought'],
-                quantity_used=m['used'],
-                avg_cost_per_unit=m['cost'],
-                current_stock=m['bought'] - m['used'],
-                supplier=supplier
+                unit=UNIT_MAP.get(m['unit'], 'PIECE'),
+                category=m['cat'],
+                unit_price=m['cost'],
+                stock_qty=m['stock'],
             )
-        
+
         self.stdout.write(self.style.SUCCESS(f'Created {len(materials_data)} Materials'))
 
         # 5. Budget Categories

@@ -2,7 +2,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.contrib.auth import get_user_model
 from apps.core.models import HouseProject, ProjectMember
-from apps.resources.models import Contractor
+from apps.resource.models import Worker as Contractor
 from apps.attendance.models import AttendanceWorker
 from apps.workforce.models import Team, WorkforceMember
 from decimal import Decimal
@@ -57,28 +57,34 @@ class Command(BaseCommand):
             users[username] = user
             self.stdout.write(f'  👤 User: {name} ({role})')
 
-        # 2. Create Contractors
+        # 2. Create Workers (formerly Contractors)
+        LEGACY_ROLE_MAP = {
+            'THEKEDAAR': 'SUPERVISOR', 'MISTRI': 'MASON',
+            'ELECTRICIAN': 'ELECTRICIAN', 'PLUMBER': 'PLUMBER',
+            'CARPENTER': 'CARPENTER', 'PAINTER': 'PAINTER',
+            'LABOUR': 'LABORER', 'OTHER': 'OTHER',
+        }
         contractors_data = [
-            ('Kaji Mistri', 'THEKEDAAR', '9851011222', 2500, 150000),
-            ('Sita Masonry', 'MISTRI', '9841033444', 1200, 0),
-            ('Deepak Electric', 'ELECTRICIAN', '9801055666', 1500, 85000),
+            ('Kaji Mistri', 'THEKEDAAR', '9851011222', 2500),
+            ('Sita Masonry', 'MISTRI', '9841033444', 1200),
+            ('Deepak Electric', 'ELECTRICIAN', '9801055666', 1500),
         ]
-        
+
         contractors = []
-        for name, role, phone, daily, rate in contractors_data:
+        for name, role, phone, daily in contractors_data:
+            worker_role = LEGACY_ROLE_MAP.get(role, 'OTHER')
             contractor, _ = Contractor.objects.update_or_create(
                 name=name,
                 project=project,
                 defaults={
-                    'role': role,
+                    'role': worker_role,
                     'phone': phone,
                     'daily_wage': Decimal(str(daily)),
-                    'rate': Decimal(str(rate)) if rate > 0 else None,
                     'is_active': True,
                 }
             )
             contractors.append(contractor)
-            self.stdout.write(f'  🏗️ Contractor: {name} ({role})')
+            self.stdout.write(f'  🏗️ Worker: {name} ({worker_role})')
 
         # 3. Create Attendance Workers (The Labours)
         workers_data = [

@@ -3,7 +3,7 @@ from rest_framework.decorators import action
 from django.db.models import Q
 from itertools import chain
 from .gallery_serializers import GalleryItemSerializer
-from apps.resources.models import Document
+from apps.permits.models import PermitDocument
 from apps.tasks.models import TaskMedia
 from apps.core.models import ConstructionPhase, Floor
 import datetime
@@ -24,8 +24,8 @@ class GalleryViewSet(viewsets.ViewSet):
 
         # --- 1. Fetch & Normalize Data ---
 
-        # A. Documents (Generic & Legal)
-        for doc in Document.objects.all():
+        # A. Permit Documents (Legal & Blueprint docs — sourced from permits app)
+        for doc in PermitDocument.objects.all():
             if not doc.file: continue
             
             is_legal = doc.document_type in ['NAKSHA', 'LALPURJA', 'NAGRIKTA', 'TIRO', 'CHARKILLA', 'PERMIT']

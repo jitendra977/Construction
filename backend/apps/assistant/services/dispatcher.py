@@ -24,7 +24,7 @@ def _fmt_rs(n) -> str:
 
 # ─── Intent handlers ─────────────────────────────────────────────────
 def _handle_stock_check(entities: Dict) -> str:
-    from apps.resources.models import Material
+    from apps.resource.models import Material
     material_key = entities.get("material")
     qs = Material.objects.all()
     if material_key:
@@ -33,7 +33,7 @@ def _handle_stock_check(entities: Dict) -> str:
     if not qs:
         return "सामग्री फेला परेन। कृपया नाम प्रस्ट भन्नुहोस्।"
     lines = [
-        f"{m.name}: {m.current_stock} {m.get_unit_display()} बाँकी"
+        f"{m.name}: {m.stock_qty} {m.get_unit_display()} बाँकी"
         for m in qs
     ]
     return " · ".join(lines)

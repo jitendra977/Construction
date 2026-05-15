@@ -10,7 +10,7 @@ Usage:
 from django.core.management.base import BaseCommand
 from apps.core.models import HouseProject, ConstructionPhase
 from apps.finance.models import BudgetCategory, FundingSource, FundingTransaction, Expense, Payment
-from apps.resources.models import Material, Contractor
+from apps.resource.models import Material, Worker as Contractor
 from apps.accounting.models import Vendor
 from decimal import Decimal
 

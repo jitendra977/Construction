@@ -9,7 +9,7 @@ from typing import List
 
 from django.db.models import Avg, Count
 
-from apps.resources.models import Material, MaterialTransaction
+from apps.resource.models import Material, StockMovement as MaterialTransaction
 from apps.accounting.models import Vendor
 from apps.analytics.models import SupplierRateTrend
 
@@ -29,9 +29,8 @@ def compute_rate_trends(window_end: date | None = None) -> List[SupplierRateTren
     pairs = (
         MaterialTransaction.objects
         .filter(
-            transaction_type="IN",
-            status="RECEIVED",
-            date__gte=window_start, date__lte=window_end,
+            movement_type="IN",
+            created_at__date__gte=window_start, created_at__date__lte=window_end,
             supplier__isnull=False, material__isnull=False,
             unit_price__isnull=False,
         )
@@ -46,17 +45,17 @@ def compute_rate_trends(window_end: date | None = None) -> List[SupplierRateTren
             MaterialTransaction.objects
             .filter(
                 supplier_id=sid, material_id=mid_,
-                transaction_type="IN", status="RECEIVED",
-                date__gte=window_start, date__lte=window_end,
+                movement_type="IN",
+                created_at__date__gte=window_start, created_at__date__lte=window_end,
                 unit_price__isnull=False,
             )
-            .order_by("date", "id")
+            .order_by("created_at", "id")
         )
         if not tx:
             continue
 
-        last_30 = [t for t in tx if t.date >= mid]
-        prior_30 = [t for t in tx if t.date < mid]
+        last_30 = [t for t in tx if t.created_at.date() >= mid]
+        prior_30 = [t for t in tx if t.created_at.date() < mid]
 
         def _avg(rows):
             if not rows:

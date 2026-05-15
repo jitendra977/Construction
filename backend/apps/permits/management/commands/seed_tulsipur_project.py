@@ -2,7 +2,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 from apps.core.models import HouseProject, ConstructionPhase
 from apps.finance.models import BudgetCategory, FundingSource, Expense, Payment, FundingTransaction
-from apps.resources.models import Material, Contractor, MaterialTransaction
+from apps.resource.models import Material, Worker as Contractor, StockMovement
 from apps.accounting.models import Vendor
 from apps.permits.models import PermitStep
 from decimal import Decimal
@@ -16,7 +16,7 @@ class Command(BaseCommand):
         
         # Delete old data in order
         Payment.objects.all().delete()
-        MaterialTransaction.objects.all().delete()
+        StockMovement.objects.all().delete()
         Expense.objects.all().delete()
         FundingTransaction.objects.all().delete()
         FundingSource.objects.all().delete()
@@ -121,9 +121,20 @@ class Command(BaseCommand):
             ("Ramesh Welder", "WELDER", "Grill & Shutter", "9845678901"),
         ]
         
+        LEGACY_ROLE_MAP = {
+            'THEKEDAAR': 'SUPERVISOR', 'ELECTRICIAN': 'ELECTRICIAN',
+            'PLUMBER': 'PLUMBER', 'WELDER': 'OTHER',
+        }
         contractor_objs = {}
         for name, role, skills, phone in contractors_data:
-            c = Contractor.objects.create(name=name, role=role, skills=skills, phone=phone)
+            worker_role = LEGACY_ROLE_MAP.get(role, 'OTHER')
+            c = Contractor.objects.create(
+                project=project,
+                name=name,
+                role=worker_role,
+                phone=phone,
+                daily_wage=Decimal('1000'),  # default placeholder
+            )
             contractor_objs[name] = c
 
         self.stdout.write('Created Suppliers & Contractors')
@@ -139,14 +150,16 @@ class Command(BaseCommand):
             ("Bricks (No. 1)", "Pcs", "3000", "18", "Pcs"),
         ]
 
+        UNIT_MAP = {'Length': 'METER', 'Sack': 'BAG', 'Truck': 'CU_METER', 'Ton': 'TON', 'Pcs': 'PIECE'}
         material_objs = {}
         for name, unit, stock, cost, display_unit in materials_data:
             m = Material.objects.create(
+                project=project,
                 name=name,
-                unit=display_unit,
-                current_stock=Decimal(stock),
-                avg_cost_per_unit=Decimal(cost),
-                min_stock_level=10  # Arbitrary alert level
+                unit=UNIT_MAP.get(display_unit, 'PIECE'),
+                stock_qty=Decimal(stock),
+                unit_price=Decimal(cost),
+                category='OTHER',
             )
             material_objs[name] = m
 
@@ -209,7 +222,6 @@ class Command(BaseCommand):
             material=cement_mat,
             quantity=50,
             unit_price=850,
-            supplier=supplier_objs["Rapti Hardware & Suppliers"],
             paid_to=supplier_objs["Rapti Hardware & Suppliers"].name,
             is_paid=False, # Credit purchase initially
             funding_source=funding_objs["NIC Asia Bank Loan"] # Intended source
@@ -225,14 +237,13 @@ class Command(BaseCommand):
         )
         # Update Stock manually via helper or let signal handle (signal handles if created properly)
         # Since we wiped data, let's ensure transaction exists
-        MaterialTransaction.objects.create(
+        StockMovement.objects.create(
+             project=project,
              material=cement_mat,
-             transaction_type='IN',
+             movement_type='IN',
              quantity=50,
              unit_price=850,
-             date="2024-02-16",
-             supplier=supplier_objs["Rapti Hardware & Suppliers"],
-             expense=exp2,
+             reference="2024-02-16",
              notes="Initial cement stock"
         )
 
@@ -269,7 +280,6 @@ class Command(BaseCommand):
             material=bricks_mat,
             quantity=3000,
             unit_price=18,
-            supplier=supplier_objs["Dang Bricks Industry"],
             paid_to=supplier_objs["Dang Bricks Industry"].name,
             is_paid=True,
             funding_source=funding_objs["Loan from Brother (US)"]
@@ -282,14 +292,13 @@ class Command(BaseCommand):
             reference_id="IPS-332211",
             funding_source=funding_objs["Loan from Brother (US)"]
         )
-        MaterialTransaction.objects.create(
+        StockMovement.objects.create(
+             project=project,
              material=bricks_mat,
-             transaction_type='IN',
+             movement_type='IN',
              quantity=3000,
              unit_price=18,
-             date="2024-02-20",
-             supplier=supplier_objs["Dang Bricks Industry"],
-             expense=exp4
+             reference="2024-02-20",
         )
 
         self.stdout.write('Created Sample Expenses')
