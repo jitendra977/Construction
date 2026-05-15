@@ -14,10 +14,78 @@ from apps.core.mixins import ProjectScopedMixin
 class TaskViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     # Required by DRF router for basename auto-detection.
     # Actual filtering is done in get_queryset() below.
-    queryset = Task.objects.select_related('phase', 'phase__project', 'room', 'assigned_to', 'category')
+    queryset = Task.objects.select_related('phase', 'phase__project', 'room', 'assigned_to', 'assigned_team', 'category').prefetch_related('assigned_team__members')
     serializer_class = TaskSerializer
     permission_classes = [permissions.IsAuthenticated, CanManagePhases]
     project_field = 'phase__project'
+
+    # ── sync helpers ──────────────────────────────────────────────────────────
+
+    def _sync_worker_assignment(self, task):
+        """
+        When Task.assigned_to is explicitly set via Task create/PATCH (individual
+        assignment from Task Detail), ensure the Phase Workforce tab is consistent:
+
+        • Delete all WorkerAssignment rows for this task that belong to other
+          workers (stale entries from a previous assignment).
+        • Create a WorkerAssignment for the new worker if one doesn't exist.
+        • Clear task.assigned_team (individual assignment takes precedence).
+
+        The reverse bridge (WorkerAssignment → task) lives in
+        WorkerAssignmentViewSet._sync_task_assignment().
+        """
+        if not task.assigned_to_id:
+            return
+        try:
+            from apps.workforce.models import WorkerAssignment, Team
+            from django.utils import timezone
+
+            phase   = task.phase
+            project = phase.project
+            worker  = task.assigned_to
+            today   = task.start_date or timezone.now().date()
+
+            # ① Remove auto-team if switching back to individual
+            if task.assigned_team_id:
+                try:
+                    team = task.assigned_team
+                    if team.description.startswith('auto:task:'):
+                        team.delete()
+                except Exception:
+                    pass
+                Task.objects.filter(pk=task.pk).update(assigned_team=None)
+
+            # ② Remove stale WorkerAssignments for other workers on this task
+            WorkerAssignment.objects.filter(task=task).exclude(worker=worker).delete()
+
+            # ③ Create assignment for the selected worker if not already present
+            WorkerAssignment.objects.get_or_create(
+                task=task,
+                worker=worker,
+                defaults={
+                    'project':     project,
+                    'phase':       phase,
+                    'status':      'active',
+                    'start_date':  today,
+                    'assigned_by': getattr(self.request, 'user', None),
+                },
+            )
+
+            # ④ Link worker to the project
+            if not worker.current_project_id:
+                worker.current_project = project
+                worker.save(update_fields=['current_project'])
+        except Exception:
+            # Never let a sync error break the task save
+            pass
+
+    def perform_create(self, serializer):
+        task = serializer.save()
+        self._sync_worker_assignment(task)
+
+    def perform_update(self, serializer):
+        task = serializer.save()
+        self._sync_worker_assignment(task)
 
     def get_queryset(self):
         qs = super().get_queryset()
