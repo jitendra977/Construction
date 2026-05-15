@@ -4,9 +4,43 @@
 # Old FKs pointed at resources.Contractor / resources.Material (integer PKs).
 # New FKs point at resource.Worker / resource.Material (UUID PKs).
 # No value mapping is possible, so columns are recreated nullable with no data.
+#
+# SQLite compatibility: IF EXISTS / CASCADE / DEFERRABLE are PG-only.
+# RunPython with vendor detection keeps both backends happy.
 
 from django.db import migrations, models
 import django.db.models.deletion
+
+
+def _drop_col(table, col):
+    def forward(apps, schema_editor):
+        vendor = schema_editor.connection.vendor
+        with schema_editor.connection.cursor() as cur:
+            if vendor == 'sqlite':
+                cur.execute(f'PRAGMA table_info("{table}")')
+                if col in [r[1] for r in cur.fetchall()]:
+                    cur.execute(f'ALTER TABLE "{table}" DROP COLUMN "{col}"')
+            else:
+                cur.execute(f'ALTER TABLE "{table}" DROP COLUMN IF EXISTS "{col}" CASCADE')
+    return forward
+
+
+def _add_uuid_fk(table, col, ref_table, null=True, on_delete='SET NULL'):
+    null_kw = 'NULL' if null else 'NOT NULL'
+    def forward(apps, schema_editor):
+        vendor = schema_editor.connection.vendor
+        with schema_editor.connection.cursor() as cur:
+            if vendor == 'sqlite':
+                cur.execute(f'ALTER TABLE "{table}" ADD COLUMN "{col}" TEXT {null_kw}')
+            else:
+                cur.execute(f'''
+                    ALTER TABLE "{table}"
+                        ADD COLUMN "{col}" uuid {null_kw}
+                        REFERENCES "{ref_table}" (id)
+                        ON DELETE {on_delete}
+                        DEFERRABLE INITIALLY DEFERRED
+                ''')
+    return forward
 
 
 class Migration(migrations.Migration):
@@ -19,51 +53,33 @@ class Migration(migrations.Migration):
     operations = [
 
         # ── finance_bill.contractor_id ────────────────────────────────────────
-        migrations.RunSQL(
-            sql='ALTER TABLE finance_bill DROP COLUMN IF EXISTS contractor_id CASCADE;',
-            reverse_sql=migrations.RunSQL.noop,
+        migrations.RunPython(
+            _drop_col('finance_bill', 'contractor_id'),
+            migrations.RunPython.noop,
         ),
-        migrations.RunSQL(
-            sql="""
-                ALTER TABLE finance_bill
-                    ADD COLUMN contractor_id uuid NULL
-                    REFERENCES resource_worker (id)
-                    ON DELETE SET NULL
-                    DEFERRABLE INITIALLY DEFERRED;
-            """,
-            reverse_sql='ALTER TABLE finance_bill DROP COLUMN IF EXISTS contractor_id CASCADE;',
+        migrations.RunPython(
+            _add_uuid_fk('finance_bill', 'contractor_id', 'resource_worker'),
+            migrations.RunPython.noop,
         ),
 
         # ── finance_billitem.material_id ──────────────────────────────────────
-        migrations.RunSQL(
-            sql='ALTER TABLE finance_billitem DROP COLUMN IF EXISTS material_id CASCADE;',
-            reverse_sql=migrations.RunSQL.noop,
+        migrations.RunPython(
+            _drop_col('finance_billitem', 'material_id'),
+            migrations.RunPython.noop,
         ),
-        migrations.RunSQL(
-            sql="""
-                ALTER TABLE finance_billitem
-                    ADD COLUMN material_id uuid NULL
-                    REFERENCES resource_material (id)
-                    ON DELETE SET NULL
-                    DEFERRABLE INITIALLY DEFERRED;
-            """,
-            reverse_sql='ALTER TABLE finance_billitem DROP COLUMN IF EXISTS material_id CASCADE;',
+        migrations.RunPython(
+            _add_uuid_fk('finance_billitem', 'material_id', 'resource_material'),
+            migrations.RunPython.noop,
         ),
 
         # ── finance_purchaseorder.contractor_id ───────────────────────────────
-        migrations.RunSQL(
-            sql='ALTER TABLE finance_purchaseorder DROP COLUMN IF EXISTS contractor_id CASCADE;',
-            reverse_sql=migrations.RunSQL.noop,
+        migrations.RunPython(
+            _drop_col('finance_purchaseorder', 'contractor_id'),
+            migrations.RunPython.noop,
         ),
-        migrations.RunSQL(
-            sql="""
-                ALTER TABLE finance_purchaseorder
-                    ADD COLUMN contractor_id uuid NULL
-                    REFERENCES resource_worker (id)
-                    ON DELETE SET NULL
-                    DEFERRABLE INITIALLY DEFERRED;
-            """,
-            reverse_sql='ALTER TABLE finance_purchaseorder DROP COLUMN IF EXISTS contractor_id CASCADE;',
+        migrations.RunPython(
+            _add_uuid_fk('finance_purchaseorder', 'contractor_id', 'resource_worker'),
+            migrations.RunPython.noop,
         ),
 
         # ── Update Django migration state (no SQL — already done above) ───────
@@ -103,6 +119,6 @@ class Migration(migrations.Migration):
                     ),
                 ),
             ],
-            database_operations=[],  # already done with RunSQL above
+            database_operations=[],
         ),
     ]

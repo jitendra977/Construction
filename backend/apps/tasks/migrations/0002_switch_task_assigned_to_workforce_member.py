@@ -3,9 +3,43 @@
 # Strategy: drop old integer FK column, re-add as fresh uuid FK column.
 # Old assigned_to_id → resources.Contractor (integer PK).
 # New assigned_to_id → workforce.WorkforceMember (UUID PK). No value mapping.
+#
+# SQLite compatibility: IF EXISTS / CASCADE / DEFERRABLE are PG-only.
+# RunPython with vendor detection keeps both backends happy.
 
 import django.db.models.deletion
 from django.db import migrations, models
+
+
+def _drop_col(table, col):
+    def forward(apps, schema_editor):
+        vendor = schema_editor.connection.vendor
+        with schema_editor.connection.cursor() as cur:
+            if vendor == 'sqlite':
+                cur.execute(f'PRAGMA table_info("{table}")')
+                if col in [r[1] for r in cur.fetchall()]:
+                    cur.execute(f'ALTER TABLE "{table}" DROP COLUMN "{col}"')
+            else:
+                cur.execute(f'ALTER TABLE "{table}" DROP COLUMN IF EXISTS "{col}" CASCADE')
+    return forward
+
+
+def _add_uuid_fk(table, col, ref_table, null=True, on_delete='SET NULL'):
+    null_kw = 'NULL' if null else 'NOT NULL'
+    def forward(apps, schema_editor):
+        vendor = schema_editor.connection.vendor
+        with schema_editor.connection.cursor() as cur:
+            if vendor == 'sqlite':
+                cur.execute(f'ALTER TABLE "{table}" ADD COLUMN "{col}" TEXT {null_kw}')
+            else:
+                cur.execute(f'''
+                    ALTER TABLE "{table}"
+                        ADD COLUMN "{col}" uuid {null_kw}
+                        REFERENCES "{ref_table}" (id)
+                        ON DELETE {on_delete}
+                        DEFERRABLE INITIALLY DEFERRED
+                ''')
+    return forward
 
 
 class Migration(migrations.Migration):
@@ -17,21 +51,15 @@ class Migration(migrations.Migration):
 
     operations = [
         # Drop old bigint assigned_to_id (CASCADE removes FK constraint).
-        migrations.RunSQL(
-            sql='ALTER TABLE tasks_task DROP COLUMN IF EXISTS assigned_to_id CASCADE;',
-            reverse_sql=migrations.RunSQL.noop,
+        migrations.RunPython(
+            _drop_col('tasks_task', 'assigned_to_id'),
+            migrations.RunPython.noop,
         ),
 
         # Re-add as uuid FK referencing workforce.WorkforceMember.
-        migrations.RunSQL(
-            sql="""
-                ALTER TABLE tasks_task
-                    ADD COLUMN assigned_to_id uuid NULL
-                    REFERENCES workforce_workforcemember (id)
-                    ON DELETE SET NULL
-                    DEFERRABLE INITIALLY DEFERRED;
-            """,
-            reverse_sql='ALTER TABLE tasks_task DROP COLUMN IF EXISTS assigned_to_id CASCADE;',
+        migrations.RunPython(
+            _add_uuid_fk('tasks_task', 'assigned_to_id', 'workforce_workforcemember'),
+            migrations.RunPython.noop,
         ),
 
         # Update Django migration state only — SQL already done above.

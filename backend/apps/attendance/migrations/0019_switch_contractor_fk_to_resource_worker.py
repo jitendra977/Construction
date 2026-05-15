@@ -3,9 +3,65 @@
 # Strategy: drop old integer FK column, re-add as fresh uuid FK column.
 # Old contractor_id → resources.Contractor (integer PK).
 # New contractor_id → resource.Worker (UUID PK). No value mapping possible.
+#
+# SQLite compatibility: IF EXISTS / CASCADE / DEFERRABLE are PG-only.
+# RunPython with vendor detection keeps both backends happy.
+# The conditional unique index uses IF NOT EXISTS + WHERE — works on both.
 
 from django.db import migrations, models
 import django.db.models.deletion
+
+
+def _drop_col(table, col):
+    def forward(apps, schema_editor):
+        vendor = schema_editor.connection.vendor
+        with schema_editor.connection.cursor() as cur:
+            if vendor == 'sqlite':
+                cur.execute(f'PRAGMA table_info("{table}")')
+                if col in [r[1] for r in cur.fetchall()]:
+                    cur.execute(f'ALTER TABLE "{table}" DROP COLUMN "{col}"')
+            else:
+                cur.execute(f'ALTER TABLE "{table}" DROP COLUMN IF EXISTS "{col}" CASCADE')
+    return forward
+
+
+def _add_uuid_fk(table, col, ref_table, null=True, on_delete='SET NULL'):
+    null_kw = 'NULL' if null else 'NOT NULL'
+    def forward(apps, schema_editor):
+        vendor = schema_editor.connection.vendor
+        with schema_editor.connection.cursor() as cur:
+            if vendor == 'sqlite':
+                cur.execute(f'ALTER TABLE "{table}" ADD COLUMN "{col}" TEXT {null_kw}')
+            else:
+                cur.execute(f'''
+                    ALTER TABLE "{table}"
+                        ADD COLUMN "{col}" uuid {null_kw}
+                        REFERENCES "{ref_table}" (id)
+                        ON DELETE {on_delete}
+                        DEFERRABLE INITIALLY DEFERRED
+                ''')
+    return forward
+
+
+def _create_partial_unique_index(index_name, table, col):
+    """Partial unique index: unique where col IS NOT NULL. Works on both SQLite and PG."""
+    def forward(apps, schema_editor):
+        with schema_editor.connection.cursor() as cur:
+            cur.execute(
+                f'CREATE UNIQUE INDEX IF NOT EXISTS "{index_name}" '
+                f'ON "{table}" ("{col}") WHERE "{col}" IS NOT NULL'
+            )
+    def reverse(apps, schema_editor):
+        with schema_editor.connection.cursor() as cur:
+            cur.execute(f'DROP INDEX IF EXISTS "{index_name}"')
+    return forward, reverse
+
+
+_idx_fwd, _idx_rev = _create_partial_unique_index(
+    'attendance_attendanceworker_contractor_id_key',
+    'attendance_attendanceworker',
+    'contractor_id',
+)
 
 
 class Migration(migrations.Migration):
@@ -16,27 +72,20 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Drop old bigint contractor_id column (CASCADE removes FK + unique constraints).
-        migrations.RunSQL(
-            sql='ALTER TABLE attendance_attendanceworker DROP COLUMN IF EXISTS contractor_id CASCADE;',
-            reverse_sql=migrations.RunSQL.noop,
+        # Drop old bigint contractor_id column.
+        migrations.RunPython(
+            _drop_col('attendance_attendanceworker', 'contractor_id'),
+            migrations.RunPython.noop,
         ),
 
-        # Re-add as a uuid FK column with unique constraint (OneToOneField).
-        migrations.RunSQL(
-            sql="""
-                ALTER TABLE attendance_attendanceworker
-                    ADD COLUMN contractor_id uuid NULL
-                    REFERENCES resource_worker (id)
-                    ON DELETE SET NULL
-                    DEFERRABLE INITIALLY DEFERRED;
-                CREATE UNIQUE INDEX IF NOT EXISTS
-                    attendance_attendanceworker_contractor_id_key
-                    ON attendance_attendanceworker (contractor_id)
-                    WHERE contractor_id IS NOT NULL;
-            """,
-            reverse_sql='ALTER TABLE attendance_attendanceworker DROP COLUMN IF EXISTS contractor_id CASCADE;',
+        # Re-add as a uuid FK column (nullable).
+        migrations.RunPython(
+            _add_uuid_fk('attendance_attendanceworker', 'contractor_id', 'resource_worker'),
+            migrations.RunPython.noop,
         ),
+
+        # Partial unique index (OneToOneField semantics, allows multiple NULLs).
+        migrations.RunPython(_idx_fwd, _idx_rev),
 
         # Tell Django's state machine the field is now a OneToOneField to resource.Worker.
         migrations.SeparateDatabaseAndState(
