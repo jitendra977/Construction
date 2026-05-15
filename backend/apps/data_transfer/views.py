@@ -38,17 +38,33 @@ def _is_unsafe(sql: str) -> list[str]:
 
 
 def _split_statements(sql: str) -> list[str]:
-    """Split SQL into individual statements, ignoring semicolons inside quotes."""
+    """
+    Split SQL into individual executable statements.
+    - Strips comment lines and blank lines.
+    - Ignores semicolons inside single-quoted strings.
+    - Removes transaction control (BEGIN/COMMIT/ROLLBACK/SAVEPOINT) — the
+      importer manages its own transaction so these would break atomicity.
+    """
+    # Transaction control keywords we must strip out
+    TX_CONTROL = re.compile(
+        r'^\s*(BEGIN|COMMIT|ROLLBACK|SAVEPOINT|RELEASE\s+SAVEPOINT|ROLLBACK\s+TO)\b',
+        re.IGNORECASE,
+    )
+
     lines = []
     for line in sql.splitlines():
         stripped = line.strip()
-        if stripped.startswith('--') or stripped == '':
+        if not stripped or stripped.startswith('--'):
             continue
-        lines.append(re.sub(r'--.*$', '', line))
+        # Remove inline comments
+        lines.append(re.sub(r'--[^\'"]*$', '', line))
 
     compact = '\n'.join(lines)
     pattern = re.compile(r"((?:'[^']*'|\"[^\"]*\"|`[^`]*`|[^;])*)")
-    stmts = [s.strip() for s in pattern.findall(compact) if s.strip()]
+    raw = [s.strip() for s in pattern.findall(compact) if s.strip()]
+
+    # Drop transaction control statements
+    stmts = [s for s in raw if not TX_CONTROL.match(s)]
     return stmts
 
 
