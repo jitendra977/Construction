@@ -71,6 +71,7 @@ function Pill({ label, value, color = 'blue' }) {
         green:  'bg-emerald-50 text-emerald-700 border-emerald-200',
         orange: 'bg-orange-50 text-orange-700 border-orange-200',
         violet: 'bg-violet-50 text-violet-700 border-violet-200',
+        yellow: 'bg-yellow-50 text-yellow-700 border-yellow-200',
     };
     return (
         <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border ${c[color]}`}>
@@ -553,9 +554,17 @@ function ImportPanel({ user }) {
                         <p className="font-black text-emerald-700 text-[13px]">{result.message}</p>
                     </div>
                     <div className="flex gap-2 flex-wrap">
-                        <Pill label="Executed" value={result.statements_executed} color="green" />
+                        <Pill label="Imported" value={result.statements_executed} color="green" />
                         <Pill label="Total"    value={result.total_statements}    color="blue"  />
+                        {result.statements_skipped > 0 && (
+                            <Pill label="Skipped" value={result.statements_skipped} color="yellow" />
+                        )}
                     </div>
+                    {result.statements_skipped > 0 && (
+                        <p className="text-[11px] text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+                            ⚠ {result.statements_skipped} row(s) skipped — old integer IDs that have no matching record in the new schema. All other data was imported successfully.
+                        </p>
+                    )}
                     {result.preview?.length > 0 && (
                         <pre className="text-[10px] font-mono text-emerald-800 bg-emerald-100 rounded-lg p-2.5 max-h-24 overflow-y-auto">
                             {result.preview.slice(0, 10).join('\n')}

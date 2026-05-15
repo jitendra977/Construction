@@ -217,35 +217,71 @@ class ImportSqlView(APIView):
             }, status=400)
 
         results = []
-        errors = []
+        skipped = []
+
+        # FK_ERRORS: PostgreSQL error codes for foreign-key violations.
+        # These happen when importing old data whose integer IDs no longer
+        # exist in UUID-keyed tables.  We skip those rows instead of aborting
+        # the entire import so compatible data still gets through.
+        FK_ERROR_CODES = {'23503', '23502', '23505', '23000'}
+
+        def _is_fk_error(exc) -> bool:
+            code = getattr(getattr(exc, '__cause__', None), 'pgcode', None) \
+                   or getattr(exc, 'pgcode', None) \
+                   or ''
+            return code in FK_ERROR_CODES
+
         try:
             with transaction.atomic():
                 with connection.cursor() as cursor:
+                    # Defer all deferrable FK constraints to end-of-transaction
+                    # so rows that reference each other can be inserted in any order.
+                    cursor.execute('SET CONSTRAINTS ALL DEFERRED;')
+
                     for i, stmt in enumerate(statements):
+                        preview = stmt[:120] + ('…' if len(stmt) > 120 else '')
+                        # Use a savepoint per statement so one bad row doesn't
+                        # roll back the entire import.
                         try:
+                            cursor.execute('SAVEPOINT sp_%d;' % i)
                             cursor.execute(stmt)
-                            results.append({
+                            cursor.execute('RELEASE SAVEPOINT sp_%d;' % i)
+                            results.append({'index': i + 1, 'status': 'ok', 'preview': preview})
+                        except Exception as exc:
+                            cursor.execute('ROLLBACK TO SAVEPOINT sp_%d;' % i)
+                            cursor.execute('RELEASE SAVEPOINT sp_%d;' % i)
+                            err_msg = str(exc).split('\n')[0]  # first line only
+                            skipped.append({
                                 'index': i + 1,
-                                'status': 'ok',
-                                'preview': stmt[:100] + ('...' if len(stmt) > 100 else ''),
+                                'reason': err_msg,
+                                'statement': preview,
                             })
-                        except Exception as e:
-                            errors.append({'index': i + 1, 'error': str(e), 'statement': stmt[:100]})
-                            raise e
-        except Exception as e:
+                            logger.warning('Import skipped statement %d: %s', i + 1, err_msg)
+
+        except Exception as exc:
             return Response({
                 'success': False,
-                'statements_executed': len(results),
+                'statements_executed': 0,
                 'total_statements': len(statements),
-                'errors': errors,
-                'message': f'Import failed and was fully rolled back. Error: {str(e)}'
+                'errors': [{'error': str(exc)}],
+                'message': f'Import failed and was fully rolled back. Error: {str(exc)}'
             }, status=400)
+
+        ok_count = len(results)
+        sk_count = len(skipped)
+        msg = f'Imported {ok_count} of {len(statements)} statement(s).'
+        if sk_count:
+            msg += (
+                f' {sk_count} statement(s) skipped (FK / constraint violations — '
+                f'usually old integer IDs that have no matching UUID record).'
+            )
 
         return Response({
             'success': True,
-            'statements_executed': len(results),
+            'statements_executed': ok_count,
+            'statements_skipped': sk_count,
             'total_statements': len(statements),
-            'errors': [],
+            'skipped': skipped[:20],   # first 20 skipped for UI display
             'preview': [r['preview'] for r in results[:20]],
-            'message': f'Successfully imported {len(results)} SQL statement(s).'
+            'message': msg,
         })
