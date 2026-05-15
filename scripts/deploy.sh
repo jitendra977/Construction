@@ -202,13 +202,8 @@ ssh_exec "
   # means downtime + Redis in-memory state loss.
   docker compose -f '${COMPOSE_FILE}' up -d --no-recreate db redis
 
-  echo '==> Wait for DB to be healthy'
-  for i in \$(seq 1 30); do
-    STATUS=\$(docker inspect --format="{{.State.Health.Status}}" construction_db 2>/dev/null || echo "unknown")
-    [ "\$STATUS" = "healthy" ] && echo "  DB healthy." && break
-    echo "  DB: \$STATUS (\$i/30)..."
-    sleep 3
-  done
+  echo '==> Waiting 10s for DB to settle...'
+  sleep 10
 
   echo '==> Run migrations (dedicated one-shot container — bypasses entrypoint)'
   # --entrypoint /bin/sh bypasses entrypoint.sh so ONLY migrate runs.
@@ -242,13 +237,8 @@ ssh_exec "
     --force-recreate --remove-orphans \
     backend frontend celery celery-beat
 
-  echo '==> Wait for backend to become healthy (up to 60s)'
-  for i in \$(seq 1 20); do
-    STATUS=\$(docker inspect --format="{{.State.Health.Status}}" construction_backend 2>/dev/null || echo "starting")
-    [ "\$STATUS" = "healthy" ] && echo "  Backend healthy!" && break
-    echo "  Backend: \$STATUS (\$i/20)..."
-    sleep 3
-  done
+  echo '==> Waiting 20s for containers to start...'
+  sleep 20
 
   echo '==> Service status'
   docker compose -f '${COMPOSE_FILE}' ps
