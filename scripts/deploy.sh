@@ -197,37 +197,58 @@ ssh_exec "
   export IMAGE_TAG='${IMAGE_TAG}'
   docker compose -f '${COMPOSE_FILE}' build --pull ${BUILD_SERVICES}
 
-  echo '==> Ensure infrastructure (db, redis) is up'
-  docker compose -f '${COMPOSE_FILE}' up -d db redis
+  echo '==> Ensure infrastructure (db, redis) is up — no recreate'
+  # Never force-recreate db or redis: volumes persist but a bounce
+  # means downtime + Redis in-memory state loss.
+  docker compose -f '${COMPOSE_FILE}' up -d --no-recreate db redis
 
-  echo '==> Run migrations'
-  if ! docker compose -f '${COMPOSE_FILE}' run --rm backend python manage.py migrate --noinput; then
-    echo '!! Migration failed (likely history mismatch). Running Deep Reconciler...'
-    
-    # 1. Clear ENTIRE migration history table.
-    docker compose -f '${COMPOSE_FILE}' run --rm --entrypoint python backend manage.py shell -c \"
-from django.db import connection
-with connection.cursor() as cursor:
-    cursor.execute('DELETE FROM django_migrations')
-    print('Wiped entire django_migrations table.')
-\"
-    # 2. Re-apply history using --fake.
-    # Since the DB schema likely already matches the models after a squash/refactor,
-    # --fake is the safest way to mark all new migrations as finished without running SQL.
-    echo '==> Re-applying all migrations with --fake...'
-    docker compose -f '${COMPOSE_FILE}' run --rm backend python manage.py migrate --noinput --fake
+  echo '==> Wait for DB to be healthy'
+  for i in \$(seq 1 30); do
+    STATUS=\$(docker inspect --format="{{.State.Health.Status}}" construction_db 2>/dev/null || echo "unknown")
+    [ "\$STATUS" = "healthy" ] && echo "  DB healthy." && break
+    echo "  DB: \$STATUS (\$i/30)..."
+    sleep 3
+  done
+
+  echo '==> Run migrations (dedicated one-shot container — bypasses entrypoint)'
+  # --entrypoint /bin/sh bypasses entrypoint.sh so ONLY migrate runs.
+  # --no-deps prevents starting dependent services unnecessarily.
+  if ! docker compose -f '${COMPOSE_FILE}' run --rm --no-deps \
+        --entrypoint /bin/sh backend \
+        -c "python manage.py migrate --noinput"; then
+    echo ""
+    echo "!! ═══════════════════════════════════════════════════════════"
+    echo "!! Migration FAILED — deploy aborted. Read the error above."
+    echo "!!"
+    echo "!! How to fix:"
+    echo "!!  1. Fix the broken migration file, commit, push, redeploy."
+    echo "!!  2. Columns already exist?  → make migrate-fake-initial"
+    echo "!!  3. Completely fresh DB?    → make server-db-reset"
+    echo "!!"
+    echo "!! ⚠ Do NOT delete django_migrations and --fake everything."
+    echo "!!   That marks unapplied migrations as done, silently breaking"
+    echo "!!   your schema and making future migrations impossible to trust."
+    echo "!! ═══════════════════════════════════════════════════════════"
+    exit 1
   fi
 
-  echo '==> Collect static files'
-  docker compose -f '${COMPOSE_FILE}' run --rm backend \
-    python manage.py collectstatic --noinput --clear
+  echo '==> Collect static files (one-shot, bypasses entrypoint)'
+  docker compose -f '${COMPOSE_FILE}' run --rm --no-deps \
+    --entrypoint /bin/sh backend \
+    -c "python manage.py collectstatic --noinput --clear"
 
-  echo '==> Start / restart services'
-  # Force all services to start to ensure stack is complete
-  docker compose -f '${COMPOSE_FILE}' up -d --force-recreate --remove-orphans backend frontend celery celery-beat db redis
+  echo '==> Restart app containers only (db + redis stay untouched)'
+  docker compose -f '${COMPOSE_FILE}' up -d \
+    --force-recreate --remove-orphans \
+    backend frontend celery celery-beat
 
-  echo '==> Wait for containers (20s)'
-  sleep 20
+  echo '==> Wait for backend to become healthy (up to 60s)'
+  for i in \$(seq 1 20); do
+    STATUS=\$(docker inspect --format="{{.State.Health.Status}}" construction_backend 2>/dev/null || echo "starting")
+    [ "\$STATUS" = "healthy" ] && echo "  Backend healthy!" && break
+    echo "  Backend: \$STATUS (\$i/20)..."
+    sleep 3
+  done
 
   echo '==> Service status'
   docker compose -f '${COMPOSE_FILE}' ps

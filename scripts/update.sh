@@ -62,22 +62,27 @@ git stash 2>/dev/null || true
 git pull origin '${BRANCH}'
 git stash pop 2>/dev/null || true
 
-# Helper to run migrations with Full Reconciler for squashed/refactored histories
+# Run migrations safely — bypasses entrypoint.sh so only migrate runs.
+# Fails loudly on error rather than silently corrupting migration state.
 run_migrations() {
-  echo '==> Running migrations'
-  if ! docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend python manage.py migrate --noinput; then
-    echo '!! Migration failed (likely history mismatch). Running Deep Reconciler...'
-    
-    # 1. Clear ENTIRE migration history table.
-    docker compose -f '${COMPOSE_FILE}' run --rm --no-deps --entrypoint python backend manage.py shell -c \"
-from django.db import connection
-with connection.cursor() as cursor:
-    cursor.execute('DELETE FROM django_migrations')
-    print('Wiped entire django_migrations table.')
-\"
-    # 2. Re-apply history using --fake.
-    echo '==> Re-applying all migrations with --fake...'
-    docker compose -f '${COMPOSE_FILE}' run --rm --no-deps backend python manage.py migrate --noinput --fake
+  echo '==> Running migrations (bypassing entrypoint)'
+  if ! docker compose -f '${COMPOSE_FILE}' run --rm --no-deps \
+        --entrypoint /bin/sh backend \
+        -c "python manage.py migrate --noinput"; then
+    echo ""
+    echo "!! ═══════════════════════════════════════════════════════════"
+    echo "!! Migration FAILED — update aborted. Read the error above."
+    echo "!!"
+    echo "!! How to fix:"
+    echo "!!  1. Fix the broken migration file, commit, push, re-run."
+    echo "!!  2. Columns already exist?  → make migrate-fake-initial"
+    echo "!!  3. Completely fresh DB?    → make server-db-reset"
+    echo "!!"
+    echo "!! ⚠ Do NOT delete django_migrations and --fake everything."
+    echo "!!   That marks unapplied migrations as done, silently breaking"
+    echo "!!   your schema. Fix the migration file instead."
+    echo "!! ═══════════════════════════════════════════════════════════"
+    exit 1
   fi
 }
 

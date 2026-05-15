@@ -62,14 +62,8 @@ help: ## Show this help message
 
 # Push local changes and deploy to the cloud using the simplified workflow
 .PHONY: deploy
-deploy: ## Deploy — simple deploy using the provided cloud commands
-	@echo "📡 Deploying to cloud..."
-	@ssh -t $${VPS_USER:-nishanaweb}@$${VPS_HOST:-nishanaweb.cloud} "cd /home/\$${VPS_USER:-nishanaweb}/project/Construction/ && \
-		git fetch origin && \
-		git reset --hard origin/main && \
-		docker compose -f docker-compose.prod.yml build && \
-		docker compose -f docker-compose.prod.yml run --rm backend python manage.py migrate && \
-		docker compose -f docker-compose.prod.yml up -d"
+deploy: ## Deploy — push code to origin/main (server untouched — then run make server-deploy)
+	@bash scripts/deploy.sh
 
 # Server side — SSH in, pull, build, migrate, restart
 .PHONY: server-deploy
@@ -97,6 +91,25 @@ dry-run: ## Deploy — preview push without making changes
 .PHONY: migrate-remote
 migrate-remote: ## Deploy — run migrations on VPS only
 	@bash scripts/update.sh --migrations-only
+
+.PHONY: migrate-fake-initial
+migrate-fake-initial: ## DB — Fake-initial only (safe: marks already-applied migrations, runs new ones)
+	@echo "⚠️  This marks already-applied migrations as done WITHOUT running their SQL."
+	@echo "    Only use this when columns already exist but migration history is missing."
+	@echo "    New migrations that haven't run will still be applied normally."
+	@ssh -t $${VPS_USER:-nishanaweb}@$${VPS_HOST:-nishanaweb.cloud} \
+	  "cd $${REMOTE_PROJECT_DIR:-/home/nishanaweb/project/Construction} && \
+	   docker compose -f docker-compose.prod.yml run --rm --no-deps \
+	     --entrypoint /bin/sh backend \
+	     -c 'python manage.py migrate --noinput --fake-initial'"
+
+.PHONY: showmigrations-remote
+showmigrations-remote: ## DB — Show migration status on VPS
+	@ssh -t $${VPS_USER:-nishanaweb}@$${VPS_HOST:-nishanaweb.cloud} \
+	  "cd $${REMOTE_PROJECT_DIR:-/home/nishanaweb/project/Construction} && \
+	   docker compose -f docker-compose.prod.yml run --rm --no-deps \
+	     --entrypoint /bin/sh backend \
+	     -c 'python manage.py showmigrations'"
 
 .PHONY: server-shell
 server-shell: ## Maintenance — open production Django shell on VPS

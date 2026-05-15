@@ -1,7 +1,17 @@
 #!/usr/bin/env bash
 # ============================================================
-#  ConstructPro Backend — Entrypoint
-#  Waits for DB, runs migrations, seeds admin, then starts app.
+#  ConstructPro Backend — Container Entrypoint
+#
+#  Responsibilities (in order):
+#    1. Wait for PostgreSQL to be reachable
+#    2. Seed roles + admin user   (web process only)
+#    3. Fix media-volume ownership
+#    4. exec the real process (gunicorn / celery / beat)
+#
+#  !! Migrations are NOT run here !!
+#  They are run once, before containers start, by the deploy
+#  script using a dedicated --rm container so there is never
+#  a race between web / celery / beat all migrating at once.
 # ============================================================
 set -euo pipefail
 
@@ -10,7 +20,7 @@ log()  { echo -e "${CYN}[entrypoint]${RST} $*"; }
 ok()   { echo -e "${GRN}[entrypoint] ✔${RST} $*"; }
 warn() { echo -e "${YEL}[entrypoint] ⚠${RST} $*"; }
 
-# ── Wait for database ─────────────────────────────────────────
+# ── 1. Wait for database ──────────────────────────────────────
 wait_for_db() {
     log "Waiting for database..."
     python - <<'PYEOF'
@@ -41,15 +51,15 @@ PYEOF
 wait_for_db
 ok "Database is reachable"
 
-# ── Migrations ────────────────────────────────────────────────
-log "Running migrations..."
-python manage.py migrate --noinput || warn "Auto-migration failed (likely history mismatch). Deployment script will attempt reconciliation."
-ok "Migrations check finished"
-
-# ── Seed admin user + roles ───────────────────────────────────
-log "Seeding admin user and roles..."
-python manage.py shell <<'PYEOF'
+# ── 2. Seed admin user + roles (web process only) ─────────────
+# Skip for celery workers / beat — they don't need it and it
+# wastes startup time. Detect by checking the first argument.
+FIRST_CMD="${1:-}"
+if [[ "$FIRST_CMD" == "gunicorn" || "$FIRST_CMD" == "python" || -z "$FIRST_CMD" ]]; then
+    log "Seeding admin user and roles..."
+    python manage.py shell <<'PYEOF'
 from apps.accounts.models import User, Role
+import os
 
 for code, name in Role.ROLE_CODES:
     Role.objects.get_or_create(code=code, defaults={"name": name})
@@ -58,8 +68,6 @@ super_admin_role, _ = Role.objects.get_or_create(
     code=Role.SUPER_ADMIN,
     defaults={"name": "Super Admin", "can_manage_all_systems": True},
 )
-
-import os
 
 admin_email    = os.environ.get("DJANGO_SUPERUSER_EMAIL",    "admin@gmail.com")
 admin_username = os.environ.get("DJANGO_SUPERUSER_USERNAME", "admin")
@@ -76,8 +84,6 @@ if user:
     user.role         = super_admin_role
     user.is_superuser = True
     user.is_staff     = True
-    # Only reset the password if the env var is explicitly set —
-    # avoids wiping a manually-changed password on every deploy.
     if admin_pass:
         user.set_password(admin_pass)
         print(f"  Password updated from DJANGO_SUPERUSER_PASSWORD")
@@ -97,22 +103,14 @@ else:
     )
     print(f"  Created admin user: {admin_email}")
 PYEOF
-ok "Admin user ready"
+    ok "Admin user ready"
+fi
 
-# ── Media directory permissions ───────────────────────────────
-# Ensure the media volume is writable by the app user.
-# The Docker volume is often created as root; fix it here so file
-# uploads (profile photos, documents, etc.) always work.
+# ── 3. Media directory permissions ────────────────────────────
 mkdir -p /app/media
 chown -R appuser:appgroup /app/media 2>/dev/null || true
 ok "Media directory writable"
 
-# ── Static files (dev only — prod bakes them into image) ──────
-if [[ "${DJANGO_ENV:-}" == "development" ]]; then
-    log "Collecting static files (dev mode)..."
-    python manage.py collectstatic --noinput --clear
-fi
-
-# ── Start app ─────────────────────────────────────────────────
+# ── 4. Start app ──────────────────────────────────────────────
 ok "Starting: $*"
 exec "$@"
