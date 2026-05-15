@@ -552,6 +552,21 @@ export const dataTransferService = {
 
     /** Run a SELECT query in the SQL terminal (admin only) */
     runSql: (sql) => api.post('data-transfer/sql/', { sql }),
+
+    /**
+     * Smart project-scoped import.
+     * Remaps source project ID → target project UUID,
+     * skips user/member rows, uses per-savepoint protection.
+     */
+    importSqlToProject: (projectId, sqlFile, onUploadProgress) => {
+        const formData = new FormData();
+        formData.append('project_id', projectId);
+        formData.append('sql_file', sqlFile);
+        return api.post('data-transfer/import/project/', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            onUploadProgress,
+        });
+    },
 };
 
 export const accountsService = {

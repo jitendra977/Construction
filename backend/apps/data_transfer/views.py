@@ -6,6 +6,7 @@ List:   GET  /api/v1/data-transfer/projects/
 """
 import re
 import logging
+from typing import Optional
 from django.http import HttpResponse
 from django.db import connection, transaction
 from rest_framework.views import APIView
@@ -253,20 +254,28 @@ class ImportSqlView(APIView):
         try:
             with transaction.atomic():
                 with connection.cursor() as cursor:
-                    # Defer all deferrable FK constraints to end-of-transaction
-                    # so rows that reference each other can be inserted in any order.
-                    cursor.execute('SET CONSTRAINTS ALL DEFERRED;')
+                    # NOTE: We do NOT use SET CONSTRAINTS ALL DEFERRED here.
+                    # Deferring constraints moves FK checks to commit time, which
+                    # is AFTER savepoints are released — meaning violations can no
+                    # longer be caught per-statement and the entire transaction
+                    # rolls back. Immediate (non-deferred) checks let each
+                    # savepoint absorb its own FK/constraint failure gracefully.
 
                     for i, stmt in enumerate(statements):
                         preview = stmt[:120] + ('…' if len(stmt) > 120 else '')
-                        # Use a savepoint per statement so one bad row doesn't
-                        # roll back the entire import.
+                        # Each statement runs inside its own savepoint.
+                        # Any constraint violation (FK, unique, not-null …) is
+                        # caught here, the savepoint is rolled back, and the
+                        # statement is recorded as skipped. The outer transaction
+                        # and all previously committed savepoints remain intact.
                         try:
                             cursor.execute('SAVEPOINT sp_%d;' % i)
                             cursor.execute(stmt)
                             cursor.execute('RELEASE SAVEPOINT sp_%d;' % i)
                             results.append({'index': i + 1, 'status': 'ok', 'preview': preview})
                         except Exception as exc:
+                            # Roll back only this statement's savepoint, then
+                            # release it so the savepoint stack stays clean.
                             cursor.execute('ROLLBACK TO SAVEPOINT sp_%d;' % i)
                             cursor.execute('RELEASE SAVEPOINT sp_%d;' % i)
                             err_msg = str(exc).split('\n')[0]  # first line only
@@ -302,6 +311,215 @@ class ImportSqlView(APIView):
             'total_statements': len(statements),
             'skipped': skipped[:20],   # first 20 skipped for UI display
             'preview': [r['preview'] for r in results[:20]],
+            'message': msg,
+        })
+
+
+# ── Project-import helpers ────────────────────────────────────────────────────
+
+# Tables whose rows are user-account-specific and should be skipped when
+# importing into a different system (users live in accounts_user and may
+# have completely different IDs in the target environment).
+_USER_SCOPED_TABLES = {
+    'accounts_user',
+    'accounts_userprofile',
+    'auth_user',
+    'core_projectmember',      # references user_id → skip if user missing
+    'authtoken_token',
+    'token_blacklist_outstandingtoken',
+    'token_blacklist_blacklistedtoken',
+}
+
+
+def _detect_source_project_id(sql: str) -> Optional[str]:
+    """
+    Extract the source project's ID from a ConstructPro SQL export header.
+    Looks for the comment line:  -- Project ID: <value>
+    Returns the value as a string, or None if not found.
+    """
+    m = re.search(r'--\s*Project\s+ID\s*:\s*(\S+)', sql, re.IGNORECASE)
+    return m.group(1).rstrip(',;') if m else None
+
+
+def _remap_sql(sql_content: str, source_id: str, target_id: str) -> str:
+    """
+    Replace every quoted occurrence of source_id with target_id throughout
+    the SQL text.  Works for both UUID and integer source IDs.
+    Handles:  'abc-uuid'  /  '123'  /  plain  123  next to a comma or paren.
+    """
+    if not source_id or not target_id or source_id == target_id:
+        return sql_content
+
+    result = sql_content
+
+    # Quoted string form: 'source_id'
+    result = result.replace(f"'{source_id}'", f"'{target_id}'")
+
+    # Bare integer next to SQL syntax boundaries (only when source is numeric)
+    if re.match(r'^\d+$', source_id):
+        result = re.sub(
+            r'(?<=[(\s,])' + re.escape(source_id) + r'(?=[,\s)])',
+            f"'{target_id}'",
+            result,
+        )
+
+    return result
+
+
+def _stmt_targets_user_table(stmt: str) -> bool:
+    """Return True if the statement inserts into an accounts/auth user table."""
+    upper = stmt.upper()
+    if not re.search(r'\bINSERT\b', upper):
+        return False
+    for tbl in _USER_SCOPED_TABLES:
+        if tbl.upper() in upper:
+            return True
+    return False
+
+
+def _run_savepoint_import(cursor, statements):
+    """
+    Execute each statement inside its own savepoint.
+    Returns (results_list, skipped_list).
+    """
+    results = []
+    skipped = []
+    for i, stmt in enumerate(statements):
+        preview = stmt[:120] + ('…' if len(stmt) > 120 else '')
+        try:
+            cursor.execute('SAVEPOINT sp_%d;' % i)
+            cursor.execute(stmt)
+            cursor.execute('RELEASE SAVEPOINT sp_%d;' % i)
+            results.append({'index': i + 1, 'status': 'ok', 'preview': preview})
+        except Exception as exc:
+            cursor.execute('ROLLBACK TO SAVEPOINT sp_%d;' % i)
+            cursor.execute('RELEASE SAVEPOINT sp_%d;' % i)
+            err_msg = str(exc).split('\n')[0]
+            skipped.append({'index': i + 1, 'reason': err_msg, 'statement': preview})
+            logger.warning('Import skipped statement %d: %s', i + 1, err_msg)
+    return results, skipped
+
+
+class ImportProjectDataView(APIView):
+    """
+    POST /api/v1/data-transfer/import/project/
+
+    Smart project-scoped import.
+    ─ Accepts: project_id (form field) + sql_file (multipart)
+    ─ Detects the source project ID from the SQL header comment.
+    ─ Remaps source project ID → target project UUID in every statement.
+    ─ Skips accounts_user / core_projectmember rows automatically
+      (user IDs differ between systems; their FK violations are expected).
+    ─ Imports all other rows with per-savepoint protection so one bad row
+      never rolls back the rest.
+    ─ Any member of the target project (or admin) can trigger this.
+    """
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser]
+
+    def post(self, request):
+        from apps.core.models import HouseProject, ProjectMember
+
+        user = request.user
+
+        # ── Validate target project ────────────────────────────────────────
+        project_id = request.data.get('project_id')
+        if not project_id:
+            return Response({'success': False, 'error': 'project_id is required.'}, status=400)
+
+        try:
+            project = HouseProject.objects.get(pk=project_id)
+        except HouseProject.DoesNotExist:
+            return Response({'success': False, 'error': 'Project not found.'}, status=404)
+
+        if not _is_admin(user):
+            if not ProjectMember.objects.filter(user=user, project_id=project_id).exists():
+                return Response({'success': False, 'error': 'You do not have access to this project.'}, status=403)
+
+        # ── Validate file ──────────────────────────────────────────────────
+        sql_file = request.FILES.get('sql_file')
+        if not sql_file:
+            return Response({'success': False, 'error': 'No file. Use field name: sql_file'}, status=400)
+        if not sql_file.name.lower().endswith('.sql'):
+            return Response({'success': False, 'error': 'Only .sql files are accepted.'}, status=400)
+
+        try:
+            sql_content = sql_file.read().decode('utf-8')
+        except UnicodeDecodeError:
+            sql_file.seek(0)
+            try:
+                sql_content = sql_file.read().decode('latin-1')
+            except Exception:
+                return Response({'success': False, 'error': 'File encoding not supported (use UTF-8).'}, status=400)
+
+        # ── Detect & remap project ID ─────────────────────────────────────
+        source_project_id = _detect_source_project_id(sql_content)
+        target_project_id = str(project.id)
+
+        remapped = False
+        if source_project_id and source_project_id != target_project_id:
+            sql_content = _remap_sql(sql_content, source_project_id, target_project_id)
+            remapped = True
+
+        # ── Split & safety-check ───────────────────────────────────────────
+        statements = _split_statements(sql_content)
+        if not statements:
+            return Response({'success': False, 'error': 'No executable SQL statements found.'}, status=400)
+
+        unsafe = []
+        for stmt in statements:
+            unsafe.extend(_is_unsafe(stmt))
+        if unsafe:
+            return Response({
+                'success': False,
+                'error': f'Blocked: dangerous statements found: {", ".join(set(unsafe))}'
+            }, status=400)
+
+        # ── Separate user-scoped statements from importable ones ───────────
+        user_stmts   = [s for s in statements if _stmt_targets_user_table(s)]
+        import_stmts = [s for s in statements if not _stmt_targets_user_table(s)]
+
+        # ── Execute importable statements ──────────────────────────────────
+        results = []
+        skipped = []
+        try:
+            with transaction.atomic():
+                with connection.cursor() as cursor:
+                    results, skipped = _run_savepoint_import(cursor, import_stmts)
+        except Exception as exc:
+            return Response({
+                'success': False,
+                'statements_executed': 0,
+                'total_statements': len(statements),
+                'errors': [{'error': str(exc)}],
+                'message': f'Import failed and was fully rolled back. Error: {str(exc)}'
+            }, status=400)
+
+        ok_count = len(results)
+        sk_count = len(skipped)
+        total    = len(statements)
+        skipped_user = len(user_stmts)
+
+        msg = (
+            f'Imported {ok_count} of {total} statement(s) into "{project.name}".'
+        )
+        if skipped_user:
+            msg += f' {skipped_user} user/member row(s) skipped (cross-system user IDs).'
+        if sk_count:
+            msg += f' {sk_count} other row(s) skipped (constraint violations).'
+
+        return Response({
+            'success': True,
+            'project': {'id': project.id, 'name': project.name},
+            'source_project_id': source_project_id,
+            'target_project_id': target_project_id,
+            'remapped': remapped,
+            'statements_executed': ok_count,
+            'statements_skipped': sk_count,
+            'statements_skipped_user': skipped_user,
+            'total_statements': total,
+            'skipped': skipped[:20],
+            'preview': [r['preview'] for r in results[:10]],
             'message': msg,
         })
 

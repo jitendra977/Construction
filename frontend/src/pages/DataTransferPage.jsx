@@ -317,20 +317,38 @@ function ExportTab({ user }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// IMPORT TAB
+// IMPORT TAB  — smart project-scoped import
 // ═══════════════════════════════════════════════════════════════════════════════
 function ImportTab({ user }) {
-    const fileRef     = useRef(null);
-    const [drag, setDrag]         = useState(false);
-    const [file, setFile]         = useState(null);
-    const [preview, setPreview]   = useState([]);
+    const fileRef = useRef(null);
+
+    // Project selector state
+    const [projects, setProjects]         = useState([]);
+    const [loadingP, setLoadingP]         = useState(true);
+    const [targetProject, setTargetProject] = useState(null);
+
+    // File state
+    const [drag, setDrag]       = useState(false);
+    const [file, setFile]       = useState(null);
+    const [preview, setPreview] = useState([]);
+    const [showPrev, setShowPrev] = useState(false);
+
+    // Import state
     const [loading, setLoading]   = useState(false);
     const [progress, setProgress] = useState(0);
     const [result, setResult]     = useState(null);
     const [error, setError]       = useState(null);
-    const [showPrev, setShowPrev] = useState(true);
 
     const canImport = isAdmin(user);
+
+    // Load projects list for the selector
+    useEffect(() => {
+        if (!canImport) return;
+        dataTransferService.listProjects()
+            .then(r => setProjects(r.data.projects ?? r.data))
+            .catch(() => {})
+            .finally(() => setLoadingP(false));
+    }, [canImport]);
 
     const handleFile = useCallback(f => {
         if (!f) return;
@@ -340,7 +358,11 @@ function ImportTab({ user }) {
         }
         setError(null); setResult(null); setFile(f);
         const reader = new FileReader();
-        reader.onload = e => setPreview(e.target.result.split('\n').slice(0, 40));
+        reader.onload = e => {
+            const lines = e.target.result.split('\n').slice(0, 40);
+            setPreview(lines);
+            setShowPrev(true);
+        };
         reader.readAsText(f);
     }, []);
 
@@ -351,12 +373,14 @@ function ImportTab({ user }) {
     };
 
     const handleImport = async () => {
-        if (!file || !canImport) return;
+        if (!file || !targetProject || !canImport) return;
         setLoading(true); setError(null); setResult(null); setProgress(0);
         try {
-            const r = await dataTransferService.importSql(file, e => {
-                if (e.total) setProgress(Math.round(e.loaded / e.total * 100));
-            });
+            const r = await dataTransferService.importSqlToProject(
+                targetProject.id,
+                file,
+                e => { if (e.total) setProgress(Math.round(e.loaded / e.total * 100)); },
+            );
             setResult(r.data);
         } catch (e) {
             setError(e.response?.data?.error || e.response?.data?.message || 'Import failed.');
@@ -380,51 +404,93 @@ function ImportTab({ user }) {
         );
     }
 
+    const ready = !!file && !!targetProject;
+
     return (
         <div className="space-y-5">
-            {/* Drop zone */}
-            <div
-                onDragOver={e => { e.preventDefault(); setDrag(true); }}
-                onDragLeave={() => setDrag(false)}
-                onDrop={e => { e.preventDefault(); setDrag(false); handleFile(e.dataTransfer.files[0]); }}
-                onClick={() => !file && fileRef.current?.click()}
-                className={`relative flex flex-col items-center justify-center gap-3 py-10 rounded-xl border-2 border-dashed transition-all cursor-pointer ${
-                    drag        ? 'border-slate-500 bg-slate-50'
-                    : file      ? 'border-emerald-400 bg-emerald-50/40 cursor-default'
-                    : 'border-slate-200 hover:border-slate-400 hover:bg-slate-50'
-                }`}
-            >
-                <input ref={fileRef} type="file" accept=".sql" className="hidden"
-                    onChange={e => handleFile(e.target.files[0])} />
 
-                <div className={`w-11 h-11 rounded-xl flex items-center justify-center transition-colors ${
-                    file ? 'bg-emerald-100' : 'bg-slate-100'
-                }`}>
-                    <I name={file ? 'check' : 'upload'} size={20} cls={file ? 'text-emerald-600' : 'text-slate-400'} />
-                </div>
-
-                {file ? (
-                    <div className="text-center">
-                        <p className="font-semibold text-slate-800 text-[13px]">{file.name}</p>
-                        <p className="text-slate-400 text-[11px] mt-0.5">{fmtSize(file.size)}</p>
-                        <div className="flex items-center justify-center gap-3 mt-2">
-                            <button onClick={e => { e.stopPropagation(); fileRef.current?.click(); }}
-                                className="text-[11px] text-slate-500 hover:text-slate-700 font-semibold">
-                                Change
-                            </button>
-                            <span className="text-slate-200">|</span>
-                            <button onClick={clearFile}
-                                className="text-[11px] text-red-400 hover:text-red-600 font-semibold">
-                                Remove
-                            </button>
-                        </div>
+            {/* ── Step 1: Select target project ─────────────────────── */}
+            <div>
+                <Label>Step 1 — Select target project</Label>
+                <p className="text-[11px] text-slate-400 mb-2">
+                    The SQL file will be imported into this project. Project IDs are remapped automatically.
+                </p>
+                {loadingP ? (
+                    <div className="flex items-center gap-2 py-5 text-slate-400 text-[12px]">
+                        <I name="spin" size={14} cls="animate-spin" /> Loading projects…
                     </div>
                 ) : (
-                    <div className="text-center">
-                        <p className="font-semibold text-slate-600 text-[13px]">Drop .sql file here</p>
-                        <p className="text-slate-400 text-[11px] mt-1">or click to browse</p>
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-0.5">
+                        {projects.map(p => {
+                            const sel = targetProject?.id === p.id;
+                            return (
+                                <button
+                                    key={p.id}
+                                    onClick={() => { setTargetProject(p); setResult(null); setError(null); }}
+                                    className={`w-full text-left px-3.5 py-2.5 rounded-lg border transition-all ${
+                                        sel
+                                            ? 'border-slate-800 bg-slate-800 text-white shadow-sm'
+                                            : 'border-slate-200 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="min-w-0">
+                                            <p className={`font-semibold text-[13px] truncate ${sel ? 'text-white' : 'text-slate-800'}`}>
+                                                {p.name}
+                                            </p>
+                                            <p className={`text-[11px] mt-0.5 truncate ${sel ? 'text-slate-300' : 'text-slate-400'}`}>
+                                                {p.owner} · {fmtDate(p.start_date)}
+                                            </p>
+                                        </div>
+                                        {sel && <I name="check" size={15} cls="shrink-0 text-emerald-400" />}
+                                    </div>
+                                </button>
+                            );
+                        })}
                     </div>
                 )}
+            </div>
+
+            <Div />
+
+            {/* ── Step 2: Upload SQL file ────────────────────────────── */}
+            <div>
+                <Label>Step 2 — Upload SQL backup file</Label>
+                <div
+                    onDragOver={e => { e.preventDefault(); setDrag(true); }}
+                    onDragLeave={() => setDrag(false)}
+                    onDrop={e => { e.preventDefault(); setDrag(false); handleFile(e.dataTransfer.files[0]); }}
+                    onClick={() => !file && fileRef.current?.click()}
+                    className={`flex flex-col items-center justify-center gap-3 py-8 rounded-xl border-2 border-dashed transition-all cursor-pointer ${
+                        drag   ? 'border-slate-500 bg-slate-50'
+                        : file ? 'border-emerald-400 bg-emerald-50/40 cursor-default'
+                        : 'border-slate-200 hover:border-slate-400 hover:bg-slate-50'
+                    }`}
+                >
+                    <input ref={fileRef} type="file" accept=".sql" className="hidden"
+                        onChange={e => handleFile(e.target.files[0])} />
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${file ? 'bg-emerald-100' : 'bg-slate-100'}`}>
+                        <I name={file ? 'check' : 'upload'} size={18} cls={file ? 'text-emerald-600' : 'text-slate-400'} />
+                    </div>
+                    {file ? (
+                        <div className="text-center">
+                            <p className="font-semibold text-slate-800 text-[13px]">{file.name}</p>
+                            <p className="text-slate-400 text-[11px] mt-0.5">{fmtSize(file.size)}</p>
+                            <div className="flex items-center justify-center gap-3 mt-2">
+                                <button onClick={e => { e.stopPropagation(); fileRef.current?.click(); }}
+                                    className="text-[11px] text-slate-500 hover:text-slate-700 font-semibold">Change</button>
+                                <span className="text-slate-200">|</span>
+                                <button onClick={clearFile}
+                                    className="text-[11px] text-red-400 hover:text-red-600 font-semibold">Remove</button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="text-center">
+                            <p className="font-semibold text-slate-600 text-[13px]">Drop .sql file here</p>
+                            <p className="text-slate-400 text-[11px] mt-1">or click to browse</p>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* SQL preview */}
@@ -436,7 +502,7 @@ function ImportTab({ user }) {
                     >
                         <div className="flex items-center gap-2 text-[11px] text-slate-300 font-mono">
                             <I name="file" size={11} cls="text-slate-400" />
-                            Preview — first {Math.min(preview.length, 40)} lines
+                            File preview — first {Math.min(preview.length, 40)} lines
                         </div>
                         <I name="chevron" size={12} cls={`text-slate-400 transition-transform ${showPrev ? 'rotate-180' : ''}`} />
                     </button>
@@ -445,7 +511,7 @@ function ImportTab({ user }) {
                             {preview.map((l, i) => (
                                 <span key={i} className={`block ${
                                     l.startsWith('--') ? 'text-slate-500'
-                                    : /^(INSERT|SELECT|UPDATE)/i.test(l) ? 'text-emerald-400'
+                                    : /^(INSERT|SELECT)/i.test(l.trim()) ? 'text-emerald-400'
                                     : 'text-slate-300'
                                 }`}>{l || ' '}</span>
                             ))}
@@ -466,29 +532,39 @@ function ImportTab({ user }) {
                 </div>
             )}
 
-            {/* Success result */}
+            {/* ── Result ────────────────────────────────────────────── */}
             {result?.success && (
                 <div className="border border-emerald-200 rounded-lg overflow-hidden">
-                    <div className="bg-emerald-50 px-3.5 py-2.5 flex items-center gap-2">
-                        <I name="check" size={14} cls="text-emerald-600" />
-                        <p className="font-semibold text-emerald-700 text-[12px]">{result.message}</p>
+                    <div className="bg-emerald-50 px-3.5 py-2.5 flex items-start gap-2">
+                        <I name="check" size={14} cls="text-emerald-600 shrink-0 mt-0.5" />
+                        <p className="font-semibold text-emerald-700 text-[12px] leading-snug">{result.message}</p>
                     </div>
-                    <div className="px-3.5 py-2.5 flex flex-wrap gap-2">
+                    <div className="px-3.5 py-2.5 flex flex-wrap gap-2 border-t border-emerald-100">
                         <Badge color="green">Imported: {result.statements_executed}</Badge>
                         <Badge color="slate">Total: {result.total_statements}</Badge>
+                        {result.statements_skipped_user > 0 && (
+                            <Badge color="blue">User rows skipped: {result.statements_skipped_user}</Badge>
+                        )}
                         {result.statements_skipped > 0 && (
-                            <Badge color="amber">Skipped: {result.statements_skipped}</Badge>
+                            <Badge color="amber">Other skipped: {result.statements_skipped}</Badge>
+                        )}
+                        {result.remapped && (
+                            <Badge color="violet">
+                                ID remapped: {result.source_project_id} → {String(result.target_project_id).slice(0, 8)}…
+                            </Badge>
                         )}
                     </div>
-                    {result.statements_skipped > 0 && (
-                        <div className="border-t border-emerald-100 px-3.5 py-2.5">
-                            <Alert type="warn">
-                                {result.statements_skipped} row(s) skipped — old integer IDs with no matching record in the current schema. All compatible data was imported.
+                    {result.statements_skipped_user > 0 && (
+                        <div className="px-3.5 pb-3 border-t border-slate-100 pt-2.5">
+                            <Alert type="info">
+                                <strong>{result.statements_skipped_user}</strong> user/member rows were skipped automatically —
+                                user accounts differ between systems and cannot be remapped. All project data (tasks, finance, phases) was imported.
                             </Alert>
                         </div>
                     )}
                     {result.skipped?.length > 0 && (
                         <div className="border-t border-slate-100 px-3.5 py-2.5 max-h-28 overflow-y-auto space-y-1">
+                            <p className="text-[10px] text-slate-400 font-semibold mb-1">Skipped statements</p>
                             {result.skipped.slice(0, 10).map((s, i) => (
                                 <div key={i} className="text-[10px] font-mono text-slate-500">
                                     <span className="text-slate-400">#{s.index}</span>{' '}
@@ -510,15 +586,29 @@ function ImportTab({ user }) {
                 </Alert>
             )}
 
-            {/* Import button */}
-            <Btn onClick={handleImport} disabled={!file} loading={loading}>
-                <I name="upload" size={14} />
-                {loading ? 'Importing…' : 'Execute SQL import'}
-            </Btn>
+            {/* ── Step 3: Import button ─────────────────────────────── */}
+            <div>
+                <Label>Step 3 — Run import</Label>
+                {!targetProject && (
+                    <p className="text-[11px] text-amber-600 mb-2">Select a target project above first.</p>
+                )}
+                {!file && (
+                    <p className="text-[11px] text-amber-600 mb-2">Upload a .sql file above first.</p>
+                )}
+                <Btn onClick={handleImport} disabled={!ready} loading={loading}>
+                    <I name="upload" size={14} />
+                    {loading
+                        ? 'Importing…'
+                        : targetProject
+                        ? `Import into "${targetProject.name}"`
+                        : 'Import SQL'}
+                </Btn>
+            </div>
 
             <Alert type="info">
-                Statements run with per-row savepoints — FK violations are skipped automatically.
-                <strong> DROP TABLE</strong>, <strong>TRUNCATE</strong>, and bare <strong>DELETE</strong> are always blocked.
+                User rows (<code>accounts_user</code>, <code>core_projectmember</code>) are skipped automatically — they don't transfer between systems.
+                All other rows use savepoints so one FK violation never rolls back the whole import.
+                <strong> DROP TABLE</strong> and <strong>TRUNCATE</strong> are always blocked.
             </Alert>
         </div>
     );
