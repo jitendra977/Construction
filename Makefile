@@ -125,14 +125,30 @@ server-db-heal: ## DB — Force-add missing columns to production DB
 
 .PHONY: server-db-reset
 server-db-reset: ## DB — WIPE and REBUILD production database (DESTRUCTIVE)
-	@echo "⚠️  WARNING: This will DELETE all data on the PRODUCTION server. Ctrl+C to cancel."
+	@echo "⚠️  WARNING: This will DELETE all production data. Ctrl+C within 5s to cancel."
 	@sleep 5
-	@ssh -t $${VPS_USER:-nishanaweb}@$${VPS_HOST:-nishanaweb.cloud} "cd /home/\$${VPS_USER:-nishanaweb}/project/Construction && \
-	  docker compose -f docker-compose.prod.yml stop backend celery celery-beat && \
-	  docker compose -f docker-compose.prod.yml exec db psql -U $${DB_USER:-constructpro} -d postgres -c 'DROP DATABASE IF EXISTS $${DB_NAME:-constructpro};' && \
-	  docker compose -f docker-compose.prod.yml exec db psql -U $${DB_USER:-constructpro} -d postgres -c 'CREATE DATABASE $${DB_NAME:-constructpro};' && \
-	  docker compose -f docker-compose.prod.yml run --rm backend python manage.py migrate --noinput && \
-	  docker compose -f docker-compose.prod.yml start backend celery celery-beat"
+	@ssh -t $${VPS_USER:-nishanaweb}@$${VPS_HOST:-nishanaweb.cloud} '\
+	  set -e; \
+	  cd $${REMOTE_PROJECT_DIR:-/home/nishanaweb/project/Construction}; \
+	  source .env 2>/dev/null || true; \
+	  DBNAME=$${DB_NAME:-constructpro}; \
+	  DBUSER=$${DB_USER:-constructpro}; \
+	  echo "==> Stopping app containers..."; \
+	  docker compose -f docker-compose.prod.yml stop backend celery celery-beat; \
+	  echo "==> Dropping database $$DBNAME..."; \
+	  docker compose -f docker-compose.prod.yml exec -T db \
+	    psql -U $$DBUSER -d template1 -c "DROP DATABASE IF EXISTS $$DBNAME;"; \
+	  echo "==> Creating database $$DBNAME..."; \
+	  docker compose -f docker-compose.prod.yml exec -T db \
+	    psql -U $$DBUSER -d template1 -c "CREATE DATABASE $$DBNAME OWNER $$DBUSER;"; \
+	  echo "==> Running all migrations on fresh DB..."; \
+	  docker compose -f docker-compose.prod.yml run --rm --no-deps \
+	    --entrypoint /bin/sh backend \
+	    -c "python manage.py migrate --noinput"; \
+	  echo "==> Starting app containers..."; \
+	  docker compose -f docker-compose.prod.yml start backend celery celery-beat; \
+	  echo "==> Done. DB reset complete."; \
+	'
 
 .PHONY: server-admin-fix
 server-admin-fix: ## Maintenance — Create or update production Superuser (interactive)

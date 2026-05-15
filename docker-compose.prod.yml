@@ -3,8 +3,6 @@
 #  Frontend: https://construction.nishanaweb.cloud
 #  Backend:  https://api.construction.nishanaweb.cloud
 # ============================================================
-version: '3.9'
-
 x-restart: &restart
   restart: unless-stopped
 
