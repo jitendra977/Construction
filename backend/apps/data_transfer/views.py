@@ -18,6 +18,9 @@ from .exporter import export_project_sql
 
 logger = logging.getLogger(__name__)
 
+# Maximum rows returned by the SQL terminal to prevent enormous payloads
+SQL_TERMINAL_ROW_LIMIT = 500
+
 BLOCKED_PATTERNS = [
     r'\bDROP\s+DATABASE\b',
     r'\bDROP\s+TABLE\b',
@@ -300,4 +303,90 @@ class ImportSqlView(APIView):
             'skipped': skipped[:20],   # first 20 skipped for UI display
             'preview': [r['preview'] for r in results[:20]],
             'message': msg,
+        })
+
+
+class SqlTerminalView(APIView):
+    """
+    POST /api/v1/data-transfer/sql/
+    Execute a single read-only (or admin-approved) SQL query and return results.
+    Superuser / staff / system-admin only.
+    Only SELECT statements are allowed; all write/DDL ops are blocked.
+    """
+    permission_classes = [IsAuthenticated]
+
+    # Patterns that are never allowed in the terminal
+    TERMINAL_BLOCKED = re.compile(
+        r'\b(DROP|TRUNCATE|ALTER|CREATE|INSERT|UPDATE|DELETE|GRANT|REVOKE'
+        r'|COPY|VACUUM|CLUSTER|REINDEX|DISCARD|LOCK|NOTIFY|LISTEN|UNLISTEN'
+        r'|LOAD|RESET|SET\s+ROLE|SET\s+SESSION)\b',
+        re.IGNORECASE,
+    )
+
+    def post(self, request):
+        import time
+
+        if not _is_admin(request.user):
+            return Response(
+                {'success': False, 'error': 'Admin access required for SQL terminal.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        sql = (request.data.get('sql') or '').strip()
+        if not sql:
+            return Response({'success': False, 'error': 'No SQL provided.'}, status=400)
+
+        # Must start with SELECT (after stripping comments)
+        clean = re.sub(r'--[^\n]*', '', sql).strip()
+        if not re.match(r'^\s*SELECT\b', clean, re.IGNORECASE):
+            return Response(
+                {'success': False, 'error': 'Only SELECT statements are allowed in the SQL terminal.'},
+                status=400,
+            )
+
+        if self.TERMINAL_BLOCKED.search(sql):
+            return Response(
+                {'success': False, 'error': 'Statement contains a blocked keyword.'},
+                status=400,
+            )
+
+        # Append a hard row limit so a full-table scan can't kill the server
+        limited_sql = f"SELECT * FROM ({clean}) _q LIMIT {SQL_TERMINAL_ROW_LIMIT}"
+
+        t0 = time.time()
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(limited_sql)
+                columns = [col[0] for col in (cursor.description or [])]
+                raw_rows = cursor.fetchall()
+        except Exception as exc:
+            elapsed = round((time.time() - t0) * 1000)
+            err_msg = str(exc).split('\n')[0]
+            logger.warning('SQL terminal error for user %s: %s', request.user, err_msg)
+            return Response(
+                {'success': False, 'error': err_msg, 'execution_ms': elapsed},
+                status=400,
+            )
+
+        elapsed = round((time.time() - t0) * 1000)
+
+        # Serialise every cell to something JSON-safe
+        def _safe(v):
+            if v is None:
+                return None
+            if isinstance(v, (int, float, bool, str)):
+                return v
+            return str(v)
+
+        rows = [[_safe(cell) for cell in row] for row in raw_rows]
+        truncated = len(rows) == SQL_TERMINAL_ROW_LIMIT
+
+        return Response({
+            'success': True,
+            'columns': columns,
+            'rows': rows,
+            'row_count': len(rows),
+            'truncated': truncated,
+            'truncated_at': SQL_TERMINAL_ROW_LIMIT if truncated else None,
+            'execution_ms': elapsed,
         })

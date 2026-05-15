@@ -549,6 +549,9 @@ export const dataTransferService = {
             onUploadProgress,
         });
     },
+
+    /** Run a SELECT query in the SQL terminal (admin only) */
+    runSql: (sql) => api.post('data-transfer/sql/', { sql }),
 };
 
 export const accountsService = {

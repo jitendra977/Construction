@@ -2,39 +2,49 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { dataTransferService } from '../services/api.js';
 import { useConstruction } from '../context/ConstructionContext';
 
-// ── Icons ──────────────────────────────────────────────────────────────────────
-const Icon = ({ d, size = 20, className = '', fill = 'none' }) => (
+// ── Inline SVG icon factory ───────────────────────────────────────────────────
+const Ico = ({ d, size = 18, cls = '', fill = 'none', multi }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill={fill}
-        stroke="currentColor" strokeWidth={2} strokeLinecap="round"
-        strokeLinejoin="round" className={className}>
-        <path d={d} />
+        stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"
+        strokeLinejoin="round" className={cls}>
+        {multi ? multi.map((p, i) => <path key={i} d={p} />) : <path d={d} />}
     </svg>
 );
-const IcoDownload    = p => <Icon {...p} d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />;
-const IcoUpload      = p => <Icon {...p} d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />;
-const IcoDatabase    = p => <Icon {...p} d="M12 2a9 3 0 1 0 0 6 9 3 0 0 0 0-6zM3 5v4c0 1.657 4.03 3 9 3s9-1.343 9-3V5M3 13v4c0 1.657 4.03 3 9 3s9-1.343 9-3v-4" />;
-const IcoCheck       = p => <Icon {...p} d="M20 6L9 17l-5-5" />;
-const IcoX           = p => <Icon {...p} d="M18 6L6 18M6 6l12 12" />;
-const IcoFile        = p => <Icon {...p} d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8" />;
-const IcoRefresh     = p => <Icon {...p} d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />;
-const IcoTable       = p => <Icon {...p} d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18" />;
-const IcoShield      = p => <Icon {...p} d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />;
-const IcoZap         = p => <Icon {...p} d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />;
-const IcoLayers      = p => <Icon {...p} d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />;
-const IcoArchive     = p => <Icon {...p} d="M21 8v13H3V8M1 3h22v5H1zM10 12h4" />;
-const IcoAlertTri   = p => <Icon {...p} d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01" />;
-const IcoChevronDown = p => <Icon {...p} d="M6 9l6 6 6-6" />;
-const IcoStar        = p => <Icon {...p} d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />;
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
-const fmtDate = iso => iso
-    ? new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-    : '—';
+const icons = {
+    download:  'd="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"',
+    upload:    'd="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"',
+    terminal:  'd="M4 17l6-6-6-6M12 19h8"',
+    check:     'd="M20 6L9 17l-5-5"',
+    x:         'd="M18 6L6 18M6 6l12 12"',
+    spin:      'd="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"',
+    shield:    'd="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"',
+    file:      'd="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6"',
+    chevron:   'd="M6 9l6 6 6-6"',
+    db:        'd="M12 2a9 3 0 1 0 0 6 9 3 0 0 0 0-6zM3 5v4c0 1.657 4.03 3 9 3s9-1.343 9-3V5M3 13v4c0 1.657 4.03 3 9 3s9-1.343 9-3v-4"',
+    warn:      'd="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"',
+    play:      'd="M5 3l14 9-14 9V3z"',
+    table:     'd="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 1-2-2V9m0 0h18"',
+    copy:      'd="M8 16H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2M16 8h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2v-2"',
+    plus:      'd="M12 5v14M5 12h14"',
+    layers:    'd="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"',
+};
+
+const I = ({ name, size = 18, cls = '' }) => {
+    const raw = icons[name] || '';
+    const d = raw.replace(/^d="/, '').replace(/"$/, '');
+    return <Ico d={d} size={size} cls={cls} />;
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const fmtDate = iso =>
+    iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 
 const fmtSize = bytes => {
+    if (!bytes) return '—';
     if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+    if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1048576).toFixed(2)} MB`;
 };
 
 function downloadBlob(blob, filename) {
@@ -44,179 +54,127 @@ function downloadBlob(blob, filename) {
     URL.revokeObjectURL(url);
 }
 
-const isAdmin = user =>
-    user?.is_superuser || user?.is_staff || user?.is_system_admin;
+const isAdmin = u => u?.is_superuser || u?.is_staff || u?.is_system_admin;
 
-// ── Access badge ───────────────────────────────────────────────────────────────
-function AccessBadge({ user }) {
-    const level = user?.is_superuser ? 'Super Admin'
-        : user?.is_system_admin    ? 'System Admin'
-        : user?.is_staff           ? 'Staff Admin'
-        : 'Member';
-    const color = user?.is_superuser ? 'bg-violet-100 text-violet-700 border-violet-200'
-        : (user?.is_system_admin || user?.is_staff) ? 'bg-blue-100 text-blue-700 border-blue-200'
-        : 'bg-slate-100 text-slate-600 border-slate-200';
-    return (
-        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border ${color}`}>
-            <IcoShield size={10} />
-            {level}
-        </span>
-    );
-}
-
-// ── Stat pill ─────────────────────────────────────────────────────────────────
-function Pill({ label, value, color = 'blue' }) {
-    const c = {
-        blue:   'bg-blue-50 text-blue-700 border-blue-200',
-        green:  'bg-emerald-50 text-emerald-700 border-emerald-200',
-        orange: 'bg-orange-50 text-orange-700 border-orange-200',
-        violet: 'bg-violet-50 text-violet-700 border-violet-200',
-        yellow: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+// ── Badge ─────────────────────────────────────────────────────────────────────
+function Badge({ children, color = 'slate' }) {
+    const map = {
+        slate:  'bg-slate-100 text-slate-600',
+        blue:   'bg-blue-50 text-blue-700',
+        green:  'bg-emerald-50 text-emerald-700',
+        amber:  'bg-amber-50 text-amber-700',
+        violet: 'bg-violet-50 text-violet-700',
+        red:    'bg-red-50 text-red-600',
     };
     return (
-        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border ${c[color]}`}>
-            {label}: <strong>{value}</strong>
+        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold ${map[color]}`}>
+            {children}
         </span>
     );
 }
 
-// ── Section header ─────────────────────────────────────────────────────────────
-function SectionHead({ icon: Ico, title, subtitle, accent = 'blue' }) {
-    const bg = { blue: 'bg-blue-600', green: 'bg-emerald-600', violet: 'bg-violet-600' };
+// ── Alert strip ───────────────────────────────────────────────────────────────
+function Alert({ type = 'info', children }) {
+    const map = {
+        info:    { bg: 'bg-blue-50 border-blue-100',   text: 'text-blue-700',   icon: 'shield' },
+        warn:    { bg: 'bg-amber-50 border-amber-100', text: 'text-amber-700',  icon: 'warn' },
+        success: { bg: 'bg-emerald-50 border-emerald-100', text: 'text-emerald-700', icon: 'check' },
+        error:   { bg: 'bg-red-50 border-red-100',    text: 'text-red-600',    icon: 'x' },
+    };
+    const s = map[type];
     return (
-        <div className="flex items-center gap-3 mb-5">
-            <div className={`w-9 h-9 rounded-xl ${bg[accent]} flex items-center justify-center shadow-sm`}>
-                <Ico size={17} className="text-white" />
-            </div>
-            <div>
-                <h2 className="text-[14px] font-black text-slate-800 leading-tight">{title}</h2>
-                {subtitle && <p className="text-[11px] text-slate-500 mt-0.5">{subtitle}</p>}
-            </div>
+        <div className={`flex items-start gap-2.5 px-3.5 py-3 rounded-lg border text-[12px] leading-relaxed ${s.bg} ${s.text}`}>
+            <I name={s.icon} size={14} cls="shrink-0 mt-0.5" />
+            <div>{children}</div>
         </div>
     );
 }
 
-// ── Divider ───────────────────────────────────────────────────────────────────
-function Divider({ label }) {
+// ── Spinner button ────────────────────────────────────────────────────────────
+function Btn({ onClick, disabled, loading, variant = 'primary', children, full = true }) {
+    const base = `${full ? 'w-full' : ''} inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-[13px] font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed`;
+    const variants = {
+        primary:   'bg-slate-800 text-white hover:bg-slate-900 active:scale-[0.98]',
+        secondary: 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 active:scale-[0.98]',
+        ghost:     'text-slate-600 hover:bg-slate-100 active:scale-[0.98]',
+        danger:    'bg-red-600 text-white hover:bg-red-700 active:scale-[0.98]',
+    };
     return (
-        <div className="flex items-center gap-3 my-5">
-            <div className="flex-1 h-px bg-slate-200" />
-            {label && <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</span>}
-            <div className="flex-1 h-px bg-slate-200" />
-        </div>
-    );
-}
-
-// ── Project card ──────────────────────────────────────────────────────────────
-function ProjectCard({ project, selected, onSelect }) {
-    return (
-        <button
-            onClick={() => onSelect(project)}
-            className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all group ${
-                selected
-                    ? 'border-blue-500 bg-blue-50 shadow-sm'
-                    : 'border-slate-200 bg-white hover:border-blue-300 hover:shadow-sm hover:bg-blue-50/20'
-            }`}
-        >
-            <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                    <p className={`font-bold text-[13px] truncate ${selected ? 'text-blue-800' : 'text-slate-800'}`}>
-                        {project.name}
-                    </p>
-                    <p className="text-[11px] text-slate-500 mt-0.5 truncate">
-                        {project.owner} · {project.address}
-                    </p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[10px] text-slate-400 hidden sm:block">{fmtDate(project.start_date)}</span>
-                    {selected
-                        ? <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
-                              <IcoCheck size={11} className="text-white" />
-                          </div>
-                        : <div className="w-5 h-5 rounded-full border-2 border-slate-300 group-hover:border-blue-400 transition-colors" />
-                    }
-                </div>
-            </div>
+        <button onClick={onClick} disabled={disabled || loading} className={`${base} ${variants[variant]}`}>
+            {loading && <I name="spin" size={14} cls="animate-spin" />}
+            {children}
         </button>
     );
 }
 
-// ── Table row for export stats ────────────────────────────────────────────────
-function StatRow({ model, table, rows }) {
-    if (rows === 0) return null;
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+function Tabs({ tabs, active, onChange }) {
     return (
-        <div className="flex items-center justify-between py-1.5 px-3 rounded-lg hover:bg-slate-100 transition-colors">
-            <div className="flex items-center gap-2 min-w-0">
-                <IcoTable size={11} className="text-slate-400 shrink-0" />
-                <span className="text-[11px] text-slate-700 font-medium truncate">{model}</span>
-                <span className="text-[10px] text-slate-400 hidden sm:block">({table})</span>
-            </div>
-            <span className="text-[11px] font-black text-slate-700 shrink-0 ml-2">{rows.toLocaleString()}</span>
+        <div className="flex items-center gap-1 border-b border-slate-100 mb-6">
+            {tabs.map(t => (
+                <button
+                    key={t.id}
+                    onClick={() => onChange(t.id)}
+                    className={`flex items-center gap-2 px-4 py-2.5 text-[13px] font-semibold border-b-2 -mb-px transition-colors ${
+                        active === t.id
+                            ? 'border-slate-800 text-slate-800'
+                            : 'border-transparent text-slate-400 hover:text-slate-600'
+                    }`}
+                >
+                    <I name={t.icon} size={14} />
+                    {t.label}
+                    {t.badge && (
+                        <span className="ml-1 px-1.5 py-0.5 rounded text-[10px] bg-slate-100 text-slate-500 font-bold">
+                            {t.badge}
+                        </span>
+                    )}
+                </button>
+            ))}
         </div>
     );
 }
 
-// ── Toast / Feedback ──────────────────────────────────────────────────────────
-function Feedback({ type, message, detail }) {
-    if (!message) return null;
-    const styles = {
-        success: 'bg-emerald-50 border-emerald-200 text-emerald-700',
-        error:   'bg-red-50 border-red-200 text-red-600',
-        info:    'bg-blue-50 border-blue-200 text-blue-700',
-    };
-    const icons = { success: IcoCheck, error: IcoX, info: IcoZap };
-    const Ico = icons[type] || IcoCheck;
+// ── Section label ─────────────────────────────────────────────────────────────
+function Label({ children }) {
     return (
-        <div className={`flex items-start gap-3 border rounded-xl px-4 py-3 ${styles[type]}`}>
-            <Ico size={15} className="shrink-0 mt-0.5" />
-            <div>
-                <p className="text-[12px] font-bold">{message}</p>
-                {detail && <p className="text-[11px] mt-0.5 opacity-80">{detail}</p>}
-            </div>
-        </div>
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+            {children}
+        </p>
     );
 }
 
-// ── Progress bar ──────────────────────────────────────────────────────────────
-function ProgressBar({ value, color = 'blue' }) {
-    const bar = { blue: 'bg-blue-500', green: 'bg-emerald-500', violet: 'bg-violet-500' };
-    return (
-        <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
-            <div
-                className={`${bar[color]} h-1.5 rounded-full transition-all duration-300`}
-                style={{ width: `${value}%` }}
-            />
-        </div>
-    );
+// ── Divider ───────────────────────────────────────────────────────────────────
+function Div() {
+    return <div className="border-t border-slate-100 my-5" />;
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// EXPORT PANEL
-// ────────────────────────────────────────────────────────────────────────────
-function ExportPanel({ user }) {
-    const [projects, setProjects]         = useState([]);
-    const [loadingProjects, setLoadingP]  = useState(true);
-    const [selected, setSelected]         = useState(null);
-    const [stats, setStats]               = useState(null);
-    const [statsLoading, setStatsLoading] = useState(false);
-    const [exporting, setExporting]       = useState(false);
-    const [feedback, setFeedback]         = useState(null);
-    const [showStats, setShowStats]       = useState(true);
+// ═══════════════════════════════════════════════════════════════════════════════
+// EXPORT TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+function ExportTab({ user }) {
+    const [projects, setProjects]     = useState([]);
+    const [loadingP, setLoadingP]     = useState(true);
+    const [selected, setSelected]     = useState(null);
+    const [stats, setStats]           = useState(null);
+    const [statsLoading, setStatsL]   = useState(false);
+    const [exporting, setExporting]   = useState(false);
+    const [feedback, setFeedback]     = useState(null);
+    const [open, setOpen]             = useState(false);
 
     useEffect(() => {
         dataTransferService.listProjects()
-            .then(r => { setProjects(r.data.projects ?? r.data); })
+            .then(r => setProjects(r.data.projects ?? r.data))
             .catch(() => {})
             .finally(() => setLoadingP(false));
     }, []);
 
     const handleSelect = async proj => {
-        setSelected(proj); setStats(null); setFeedback(null); setStatsLoading(true);
+        setSelected(proj); setStats(null); setFeedback(null); setStatsL(true); setOpen(true);
         try {
             const r = await dataTransferService.getExportStats(proj.id);
             setStats(r.data);
-        } catch { setStats(null); }
-        finally { setStatsLoading(false); }
+        } catch { /* ignore */ }
+        finally { setStatsL(false); }
     };
 
     const handleExport = async () => {
@@ -224,12 +182,12 @@ function ExportPanel({ user }) {
         setExporting(true); setFeedback(null);
         try {
             const r = await dataTransferService.exportProject(selected.id);
-            const now = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-            const filename = `project_${selected.id}_${selected.name.replace(/\s+/g,'_').toLowerCase()}_${now}.sql`;
-            downloadBlob(r.data, filename);
-            setFeedback({ type: 'success', message: `Downloaded: ${filename}`, detail: `${stats?.total_rows?.toLocaleString() ?? '—'} rows exported` });
+            const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+            const name = `project_${selected.id}_${selected.name.replace(/\s+/g, '_').toLowerCase()}_${ts}.sql`;
+            downloadBlob(r.data, name);
+            setFeedback({ type: 'success', msg: `Downloaded ${name}`, detail: `${stats?.total_rows?.toLocaleString() ?? '—'} rows` });
         } catch (e) {
-            setFeedback({ type: 'error', message: e.response?.data?.error || 'Export failed. Please try again.' });
+            setFeedback({ type: 'error', msg: e.response?.data?.error || 'Export failed.' });
         } finally { setExporting(false); }
     };
 
@@ -238,139 +196,139 @@ function ExportPanel({ user }) {
         setExporting(true); setFeedback(null);
         try {
             const r = await dataTransferService.exportFullSystem();
-            const ts = new Date().toISOString().slice(0,10);
-            downloadBlob(r.data, `full_system_backup_${ts}.sql`);
-            setFeedback({ type: 'success', message: 'Full system backup downloaded.', detail: 'All projects included' });
+            downloadBlob(r.data, `full_system_backup_${new Date().toISOString().slice(0, 10)}.sql`);
+            setFeedback({ type: 'success', msg: 'Full system backup downloaded.' });
         } catch {
-            setFeedback({ type: 'error', message: 'Full system export failed.' });
+            setFeedback({ type: 'error', msg: 'Full system export failed.' });
         } finally { setExporting(false); }
     };
 
     return (
-        <div className="flex flex-col h-full gap-5">
-            <SectionHead
-                icon={IcoDownload}
-                accent="blue"
-                title="Export Project"
-                subtitle="Download project data as a portable SQL backup"
-            />
-
-            {/* Project selector */}
+        <div className="space-y-5">
+            {/* Project list */}
             <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
-                    {projects.length} Project{projects.length !== 1 ? 's' : ''} available
-                </p>
-                {loadingProjects ? (
-                    <div className="flex items-center justify-center gap-2 py-10 text-slate-400 text-sm">
-                        <IcoRefresh size={15} className="animate-spin" /> Loading...
+                <Label>{loadingP ? 'Loading projects…' : `${projects.length} project${projects.length !== 1 ? 's' : ''}`}</Label>
+                {loadingP ? (
+                    <div className="flex items-center gap-2 py-8 text-slate-400 text-[13px]">
+                        <I name="spin" size={15} cls="animate-spin" /> Loading…
                     </div>
                 ) : projects.length === 0 ? (
-                    <div className="text-center py-10 text-slate-400 text-sm">No projects found.</div>
+                    <p className="text-slate-400 text-[13px] py-8 text-center">No projects found.</p>
                 ) : (
-                    <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1 scrollbar-thin">
-                        {projects.map(p => (
-                            <ProjectCard key={p.id} project={p} selected={selected?.id === p.id} onSelect={handleSelect} />
-                        ))}
+                    <div className="space-y-1.5 max-h-64 overflow-y-auto pr-0.5">
+                        {projects.map(p => {
+                            const sel = selected?.id === p.id;
+                            return (
+                                <button
+                                    key={p.id}
+                                    onClick={() => handleSelect(p)}
+                                    className={`w-full text-left px-3.5 py-3 rounded-lg border transition-all ${
+                                        sel
+                                            ? 'border-slate-800 bg-slate-800 text-white shadow-sm'
+                                            : 'border-slate-200 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="min-w-0">
+                                            <p className={`font-semibold text-[13px] truncate ${sel ? 'text-white' : 'text-slate-800'}`}>
+                                                {p.name}
+                                            </p>
+                                            <p className={`text-[11px] mt-0.5 truncate ${sel ? 'text-slate-300' : 'text-slate-400'}`}>
+                                                {p.owner} · {fmtDate(p.start_date)}
+                                            </p>
+                                        </div>
+                                        {sel && <I name="check" size={15} cls="shrink-0 text-emerald-400" />}
+                                    </div>
+                                </button>
+                            );
+                        })}
                     </div>
                 )}
             </div>
 
-            {/* Stats panel */}
+            {/* Stats accordion */}
             {selected && (
-                <div className="rounded-xl border border-slate-200 overflow-hidden bg-slate-50">
+                <div className="border border-slate-200 rounded-lg overflow-hidden">
                     <button
-                        onClick={() => setShowStats(s => !s)}
-                        className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-slate-100 transition-colors"
+                        onClick={() => setOpen(o => !o)}
+                        className="w-full flex items-center justify-between px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100 transition-colors"
                     >
-                        <div className="flex items-center gap-2">
-                            <IcoDatabase size={13} className="text-slate-500" />
-                            <span className="text-[12px] font-bold text-slate-700">Export Preview</span>
-                            {statsLoading && <IcoRefresh size={12} className="animate-spin text-slate-400" />}
-                        </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 text-[12px] font-semibold text-slate-700">
+                            <I name="db" size={13} />
+                            Export preview
+                            {statsLoading && <I name="spin" size={12} cls="animate-spin text-slate-400" />}
                             {stats && (
-                                <div className="flex gap-1.5">
-                                    <Pill label="Tables" value={stats.tables?.filter(t => t.rows > 0).length} color="blue" />
-                                    <Pill label="Rows" value={stats.total_rows?.toLocaleString()} color="green" />
-                                </div>
+                                <span className="flex gap-1.5 ml-1">
+                                    <Badge color="blue">{stats.tables?.filter(t => t.rows > 0).length} tables</Badge>
+                                    <Badge color="green">{stats.total_rows?.toLocaleString()} rows</Badge>
+                                </span>
                             )}
-                            <IcoChevronDown
-                                size={14}
-                                className={`text-slate-400 transition-transform ${showStats ? 'rotate-180' : ''}`}
-                            />
                         </div>
+                        <I name="chevron" size={13} cls={`text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
                     </button>
-                    {showStats && (
-                        <div className="px-2 py-2 max-h-40 overflow-y-auto border-t border-slate-200">
+                    {open && (
+                        <div className="max-h-44 overflow-y-auto divide-y divide-slate-100">
                             {stats ? (
-                                stats.tables?.length > 0
-                                    ? stats.tables.map((t, i) => <StatRow key={i} {...t} />)
-                                    : <p className="text-center text-slate-400 text-sm py-3">No data to export</p>
-                            ) : (
-                                !statsLoading && (
-                                    <p className="text-center text-slate-400 text-sm py-3">
-                                        {selected ? 'Stats unavailable' : 'Select a project'}
-                                    </p>
-                                )
-                            )}
+                                stats.tables?.filter(t => t.rows > 0).map((t, i) => (
+                                    <div key={i} className="flex items-center justify-between px-3.5 py-2 text-[12px]">
+                                        <span className="text-slate-600 font-medium">{t.model}</span>
+                                        <span className="text-slate-800 font-bold tabular-nums">{t.rows.toLocaleString()}</span>
+                                    </div>
+                                ))
+                            ) : !statsLoading ? (
+                                <p className="text-slate-400 text-[12px] px-3.5 py-3">No preview available.</p>
+                            ) : null}
                         </div>
                     )}
                 </div>
             )}
 
             {/* Feedback */}
-            {feedback && <Feedback {...feedback} />}
-
-            {/* Export button */}
-            <button
-                onClick={handleExport}
-                disabled={!selected || exporting}
-                className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-black text-[13px] transition-all ${
-                    !selected || exporting
-                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                        : 'bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white shadow-md hover:shadow-lg'
-                }`}
-            >
-                {exporting
-                    ? <><IcoRefresh size={15} className="animate-spin" /> Generating SQL…</>
-                    : <><IcoDownload size={15} /> Export Selected Project</>
-                }
-            </button>
-
-            {/* Full system backup */}
-            {isAdmin(user) && (
-                <>
-                    <Divider label="System Administration" />
-                    <button
-                        onClick={handleFullBackup}
-                        disabled={exporting}
-                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-blue-500 text-blue-600 font-black text-[12px] hover:bg-blue-50 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        <IcoLayers size={15} />
-                        Full System Backup — All Projects
-                    </button>
-                    <p className="text-[10px] text-slate-400 text-center -mt-3">
-                        Exports every project in the system as a single SQL file.
-                    </p>
-                </>
+            {feedback && (
+                <Alert type={feedback.type}>
+                    <strong>{feedback.msg}</strong>
+                    {feedback.detail && <span className="opacity-75"> · {feedback.detail}</span>}
+                </Alert>
             )}
+
+            {/* Actions */}
+            <div className="space-y-2">
+                <Btn onClick={handleExport} disabled={!selected} loading={exporting}>
+                    <I name="download" size={14} />
+                    {exporting ? 'Generating SQL…' : 'Export selected project'}
+                </Btn>
+
+                {isAdmin(user) && (
+                    <>
+                        <Div />
+                        <Label>System administration</Label>
+                        <Btn onClick={handleFullBackup} disabled={exporting} loading={exporting} variant="secondary">
+                            <I name="layers" size={14} />
+                            Full system backup — all projects
+                        </Btn>
+                        <p className="text-[11px] text-slate-400 text-center">
+                            Exports every project as a single SQL file.
+                        </p>
+                    </>
+                )}
+            </div>
         </div>
     );
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// IMPORT PANEL
-// ────────────────────────────────────────────────────────────────────────────
-function ImportPanel({ user }) {
-    const fileInputRef = useRef(null);
-    const [dragOver, setDragOver]   = useState(false);
-    const [file, setFile]           = useState(null);
-    const [preview, setPreview]     = useState([]);
-    const [loading, setLoading]     = useState(false);
-    const [progress, setProgress]   = useState(0);
-    const [result, setResult]       = useState(null);
-    const [error, setError]         = useState(null);
-    const [showPreview, setShowPrev] = useState(true);
+// ═══════════════════════════════════════════════════════════════════════════════
+// IMPORT TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+function ImportTab({ user }) {
+    const fileRef     = useRef(null);
+    const [drag, setDrag]         = useState(false);
+    const [file, setFile]         = useState(null);
+    const [preview, setPreview]   = useState([]);
+    const [loading, setLoading]   = useState(false);
+    const [progress, setProgress] = useState(0);
+    const [result, setResult]     = useState(null);
+    const [error, setError]       = useState(null);
+    const [showPrev, setShowPrev] = useState(true);
 
     const canImport = isAdmin(user);
 
@@ -382,27 +340,22 @@ function ImportPanel({ user }) {
         }
         setError(null); setResult(null); setFile(f);
         const reader = new FileReader();
-        reader.onload = e => setPreview(e.target.result.split('\n').slice(0, 30));
+        reader.onload = e => setPreview(e.target.result.split('\n').slice(0, 40));
         reader.readAsText(f);
     }, []);
 
-    const handleDrop = useCallback(e => {
-        e.preventDefault(); setDragOver(false);
-        handleFile(e.dataTransfer.files[0]);
-    }, [handleFile]);
-
     const clearFile = e => {
-        e.stopPropagation();
+        e?.stopPropagation();
         setFile(null); setPreview([]); setResult(null); setError(null);
-        if (fileInputRef.current) fileInputRef.current.value = '';
+        if (fileRef.current) fileRef.current.value = '';
     };
 
     const handleImport = async () => {
         if (!file || !canImport) return;
         setLoading(true); setError(null); setResult(null); setProgress(0);
         try {
-            const r = await dataTransferService.importSql(file, evt => {
-                if (evt.total) setProgress(Math.round(evt.loaded / evt.total * 100));
+            const r = await dataTransferService.importSql(file, e => {
+                if (e.total) setProgress(Math.round(e.loaded / e.total * 100));
             });
             setResult(r.data);
         } catch (e) {
@@ -412,119 +365,87 @@ function ImportPanel({ user }) {
 
     if (!canImport) {
         return (
-            <div className="flex flex-col h-full">
-                <SectionHead icon={IcoUpload} accent="green" title="Import Data" subtitle="Restore from SQL backup" />
-                <div className="flex-1 flex flex-col items-center justify-center gap-4 py-10">
-                    <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center">
-                        <IcoShield size={28} className="text-slate-400" />
-                    </div>
-                    <div className="text-center">
-                        <p className="font-black text-slate-700 text-[15px]">Admin Access Required</p>
-                        <p className="text-slate-500 text-[12px] text-center max-w-xs mt-1 leading-relaxed">
-                            SQL import executes directly against the database.<br />
-                            Contact your system administrator to perform imports.
-                        </p>
-                    </div>
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 max-w-xs">
-                        <div className="flex items-start gap-2">
-                            <IcoAlertTri size={13} className="text-amber-500 shrink-0 mt-0.5" />
-                            <p className="text-[11px] text-amber-700">
-                                Staff, System Admins, and Super Admins have import access.
-                            </p>
-                        </div>
-                    </div>
+            <div className="py-12 flex flex-col items-center gap-4 text-center">
+                <div className="w-14 h-14 rounded-xl bg-slate-100 flex items-center justify-center">
+                    <I name="shield" size={26} cls="text-slate-300" />
+                </div>
+                <div>
+                    <p className="font-semibold text-slate-700 text-[14px]">Admin access required</p>
+                    <p className="text-slate-400 text-[12px] mt-1 max-w-xs leading-relaxed">
+                        SQL import executes directly against the database.<br />
+                        Staff, System Admins, and Super Admins can import.
+                    </p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="flex flex-col h-full gap-5">
-            <SectionHead
-                icon={IcoUpload}
-                accent="green"
-                title="Import SQL Data"
-                subtitle="Restore from a .sql backup file — all statements run atomically"
-            />
-
+        <div className="space-y-5">
             {/* Drop zone */}
             <div
-                onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={handleDrop}
-                onClick={() => !file && fileInputRef.current?.click()}
-                className={`relative flex flex-col items-center justify-center gap-3 py-8 rounded-xl border-2 border-dashed transition-all ${
-                    dragOver
-                        ? 'border-emerald-400 bg-emerald-50 scale-[1.01] cursor-copy'
-                        : file
-                        ? 'border-emerald-400 bg-emerald-50/60 cursor-default'
-                        : 'border-slate-300 bg-slate-50 hover:border-emerald-400 hover:bg-emerald-50/40 cursor-pointer'
+                onDragOver={e => { e.preventDefault(); setDrag(true); }}
+                onDragLeave={() => setDrag(false)}
+                onDrop={e => { e.preventDefault(); setDrag(false); handleFile(e.dataTransfer.files[0]); }}
+                onClick={() => !file && fileRef.current?.click()}
+                className={`relative flex flex-col items-center justify-center gap-3 py-10 rounded-xl border-2 border-dashed transition-all cursor-pointer ${
+                    drag        ? 'border-slate-500 bg-slate-50'
+                    : file      ? 'border-emerald-400 bg-emerald-50/40 cursor-default'
+                    : 'border-slate-200 hover:border-slate-400 hover:bg-slate-50'
                 }`}
             >
-                <input ref={fileInputRef} type="file" accept=".sql" className="hidden"
+                <input ref={fileRef} type="file" accept=".sql" className="hidden"
                     onChange={e => handleFile(e.target.files[0])} />
 
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
-                    file ? 'bg-emerald-100' : 'bg-slate-200'
+                <div className={`w-11 h-11 rounded-xl flex items-center justify-center transition-colors ${
+                    file ? 'bg-emerald-100' : 'bg-slate-100'
                 }`}>
-                    {file
-                        ? <IcoCheck size={22} className="text-emerald-600" />
-                        : <IcoUpload size={22} className="text-slate-500" />
-                    }
+                    <I name={file ? 'check' : 'upload'} size={20} cls={file ? 'text-emerald-600' : 'text-slate-400'} />
                 </div>
 
                 {file ? (
-                    <div className="text-center px-4">
-                        <p className="font-bold text-emerald-700 text-[13px]">{file.name}</p>
-                        <p className="text-[11px] text-slate-500 mt-0.5">{fmtSize(file.size)} · SQL file ready</p>
+                    <div className="text-center">
+                        <p className="font-semibold text-slate-800 text-[13px]">{file.name}</p>
+                        <p className="text-slate-400 text-[11px] mt-0.5">{fmtSize(file.size)}</p>
+                        <div className="flex items-center justify-center gap-3 mt-2">
+                            <button onClick={e => { e.stopPropagation(); fileRef.current?.click(); }}
+                                className="text-[11px] text-slate-500 hover:text-slate-700 font-semibold">
+                                Change
+                            </button>
+                            <span className="text-slate-200">|</span>
+                            <button onClick={clearFile}
+                                className="text-[11px] text-red-400 hover:text-red-600 font-semibold">
+                                Remove
+                            </button>
+                        </div>
                     </div>
                 ) : (
-                    <div className="text-center px-4">
-                        <p className="font-bold text-slate-600 text-[13px]">Drop .sql file here</p>
-                        <p className="text-[11px] text-slate-400 mt-1">or click to browse your files</p>
-                    </div>
-                )}
-
-                {/* Change / clear button when file selected */}
-                {file && (
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={e => { e.stopPropagation(); fileInputRef.current?.click(); }}
-                            className="text-[11px] text-emerald-600 font-bold hover:underline"
-                        >Change file</button>
-                        <span className="text-slate-300">·</span>
-                        <button onClick={clearFile} className="text-[11px] text-red-500 font-bold hover:underline">
-                            Remove
-                        </button>
+                    <div className="text-center">
+                        <p className="font-semibold text-slate-600 text-[13px]">Drop .sql file here</p>
+                        <p className="text-slate-400 text-[11px] mt-1">or click to browse</p>
                     </div>
                 )}
             </div>
 
-            {/* SQL Preview */}
+            {/* SQL preview */}
             {preview.length > 0 && (
-                <div className="rounded-xl border border-slate-200 overflow-hidden">
+                <div className="rounded-lg overflow-hidden border border-slate-200">
                     <button
                         onClick={() => setShowPrev(s => !s)}
-                        className="w-full px-4 py-2 bg-slate-800 flex items-center justify-between hover:bg-slate-700 transition-colors"
+                        className="w-full flex items-center justify-between px-3.5 py-2 bg-slate-800 hover:bg-slate-700 transition-colors"
                     >
-                        <div className="flex items-center gap-2">
-                            <IcoFile size={12} className="text-slate-400" />
-                            <span className="text-[11px] text-slate-300 font-mono">
-                                Preview — first {Math.min(preview.length, 30)} lines
-                            </span>
+                        <div className="flex items-center gap-2 text-[11px] text-slate-300 font-mono">
+                            <I name="file" size={11} cls="text-slate-400" />
+                            Preview — first {Math.min(preview.length, 40)} lines
                         </div>
-                        <IcoChevronDown
-                            size={13}
-                            className={`text-slate-400 transition-transform ${showPreview ? 'rotate-180' : ''}`}
-                        />
+                        <I name="chevron" size={12} cls={`text-slate-400 transition-transform ${showPrev ? 'rotate-180' : ''}`} />
                     </button>
-                    {showPreview && (
-                        <pre className="text-[10px] font-mono bg-slate-900 px-4 py-3 max-h-36 overflow-y-auto leading-relaxed">
+                    {showPrev && (
+                        <pre className="text-[10px] font-mono bg-slate-900 px-4 py-3 max-h-40 overflow-y-auto leading-relaxed">
                             {preview.map((l, i) => (
                                 <span key={i} className={`block ${
                                     l.startsWith('--') ? 'text-slate-500'
-                                    : l.toUpperCase().startsWith('INSERT') ? 'text-emerald-400'
-                                    : l.toUpperCase().startsWith('--') ? 'text-slate-500'
+                                    : /^(INSERT|SELECT|UPDATE)/i.test(l) ? 'text-emerald-400'
                                     : 'text-slate-300'
                                 }`}>{l || ' '}</span>
                             ))}
@@ -537,283 +458,314 @@ function ImportPanel({ user }) {
             {loading && progress > 0 && (
                 <div className="space-y-1.5">
                     <div className="flex justify-between text-[11px] text-slate-500">
-                        <span>Uploading…</span>
-                        <span>{progress}%</span>
+                        <span>Uploading…</span><span>{progress}%</span>
                     </div>
-                    <ProgressBar value={progress} color="green" />
+                    <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                        <div className="bg-slate-800 h-1.5 rounded-full transition-all" style={{ width: `${progress}%` }} />
+                    </div>
                 </div>
             )}
 
-            {/* Result: success */}
+            {/* Success result */}
             {result?.success && (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-2.5">
-                    <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center">
-                            <IcoCheck size={14} className="text-white" />
-                        </div>
-                        <p className="font-black text-emerald-700 text-[13px]">{result.message}</p>
+                <div className="border border-emerald-200 rounded-lg overflow-hidden">
+                    <div className="bg-emerald-50 px-3.5 py-2.5 flex items-center gap-2">
+                        <I name="check" size={14} cls="text-emerald-600" />
+                        <p className="font-semibold text-emerald-700 text-[12px]">{result.message}</p>
                     </div>
-                    <div className="flex gap-2 flex-wrap">
-                        <Pill label="Imported" value={result.statements_executed} color="green" />
-                        <Pill label="Total"    value={result.total_statements}    color="blue"  />
+                    <div className="px-3.5 py-2.5 flex flex-wrap gap-2">
+                        <Badge color="green">Imported: {result.statements_executed}</Badge>
+                        <Badge color="slate">Total: {result.total_statements}</Badge>
                         {result.statements_skipped > 0 && (
-                            <Pill label="Skipped" value={result.statements_skipped} color="yellow" />
+                            <Badge color="amber">Skipped: {result.statements_skipped}</Badge>
                         )}
                     </div>
                     {result.statements_skipped > 0 && (
-                        <p className="text-[11px] text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
-                            ⚠ {result.statements_skipped} row(s) skipped — old integer IDs that have no matching record in the new schema. All other data was imported successfully.
-                        </p>
+                        <div className="border-t border-emerald-100 px-3.5 py-2.5">
+                            <Alert type="warn">
+                                {result.statements_skipped} row(s) skipped — old integer IDs with no matching record in the current schema. All compatible data was imported.
+                            </Alert>
+                        </div>
                     )}
-                    {result.preview?.length > 0 && (
-                        <pre className="text-[10px] font-mono text-emerald-800 bg-emerald-100 rounded-lg p-2.5 max-h-24 overflow-y-auto">
-                            {result.preview.slice(0, 10).join('\n')}
-                        </pre>
+                    {result.skipped?.length > 0 && (
+                        <div className="border-t border-slate-100 px-3.5 py-2.5 max-h-28 overflow-y-auto space-y-1">
+                            {result.skipped.slice(0, 10).map((s, i) => (
+                                <div key={i} className="text-[10px] font-mono text-slate-500">
+                                    <span className="text-slate-400">#{s.index}</span>{' '}
+                                    <span className="text-red-400">{s.reason}</span>
+                                </div>
+                            ))}
+                        </div>
                     )}
                 </div>
             )}
 
-            {/* Result: error */}
+            {/* Error */}
             {(error || (result && !result.success)) && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-2">
-                    <div className="flex items-start gap-2">
-                        <IcoX size={14} className="text-red-500 shrink-0 mt-0.5" />
-                        <p className="font-bold text-red-600 text-[12px]">{error || result?.message}</p>
-                    </div>
-                    {result?.errors?.slice(0, 5).map((e, i) => (
-                        <p key={i} className="text-[10px] text-red-500 font-mono pl-5">
-                            #{e.index}: {e.error}
-                        </p>
+                <Alert type="error">
+                    <strong>{error || result?.message}</strong>
+                    {result?.errors?.slice(0, 3).map((e, i) => (
+                        <div key={i} className="font-mono text-[10px] mt-1 opacity-80">#{e.index}: {e.error}</div>
                     ))}
-                    {result?.errors?.length > 5 && (
-                        <p className="text-[10px] text-red-400 pl-5">…and {result.errors.length - 5} more errors</p>
-                    )}
-                </div>
+                </Alert>
             )}
 
             {/* Import button */}
-            <button
-                onClick={handleImport}
-                disabled={!file || loading}
-                className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-black text-[13px] transition-all ${
-                    !file || loading
-                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                        : 'bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white shadow-md hover:shadow-lg'
-                }`}
-            >
-                {loading
-                    ? <><IcoRefresh size={15} className="animate-spin" /> Importing…</>
-                    : <><IcoUpload size={15} /> Execute SQL Import</>
-                }
-            </button>
+            <Btn onClick={handleImport} disabled={!file} loading={loading}>
+                <I name="upload" size={14} />
+                {loading ? 'Importing…' : 'Execute SQL import'}
+            </Btn>
 
-            {/* Safety note */}
-            <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5">
-                <IcoShield size={13} className="text-amber-500 shrink-0" />
-                <p className="text-[11px] text-amber-700">
-                    All statements execute in one transaction — any error triggers a full rollback. DROP/TRUNCATE blocked.
-                </p>
-            </div>
+            <Alert type="info">
+                Statements run with per-row savepoints — FK violations are skipped automatically.
+                <strong> DROP TABLE</strong>, <strong>TRUNCATE</strong>, and bare <strong>DELETE</strong> are always blocked.
+            </Alert>
         </div>
     );
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// WHAT'S INCLUDED SIDEBAR CARDS
-// ────────────────────────────────────────────────────────────────────────────
-const EXPORT_CONTENTS = [
-    { icon: IcoLayers,  label: 'Structure',   items: ['Phases, floors & rooms', 'Project members', 'Construction timeline'] },
-    { icon: IcoZap,     label: 'Tasks',        items: ['Tasks & updates', 'Task media & logs', 'Phase assignments'] },
-    { icon: IcoArchive, label: 'Finance',      items: ['Budget categories', 'Bills & expenses', 'Payments & transfers'] },
-    { icon: IcoDatabase,label: 'Resources',    items: ['Materials & stock', 'Contractors & labor', 'Supplier rates'] },
+// ═══════════════════════════════════════════════════════════════════════════════
+// SQL TERMINAL TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+const SAMPLE_QUERIES = [
+    { label: 'Projects',       sql: 'SELECT id, name, address, start_date FROM core_houseproject ORDER BY created_at DESC LIMIT 20' },
+    { label: 'Project members',sql: 'SELECT pm.id, pm.role, u.email FROM core_projectmember pm JOIN accounts_user u ON u.id = pm.user_id LIMIT 50' },
+    { label: 'Tasks',          sql: 'SELECT id, title, status, priority, due_date FROM tasks_task ORDER BY created_at DESC LIMIT 30' },
+    { label: 'Bills',          sql: 'SELECT id, title, amount, status, due_date FROM finance_bill ORDER BY created_at DESC LIMIT 30' },
+    { label: 'Workforce',      sql: 'SELECT id, name, role, phone, daily_rate FROM workforce_workforcemember ORDER BY name LIMIT 50' },
+    { label: 'Materials',      sql: 'SELECT id, name, unit, unit_price FROM resource_material ORDER BY name LIMIT 50' },
 ];
 
-function IncludesPanel() {
-    return (
-        <div className="space-y-3">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Export includes</p>
-            {EXPORT_CONTENTS.map(({ icon: Ico, label, items }) => (
-                <div key={label} className="bg-white rounded-xl border border-slate-200 px-4 py-3 shadow-sm">
-                    <div className="flex items-center gap-2 mb-2">
-                        <Ico size={13} className="text-blue-500" />
-                        <span className="text-[11px] font-black text-slate-700 uppercase tracking-wide">{label}</span>
-                    </div>
-                    <ul className="space-y-1">
-                        {items.map(it => (
-                            <li key={it} className="flex items-center gap-2 text-[11px] text-slate-500">
-                                <IcoCheck size={9} className="text-emerald-500 shrink-0" />
-                                {it}
-                            </li>
-                        ))}
-                    </ul>
+function SqlTerminalTab({ user }) {
+    const [sql, setSql]             = useState('SELECT id, name, address FROM core_houseproject ORDER BY created_at DESC LIMIT 20');
+    const [running, setRunning]     = useState(false);
+    const [result, setResult]       = useState(null);
+    const [error, setError]         = useState(null);
+    const [copied, setCopied]       = useState(false);
+    const textareaRef               = useRef(null);
+
+    const canUse = isAdmin(user);
+
+    const runQuery = async () => {
+        if (!sql.trim() || running) return;
+        setRunning(true); setResult(null); setError(null);
+        try {
+            const r = await dataTransferService.runSql(sql.trim());
+            setResult(r.data);
+        } catch (e) {
+            setError(e.response?.data?.error || 'Query failed.');
+        } finally { setRunning(false); }
+    };
+
+    const handleKeyDown = e => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            runQuery();
+        }
+    };
+
+    const copyResult = () => {
+        if (!result) return;
+        const header = result.columns.join('\t');
+        const rows = result.rows.map(r => r.join('\t')).join('\n');
+        navigator.clipboard.writeText(`${header}\n${rows}`).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+        });
+    };
+
+    if (!canUse) {
+        return (
+            <div className="py-12 flex flex-col items-center gap-4 text-center">
+                <div className="w-14 h-14 rounded-xl bg-slate-100 flex items-center justify-center">
+                    <I name="terminal" size={26} cls="text-slate-300" />
                 </div>
-            ))}
-        </div>
-    );
-}
+                <div>
+                    <p className="font-semibold text-slate-700 text-[14px]">Admin access required</p>
+                    <p className="text-slate-400 text-[12px] mt-1">SQL terminal is restricted to admins only.</p>
+                </div>
+            </div>
+        );
+    }
 
-// ────────────────────────────────────────────────────────────────────────────
-// HELP / GUIDE PANEL
-// ────────────────────────────────────────────────────────────────────────────
-const GUIDE = [
-    {
-        q: 'के हो यो प्रणाली? (What is this?)',
-        a: 'यो प्रणालीले तपाइँको निर्माण परियोजनाको सबै जानकारी (बजेट, टास्क, फोटो, हिसाब-किताब) लाई सुरक्षित SQL फाइलमा बदल्न र फेरि लोड गर्न मद्दत गर्छ।'
-    },
-    {
-        q: 'कसरी Export गर्ने? (How to export?)',
-        a: 'बायाँ तर्फको Export panel बाट आफ्नो परियोजना छान्नुहोस्, "Export Preview" मा डाटा जाँच्नुहोस्, र "Export Selected Project" बटन थिच्नुहोस्।'
-    },
-    {
-        q: 'कसरी Import गर्ने? (How to import?)',
-        a: 'दायाँ तर्फको Import panel मा .sql फाइल drag & drop वा browse गरेर अपलोड गर्नुहोस्, preview जाँच्नुहोस्, र "Execute SQL Import" बटन थिच्नुहोस्।'
-    },
-    {
-        q: 'कसले Import गर्न सक्छ? (Who can import?)',
-        a: 'Staff Admin, System Admin, र Super Admin ले Import गर्न सक्छन्। सामान्य project member ले Export मात्र गर्न सक्छन्।'
-    },
-    {
-        q: 'के Import गर्दा डाटा हराउँछ? (Is import safe?)',
-        a: 'हैन। सबै SQL statements एउटै transaction मा चल्छन्। कुनै पनि गल्ती भएमा सबै पूर्ण रूपमा rollback हुन्छ। साथै DROP/TRUNCATE स्वतः block हुन्छ।'
-    },
-];
-
-function HelpSection() {
-    const [open, setOpen] = useState(null);
     return (
-        <div className="space-y-2">
-            {GUIDE.map((item, i) => (
-                <div key={i} className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                    <button
-                        onClick={() => setOpen(open === i ? null : i)}
-                        className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors"
+        <div className="space-y-4">
+            {/* Sample query chips */}
+            <div>
+                <Label>Quick queries</Label>
+                <div className="flex flex-wrap gap-1.5">
+                    {SAMPLE_QUERIES.map(q => (
+                        <button
+                            key={q.label}
+                            onClick={() => { setSql(q.sql); setResult(null); setError(null); }}
+                            className="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+                        >
+                            {q.label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Editor */}
+            <div className="rounded-xl overflow-hidden border border-slate-200">
+                <div className="flex items-center justify-between px-3.5 py-2 bg-slate-800">
+                    <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono">
+                        <I name="terminal" size={12} cls="text-slate-400" />
+                        SQL — SELECT only · Ctrl+Enter to run
+                    </div>
+                    <Btn
+                        onClick={runQuery}
+                        loading={running}
+                        disabled={!sql.trim()}
+                        variant="ghost"
+                        full={false}
                     >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-                                <span className="text-blue-600 font-black text-[11px]">{i + 1}</span>
-                            </div>
-                            <span className="font-bold text-slate-700 text-[12px] leading-tight">{item.q}</span>
+                        <I name="play" size={13} cls="text-slate-300" />
+                        <span className="text-slate-300 text-[12px]">{running ? 'Running…' : 'Run'}</span>
+                    </Btn>
+                </div>
+                <textarea
+                    ref={textareaRef}
+                    value={sql}
+                    onChange={e => setSql(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    rows={6}
+                    spellCheck={false}
+                    className="w-full bg-slate-900 text-emerald-300 font-mono text-[12px] px-4 py-3 resize-none focus:outline-none leading-relaxed"
+                    placeholder="SELECT * FROM core_houseproject LIMIT 10"
+                />
+            </div>
+
+            {/* Error */}
+            {error && <Alert type="error">{error}</Alert>}
+
+            {/* Results table */}
+            {result?.success && (
+                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                    <div className="flex items-center justify-between px-3.5 py-2 bg-slate-50 border-b border-slate-200">
+                        <div className="flex items-center gap-2">
+                            <I name="table" size={13} cls="text-slate-400" />
+                            <span className="text-[12px] font-semibold text-slate-700">
+                                {result.row_count.toLocaleString()} row{result.row_count !== 1 ? 's' : ''}
+                            </span>
+                            <Badge color="slate">{result.execution_ms}ms</Badge>
+                            {result.truncated && (
+                                <Badge color="amber">Truncated at {result.truncated_at}</Badge>
+                            )}
                         </div>
-                        <IcoChevronDown
-                            size={14}
-                            className={`text-slate-400 shrink-0 transition-transform ${open === i ? 'rotate-180' : ''}`}
-                        />
-                    </button>
-                    {open === i && (
-                        <div className="px-4 pb-4 pt-1">
-                            <p className="text-[12px] text-slate-600 leading-relaxed pl-8">{item.a}</p>
+                        <button
+                            onClick={copyResult}
+                            className="flex items-center gap-1.5 text-[11px] text-slate-400 hover:text-slate-700 font-semibold transition-colors"
+                        >
+                            <I name={copied ? 'check' : 'copy'} size={12} />
+                            {copied ? 'Copied!' : 'Copy TSV'}
+                        </button>
+                    </div>
+
+                    {result.row_count === 0 ? (
+                        <p className="text-center text-slate-400 text-[12px] py-8">Query returned 0 rows.</p>
+                    ) : (
+                        <div className="overflow-x-auto max-h-96">
+                            <table className="w-full text-[11px]">
+                                <thead className="sticky top-0 bg-slate-100">
+                                    <tr>
+                                        <th className="px-3 py-2 text-left text-[10px] font-bold text-slate-400 w-8 tabular-nums">#</th>
+                                        {result.columns.map(c => (
+                                            <th key={c} className="px-3 py-2 text-left text-[10px] font-bold text-slate-500 whitespace-nowrap">
+                                                {c}
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {result.rows.map((row, ri) => (
+                                        <tr key={ri} className="hover:bg-slate-50">
+                                            <td className="px-3 py-1.5 text-slate-300 tabular-nums">{ri + 1}</td>
+                                            {row.map((cell, ci) => (
+                                                <td key={ci} className={`px-3 py-1.5 whitespace-nowrap max-w-[200px] truncate ${
+                                                    cell === null ? 'text-slate-300 italic' : 'text-slate-700'
+                                                }`} title={cell ?? ''}>
+                                                    {cell === null ? 'null' : String(cell)}
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     )}
                 </div>
-            ))}
+            )}
+
+            <Alert type="warn">
+                Only <strong>SELECT</strong> statements are allowed. Results are capped at 500 rows. Queries run against the live production database.
+            </Alert>
         </div>
     );
 }
 
-// ────────────────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
 // MAIN PAGE
-// ────────────────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
 export default function DataTransferPage() {
     const { user } = useConstruction();
-    const [activeGuide, setActiveGuide] = useState(false);
-
+    const [tab, setTab] = useState('export');
     const admin = isAdmin(user);
 
+    const tabs = [
+        { id: 'export',   label: 'Export',       icon: 'download' },
+        { id: 'import',   label: 'Import',        icon: 'upload',   badge: admin ? null : 'Admin' },
+        { id: 'terminal', label: 'SQL Terminal',  icon: 'terminal', badge: admin ? null : 'Admin' },
+    ];
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-slate-100 p-4 md:p-6 pb-20">
-            <div className="max-w-7xl mx-auto space-y-5">
+        <div className="min-h-screen bg-slate-50 p-4 md:p-8 pb-20">
+            <div className="max-w-3xl mx-auto">
 
-                {/* ── Top bar ─────────────────────────────────────────── */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                        <div className="w-11 h-11 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg rotate-3">
-                            <IcoDatabase size={22} className="text-white" />
-                        </div>
-                        <div>
-                            <h1 className="text-xl font-black text-slate-800 leading-tight">Data Transfer</h1>
-                            <p className="text-[12px] text-slate-500">डाटा स्थानान्तरण · Project SQL Backup & Restore</p>
-                        </div>
+                {/* Page header */}
+                <div className="mb-7 flex items-start justify-between gap-4">
+                    <div>
+                        <h1 className="text-[22px] font-bold text-slate-800 leading-tight">Data Transfer</h1>
+                        <p className="text-[13px] text-slate-400 mt-0.5">Export, import, and inspect your project database</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <AccessBadge user={user} />
-                        {admin && (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border bg-emerald-50 text-emerald-700 border-emerald-200">
-                                <IcoStar size={9} />
-                                Import Enabled
-                            </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                        {admin ? (
+                            <Badge color="violet">
+                                <I name="shield" size={10} />
+                                Admin
+                            </Badge>
+                        ) : (
+                            <Badge color="slate">
+                                <I name="shield" size={10} />
+                                Member
+                            </Badge>
                         )}
-                        <button
-                            onClick={() => setActiveGuide(g => !g)}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors ${
-                                activeGuide
-                                    ? 'bg-blue-600 text-white border-blue-600'
-                                    : 'bg-white text-slate-600 border-slate-300 hover:border-blue-400 hover:text-blue-600'
-                            }`}
-                        >
-                            <IcoFile size={11} />
-                            {activeGuide ? 'Hide Guide' : 'Guide (निर्देशिका)'}
-                        </button>
                     </div>
                 </div>
 
-                {/* ── Alert for non-admins ─────────────────────────────── */}
+                {/* Non-admin notice */}
                 {!admin && (
-                    <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-                        <IcoAlertTri size={15} className="text-amber-500 shrink-0 mt-0.5" />
-                        <div>
-                            <p className="text-[12px] font-bold text-amber-700">You have Export-only access</p>
-                            <p className="text-[11px] text-amber-600 mt-0.5">
-                                Select a project and export it as an SQL backup. Import requires admin privileges.
-                            </p>
-                        </div>
+                    <div className="mb-5">
+                        <Alert type="warn">
+                            You have <strong>export-only</strong> access. Import and SQL Terminal require admin privileges.
+                        </Alert>
                     </div>
                 )}
 
-                {/* ── Guide panel (collapsible) ────────────────────────── */}
-                {activeGuide && (
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-                        <div className="flex items-center gap-2 mb-4">
-                            <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center">
-                                <IcoFile size={14} className="text-white" />
-                            </div>
-                            <div>
-                                <h2 className="font-black text-slate-800 text-[14px]">प्रणाली निर्देशिका</h2>
-                                <p className="text-[11px] text-slate-500">Frequently asked questions · कसरी प्रयोग गर्ने</p>
-                            </div>
-                        </div>
-                        <HelpSection />
-                    </div>
-                )}
+                {/* Card */}
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                    <Tabs tabs={tabs} active={tab} onChange={setTab} />
 
-                {/* ── Main two-column layout ───────────────────────────── */}
-                <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-5">
-
-                    {/* Left: Export */}
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-                        <ExportPanel user={user} />
-                    </div>
-
-                    {/* Right: Import */}
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-                        <ImportPanel user={user} />
-                    </div>
+                    {tab === 'export'   && <ExportTab   user={user} />}
+                    {tab === 'import'   && <ImportTab   user={user} />}
+                    {tab === 'terminal' && <SqlTerminalTab user={user} />}
                 </div>
 
-                {/* ── Bottom info cards ────────────────────────────────── */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <IncludesPanel />
-                </div>
-
-                {/* ── Safety note strip ────────────────────────────────── */}
-                <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm">
-                    <IcoShield size={16} className="text-blue-500 shrink-0" />
-                    <p className="text-[11px] text-slate-600">
-                        <strong>Security:</strong> Exports use <code className="bg-slate-100 px-1 rounded text-[10px]">ON CONFLICT DO NOTHING</code> for safe re-imports.
-                        Imports block <code className="bg-slate-100 px-1 rounded text-[10px]">DROP TABLE</code>, <code className="bg-slate-100 px-1 rounded text-[10px]">TRUNCATE</code>, and unscoped <code className="bg-slate-100 px-1 rounded text-[10px]">DELETE</code> statements.
-                        All operations are fully transactional.
-                    </p>
-                </div>
-
+                {/* Footer note */}
+                <p className="text-center text-[11px] text-slate-300 mt-6">
+                    Exports use <code>ON CONFLICT DO NOTHING</code> for safe re-imports ·
+                    All imports are fully transactional
+                </p>
             </div>
         </div>
     );
