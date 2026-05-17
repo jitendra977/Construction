@@ -6,6 +6,7 @@ import { useConstruction } from '../../context/ConstructionContext';
 import MobileHeader    from '../../components/mobile/MobileHeader';
 import MobileNav       from '../../components/mobile/MobileNav';
 import HouseConfigModal from '../../components/common/HouseConfigModal';
+import UnifiedButton from '../../components/unified/UnifiedButton';
 import { MobileTrackerProvider } from '../../modules/location/context/MobileTrackerContext';
 
 /**
@@ -89,6 +90,9 @@ function MobileDashboard() {
                 </main>
 
                 <MobileNav />
+
+                {/* Unified floating button — AI + Daily update */}
+                <UnifiedButton projectId={activeProjectId} isMobile={true} />
 
                 {showConfigModal && (
                     <HouseConfigModal onClose={() => setShowConfigModal(false)} />

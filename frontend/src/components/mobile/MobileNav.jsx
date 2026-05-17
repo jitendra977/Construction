@@ -3,12 +3,6 @@
  *
  * Bottom bar: Home · Projects · Finance · Workforce · ⊞ All
  * "All" opens a full-screen drawer with every module, active-state aware.
- *
- * Fixes:
- *  - 'import' route corrected to 'data-transfer'
- *  - GPS status dot placed on the Workforce (attendance) tab
- *  - Active-state highlighting in drawer via useLocation
- *  - Finance section merged with Data for balanced layout
  */
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
@@ -23,7 +17,7 @@ const PRIMARY = [
     { id: 'home',       icon: '🏠',  label: 'Home'     },
     { id: 'projects',   icon: '🗂️', label: 'Projects'  },
     { id: 'finance',    icon: '💰',  label: 'Finance'   },
-    { id: 'attendance', icon: '👷',  label: 'Work'      }, // GPS dot here
+    { id: 'attendance', icon: '👷',  label: 'Work'      },
     { id: 'accounts',   icon: '👤',  label: 'Account'   },
 ];
 
@@ -73,7 +67,7 @@ const SECTIONS = [
         icon: '💰',
         items: [
             { id: 'finance',        icon: '💰', label: 'Finance'       },
-            { id: 'data-transfer',  icon: '🔄', label: 'Data Transfer' }, // fixed: was 'import'
+            { id: 'data-transfer',  icon: '🔄', label: 'Data Transfer' },
         ],
     },
     {
@@ -98,7 +92,7 @@ const SECTIONS = [
     },
 ];
 
-// ── GPS status dot (reads MobileTrackerContext) ───────────────────────────────
+// ── GPS status dot ────────────────────────────────────────────────────────────
 const GPS_DOT_CFG = {
     idle:     { color: '#9ca3af', pulse: false },
     tracking: { color: '#3b82f6', pulse: true  },
@@ -128,26 +122,35 @@ function BottomTab({ id, icon, label, showGps = false }) {
     return (
         <NavLink
             to={`${BASE}/${id}`}
-            className="flex-1 flex flex-col items-center justify-center gap-0.5 py-1 relative transition-all"
+            className="flex-1 flex flex-col items-center justify-center relative transition-all"
             style={({ isActive }) => ({
-                color:  isActive ? 'var(--t-primary)' : 'var(--t-text3)',
+                color: isActive ? 'var(--t-primary)' : 'var(--t-text3)',
+                paddingTop: 8,
+                paddingBottom: 6,
             })}
         >
             {({ isActive }) => (
                 <>
-                    {/* Icon container with active pill */}
-                    <span className="relative flex items-center justify-center w-8 h-6">
-                        {isActive && (
-                            <span className="absolute inset-x-0 inset-y-0 rounded-full opacity-15"
-                                style={{ background: 'var(--t-primary)' }} />
-                        )}
-                        <span className={`text-xl leading-none relative transition-transform ${isActive ? 'scale-110' : 'scale-100'}`}>
+                    {/* Active indicator — thin pill at top of tab */}
+                    <span
+                        className="absolute top-0 left-1/2 -translate-x-1/2 rounded-full transition-all duration-200"
+                        style={{
+                            width:   isActive ? 24 : 0,
+                            height:  2,
+                            background: 'var(--t-primary)',
+                            opacity: isActive ? 1 : 0,
+                        }}
+                    />
+                    {/* Icon */}
+                    <span className="relative flex items-center justify-center w-7 h-6">
+                        <span className={`text-[19px] leading-none transition-transform duration-200 ${isActive ? 'scale-110' : 'scale-100'}`}>
                             {icon}
                         </span>
                         {showGps && <GPSStatusDot />}
                     </span>
-                    <span className={`text-[7px] font-bold uppercase tracking-widest transition-all ${
-                        isActive ? 'opacity-100' : 'opacity-60'
+                    {/* Label */}
+                    <span className={`text-[7px] font-bold uppercase tracking-widest mt-0.5 transition-all ${
+                        isActive ? 'opacity-100' : 'opacity-50'
                     }`}>
                         {label}
                     </span>
@@ -164,16 +167,20 @@ function DrawerItem({ item, sectionColor, isActive, onClick }) {
             onClick={onClick}
             className="flex flex-col items-center justify-center gap-1.5 py-3.5 rounded-2xl transition-all active:scale-95 relative overflow-hidden"
             style={{
-                background:  isActive ? `${sectionColor}18` : 'var(--t-surface)',
-                border:      isActive ? `1.5px solid ${sectionColor}50` : '1px solid var(--t-border)',
-                boxShadow:   isActive ? `0 0 0 1px ${sectionColor}20` : 'none',
+                background: isActive
+                    ? `color-mix(in srgb, ${sectionColor} 14%, transparent)`
+                    : 'var(--t-surface)',
+                border: isActive
+                    ? `1.5px solid color-mix(in srgb, ${sectionColor} 40%, transparent)`
+                    : '1px solid var(--t-border)',
             }}
         >
+            {/* Active dot */}
             {isActive && (
                 <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full"
                     style={{ background: sectionColor }} />
             )}
-            <span className="text-2xl leading-none">{item.icon}</span>
+            <span className="text-[22px] leading-none">{item.icon}</span>
             <span
                 className="text-[9px] font-black uppercase tracking-wide text-center leading-tight px-1"
                 style={{ color: isActive ? sectionColor : 'var(--t-text3)' }}
@@ -191,7 +198,6 @@ function AppDrawer({ onClose }) {
     const [visible, setVisible] = useState(false);
     const [search,  setSearch]  = useState('');
 
-    // Animate in
     useEffect(() => { requestAnimationFrame(() => setVisible(true)); }, []);
 
     const activeId = location.pathname.replace(`${BASE}/`, '').split('/')[0];
@@ -211,7 +217,6 @@ function AppDrawer({ onClose }) {
         navigate('/login');
     };
 
-    // Filter sections by search
     const query = search.trim().toLowerCase();
     const filteredSections = query
         ? SECTIONS.map(s => ({
@@ -226,39 +231,44 @@ function AppDrawer({ onClose }) {
             <div
                 className="fixed inset-0 z-[98]"
                 style={{
-                    background: 'rgba(0,0,0,0.55)',
+                    background: 'rgba(0,0,0,0.5)',
                     opacity:    visible ? 1 : 0,
                     transition: 'opacity 0.2s ease',
-                    backdropFilter: 'blur(2px)',
+                    backdropFilter: 'blur(4px)',
                 }}
                 onClick={close}
             />
 
             {/* Drawer panel */}
             <div
-                className="fixed inset-x-0 bottom-0 z-[99] flex flex-col rounded-t-3xl overflow-hidden"
+                className="fixed inset-x-0 bottom-0 z-[99] flex flex-col"
                 style={{
-                    maxHeight: '92vh',
-                    background:    'var(--t-bg)',
-                    boxShadow:     '0 -16px 60px rgba(0,0,0,0.3)',
-                    transform:     visible ? 'translateY(0)' : 'translateY(100%)',
-                    transition:    'transform 0.22s cubic-bezier(0.32,0.72,0,1)',
+                    maxHeight:  '91vh',
+                    borderRadius: '20px 20px 0 0',
+                    background:  'var(--t-bg)',
+                    boxShadow:   '0 -12px 50px rgba(0,0,0,0.25)',
+                    transform:   visible ? 'translateY(0)' : 'translateY(100%)',
+                    transition:  'transform 0.24s cubic-bezier(0.32,0.72,0,1)',
+                    overflow:    'hidden',
                 }}
             >
-                {/* Handle */}
+                {/* Drag handle */}
                 <div className="flex justify-center pt-3 pb-1 shrink-0">
-                    <div className="w-10 h-1 rounded-full" style={{ background: 'var(--t-border)' }} />
+                    <div className="w-9 h-1 rounded-full" style={{ background: 'var(--t-border)' }} />
                 </div>
 
                 {/* Header */}
                 <div className="flex items-center justify-between px-5 py-3 shrink-0"
                     style={{ borderBottom: '1px solid var(--t-border)' }}>
                     <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-xl flex items-center justify-center text-lg"
-                            style={{ background: 'linear-gradient(135deg,#f97316,#ea580c)' }}>🏗️</div>
+                        <div className="w-8 h-8 rounded-xl flex items-center justify-center text-base shrink-0"
+                            style={{ background: 'linear-gradient(135deg, var(--t-primary), color-mix(in srgb, var(--t-primary) 75%, black))' }}>
+                            🏗️
+                        </div>
                         <div>
                             <p className="text-sm font-black leading-none" style={{ color: 'var(--t-text)' }}>All Features</p>
-                            <p className="text-[9px] font-bold uppercase tracking-widest mt-0.5" style={{ color: '#f97316' }}>
+                            <p className="text-[8px] font-bold uppercase tracking-widest mt-0.5"
+                                style={{ color: 'var(--t-primary)', fontFamily: "'DM Mono', monospace" }}>
                                 HCMS Navigation
                             </p>
                         </div>
@@ -267,39 +277,49 @@ function AppDrawer({ onClose }) {
                         <ThemeToggle />
                         <button
                             onClick={close}
-                            className="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-base transition-colors"
-                            style={{ background: 'var(--t-surface2)', color: 'var(--t-text3)', border: '1px solid var(--t-border)' }}
+                            className="w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold transition-colors"
+                            style={{
+                                background: 'var(--t-surface2)',
+                                color: 'var(--t-text3)',
+                                border: '1px solid var(--t-border)',
+                            }}
                         >✕</button>
                     </div>
                 </div>
 
-                {/* Search bar */}
+                {/* Search */}
                 <div className="px-4 pt-3 pb-2 shrink-0">
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl"
-                        style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)' }}>
+                    <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
+                        style={{
+                            background: 'var(--t-surface)',
+                            border: '1px solid var(--t-border)',
+                        }}>
                         <span className="text-sm" style={{ color: 'var(--t-text3)' }}>🔍</span>
                         <input
                             type="text"
                             value={search}
                             onChange={e => setSearch(e.target.value)}
                             placeholder="Search features…"
-                            className="flex-1 bg-transparent text-xs outline-none"
+                            className="flex-1 bg-transparent text-[12px] outline-none"
                             style={{ color: 'var(--t-text)', caretColor: 'var(--t-primary)' }}
                             autoComplete="off"
                         />
                         {search && (
-                            <button onClick={() => setSearch('')}
-                                className="text-sm" style={{ color: 'var(--t-text3)' }}>✕</button>
+                            <button onClick={() => setSearch('')} style={{ color: 'var(--t-text3)', fontSize: 12 }}>✕</button>
                         )}
                     </div>
                 </div>
 
-                {/* Currently active page quick indicator */}
+                {/* Active page indicator */}
                 {!query && activeId && activeId !== 'home' && (
                     <div className="px-4 pb-2 shrink-0">
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl"
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl"
                             style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)' }}>
-                            <span className="text-[9px]" style={{ color: 'var(--t-text3)' }}>Currently viewing:</span>
+                            <span className="w-1.5 h-1.5 rounded-full shrink-0"
+                                style={{ background: 'var(--t-primary)' }} />
+                            <span className="text-[9px]" style={{ color: 'var(--t-text3)', fontFamily: "'DM Mono', monospace" }}>
+                                Currently viewing:
+                            </span>
                             <span className="text-[10px] font-black capitalize" style={{ color: 'var(--t-primary)' }}>
                                 {activeId.replace('-', ' ')}
                             </span>
@@ -313,19 +333,18 @@ function AppDrawer({ onClose }) {
                         <div key={section.id}>
                             {/* Section header */}
                             <div className="flex items-center gap-2 mb-2.5 px-0.5">
-                                <span className="text-sm leading-none">{section.icon}</span>
-                                <p className="text-[9px] font-black uppercase tracking-[0.14em]"
-                                    style={{ color: section.color }}>
+                                {/* Thin colored bar */}
+                                <span className="w-0.5 h-3 rounded-full shrink-0" style={{ background: section.color }} />
+                                <p className="text-[9px] font-black uppercase tracking-[0.13em]"
+                                    style={{ color: section.color, fontFamily: "'DM Mono', monospace" }}>
                                     {section.label}
                                 </p>
-                                <div className="flex-1 h-px" style={{ background: `${section.color}25` }} />
+                                <div className="flex-1 h-px" style={{ background: `color-mix(in srgb, ${section.color} 20%, transparent)` }} />
                             </div>
 
                             {/* Items grid */}
                             <div className={`grid gap-2 ${
-                                section.items.length <= 3 ? 'grid-cols-3' :
-                                section.items.length <= 4 ? 'grid-cols-4' :
-                                'grid-cols-4'
+                                section.items.length <= 3 ? 'grid-cols-3' : 'grid-cols-4'
                             }`}>
                                 {section.items.map(item => (
                                     <DrawerItem
@@ -352,7 +371,11 @@ function AppDrawer({ onClose }) {
                         <button
                             onClick={handleLogout}
                             className="w-full py-3 rounded-2xl flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest"
-                            style={{ background: '#ef444412', color: '#ef4444', border: '1px solid #ef444428' }}
+                            style={{
+                                background: 'rgba(239,68,68,0.08)',
+                                color: '#ef4444',
+                                border: '1px solid rgba(239,68,68,0.2)',
+                            }}
                         >
                             🚪 Sign Out
                         </button>
@@ -368,42 +391,62 @@ export default function MobileNav() {
     const [drawerOpen, setDrawerOpen] = useState(false);
     const location = useLocation();
 
-    // Close drawer on route change
     useEffect(() => { setDrawerOpen(false); }, [location.pathname]);
 
     return (
         <>
             <nav
-                className="fixed bottom-0 left-0 right-0 z-50 px-2"
-                style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 8px), 8px)', paddingTop: '6px' }}
+                className="fixed bottom-0 left-0 right-0 z-50"
+                style={{
+                    padding: '0 12px',
+                    paddingBottom: 'max(env(safe-area-inset-bottom, 10px), 10px)',
+                    paddingTop: 6,
+                }}
             >
                 <div
-                    className="flex items-center h-[58px] rounded-2xl px-1"
+                    className="flex items-stretch h-[54px] rounded-2xl overflow-hidden"
                     style={{
                         background:     'var(--t-surface)',
                         border:         '1px solid var(--t-border)',
                         backdropFilter: 'blur(20px)',
-                        boxShadow:      '0 -4px 30px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08)',
+                        boxShadow:      '0 -2px 20px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)',
                     }}
                 >
                     {PRIMARY.map(item => (
                         <BottomTab
                             key={item.id}
                             {...item}
-                            showGps={item.id === 'attendance'} // GPS dot on workforce tab
+                            showGps={item.id === 'attendance'}
                         />
                     ))}
 
-                    {/* Separator */}
-                    <div className="w-px h-7 mx-0.5 shrink-0" style={{ background: 'var(--t-border)' }} />
+                    {/* Divider */}
+                    <div className="w-px self-center h-6 shrink-0" style={{ background: 'var(--t-border)' }} />
 
                     {/* All / drawer toggle */}
                     <button
                         onClick={() => setDrawerOpen(true)}
-                        className="flex-1 flex flex-col items-center justify-center gap-0.5 py-1 transition-all active:scale-95"
-                        style={{ color: drawerOpen ? 'var(--t-primary)' : 'var(--t-text3)' }}
+                        className="flex-1 flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 relative"
+                        style={{
+                            color: drawerOpen ? 'var(--t-primary)' : 'var(--t-text3)',
+                            paddingTop: 8,
+                            paddingBottom: 6,
+                        }}
                     >
-                        <span className="text-xl leading-none">⊞</span>
+                        {/* Active indicator for drawer button */}
+                        {drawerOpen && (
+                            <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full"
+                                style={{ background: 'var(--t-primary)' }} />
+                        )}
+                        {/* Grid icon */}
+                        <span className="flex items-center justify-center w-7 h-6">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <rect x="1" y="1" width="5.5" height="5.5" rx="1.5" fill="currentColor" opacity="0.85"/>
+                                <rect x="9.5" y="1" width="5.5" height="5.5" rx="1.5" fill="currentColor" opacity="0.85"/>
+                                <rect x="1" y="9.5" width="5.5" height="5.5" rx="1.5" fill="currentColor" opacity="0.85"/>
+                                <rect x="9.5" y="9.5" width="5.5" height="5.5" rx="1.5" fill="currentColor" opacity="0.85"/>
+                            </svg>
+                        </span>
                         <span className="text-[7px] font-bold uppercase tracking-widest">All</span>
                     </button>
                 </div>

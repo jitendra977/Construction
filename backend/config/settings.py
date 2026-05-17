@@ -116,6 +116,15 @@ PHOTO_INTEL_SYNC = config('PHOTO_INTEL_SYNC', default=False, cast=bool)
 GOOGLE_VISION_API_KEY = config('GOOGLE_VISION_API_KEY', default='')
 OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
 
+# ── AI / साथी ─────────────────────────────────────────────────────────────────
+GROQ_API_KEY  = config('GROQ_API_KEY',  default='')
+GROQ_MODEL    = config('GROQ_MODEL',    default='llama-3.3-70b-versatile')
+GEMINI_API_KEY = config('GEMINI_API_KEY', default='')
+GEMINI_MODEL  = config('GEMINI_MODEL',  default='gemini-2.0-flash')
+ELEVENLABS_API_KEY  = config('ELEVENLABS_API_KEY',  default='')
+ELEVENLABS_VOICE_ID = config('ELEVENLABS_VOICE_ID', default='pNInz6obpgDQGcFmaJgB')
+OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
+
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',

@@ -2,7 +2,8 @@
 # Strategy: truncate stale rows, drop old column, re-add as uuid FK.
 # unique_together (supplier, material) index is recreated manually.
 #
-# SQLite compatibility: TRUNCATE / IF EXISTS / CASCADE / DEFERRABLE are PG-only.
+# SQLite: all raw SQL operations are skipped — delete db.sqlite3 and
+# re-run migrate for a clean local dev database.
 
 from django.db import migrations, models
 import django.db.models.deletion
@@ -10,44 +11,34 @@ import django.db.models.deletion
 
 def _truncate(table):
     def forward(apps, schema_editor):
-        vendor = schema_editor.connection.vendor
+        if schema_editor.connection.vendor == 'sqlite':
+            return
         with schema_editor.connection.cursor() as cur:
-            if vendor == 'sqlite':
-                cur.execute(f'DELETE FROM "{table}"')
-            else:
-                cur.execute(f'TRUNCATE TABLE "{table}"')
+            cur.execute(f'TRUNCATE TABLE "{table}"')
     return forward
 
 
 def _drop_col(table, col):
     def forward(apps, schema_editor):
-        vendor = schema_editor.connection.vendor
+        if schema_editor.connection.vendor == 'sqlite':
+            return
         with schema_editor.connection.cursor() as cur:
-            if vendor == 'sqlite':
-                cur.execute(f'PRAGMA table_info("{table}")')
-                if col in [r[1] for r in cur.fetchall()]:
-                    cur.execute(f'ALTER TABLE "{table}" DROP COLUMN "{col}"')
-            else:
-                cur.execute(f'ALTER TABLE "{table}" DROP COLUMN IF EXISTS "{col}" CASCADE')
+            cur.execute(f'ALTER TABLE "{table}" DROP COLUMN IF EXISTS "{col}" CASCADE')
     return forward
 
 
 def _add_uuid_fk_not_null(table, col, ref_table, on_delete='CASCADE'):
-    """Add a NOT NULL uuid FK — safe only after truncating the table."""
     def forward(apps, schema_editor):
-        vendor = schema_editor.connection.vendor
+        if schema_editor.connection.vendor == 'sqlite':
+            return
         with schema_editor.connection.cursor() as cur:
-            if vendor == 'sqlite':
-                # Table was just truncated — no rows, so NOT NULL is fine as TEXT.
-                cur.execute(f'ALTER TABLE "{table}" ADD COLUMN "{col}" TEXT')
-            else:
-                cur.execute(f'''
-                    ALTER TABLE "{table}"
-                        ADD COLUMN "{col}" uuid NOT NULL
-                        REFERENCES "{ref_table}" (id)
-                        ON DELETE {on_delete}
-                        DEFERRABLE INITIALLY DEFERRED
-                ''')
+            cur.execute(f'''
+                ALTER TABLE "{table}"
+                    ADD COLUMN "{col}" uuid NOT NULL
+                    REFERENCES "{ref_table}" (id)
+                    ON DELETE {on_delete}
+                    DEFERRABLE INITIALLY DEFERRED
+            ''')
     return forward
 
 
@@ -77,7 +68,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(_truncate('analytics_supplierratetrend'),         migrations.RunPython.noop),
+        migrations.RunPython(_truncate('analytics_supplierratetrend'), migrations.RunPython.noop),
         migrations.RunPython(_drop_col('analytics_supplierratetrend', 'material_id'), migrations.RunPython.noop),
         migrations.RunPython(_add_uuid_fk_not_null('analytics_supplierratetrend', 'material_id', 'resource_material'), migrations.RunPython.noop),
         migrations.RunPython(_idx_fwd, _idx_rev),

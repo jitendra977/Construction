@@ -5,9 +5,9 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { authService } from './services/auth';
 import { ConstructionProvider } from './context/ConstructionContext';
 import { ThemeProvider } from './context/ThemeContext';
-import SathiButton from './components/assistant/SathiButton';
 import OfflineStatus from './components/common/OfflineStatus';
 
+import { Toaster } from 'sonner';
 import { lazyWithRetry } from './utils/lazyRetry';
 
 // Lazy load dashboard components
@@ -157,9 +157,14 @@ function App() {
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
-            {/* Global overlays — only show when signed in */}
-            {isAuthenticated && <SathiButton />}
             <OfflineStatus />
+            {/* Global toast notifications */}
+            <Toaster
+              position="top-right"
+              richColors
+              closeButton
+              toastOptions={{ style: { fontFamily: 'var(--body-font, sans-serif)' } }}
+            />
           </ResponsiveRedirector>
         </Router>
       </ConstructionProvider>

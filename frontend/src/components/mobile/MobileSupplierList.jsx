@@ -5,6 +5,7 @@ import { useConstruction } from '../../context/ConstructionContext';
 import ConfirmModal from '../common/ConfirmModal';
 import PdfExportButton from '../common/PdfExportButton';
 import FundingSourceSelect from '../common/FundingSourceSelect';
+import MobileResourceList from './MobileResourceList';
 
 const MobileSupplierList = ({ searchQuery = '' }) => {
     const { dashboardData, refreshData } = useConstruction();
@@ -202,13 +203,12 @@ const MobileSupplierList = ({ searchQuery = '' }) => {
     const [expandedId, setExpandedId] = useState(null);
 
     return (
-        <div className="space-y-2 pb-[120px]">
-            {filteredSuppliers.length === 0 && (
-                <div className="text-center py-14 text-[var(--t-text3)]">
-                    <div className="text-3xl mb-2">🏢</div>
-                    <p className="text-sm font-semibold">No suppliers found</p>
-                </div>
-            )}
+        <MobileResourceList
+            isEmpty={filteredSuppliers.length === 0}
+            emptyIcon="🏢"
+            emptyText="No suppliers found"
+            onAdd={() => handleOpenModal()}
+        >
                 {filteredSuppliers.map(s => {
                     const balanceDue = Number(s.balance_due) || 0;
                     const hasDue = balanceDue > 0;
@@ -248,17 +248,6 @@ const MobileSupplierList = ({ searchQuery = '' }) => {
                     );
                 })}
             
-            {/* Add New FAB */}
-            <div className="fixed bottom-24 right-4 z-10">
-                <button
-                    onClick={() => handleOpenModal()}
-                    className="w-14 h-14 bg-[var(--t-primary)] text-white rounded-full flex items-center justify-center shadow-[0_8px_16px_rgba(0,0,0,0.3)] hover:scale-105 active:scale-95 transition-all outline-none"
-                    style={{ boxShadow: '0 8px 16px color-mix(in srgb, var(--t-primary) 40%, transparent)' }}
-                >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
-                </button>
-            </div>
-
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`${editingItem ? 'Edit' : 'Add'} Supplier`}>
                 <form onSubmit={handleSubmit} className="space-y-4 p-1">
                     <div className="grid grid-cols-2 gap-4">
@@ -581,7 +570,7 @@ const MobileSupplierList = ({ searchQuery = '' }) => {
                 onCancel={closeConfirm}
                 type={confirmConfig.type || 'warning'}
             />
-        </div >
+        </MobileResourceList>
     );
 };
 export default MobileSupplierList;

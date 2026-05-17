@@ -1,18 +1,30 @@
-import { useNavigate, Outlet } from 'react-router-dom';
+import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { authService } from '../../services/auth';
 import { useConstruction } from '../../context/ConstructionContext';
 import DesktopSidebar from '../../components/desktop/DesktopSidebar';
-import { useState, useCallback } from 'react';
+import UnifiedButton from '../../components/unified/UnifiedButton';
+import { useState, useCallback, useEffect } from 'react';
 
 // Sidebar widths kept in sync with DesktopSidebar.jsx
-const SIDEBAR_EXPANDED  = 256; // w-64
-const SIDEBAR_COLLAPSED = 56;  // w-14
+const SIDEBAR_EXPANDED  = 256;
+const SIDEBAR_COLLAPSED = 56;
+
+// Derive a readable page title from the current route segment
+function usePageTitle(navItems) {
+    const location = useLocation();
+    const segment  = location.pathname.split('/').filter(Boolean).pop() || 'home';
+    const match    = navItems.find(n => n.id === segment);
+    if (match) {
+        // Strip Nepali translation — keep only the English part before the first '('
+        return match.label.split('(')[0].trim();
+    }
+    return segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' ');
+}
 
 function DesktopDashboard() {
     const navigate = useNavigate();
     const { user, loading } = useConstruction();
 
-    // Persist collapse state across page reloads
     const [collapsed, setCollapsed] = useState(() =>
         localStorage.getItem('sb_collapsed') === 'true'
     );
@@ -33,7 +45,13 @@ function DesktopDashboard() {
     if (loading) {
         return (
             <div className="flex justify-center items-center h-screen bg-[var(--t-bg)]">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--t-primary)]" />
+                <div className="flex flex-col items-center gap-4">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[var(--t-primary)]" />
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--t-primary)] animate-pulse"
+                        style={{ fontFamily: "'DM Mono', monospace" }}>
+                        Loading...
+                    </p>
+                </div>
             </div>
         );
     }
@@ -78,17 +96,102 @@ function DesktopDashboard() {
                 onToggle={handleToggle}
             />
 
-            {/* Main content — margin tracks sidebar width */}
+            {/* Main content area */}
             <main
-                className="flex-1 overflow-y-auto min-h-screen"
+                className="flex-1 flex flex-col min-h-screen overflow-hidden"
                 style={{
                     marginLeft: sidebarW,
                     transition: 'margin-left 0.22s cubic-bezier(0.4,0,0.2,1)',
                 }}
             >
-                <Outlet />
+                {/* Slim top bar */}
+                <TopBar navItems={navItems} user={user} />
+
+                {/* Page content */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar">
+                    <Outlet />
+                </div>
             </main>
+
+            {/* Unified floating button — AI + Daily update */}
+            <UnifiedButton projectId={null} isMobile={false} />
         </div>
+    );
+}
+
+// ── Slim top bar ──────────────────────────────────────────────────────────────
+function TopBar({ navItems, user }) {
+    const title = usePageTitle(navItems);
+    const location = useLocation();
+
+    // Build simple breadcrumb: Dashboard > Page
+    const isHome = location.pathname.endsWith('/home') || location.pathname.endsWith('/desktop');
+    const crumbs = isHome
+        ? [{ label: 'Dashboard' }]
+        : [{ label: 'Dashboard', href: -1 }, { label: title }];
+
+    return (
+        <header
+            className="shrink-0 flex items-center justify-between px-6"
+            style={{
+                height: 48,
+                borderBottom: '1px solid var(--t-border)',
+                background: 'var(--t-surface)',
+            }}
+        >
+            {/* Breadcrumb */}
+            <nav className="flex items-center gap-1.5" aria-label="breadcrumb">
+                {crumbs.map((crumb, i) => (
+                    <span key={i} className="flex items-center gap-1.5">
+                        {i > 0 && (
+                            <svg width="8" height="8" viewBox="0 0 12 12" fill="none" style={{ opacity: 0.3 }}>
+                                <path d="M4 2l4 4-4 4" stroke="var(--t-text)" strokeWidth="1.8" strokeLinecap="round"/>
+                            </svg>
+                        )}
+                        <span
+                            className="text-[11px] font-semibold"
+                            style={{
+                                color: i === crumbs.length - 1 ? 'var(--t-text)' : 'var(--t-text3)',
+                                fontFamily: i === crumbs.length - 1 ? 'inherit' : "'DM Mono', monospace",
+                                fontWeight: i === crumbs.length - 1 ? 700 : 500,
+                                letterSpacing: i === crumbs.length - 1 ? 0 : '0.02em',
+                            }}
+                        >
+                            {crumb.label}
+                        </span>
+                    </span>
+                ))}
+            </nav>
+
+            {/* Right side: time + user */}
+            <div className="flex items-center gap-3">
+                <Clock />
+                <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg"
+                    style={{ background: 'var(--t-surface2)', border: '1px solid var(--t-border)' }}>
+                    <div className="w-2 h-2 rounded-full" style={{ background: '#10b981' }} />
+                    <span className="text-[10px] font-bold" style={{ color: 'var(--t-text2)', fontFamily: "'DM Mono', monospace" }}>
+                        {user?.username || 'User'}
+                    </span>
+                </div>
+            </div>
+        </header>
+    );
+}
+
+// ── Live clock for top bar ────────────────────────────────────────────────────
+function Clock() {
+    const [time, setTime] = useState(() => new Date());
+    useEffect(() => {
+        const t = setInterval(() => setTime(new Date()), 1000);
+        return () => clearInterval(t);
+    }, []);
+
+    const fmt = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return (
+        <span className="text-[10px] font-bold tabular-nums"
+            style={{ color: 'var(--t-text3)', fontFamily: "'DM Mono', monospace" }}>
+            {fmt}
+        </span>
     );
 }
 

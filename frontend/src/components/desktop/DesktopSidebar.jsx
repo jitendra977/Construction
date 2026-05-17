@@ -22,47 +22,56 @@ import ProjectSwitcher from '../common/ProjectSwitcher';
 const CSS = `
   .sb-link {
     display: flex; align-items: center; gap: 10px;
-    padding: 8px 10px; border-radius: 10px;
-    font-size: 13px; font-weight: 600;
-    color: #6b7280; text-decoration: none;
-    transition: background 0.13s, color 0.13s; position: relative;
-    white-space: nowrap; overflow: hidden;
+    padding: 7px 10px; border-radius: 8px;
+    font-size: 12.5px; font-weight: 600;
+    color: var(--t-text3); text-decoration: none;
+    transition: background 0.13s, color 0.13s, box-shadow 0.13s;
+    position: relative; white-space: nowrap; overflow: hidden;
   }
-  .sb-link:hover { background: rgba(255,255,255,0.06); color: #e5e7eb; }
+  .sb-link:hover {
+    background: var(--t-surface2);
+    color: var(--t-text);
+  }
   .sb-link.active {
-    background: linear-gradient(135deg, rgba(249,115,22,0.18), rgba(234,88,12,0.10));
-    color: #f97316;
-    box-shadow: inset 3px 0 0 #f97316;
+    background: color-mix(in srgb, var(--t-primary) 12%, transparent);
+    color: var(--t-primary);
+    box-shadow: inset 3px 0 0 var(--t-primary);
+    font-weight: 700;
   }
-  .sb-link.active:hover { background: rgba(249,115,22,0.22); }
+  .sb-link.active:hover {
+    background: color-mix(in srgb, var(--t-primary) 18%, transparent);
+  }
 
-  /* Rail (collapsed) link */
+  /* Rail (collapsed) icon links */
   .sb-link-rail {
     display: flex; align-items: center; justify-content: center;
-    width: 40px; height: 40px; margin: 1px auto;
-    border-radius: 10px; font-size: 17px;
-    color: #6b7280; text-decoration: none;
-    transition: background 0.13s, color 0.13s;
+    width: 40px; height: 38px; margin: 1px auto;
+    border-radius: 10px; font-size: 16px;
+    color: var(--t-text3); text-decoration: none;
+    transition: background 0.13s, color 0.13s, box-shadow 0.13s;
   }
-  .sb-link-rail:hover { background: rgba(255,255,255,0.08); color: #e5e7eb; }
+  .sb-link-rail:hover {
+    background: var(--t-surface2);
+    color: var(--t-text);
+  }
   .sb-link-rail.active {
-    background: rgba(249,115,22,0.2);
-    color: #f97316;
-    box-shadow: 0 0 0 1.5px rgba(249,115,22,0.35);
+    background: color-mix(in srgb, var(--t-primary) 18%, transparent);
+    color: var(--t-primary);
+    box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--t-primary) 35%, transparent);
   }
 
   .sb-section-btn {
     width: 100%; display: flex; align-items: center; gap: 8px;
-    padding: 5px 10px; border-radius: 6px;
+    padding: 4px 10px 3px; margin-top: 10px;
     background: transparent; border: none; cursor: pointer;
-    transition: background 0.12s;
+    transition: opacity 0.12s;
   }
-  .sb-section-btn:hover { background: rgba(255,255,255,0.03); }
+  .sb-section-btn:hover { opacity: 0.8; }
 
   .sb-logout-btn {
-    flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
-    padding: 8px 10px; border-radius: 10px;
-    font-size: 12px; font-weight: 700;
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px;
+    padding: 7px 10px; border-radius: 8px;
+    font-size: 11.5px; font-weight: 700;
     color: #ef4444; background: transparent; border: none; cursor: pointer;
     transition: background 0.13s; text-transform: uppercase; letter-spacing: 0.05em;
   }
@@ -70,44 +79,55 @@ const CSS = `
 
   .sb-profile-link {
     display: flex; align-items: center; gap: 10px;
-    padding: 9px 10px; border-radius: 10px;
+    padding: 8px 10px; border-radius: 8px;
     text-decoration: none; transition: background 0.13s;
   }
-  .sb-profile-link:hover { background: rgba(255,255,255,0.04); }
-  .sb-profile-link.active { background: rgba(249,115,22,0.12); }
+  .sb-profile-link:hover { background: var(--t-surface2); }
+  .sb-profile-link.active { background: color-mix(in srgb, var(--t-primary) 10%, transparent); }
 
   .sb-portal-link {
     display: flex; align-items: center; gap: 8px;
-    padding: 7px 10px; border-radius: 10px;
-    font-size: 12px; font-weight: 700;
-    color: #f97316; text-decoration: none;
+    padding: 6px 10px; border-radius: 8px;
+    font-size: 11px; font-weight: 700;
+    color: var(--t-primary); text-decoration: none;
     transition: background 0.13s; text-transform: uppercase; letter-spacing: 0.04em;
   }
-  .sb-portal-link:hover { background: rgba(249,115,22,0.08); }
+  .sb-portal-link:hover {
+    background: color-mix(in srgb, var(--t-primary) 8%, transparent);
+  }
 
   .sb-toggle-btn {
-    width: 28px; height: 28px; border-radius: 8px; border: none;
+    width: 26px; height: 26px; border-radius: 7px; border: none;
     display: flex; align-items: center; justify-content: center;
-    background: rgba(255,255,255,0.05); color: #4b5563; cursor: pointer;
+    background: var(--t-surface2); color: var(--t-text3); cursor: pointer;
     transition: background 0.13s, color 0.13s; flex-shrink: 0;
+    border: 1px solid var(--t-border);
   }
-  .sb-toggle-btn:hover { background: rgba(255,255,255,0.1); color: #9ca3af; }
+  .sb-toggle-btn:hover { background: var(--t-surface3); color: var(--t-text2); }
+
+  /* Custom scrollbar */
+  .sb-nav::-webkit-scrollbar { width: 3px; }
+  .sb-nav::-webkit-scrollbar-track { background: transparent; }
+  .sb-nav::-webkit-scrollbar-thumb {
+    background: var(--t-border);
+    border-radius: 2px;
+  }
 `;
 
 /* ── Nav sections ─────────────────────────────────────────────── */
 const NAV_SECTIONS = [
-    { id: 'projects',     label: 'Projects',      color: '#f97316', ids: ['projects'],                                                                           defaultOpen: true  },
-    { id: 'overview',     label: 'Overview',      color: '#6366f1', ids: ['home', 'analytics', 'estimator'],                                                     defaultOpen: true  },
-    { id: 'construction', label: 'Construction',  color: '#f59e0b', ids: ['permits', 'phases', 'manage', 'timeline', 'finance', 'resource', 'structure', 'photos', 'timelapse'], defaultOpen: true },
-    { id: 'team',         label: 'Team & HR',     color: '#10b981', ids: ['attendance', 'workforce', 'teams', 'location'],                                       defaultOpen: true  },
-    { id: 'settings',     label: 'Settings',      color: '#6b7280', ids: ['accounts', 'guides', 'data-transfer'],                                                defaultOpen: false },
+    { id: 'projects',     label: 'Projects',      color: 'var(--t-primary)', ids: ['projects'],                                                                           defaultOpen: true  },
+    { id: 'overview',     label: 'Overview',      color: '#6366f1',          ids: ['home', 'analytics', 'estimator'],                                                     defaultOpen: true  },
+    { id: 'construction', label: 'Construction',  color: '#f59e0b',          ids: ['permits', 'phases', 'manage', 'timeline', 'finance', 'resource', 'structure', 'photos', 'timelapse'], defaultOpen: true },
+    { id: 'team',         label: 'Team & HR',     color: '#10b981',          ids: ['attendance', 'workforce', 'teams', 'location'],                                       defaultOpen: true  },
+    { id: 'settings',     label: 'Settings',      color: 'var(--t-text3)',   ids: ['accounts', 'guides', 'data-transfer'],                                                defaultOpen: false },
 ];
 
 /* ── Chevron icon ─────────────────────────────────────────────── */
 function Chevron({ open }) {
     return (
-        <svg width="10" height="10" viewBox="0 0 12 12" fill="none"
-            style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0, opacity: 0.35 }}>
+        <svg width="9" height="9" viewBox="0 0 12 12" fill="none"
+            style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0, opacity: 0.3 }}>
             <path d="M4 2.5L7.5 6L4 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
     );
@@ -122,17 +142,23 @@ function NavSection({ section, items }) {
     if (items.length === 0) return null;
 
     return (
-        <div style={{ marginBottom: 2 }}>
+        <div>
+            {/* Section header */}
             <button className="sb-section-btn" onClick={() => setOpen(o => !o)}>
+                {/* Thin colored vertical bar */}
                 <span style={{
-                    width: 6, height: 6, borderRadius: '50%',
+                    width: 2, height: 12, borderRadius: 1,
                     background: section.color, flexShrink: 0,
-                    opacity: open ? 1 : 0.3,
+                    opacity: open ? 1 : 0.25,
+                    transition: 'opacity 0.2s',
                 }} />
                 <span style={{
-                    flex: 1, textAlign: 'left', fontSize: 9, fontWeight: 800,
-                    textTransform: 'uppercase', letterSpacing: '0.12em',
-                    color: open ? '#9ca3af' : '#374151',
+                    flex: 1, textAlign: 'left',
+                    fontSize: 9, fontWeight: 800,
+                    textTransform: 'uppercase', letterSpacing: '0.13em',
+                    color: open ? 'var(--t-text2)' : 'var(--t-surface3)',
+                    fontFamily: "'DM Mono', monospace",
+                    transition: 'color 0.2s',
                 }}>
                     {section.label}
                 </span>
@@ -141,10 +167,10 @@ function NavSection({ section, items }) {
 
             <div style={{
                 overflow: 'hidden',
-                maxHeight: open ? `${items.length * 42}px` : '0px',
+                maxHeight: open ? `${items.length * 38}px` : '0px',
                 transition: 'max-height 0.22s ease',
             }}>
-                <div style={{ padding: '2px 0 4px' }}>
+                <div style={{ padding: '2px 0 6px' }}>
                     {items.map(item => (
                         <NavLink
                             key={item.id}
@@ -152,13 +178,16 @@ function NavSection({ section, items }) {
                             title={item.label}
                             className={({ isActive }) => `sb-link${isActive ? ' active' : ''}`}
                         >
-                            <span style={{ fontSize: 15, flexShrink: 0, width: 20, textAlign: 'center' }}>{item.icon}</span>
-                            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 13 }}>{item.label}</span>
+                            <span style={{ fontSize: 14, flexShrink: 0, width: 20, textAlign: 'center', lineHeight: 1 }}>{item.icon}</span>
+                            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 12.5 }}>{item.label}</span>
                             {item.badge && (
                                 <span style={{
-                                    fontSize: 8, fontWeight: 900, padding: '2px 5px', borderRadius: 5,
-                                    background: 'rgba(249,115,22,0.15)', color: '#f97316',
-                                    border: '1px solid rgba(249,115,22,0.2)', letterSpacing: '0.04em', flexShrink: 0,
+                                    fontSize: 8, fontWeight: 900, padding: '2px 5px', borderRadius: 4,
+                                    background: 'color-mix(in srgb, var(--t-primary) 15%, transparent)',
+                                    color: 'var(--t-primary)',
+                                    border: '1px solid color-mix(in srgb, var(--t-primary) 25%, transparent)',
+                                    letterSpacing: '0.04em', flexShrink: 0,
+                                    fontFamily: "'DM Mono', monospace",
                                 }}>{item.badge}</span>
                             )}
                         </NavLink>
@@ -173,7 +202,7 @@ function NavSection({ section, items }) {
 function RailSection({ items }) {
     if (items.length === 0) return null;
     return (
-        <div style={{ padding: '2px 0 6px' }}>
+        <div style={{ padding: '2px 0 4px' }}>
             {items.map(item => (
                 <NavLink
                     key={item.id}
@@ -212,7 +241,8 @@ const DesktopSidebar = ({ user, onLogout, navItems, collapsed, onToggle }) => {
                 width: W, flexShrink: 0,
                 display: 'flex', flexDirection: 'column',
                 position: 'fixed', height: '100%', zIndex: 10,
-                background: '#0a0d12', borderRight: '1px solid #1a2030',
+                background: 'var(--t-surface)',
+                borderRight: '1px solid var(--t-border)',
                 transition: 'width 0.22s cubic-bezier(0.4,0,0.2,1)',
                 overflow: 'hidden',
             }}
@@ -222,33 +252,36 @@ const DesktopSidebar = ({ user, onLogout, navItems, collapsed, onToggle }) => {
             {/* ── Brand / toggle ── */}
             <div style={{
                 display: 'flex', alignItems: 'center',
-                gap: collapsed ? 0 : 12,
-                padding: collapsed ? '16px 8px' : '16px 14px 14px',
-                borderBottom: '1px solid #1a2030',
-                background: 'linear-gradient(135deg, rgba(249,115,22,0.08) 0%, transparent 60%)',
+                gap: collapsed ? 0 : 10,
+                padding: collapsed ? '14px 8px' : '14px 12px',
+                borderBottom: '1px solid var(--t-border)',
                 transition: 'padding 0.22s ease',
                 justifyContent: collapsed ? 'center' : 'flex-start',
             }}>
-                {/* Logo */}
+                {/* Logo mark */}
                 <NavLink
                     to="/dashboard/desktop/home"
                     title="Dashboard"
                     style={{
-                        width: 36, height: 36, borderRadius: 11, flexShrink: 0,
-                        background: 'linear-gradient(135deg, #f97316, #ea580c)',
+                        width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+                        background: 'linear-gradient(135deg, var(--t-primary), color-mix(in srgb, var(--t-primary) 75%, black))',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 17, textDecoration: 'none',
-                        boxShadow: '0 3px 10px rgba(249,115,22,0.28)',
+                        fontSize: 16, textDecoration: 'none',
+                        boxShadow: '0 3px 10px color-mix(in srgb, var(--t-primary) 30%, transparent)',
                     }}
                 >🏗️</NavLink>
 
                 {/* App name — hidden when collapsed */}
                 {!collapsed && (
                     <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                        <p style={{ fontSize: 15, fontWeight: 900, color: '#fff', letterSpacing: '-0.01em', lineHeight: 1 }}>
+                        <p style={{ fontSize: 14, fontWeight: 900, color: 'var(--t-text)', letterSpacing: '-0.01em', lineHeight: 1 }}>
                             HCMS
                         </p>
-                        <p style={{ fontSize: 9, fontWeight: 700, color: '#f97316', textTransform: 'uppercase', letterSpacing: '0.12em', marginTop: 2 }}>
+                        <p style={{
+                            fontSize: 8, fontWeight: 700, color: 'var(--t-primary)',
+                            textTransform: 'uppercase', letterSpacing: '0.13em', marginTop: 2,
+                            fontFamily: "'DM Mono', monospace",
+                        }}>
                             Construction Manager
                         </p>
                     </div>
@@ -261,7 +294,7 @@ const DesktopSidebar = ({ user, onLogout, navItems, collapsed, onToggle }) => {
                     title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
                     style={{ marginLeft: collapsed ? 0 : 'auto' }}
                 >
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
                         {collapsed
                             ? <path d="M6 2l6 6-6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                             : <path d="M10 2L4 8l6 6"  stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
@@ -270,23 +303,23 @@ const DesktopSidebar = ({ user, onLogout, navItems, collapsed, onToggle }) => {
                 </button>
             </div>
 
-            {/* ── Project Switcher (hidden when collapsed) ── */}
+            {/* ── Project Switcher ── */}
             {!collapsed && (
-                <div style={{ padding: '8px 10px', borderBottom: '1px solid #1a2030' }}>
+                <div style={{ padding: '7px 8px', borderBottom: '1px solid var(--t-border)' }}>
                     <ProjectSwitcher />
                 </div>
             )}
             {collapsed && <div style={{ height: 6 }} />}
 
             {/* ── Navigation ── */}
-            <nav style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: collapsed ? '4px 0' : '8px 6px' }}>
+            <nav className="sb-nav" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: collapsed ? '4px 0' : '4px 6px' }}>
                 {NAV_SECTIONS.map(section => {
                     const sectionItems = enriched.filter(item => section.ids.includes(item.id));
                     if (sectionItems.length === 0) return null;
 
                     return collapsed
                         ? (
-                            <div key={section.id} style={{ borderBottom: '1px solid #1a2030', marginBottom: 2, paddingBottom: 2 }}>
+                            <div key={section.id} style={{ borderBottom: '1px solid var(--t-border)', marginBottom: 2, paddingBottom: 2 }}>
                                 <RailSection items={sectionItems} />
                             </div>
                         )
@@ -299,9 +332,9 @@ const DesktopSidebar = ({ user, onLogout, navItems, collapsed, onToggle }) => {
             {/* ── Footer ── */}
             <div style={{
                 padding: collapsed ? '8px 0 10px' : '8px 6px 10px',
-                borderTop: '1px solid #1a2030',
+                borderTop: '1px solid var(--t-border)',
                 display: 'flex', flexDirection: 'column',
-                gap: collapsed ? 2 : 4,
+                gap: collapsed ? 2 : 3,
                 alignItems: collapsed ? 'center' : 'stretch',
             }}>
                 {/* User profile */}
@@ -310,10 +343,10 @@ const DesktopSidebar = ({ user, onLogout, navItems, collapsed, onToggle }) => {
                         to="/dashboard/desktop/accounts/profile"
                         title={user?.username || 'Profile'}
                         style={{
-                            width: 36, height: 36, borderRadius: 10, margin: '0 auto',
-                            background: 'linear-gradient(135deg,#f97316,#ea580c)',
+                            width: 34, height: 34, borderRadius: 9, margin: '0 auto',
+                            background: 'linear-gradient(135deg, var(--t-primary), color-mix(in srgb, var(--t-primary) 75%, black))',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 13, fontWeight: 800, color: '#fff', overflow: 'hidden',
+                            fontSize: 12, fontWeight: 800, color: '#fff', overflow: 'hidden',
                             textDecoration: 'none',
                         }}
                     >
@@ -330,10 +363,10 @@ const DesktopSidebar = ({ user, onLogout, navItems, collapsed, onToggle }) => {
                         className={({ isActive }) => `sb-profile-link${isActive ? ' active' : ''}`}
                     >
                         <div style={{
-                            width: 32, height: 32, borderRadius: 10, flexShrink: 0,
-                            background: 'linear-gradient(135deg,#f97316,#ea580c)',
+                            width: 30, height: 30, borderRadius: 9, flexShrink: 0,
+                            background: 'linear-gradient(135deg, var(--t-primary), color-mix(in srgb, var(--t-primary) 75%, black))',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 12, fontWeight: 800, color: '#fff', overflow: 'hidden',
+                            fontSize: 11, fontWeight: 800, color: '#fff', overflow: 'hidden',
                         }}>
                             {user?.profile_image
                                 ? <img src={mediaUrl(user.profile_image)} alt={user?.username}
@@ -343,10 +376,14 @@ const DesktopSidebar = ({ user, onLogout, navItems, collapsed, onToggle }) => {
                             }
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ fontSize: 13, fontWeight: 700, color: '#e5e7eb', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1 }}>
+                            <p style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--t-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1 }}>
                                 {user?.username || 'User'}
                             </p>
-                            <p style={{ fontSize: 9, color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>
+                            <p style={{
+                                fontSize: 8, color: 'var(--t-text3)', textTransform: 'uppercase',
+                                letterSpacing: '0.08em', marginTop: 2,
+                                fontFamily: "'DM Mono', monospace",
+                            }}>
                                 {user?.role?.name || 'Admin'}
                             </p>
                         </div>
@@ -358,21 +395,23 @@ const DesktopSidebar = ({ user, onLogout, navItems, collapsed, onToggle }) => {
                     <a href="/worker" target="_blank" rel="noopener noreferrer"
                         title="Worker Portal"
                         style={{
-                            width: 36, height: 36, borderRadius: 10, margin: '0 auto',
+                            width: 34, height: 34, borderRadius: 9, margin: '0 auto',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 16, textDecoration: 'none', color: '#f97316',
+                            fontSize: 15, textDecoration: 'none', color: 'var(--t-primary)',
                             transition: 'background 0.13s',
                         }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(249,115,22,0.1)'}
+                        onMouseEnter={e => e.currentTarget.style.background = 'color-mix(in srgb, var(--t-primary) 10%, transparent)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
                         📱
                     </a>
                 ) : (
                     <a href="/worker" target="_blank" rel="noopener noreferrer" className="sb-portal-link">
-                        <span style={{ fontSize: 14 }}>📱</span>
+                        <span style={{ fontSize: 13 }}>📱</span>
                         <span style={{ flex: 1 }}>Worker Portal</span>
-                        <span style={{ fontSize: 10, opacity: 0.4 }}>↗</span>
+                        <svg width="9" height="9" viewBox="0 0 12 12" fill="none" style={{ opacity: 0.4 }}>
+                            <path d="M2 10L10 2M10 2H5M10 2V7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
                     </a>
                 )}
 
@@ -388,9 +427,9 @@ const DesktopSidebar = ({ user, onLogout, navItems, collapsed, onToggle }) => {
                             onClick={onLogout}
                             title="Sign Out"
                             style={{
-                                width: 36, height: 36, borderRadius: 10,
+                                width: 34, height: 34, borderRadius: 9,
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                fontSize: 16, background: 'transparent', border: 'none', cursor: 'pointer',
+                                fontSize: 15, background: 'transparent', border: 'none', cursor: 'pointer',
                                 color: '#ef4444', transition: 'background 0.13s',
                             }}
                             onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'}
@@ -407,8 +446,11 @@ const DesktopSidebar = ({ user, onLogout, navItems, collapsed, onToggle }) => {
 
                 {/* Credit */}
                 {!collapsed && (
-                    <NavLink to="/about-developer" style={{ textAlign: 'center', paddingTop: 6, textDecoration: 'none', display: 'block' }}>
-                        <p style={{ fontSize: 9, color: '#1f2937' }}>© 2026 Jitendra Khadka</p>
+                    <NavLink to="/about-developer" style={{ textAlign: 'center', paddingTop: 4, textDecoration: 'none', display: 'block' }}>
+                        <p style={{
+                            fontSize: 8, color: 'var(--t-surface3)',
+                            fontFamily: "'DM Mono', monospace",
+                        }}>© 2026 Jitendra Khadka</p>
                     </NavLink>
                 )}
             </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useConstruction } from '../../context/ConstructionContext';
 import { dashboardService } from '../../services/api';
 import CategoryManageModal from './CategoryManageModal';
+import MobileResourceList from './MobileResourceList';
 
 const MobileCategoryList = ({ searchQuery = '', resolveMetadata, onClearMetadata }) => {
     const { budgetStats, refreshData } = useConstruction();
@@ -37,21 +38,14 @@ const MobileCategoryList = ({ searchQuery = '', resolveMetadata, onClearMetadata
         <div className="space-y-4">
             <div className="flex justify-between items-center mb-2 px-1">
                 <p className="text-[11px] text-[var(--t-text2)] font-['DM_Mono',monospace] uppercase tracking-widest truncate">Manage project budget distributions and categories.</p>
-                <button
-                    onClick={handleCreateCategory}
-                    className="shrink-0 px-3 py-1.5 bg-[var(--t-primary)] text-[var(--t-bg)] rounded-[2px] font-['DM_Mono',monospace] uppercase tracking-widest text-[10px] shadow-sm active:opacity-90"
-                >
-                    + NEW
-                </button>
             </div>
 
-            <div className="space-y-0.5 pb-[120px]">
-                {filteredCategories.length === 0 && (
-                    <div className="text-center py-14 text-[var(--t-text3)]">
-                        <div className="text-3xl mb-2">📊</div>
-                        <p className="text-sm font-semibold">No categories found</p>
-                    </div>
-                )}
+            <MobileResourceList
+                isEmpty={filteredCategories.length === 0}
+                emptyIcon="📊"
+                emptyText="No categories found"
+                onAdd={handleCreateCategory}
+            >
                 {filteredCategories.map(c => {
                     const spent = Number(c.spent) || 0;
                     const allocation = Number(c.allocation) || 0;
@@ -98,7 +92,7 @@ const MobileCategoryList = ({ searchQuery = '', resolveMetadata, onClearMetadata
                         </div>
                     );
                 })}
-            </div>
+            </MobileResourceList>
 
             <CategoryManageModal 
                 isOpen={isManageModalOpen} 

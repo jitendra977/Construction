@@ -1,10 +1,8 @@
 # Fixed: PostgreSQL cannot cast bigint → uuid via ALTER COLUMN … USING.
 # Strategy: drop the old integer FK column, add a fresh uuid FK column.
-# All existing material_id values were integers pointing at the old
-# resources.Material table; no value mapping possible — column recreated nullable.
 #
-# SQLite compatibility: IF EXISTS / CASCADE / DEFERRABLE are PG-only.
-# RunPython with vendor detection keeps both backends happy.
+# SQLite: these operations are skipped entirely — delete db.sqlite3 and
+# re-run migrate for a clean local dev database.
 
 from django.db import migrations, models
 import django.db.models.deletion
@@ -12,32 +10,26 @@ import django.db.models.deletion
 
 def _drop_col(table, col):
     def forward(apps, schema_editor):
-        vendor = schema_editor.connection.vendor
+        if schema_editor.connection.vendor == 'sqlite':
+            return
         with schema_editor.connection.cursor() as cur:
-            if vendor == 'sqlite':
-                cur.execute(f'PRAGMA table_info("{table}")')
-                if col in [r[1] for r in cur.fetchall()]:
-                    cur.execute(f'ALTER TABLE "{table}" DROP COLUMN "{col}"')
-            else:
-                cur.execute(f'ALTER TABLE "{table}" DROP COLUMN IF EXISTS "{col}" CASCADE')
+            cur.execute(f'ALTER TABLE "{table}" DROP COLUMN IF EXISTS "{col}" CASCADE')
     return forward
 
 
 def _add_uuid_fk(table, col, ref_table, null=True, on_delete='SET NULL'):
     null_kw = 'NULL' if null else 'NOT NULL'
     def forward(apps, schema_editor):
-        vendor = schema_editor.connection.vendor
+        if schema_editor.connection.vendor == 'sqlite':
+            return
         with schema_editor.connection.cursor() as cur:
-            if vendor == 'sqlite':
-                cur.execute(f'ALTER TABLE "{table}" ADD COLUMN "{col}" TEXT {null_kw}')
-            else:
-                cur.execute(f'''
-                    ALTER TABLE "{table}"
-                        ADD COLUMN "{col}" uuid {null_kw}
-                        REFERENCES "{ref_table}" (id)
-                        ON DELETE {on_delete}
-                        DEFERRABLE INITIALLY DEFERRED
-                ''')
+            cur.execute(f'''
+                ALTER TABLE "{table}"
+                    ADD COLUMN "{col}" uuid {null_kw}
+                    REFERENCES "{ref_table}" (id)
+                    ON DELETE {on_delete}
+                    DEFERRABLE INITIALLY DEFERRED
+            ''')
     return forward
 
 
@@ -49,14 +41,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(
-            _drop_col('core_emaillog', 'material_id'),
-            migrations.RunPython.noop,
-        ),
-        migrations.RunPython(
-            _add_uuid_fk('core_emaillog', 'material_id', 'resource_material'),
-            migrations.RunPython.noop,
-        ),
+        migrations.RunPython(_drop_col('core_emaillog', 'material_id'), migrations.RunPython.noop),
+        migrations.RunPython(_add_uuid_fk('core_emaillog', 'material_id', 'resource_material'), migrations.RunPython.noop),
         migrations.SeparateDatabaseAndState(
             state_operations=[
                 migrations.AlterField(
