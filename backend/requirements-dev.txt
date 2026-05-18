@@ -1,0 +1,5 @@
+# Development and CI dependencies — not needed in production
+-r requirements.txt
+
+pytest==8.2.0
+pytest-django==4.8.0
