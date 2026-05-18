@@ -832,3 +832,113 @@ def mqtt_reboot_device(request):
         "devices":  rebooted,
         "failed":   failed,
     })
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+
+@api_view(["POST", "PATCH", "DELETE"])
+@permission_classes([IsAuthenticated])
+def register_nfc_device(request):
+    """
+    POST   { project, mac, device_name?, gate_id?, device_mode? }
+           Manually register an NFC device for a project.
+           Useful when the physical device hasn't connected via MQTT yet, or
+           when setting up a virtual/test device.
+
+    PATCH  { mac, device_name?, gate_id?, device_mode? }
+           Update fields on an existing device (identified by MAC).
+
+    DELETE { mac }  — Remove a manually registered device.
+
+    MAC can be provided as 'AABBCCDDEEFF', 'AA:BB:CC:DD:EE:FF', or
+    'AA-BB-CC-DD-EE-FF'.  It is normalised and stored as 'AA:BB:CC:DD:EE:FF'.
+
+    Response (POST/PATCH):
+      { "device": { …_device_to_dict … }, "created": true/false }
+    """
+    from apps.core.models import HouseProject
+
+    raw_mac = (request.data.get("mac") or "").strip()
+    if not raw_mac:
+        return Response({"error": "mac is required"}, status=400)
+
+    # Normalise MAC → AA:BB:CC:DD:EE:FF
+    clean = raw_mac.replace(":", "").replace("-", "").upper()
+    if not _validate_mac(clean):
+        return Response({"error": "Invalid MAC address. Use 12 hex characters, e.g. AABBCCDDEEFF"}, status=400)
+    mac_normalised = ":".join(clean[i:i+2] for i in range(0, 12, 2))
+
+    # ── DELETE ────────────────────────────────────────────────────────────────
+    if request.method == "DELETE":
+        deleted, _ = NFCDevice.objects.filter(mac=mac_normalised).delete()
+        if deleted:
+            return Response({"ok": True, "message": f"Device {mac_normalised} removed"})
+        return Response({"error": "Device not found"}, status=404)
+
+    # ── POST / PATCH ──────────────────────────────────────────────────────────
+    project_id = _coerce_project_id(
+        request.data.get("project") or request.query_params.get("project")
+    )
+
+    VALID_MODES = {"door_lock", "attendance", "hybrid", "unknown"}
+    device_mode = (request.data.get("device_mode") or "attendance").strip()
+    if device_mode not in VALID_MODES:
+        return Response({"error": f"device_mode must be one of: {', '.join(sorted(VALID_MODES))}"}, status=400)
+
+    if request.method == "POST":
+        if not project_id:
+            return Response({"error": "project is required"}, status=400)
+        try:
+            project = HouseProject.objects.get(pk=project_id)
+        except HouseProject.DoesNotExist:
+            return Response({"error": "Project not found"}, status=404)
+
+        device, created = NFCDevice.objects.get_or_create(
+            mac=mac_normalised,
+            defaults={
+                "project":     project,
+                "device_name": (request.data.get("device_name") or "").strip() or mac_normalised,
+                "gate_id":     (request.data.get("gate_id") or "").strip(),
+                "device_mode": device_mode,
+                "last_seen":   timezone.now(),
+            },
+        )
+
+        if not created:
+            # Device already exists — update the mutable fields
+            device.device_name = (request.data.get("device_name") or device.device_name or "").strip() or mac_normalised
+            if request.data.get("gate_id") is not None:
+                device.gate_id = (request.data.get("gate_id") or "").strip()
+            if request.data.get("device_mode"):
+                device.device_mode = device_mode
+            device.save(update_fields=["device_name", "gate_id", "device_mode"])
+
+        logger.info(
+            "register_nfc_device: %s %s for project %s by %s",
+            "created" if created else "updated",
+            mac_normalised, project_id, request.user,
+        )
+        return Response({"device": _device_to_dict(device), "created": created},
+                        status=201 if created else 200)
+
+    # ── PATCH (update existing, no project change) ─────────────────────────────
+    try:
+        device = NFCDevice.objects.get(mac=mac_normalised)
+    except NFCDevice.DoesNotExist:
+        return Response({"error": "Device not found. Use POST to create it first."}, status=404)
+
+    update_fields = []
+    if "device_name" in request.data:
+        device.device_name = (request.data["device_name"] or "").strip()
+        update_fields.append("device_name")
+    if "gate_id" in request.data:
+        device.gate_id = (request.data["gate_id"] or "").strip()
+        update_fields.append("gate_id")
+    if "device_mode" in request.data:
+        device.device_mode = device_mode
+        update_fields.append("device_mode")
+
+    if update_fields:
+        device.save(update_fields=update_fields)
+
+    return Response({"device": _device_to_dict(device), "created": False})

@@ -7,6 +7,7 @@ GET /fin/dashboard/?project=<id>
 from decimal import Decimal
 from django.db.models import Sum, Count, Q
 from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from ..models.account import Account, AccountType
@@ -16,6 +17,7 @@ from ..models.loan import LoanEMIPayment
 
 
 class FinanceDashboardView(APIView):
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         pid = request.query_params.get("project")

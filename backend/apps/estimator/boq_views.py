@@ -10,6 +10,7 @@ BoQ Auto-Generator API.
   POST /api/v1/estimator/boqs/seed-defaults/    — create stock templates
 """
 from rest_framework import viewsets, status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -25,6 +26,7 @@ from .boq_serializers import (
 
 
 class BoQTemplateViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = BoQTemplate.objects.prefetch_related("items").all()
     serializer_class = BoQTemplateSerializer
 
@@ -35,6 +37,7 @@ class BoQTemplateViewSet(viewsets.ModelViewSet):
 
 
 class GeneratedBoQViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = GeneratedBoQ.objects.prefetch_related("items").select_related("template", "project").all()
     serializer_class = GeneratedBoQSerializer
 

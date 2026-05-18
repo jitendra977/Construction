@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { dataTransferService } from '../services/api.js';
 import { useConstruction } from '../context/ConstructionContext';
+import { dataTransferService as dtSvc } from '../services/dataTransferService.js';
 
 // ── Inline SVG icon factory ───────────────────────────────────────────────────
 const Ico = ({ d, size = 18, cls = '', fill = 'none', multi }) => (
@@ -795,6 +796,333 @@ function SqlTerminalTab({ user }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CSV / EXCEL TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const CSV_TYPES = [
+    { id: 'workforce',  label: 'Workforce Members', icon: '👷', desc: 'Bulk add / update staff' },
+    { id: 'materials',  label: 'Materials',          icon: '🧱', desc: 'Inventory & price list'  },
+    { id: 'attendance', label: 'Attendance Records', icon: '📋', desc: 'Export only'             },
+];
+
+function ActionRow({ label, children }) {
+    return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--color-border, #e2e8f0)' }}>
+            <span style={{ width: 160, fontSize: 12, fontWeight: 600, color: '#64748b', flexShrink: 0 }}>{label}</span>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>{children}</div>
+        </div>
+    );
+}
+
+function CsvBtn({ onClick, disabled, children, color = '#6366f1', small }) {
+    return (
+        <button
+            onClick={onClick}
+            disabled={disabled}
+            style={{
+                padding: small ? '5px 12px' : '7px 16px',
+                borderRadius: 8, border: 'none',
+                background: disabled ? '#e2e8f0' : color,
+                color: disabled ? '#94a3b8' : '#fff',
+                fontWeight: 700, fontSize: small ? 11 : 12,
+                cursor: disabled ? 'not-allowed' : 'pointer',
+            }}
+        >
+            {children}
+        </button>
+    );
+}
+
+function PreviewTable({ rows }) {
+    if (!rows?.length) return null;
+    const cols = Object.keys(rows[0]).filter(k => k !== 'error');
+    const ACTION_COLOR = { new: '#059669', exists: '#d97706', error: '#ef4444' };
+    return (
+        <div style={{ overflowX: 'auto', marginTop: 12, border: '1px solid #e2e8f0', borderRadius: 10 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                    <tr style={{ background: '#f8fafc' }}>
+                        {cols.map(c => (
+                            <th key={c} style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 700, color: '#64748b', whiteSpace: 'nowrap', borderBottom: '1px solid #e2e8f0' }}>
+                                {c}
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows.slice(0, 50).map((row, i) => (
+                        <tr key={i} style={{ background: row.action === 'error' ? '#fef2f2' : i % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                            {cols.map(c => (
+                                <td key={c} style={{
+                                    padding: '6px 12px',
+                                    color: c === 'action' ? (ACTION_COLOR[row[c]] || '#334155') : '#334155',
+                                    fontWeight: c === 'action' ? 700 : 400,
+                                    borderBottom: '1px solid #f1f5f9',
+                                    whiteSpace: 'nowrap',
+                                }}>
+                                    {String(row[c] ?? '')}
+                                </td>
+                            ))}
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+            {rows.length > 50 && (
+                <div style={{ padding: '6px 12px', fontSize: 11, color: '#94a3b8', borderTop: '1px solid #e2e8f0' }}>
+                    Showing 50 of {rows.length} rows
+                </div>
+            )}
+        </div>
+    );
+}
+
+function CsvTab({ user }) {
+    const { activeProjectId: projectId } = useConstruction();
+
+    const [csvType,   setCsvType]   = useState('workforce');
+    const [file,      setFile]      = useState(null);
+    const [preview,   setPreview]   = useState(null);   // dry-run result
+    const [result,    setResult]    = useState(null);   // import result
+    const [jobs,      setJobs]      = useState([]);
+    const [busy,      setBusy]      = useState('');     // 'dryrun'|'import'|'export'|''
+    const [error,     setError]     = useState('');
+
+    const fileRef = useRef();
+
+    const loadJobs = useCallback(async () => {
+        if (!projectId) return;
+        try {
+            const data = await dtSvc.csvJobs(projectId);
+            setJobs(data.jobs || []);
+        } catch { /* non-fatal */ }
+    }, [projectId]);
+
+    useEffect(() => { loadJobs(); }, [loadJobs]);
+
+    const downloadBlob = (blob, filename) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename; a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const handleExport = async (fmt) => {
+        if (!projectId) return;
+        setBusy('export'); setError('');
+        try {
+            const res = await dtSvc.csvExport(projectId, csvType, fmt);
+            const ext = fmt === 'xlsx' ? 'xlsx' : 'csv';
+            downloadBlob(res.data, `${csvType}_${projectId}.${ext}`);
+        } catch (e) {
+            setError(e?.response?.data?.error || e.message || 'Export failed');
+        } finally {
+            setBusy('');
+        }
+    };
+
+    const handleTemplate = async (fmt) => {
+        setBusy('template'); setError('');
+        try {
+            const res = await dtSvc.csvTemplate(csvType, fmt);
+            const ext = fmt === 'xlsx' ? 'xlsx' : 'csv';
+            downloadBlob(res.data, `template_${csvType}.${ext}`);
+        } catch (e) {
+            setError(e?.response?.data?.error || e.message || 'Template download failed');
+        } finally {
+            setBusy('');
+        }
+    };
+
+    const handleDryRun = async () => {
+        if (!file || !projectId) return;
+        setBusy('dryrun'); setError(''); setPreview(null); setResult(null);
+        try {
+            const res = await dtSvc.csvDryRun(projectId, csvType, file);
+            setPreview(res.data);
+        } catch (e) {
+            setError(e?.response?.data?.error || e.message || 'Dry run failed');
+        } finally {
+            setBusy('');
+        }
+    };
+
+    const handleImport = async () => {
+        if (!file || !projectId) return;
+        setBusy('import'); setError(''); setResult(null);
+        try {
+            const res = await dtSvc.csvImport(projectId, csvType, file);
+            setResult(res.data);
+            setPreview(null);
+            setFile(null);
+            if (fileRef.current) fileRef.current.value = '';
+            loadJobs();
+        } catch (e) {
+            setError(e?.response?.data?.error || e.message || 'Import failed');
+        } finally {
+            setBusy('');
+        }
+    };
+
+    const isAttendance = csvType === 'attendance';
+    const canImport    = !isAttendance;
+
+    return (
+        <div style={{ paddingTop: 20 }}>
+            {/* Type selector */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+                {CSV_TYPES.map(t => (
+                    <button
+                        key={t.id}
+                        onClick={() => { setCsvType(t.id); setFile(null); setPreview(null); setResult(null); setError(''); }}
+                        style={{
+                            padding: '8px 16px', borderRadius: 10,
+                            border: `2px solid ${csvType === t.id ? '#6366f1' : '#e2e8f0'}`,
+                            background: csvType === t.id ? '#6366f115' : '#fff',
+                            color: csvType === t.id ? '#4338ca' : '#64748b',
+                            fontWeight: 700, fontSize: 13, cursor: 'pointer',
+                        }}
+                    >
+                        {t.icon} {t.label}
+                        <span style={{ fontSize: 10, fontWeight: 400, display: 'block', color: '#94a3b8' }}>{t.desc}</span>
+                    </button>
+                ))}
+            </div>
+
+            {/* Export section */}
+            <div style={{ background: '#f8fafc', borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
+                <div style={{ fontWeight: 800, fontSize: 13, color: '#1e293b', marginBottom: 8 }}>📥 Export</div>
+                <ActionRow label="Download existing data">
+                    <CsvBtn onClick={() => handleExport('csv')} disabled={busy === 'export' || !projectId}>
+                        {busy === 'export' ? '⏳ Exporting…' : '⬇ CSV'}
+                    </CsvBtn>
+                    <CsvBtn onClick={() => handleExport('xlsx')} disabled={busy === 'export' || !projectId} color="#059669">
+                        ⬇ Excel (.xlsx)
+                    </CsvBtn>
+                </ActionRow>
+                {canImport && (
+                    <ActionRow label="Download blank template">
+                        <CsvBtn onClick={() => handleTemplate('csv')} disabled={busy === 'template'} color="#d97706" small>
+                            📄 CSV template
+                        </CsvBtn>
+                        <CsvBtn onClick={() => handleTemplate('xlsx')} disabled={busy === 'template'} color="#b45309" small>
+                            📊 Excel template
+                        </CsvBtn>
+                    </ActionRow>
+                )}
+            </div>
+
+            {/* Import section */}
+            {canImport && (
+                <div style={{ background: '#f8fafc', borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
+                    <div style={{ fontWeight: 800, fontSize: 13, color: '#1e293b', marginBottom: 8 }}>📤 Import</div>
+
+                    <ActionRow label="1. Choose file">
+                        <input
+                            ref={fileRef}
+                            type="file"
+                            accept=".csv,.xlsx,.xls"
+                            onChange={e => { setFile(e.target.files[0] || null); setPreview(null); setResult(null); setError(''); }}
+                            style={{ fontSize: 12, color: '#334155' }}
+                        />
+                        {file && <span style={{ fontSize: 11, color: '#059669', fontWeight: 600 }}>✓ {file.name}</span>}
+                    </ActionRow>
+
+                    <ActionRow label="2. Preview (dry run)">
+                        <CsvBtn onClick={handleDryRun} disabled={!file || busy === 'dryrun'} color="#6366f1">
+                            {busy === 'dryrun' ? '⏳ Checking…' : '🔍 Preview Import'}
+                        </CsvBtn>
+                        <span style={{ fontSize: 11, color: '#94a3b8' }}>No data is written</span>
+                    </ActionRow>
+
+                    {preview && (
+                        <div style={{ marginTop: 10 }}>
+                            <div style={{ display: 'flex', gap: 16, fontSize: 12, fontWeight: 700, flexWrap: 'wrap' }}>
+                                <span style={{ color: '#059669' }}>🟢 {preview.new_rows} new</span>
+                                <span style={{ color: '#d97706' }}>🟡 {preview.existing_rows} already exist (will skip)</span>
+                                <span style={{ color: '#ef4444' }}>🔴 {preview.error_rows} errors</span>
+                            </div>
+                            <PreviewTable rows={preview.preview} />
+
+                            {preview.can_import && (
+                                <div style={{ marginTop: 12 }}>
+                                    <ActionRow label="3. Commit import">
+                                        <CsvBtn onClick={handleImport} disabled={busy === 'import'} color="#059669">
+                                            {busy === 'import' ? '⏳ Importing…' : `✅ Import ${preview.new_rows} rows`}
+                                        </CsvBtn>
+                                    </ActionRow>
+                                </div>
+                            )}
+
+                            {preview.errors?.length > 0 && (
+                                <div style={{ marginTop: 10, padding: '10px 14px', borderRadius: 8, background: '#fef2f2', border: '1px solid #fca5a5' }}>
+                                    <div style={{ fontWeight: 700, fontSize: 12, color: '#991b1b', marginBottom: 6 }}>Row errors (fix these in your file before importing):</div>
+                                    {preview.errors.slice(0, 10).map((e, i) => (
+                                        <div key={i} style={{ fontSize: 11, color: '#7f1d1d' }}>Row {e.row}: {e.message}</div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Result banner */}
+            {result && (
+                <div style={{ padding: '12px 16px', borderRadius: 10, background: '#f0fdf4', border: '1px solid #86efac', marginBottom: 16 }}>
+                    <div style={{ fontWeight: 800, color: '#166534', fontSize: 13, marginBottom: 4 }}>✅ Import complete</div>
+                    <div style={{ fontSize: 12, color: '#15803d' }}>{result.message}</div>
+                    {result.errors?.length > 0 && (
+                        <div style={{ marginTop: 8, fontSize: 11, color: '#92400e' }}>
+                            {result.errors.slice(0, 5).map((e, i) => <div key={i}>Row {e.row}: {e.message}</div>)}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {error && (
+                <div style={{ padding: '10px 14px', borderRadius: 8, background: '#fef2f2', border: '1px solid #fca5a5', color: '#991b1b', fontWeight: 600, fontSize: 12, marginBottom: 12 }}>
+                    {error}
+                </div>
+            )}
+
+            {/* Import history */}
+            {jobs.length > 0 && (
+                <div style={{ marginTop: 20 }}>
+                    <div style={{ fontWeight: 800, fontSize: 13, color: '#1e293b', marginBottom: 10 }}>📜 Import History</div>
+                    <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: 10 }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                            <thead>
+                                <tr style={{ background: '#f8fafc' }}>
+                                    {['Type', 'File', 'Status', 'Imported', 'Skipped', 'Failed', 'By', 'Date'].map(h => (
+                                        <th key={h} style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 700, color: '#64748b', borderBottom: '1px solid #e2e8f0' }}>{h}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {jobs.map((j, i) => (
+                                    <tr key={j.id} style={{ background: i % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                                        <td style={{ padding: '6px 12px', borderBottom: '1px solid #f1f5f9', fontWeight: 700 }}>{j.import_type}</td>
+                                        <td style={{ padding: '6px 12px', borderBottom: '1px solid #f1f5f9', color: '#64748b' }}>{j.file_name}</td>
+                                        <td style={{ padding: '6px 12px', borderBottom: '1px solid #f1f5f9', color: j.status === 'done' ? '#059669' : j.status === 'failed' ? '#ef4444' : '#d97706', fontWeight: 700 }}>{j.status}</td>
+                                        <td style={{ padding: '6px 12px', borderBottom: '1px solid #f1f5f9', color: '#059669', fontWeight: 700 }}>{j.rows_imported}</td>
+                                        <td style={{ padding: '6px 12px', borderBottom: '1px solid #f1f5f9', color: '#d97706' }}>{j.rows_skipped}</td>
+                                        <td style={{ padding: '6px 12px', borderBottom: '1px solid #f1f5f9', color: '#ef4444' }}>{j.rows_failed}</td>
+                                        <td style={{ padding: '6px 12px', borderBottom: '1px solid #f1f5f9', color: '#64748b' }}>{j.created_by}</td>
+                                        <td style={{ padding: '6px 12px', borderBottom: '1px solid #f1f5f9', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                                            {j.created_at ? new Date(j.created_at).toLocaleDateString() : '—'}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // MAIN PAGE
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function DataTransferPage() {
@@ -803,8 +1131,9 @@ export default function DataTransferPage() {
     const admin = isAdmin(user);
 
     const tabs = [
-        { id: 'export',   label: 'Export',       icon: 'download' },
-        { id: 'import',   label: 'Import',        icon: 'upload',   badge: admin ? null : 'Admin' },
+        { id: 'export',   label: 'Export',        icon: 'download' },
+        { id: 'import',   label: 'SQL Import',    icon: 'upload',   badge: admin ? null : 'Admin' },
+        { id: 'csv',      label: 'CSV / Excel',   icon: 'table'    },
         { id: 'terminal', label: 'SQL Terminal',  icon: 'terminal', badge: admin ? null : 'Admin' },
     ];
 
@@ -846,8 +1175,9 @@ export default function DataTransferPage() {
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
                     <Tabs tabs={tabs} active={tab} onChange={setTab} />
 
-                    {tab === 'export'   && <ExportTab   user={user} />}
-                    {tab === 'import'   && <ImportTab   user={user} />}
+                    {tab === 'export'   && <ExportTab      user={user} />}
+                    {tab === 'import'   && <ImportTab      user={user} />}
+                    {tab === 'csv'      && <CsvTab         user={user} />}
                     {tab === 'terminal' && <SqlTerminalTab user={user} />}
                 </div>
 

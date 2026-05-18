@@ -502,7 +502,7 @@ export default function TeamPage() {
     ];
 
     return (
-        <div style={{ padding:'0 0 60px', maxWidth:920, margin:'0 auto' }}>
+        <div style={{ padding:'0 0 60px' }}>
 
             {/* Tabs */}
             <div style={{ display:'flex', gap:4, marginBottom:24, borderBottom:'2px solid var(--t-border)', paddingBottom:0 }}>

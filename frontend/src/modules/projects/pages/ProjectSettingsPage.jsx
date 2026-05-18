@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import api from '../services/projectsApi';
 import { useProjects } from '../context/ProjectsContext';
+import { usePlatformBase } from '../../../shared/utils/platformNav';
 
 const FIELD = {
     background: 'var(--t-bg)', border: '1px solid var(--t-border)',
@@ -22,6 +23,7 @@ export default function ProjectSettingsPage() {
     const { id }                         = useParams();
     const { project: ctxProject }        = useOutletContext() || {};
     const navigate                       = useNavigate();
+    const base                           = usePlatformBase();
     const { updateProjectLocal, removeProjectLocal } = useProjects();
 
     const [project, setProject] = useState(null);
@@ -98,7 +100,7 @@ export default function ProjectSettingsPage() {
     );
 
     return (
-        <div className="p-6 max-w-2xl mx-auto">
+        <div className="p-6">
             <h2 className="text-xl font-black mb-6" style={{ color: 'var(--t-text)' }}>
                 ⚙️ Project Settings
             </h2>

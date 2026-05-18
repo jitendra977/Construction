@@ -3,6 +3,7 @@ from datetime import date, timedelta
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
 from rest_framework import status, viewsets
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -20,6 +21,7 @@ from .services.timelapse import generate_timelapse, regenerate_for_scope
 
 
 class PhotoAnalysisViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = PhotoAnalysis.objects.select_related(
         "media", "media__task", "media__task__phase"
     ).all()
@@ -83,6 +85,7 @@ def models_avg(field):
 
 
 class TimelapseViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = Timelapse.objects.all().select_related("room", "floor", "phase")
     serializer_class = TimelapseSerializer
 
@@ -149,6 +152,7 @@ class TimelapseViewSet(viewsets.ModelViewSet):
 
 
 class WeeklyDigestViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = WeeklyDigest.objects.all().prefetch_related("timelapses")
     serializer_class = WeeklyDigestSerializer
 

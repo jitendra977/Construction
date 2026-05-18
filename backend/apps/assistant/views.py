@@ -84,6 +84,7 @@ from .services.parser import parse
 
 
 class VoiceCommandViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = VoiceCommand.objects.all()
     serializer_class = VoiceCommandSerializer
 

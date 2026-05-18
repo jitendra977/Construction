@@ -1,9 +1,11 @@
 from rest_framework import viewsets, filters
+from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from ..models import WorkerDocument, WorkerContract
 from ..serializers import WorkerDocumentSerializer, WorkerContractSerializer
 
 class WorkerDocumentViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = WorkerDocument.objects.all()
     serializer_class = WorkerDocumentSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -12,6 +14,7 @@ class WorkerDocumentViewSet(viewsets.ModelViewSet):
     ordering_fields = ['expiry_date', 'created_at']
 
 class WorkerContractViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = WorkerContract.objects.all()
     serializer_class = WorkerContractSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]

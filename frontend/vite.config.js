@@ -3,6 +3,11 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import fs from 'fs'
 import path from 'path'
+import { readFileSync } from 'fs'
+
+// Expose package version as __APP_VERSION__ in source code
+const { version: APP_VERSION } = JSON.parse(readFileSync('./package.json', 'utf-8'));
+// Vitest types are auto-loaded by the test runner; no explicit import needed.
 
 // ── HTTPS for local dev (enables GPS on LAN devices) ──────────────────────────
 // Run once: mkcert 192.168.0.129 localhost 127.0.0.1
@@ -30,6 +35,22 @@ const proxyConfig = {
 
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(APP_VERSION),
+  },
+  // ── Vitest configuration ────────────────────────────────────────────────────
+  test: {
+    // Use jsdom so React components can render (document, window, etc.)
+    environment: 'jsdom',
+    // Import @testing-library/jest-dom matchers (toBeInTheDocument, etc.) globally
+    setupFiles: ['./src/test/setup.js'],
+    globals: true,
+    // Exclude node_modules from coverage
+    coverage: {
+      provider: 'v8',
+      exclude: ['node_modules/', 'src/test/', '**/*.config.*'],
+    },
+  },
   server: useHttps ? {
     https: { cert: fs.readFileSync(certFile), key: fs.readFileSync(keyFile) },
     host: true,   // bind to 0.0.0.0 so LAN devices can reach it

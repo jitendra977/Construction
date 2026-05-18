@@ -5,6 +5,7 @@ from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
 from rest_framework import viewsets, status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -22,6 +23,7 @@ except ImportError:
 
 
 class MaterialViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     serializer_class = MaterialSerializer
 
     def get_queryset(self):

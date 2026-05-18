@@ -1,9 +1,11 @@
 from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated
 from ..models.budget import BudgetCategory, BudgetAllocation
 from ..serializers.budget import BudgetCategorySerializer, BudgetAllocationSerializer
 
 
 class BudgetCategoryViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     serializer_class = BudgetCategorySerializer
 
     def get_queryset(self):
@@ -18,6 +20,7 @@ class BudgetCategoryViewSet(viewsets.ModelViewSet):
 
 
 class BudgetAllocationViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     serializer_class = BudgetAllocationSerializer
 
     def get_queryset(self):

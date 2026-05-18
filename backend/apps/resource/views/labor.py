@@ -1,10 +1,12 @@
 from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated
 
 from ..models.labor import Worker, WorkerAttendance
 from ..serializers.labor import WorkerSerializer, WorkerAttendanceSerializer
 
 
 class WorkerViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     serializer_class = WorkerSerializer
 
     def get_queryset(self):
@@ -19,6 +21,7 @@ class WorkerViewSet(viewsets.ModelViewSet):
 
 
 class WorkerAttendanceViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     serializer_class = WorkerAttendanceSerializer
 
     def get_queryset(self):

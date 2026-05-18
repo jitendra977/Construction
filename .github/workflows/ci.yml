@@ -58,6 +58,19 @@ jobs:
       - name: Run pytest
         run: pytest
 
+      # Export the DRF Spectacular OpenAPI schema so the frontend team can
+      # always download the latest schema from the CI run artifacts page.
+      - name: Export OpenAPI schema
+        run: python manage.py spectacular --color --file schema.yml
+
+      - name: Upload schema artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-schema
+          path: backend/schema.yml
+          # Keep for 30 days so it's available on recent PRs and merges
+          retention-days: 30
+
   # ─────────────────────────────────────────────────────────────
   # Frontend — ESLint + Vite build
   # ─────────────────────────────────────────────────────────────

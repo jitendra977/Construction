@@ -3,7 +3,6 @@ import { useConstruction } from '../../../context/ConstructionContext';
 import workforceService from '../../../services/workforceService';
 import IDCardModal from './IDCardModal';
 import MemberDrawer, { StatusBadge, TypeBadge, Spinner } from './MemberDrawer';
-import { useNavigate } from 'react-router-dom';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const STATUS_MAP = {
@@ -309,6 +308,8 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
     const [portalTarget, setPortalTarget]   = useState(null);
     // Assign-to-project state (used in Workforce Hub where hideProjectFilter=false)
     const [assigningProject, setAssigningProject] = useState({}); // { [memberId]: bool }
+    // Per-member attendance sync state
+    const [syncingAttendance, setSyncingAttendance] = useState({}); // { [memberId]: bool }
 
     // Sync selectedProject when prop changes (e.g. navigation)
     useEffect(() => {
@@ -358,6 +359,17 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
             await workforceService.updateMember(member.id, { status: newStatus });
             load();
         } catch { /* ignore */ }
+    };
+
+    const handleSyncAttendance = async (member) => {
+        setSyncingAttendance(p => ({ ...p, [member.id]: true }));
+        try {
+            await workforceService.syncAttendance(member.id);
+            load();
+        } catch { /* ignore */ }
+        finally {
+            setSyncingAttendance(p => { const n = { ...p }; delete n[member.id]; return n; });
+        }
     };
 
     // Assign/remove worker from project — the unified link that makes the worker
@@ -451,33 +463,62 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
             {loading ? <Spinner /> : members.length === 0 ? (
                 <EmptyState icon="👷" title="No members found" subtitle="Add your first workforce member or import from attendance." />
             ) : (
-                <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                /* Outer shell: fills remaining viewport height, scrolls both axes */
+                <div style={{
+                    position: 'relative',
+                    width: '90vw',
+                    maxWidth: '100%',
+                    overflowX: 'auto',
+                    overflowY: 'auto',
+                    maxHeight: 'calc(100vh - 260px)',
+                    border: '1px solid var(--t-border)',
+                    borderRadius: 10,
+                }}>
+                    <table style={{ width: '100%', minWidth: 860, tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: 12 }}>
+                        {/* ── Sticky header ───────────────────────────────────── */}
                         <thead>
-                            <tr style={{ borderBottom: '2px solid var(--t-border)', color: 'var(--t-text-muted)', textAlign: 'left', background: 'var(--t-surface)' }}>
-                                <th style={{ padding: '9px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>ID</th>
-                                <th style={{ padding: '9px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Name</th>
-                                <th style={{ padding: '9px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Role / Trade</th>
-                                <th style={{ padding: '9px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Type</th>
-                                <th style={{ padding: '9px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Status</th>
-                                <th style={{ padding: '9px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Project</th>
-                                <th style={{ padding: '9px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Today</th>
-                                <th style={{ padding: '9px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Rate/day</th>
-                                <th style={{ padding: '9px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Contact</th>
-                                <th style={{ padding: '9px 10px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Actions</th>
+                            <tr style={{
+                                background: 'var(--t-surface)',
+                                borderBottom: '2px solid var(--t-border)',
+                                color: 'var(--t-text-muted)',
+                                textAlign: 'left',
+                                position: 'sticky', top: 0, zIndex: 2,
+                            }}>
+                                {['ID','Name','Role','Type','Status','Project','Today','Rate/day','Phone','Actions'].map(h => (
+                                    <th key={h} style={{ padding: '8px 8px', fontWeight: 700, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                                ))}
                             </tr>
                         </thead>
                         <tbody>
                             {members.map((m, i) => (
-                                <tr key={m.id} style={{ borderBottom: '1px solid var(--t-border)', background: i % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.015)' }}>
-                                    <td style={{ padding: '9px 10px', fontFamily: 'monospace', fontSize: 11, color: 'var(--t-text-muted)', whiteSpace: 'nowrap' }}>{m.employee_id}</td>
-                                    <td style={{ padding: '9px 10px' }}>
-                                        <div style={{ fontWeight: 700 }}>{m.full_name || '—'}</div>
-                                        {m.date_of_birth && <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>DOB: {m.date_of_birth}</div>}
+                                <tr key={m.id} style={{
+                                    borderBottom: '1px solid var(--t-border)',
+                                    background: i % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.013)',
+                                    transition: 'background 0.1s',
+                                }}>
+                                    {/* ID */}
+                                    <td style={{ padding: '7px 8px', fontFamily: 'monospace', fontSize: 10, color: 'var(--t-text-muted)', whiteSpace: 'nowrap' }}>
+                                        {m.employee_id}
                                     </td>
-                                    <td style={{ padding: '9px 10px', color: 'var(--t-text-muted)', fontSize: 12 }}>{m.role_name || '—'}</td>
-                                    <td style={{ padding: '9px 10px' }}><TypeBadge type={m.worker_type} /></td>
-                                    <td style={{ padding: '9px 10px' }}>
+
+                                    {/* Name */}
+                                    <td style={{ padding: '7px 8px', whiteSpace: 'nowrap' }}>
+                                        <div style={{ fontWeight: 700, fontSize: 12 }}>{m.full_name || '—'}</div>
+                                        {m.date_of_birth && <div style={{ fontSize: 10, color: 'var(--t-text-muted)' }}>{m.date_of_birth}</div>}
+                                    </td>
+
+                                    {/* Role */}
+                                    <td style={{ padding: '7px 8px', color: 'var(--t-text-muted)', fontSize: 11, whiteSpace: 'nowrap' }}>
+                                        {m.role_name || '—'}
+                                    </td>
+
+                                    {/* Type */}
+                                    <td style={{ padding: '7px 8px' }}>
+                                        <TypeBadge type={m.worker_type} />
+                                    </td>
+
+                                    {/* Status — inline pill select */}
+                                    <td style={{ padding: '7px 8px' }}>
                                         <div style={{ position: 'relative', display: 'inline-block' }}>
                                             <select
                                                 value={m.status}
@@ -485,10 +526,10 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
                                                 title="Change status"
                                                 style={{
                                                     appearance: 'none', WebkitAppearance: 'none',
-                                                    padding: '2px 22px 2px 8px', borderRadius: 99, fontSize: 11, fontWeight: 700,
-                                                    border: 'none', cursor: 'pointer', outline: 'none',
-                                                    background: ({ ACTIVE: '#d1fae5', ON_LEAVE: '#fef3c7', INACTIVE: '#f3f4f6', SUSPENDED: '#fee2e2', BLACKLISTED: '#1f2937', TERMINATED: '#fee2e2' })[m.status] || '#f3f4f6',
-                                                    color: ({ ACTIVE: '#065f46', ON_LEAVE: '#92400e', INACTIVE: '#6b7280', SUSPENDED: '#991b1b', BLACKLISTED: '#f9fafb', TERMINATED: '#991b1b' })[m.status] || '#374151',
+                                                    padding: '2px 18px 2px 7px', borderRadius: 99, fontSize: 10, fontWeight: 700,
+                                                    border: 'none', cursor: 'pointer', outline: 'none', whiteSpace: 'nowrap',
+                                                    background: ({ ACTIVE:'#d1fae5', ON_LEAVE:'#fef3c7', INACTIVE:'#f3f4f6', SUSPENDED:'#fee2e2', BLACKLISTED:'#1f2937', TERMINATED:'#fee2e2' })[m.status] || '#f3f4f6',
+                                                    color:      ({ ACTIVE:'#065f46', ON_LEAVE:'#92400e', INACTIVE:'#6b7280', SUSPENDED:'#991b1b', BLACKLISTED:'#f9fafb', TERMINATED:'#991b1b' })[m.status] || '#374151',
                                                 }}>
                                                 <option value="ACTIVE">Active</option>
                                                 <option value="ON_LEAVE">On Leave</option>
@@ -497,73 +538,86 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
                                                 <option value="BLACKLISTED">Blacklisted</option>
                                                 <option value="TERMINATED">Terminated</option>
                                             </select>
-                                            <span style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', fontSize: 8, pointerEvents: 'none' }}>▼</span>
+                                            <span style={{ position: 'absolute', right: 5, top: '50%', transform: 'translateY(-50%)', fontSize: 7, pointerEvents: 'none' }}>▼</span>
                                         </div>
                                     </td>
 
-                                    {/* ── Project assignment column ─────────────────────────
-                                        Inline dropdown to link/unlink this worker to a project.
-                                        Changing this affects task dropdowns, phase workforce tab,
-                                        and team page workers — all read current_project.          */}
-                                    <td style={{ padding: '9px 10px', minWidth: 140 }}>
+                                    {/* Project — link/unlink inline select */}
+                                    <td style={{ padding: '7px 8px' }}>
                                         {assigningProject[m.id] ? (
-                                            <span style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>Saving…</span>
+                                            <span style={{ fontSize: 10, color: 'var(--t-text-muted)' }}>Saving…</span>
                                         ) : (
-                                            <div style={{ position: 'relative', display: 'inline-block' }}>
+                                            <div style={{ position: 'relative', display: 'inline-block', maxWidth: 120 }}>
                                                 <select
                                                     value={m.current_project || ''}
                                                     onChange={e => handleAssignProject(m, e.target.value || null)}
-                                                    title="Assign worker to project"
+                                                    title="Assign to project"
                                                     style={{
                                                         appearance: 'none', WebkitAppearance: 'none',
-                                                        padding: '3px 22px 3px 8px', borderRadius: 7, fontSize: 11, fontWeight: 600,
+                                                        padding: '2px 18px 2px 7px', borderRadius: 6, fontSize: 10, fontWeight: 600,
                                                         border: `1px solid ${m.current_project ? '#86efac' : '#fcd34d'}`,
                                                         background: m.current_project ? '#f0fdf4' : '#fffbeb',
                                                         color: m.current_project ? '#065f46' : '#92400e',
-                                                        cursor: 'pointer', outline: 'none', maxWidth: 130,
-                                                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                                        cursor: 'pointer', outline: 'none',
+                                                        maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                                                     }}>
                                                     <option value="">No Project</option>
-                                                    {projects.map(p => (
-                                                        <option key={p.id} value={p.id}>{p.name}</option>
-                                                    ))}
+                                                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                                 </select>
-                                                <span style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', fontSize: 8, pointerEvents: 'none' }}>▼</span>
+                                                <span style={{ position: 'absolute', right: 5, top: '50%', transform: 'translateY(-50%)', fontSize: 7, pointerEvents: 'none' }}>▼</span>
                                             </div>
                                         )}
                                     </td>
 
-                                    <td style={{ padding: '9px 10px' }}>
+                                    {/* Today attendance + link badges */}
+                                    <td style={{ padding: '7px 8px', whiteSpace: 'nowrap' }}>
                                         <TodayDot status={m.today_status || 'NOT_MARKED'} checkIn={m.today_check_in} checkOut={m.today_check_out} />
+                                        <div style={{ display: 'flex', gap: 3, marginTop: 4 }}>
+                                            {(m.has_attendance_link || m.attendance_worker_id) ? (
+                                                <span title="Linked to attendance" style={{ fontSize: 9, fontWeight: 800, padding: '1px 5px', borderRadius: 4, background: '#d1fae5', color: '#065f46' }}>⏱</span>
+                                            ) : (
+                                                <button onClick={() => handleSyncAttendance(m)} disabled={syncingAttendance[m.id]}
+                                                    title="Create attendance link"
+                                                    style={{ fontSize: 9, fontWeight: 800, padding: '1px 6px', borderRadius: 4, border: 'none', cursor: syncingAttendance[m.id] ? 'wait' : 'pointer', background: '#fef3c7', color: '#92400e' }}>
+                                                    {syncingAttendance[m.id] ? '⏳' : '⚡'}
+                                                </button>
+                                            )}
+                                            <span title={m.account ? 'Has login' : 'No login'} style={{ fontSize: 9, fontWeight: 800, padding: '1px 5px', borderRadius: 4, background: m.account ? '#ede9fe' : '#f3f4f6', color: m.account ? '#5b21b6' : '#9ca3af' }}>
+                                                {m.account ? '👤' : '—'}
+                                            </span>
+                                        </div>
                                     </td>
-                                    <td style={{ padding: '9px 10px', fontSize: 12 }}>
+
+                                    {/* Rate */}
+                                    <td style={{ padding: '7px 8px', fontSize: 11, whiteSpace: 'nowrap' }}>
                                         {m.daily_rate ? `NPR ${Number(m.daily_rate).toLocaleString()}` : <span style={{ color: '#d1d5db' }}>—</span>}
                                     </td>
-                                    <td style={{ padding: '9px 10px', fontSize: 12, color: 'var(--t-text-muted)' }}>
+
+                                    {/* Phone */}
+                                    <td style={{ padding: '7px 8px', fontSize: 11, color: 'var(--t-text-muted)', whiteSpace: 'nowrap' }}>
                                         {m.phone || '—'}
                                     </td>
-                                    <td style={{ padding: '9px 10px' }}>
-                                        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                                            <button onClick={() => setDrawer(m)}
-                                                title="Edit member"
-                                                style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--t-border)', background: 'transparent', color: 'var(--t-text)', cursor: 'pointer', fontSize: 12 }}>
-                                                ✏️ Edit
+
+                                    {/* Actions — icon buttons to save space */}
+                                    <td style={{ padding: '7px 8px' }}>
+                                        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                                            <button onClick={() => setDrawer(m)} title="Edit member"
+                                                style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid var(--t-border)', background: 'transparent', color: 'var(--t-text)', cursor: 'pointer', fontSize: 11, whiteSpace: 'nowrap' }}>
+                                                ✏️
                                             </button>
-                                            <button onClick={() => { setIdCardMemberId(m.id); setShowIDCard(true); }}
-                                                title="View Worker ID Card"
-                                                style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #3b82f6', background: '#eff6ff', color: '#1d4ed8', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                                                🪪 ID
+                                            <button onClick={() => { setIdCardMemberId(m.id); setShowIDCard(true); }} title="View ID Card"
+                                                style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #3b82f6', background: '#eff6ff', color: '#1d4ed8', cursor: 'pointer', fontSize: 11, whiteSpace: 'nowrap' }}>
+                                                🪪
                                             </button>
-                                            <button onClick={() => setPortalTarget(m)}
-                                                title={m.account ? 'Portal account exists' : 'Create worker portal account'}
+                                            <button onClick={() => setPortalTarget(m)} title={m.account ? 'Portal account exists' : 'Create portal account'}
                                                 style={{
-                                                    padding: '4px 10px', borderRadius: 6,
+                                                    padding: '4px 8px', borderRadius: 6, fontSize: 11, whiteSpace: 'nowrap',
                                                     border: `1px solid ${m.account ? '#86efac' : '#f97316'}`,
                                                     background: m.account ? '#f0fdf4' : '#fff7ed',
                                                     color: m.account ? '#065f46' : '#c2410c',
-                                                    cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                                                    cursor: 'pointer',
                                                 }}>
-                                                {m.account ? '✅ Portal' : '📱 Portal'}
+                                                {m.account ? '✅' : '📱'}
                                             </button>
                                         </div>
                                     </td>

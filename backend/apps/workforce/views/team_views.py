@@ -1,4 +1,5 @@
 from rest_framework import viewsets, status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from ..models import Team, WorkforceMember
@@ -6,6 +7,7 @@ from ..serializers.team_serializers import TeamSerializer
 
 
 class TeamViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     serializer_class = TeamSerializer
     queryset         = Team.objects.all()
 

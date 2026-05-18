@@ -40,6 +40,7 @@ from .mqtt_views import (
     mqtt_push_users,
     mqtt_push_single_worker,
     mqtt_reboot_device,
+    register_nfc_device,
 )
 
 router = DefaultRouter()
@@ -106,4 +107,8 @@ urlpatterns = router.urls + [
     path("mqtt/devices/push-worker/", mqtt_push_single_worker, name="mqtt-push-worker"),
     # POST  { project, mac? }  — reboot one or all devices via nfc/<mac>/cmd
     path("mqtt/devices/reboot/",      mqtt_reboot_device,      name="mqtt-reboot-device"),
+    # POST  { project, mac, device_name?, gate_id?, device_mode? }  — manually register a device
+    # PATCH { mac, device_name?, gate_id?, device_mode? }            — update existing device
+    # DELETE { mac }                                                  — remove device
+    path("mqtt/devices/register/",    register_nfc_device,     name="mqtt-register-device"),
 ]

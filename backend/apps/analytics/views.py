@@ -1,4 +1,5 @@
 from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -13,6 +14,7 @@ from apps.core.mixins import ProjectScopedMixin
 
 
 class BudgetForecastViewSet(ProjectScopedMixin, viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = BudgetForecast.objects.select_related("category").all()
     serializer_class = BudgetForecastSerializer
     project_field = 'category__project'
@@ -25,6 +27,7 @@ class BudgetForecastViewSet(ProjectScopedMixin, viewsets.ReadOnlyModelViewSet):
 
 
 class SupplierRateTrendViewSet(ProjectScopedMixin, viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = SupplierRateTrend.objects.select_related("supplier", "material").all()
     serializer_class = SupplierRateTrendSerializer
     project_field = 'material__project'
@@ -41,6 +44,7 @@ class BudgetAlertViewSet(viewsets.ModelViewSet):
     CRUD partial: list/retrieve + `resolve` action. Creation/update is done
     by the analytics services — we only expose read + resolve to the client.
     """
+    permission_classes = [IsAuthenticated]
     queryset = BudgetAlert.objects.all()
     serializer_class = BudgetAlertSerializer
     http_method_names = ["get", "patch", "post"]

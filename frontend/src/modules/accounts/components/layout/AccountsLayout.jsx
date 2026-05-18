@@ -12,11 +12,12 @@ export default function AccountsLayout({ children }) {
 
     // TABS must be inside the component — BASE is a hook-derived value
     const TABS = [
-        { to: BASE,                end: true, icon: '📊', label: 'Dashboard'  },
-        { to: `${BASE}/profile`,              icon: '👤', label: 'My Profile' },
-        { to: `${BASE}/users`,                icon: '👥', label: 'Users'      },
-        { to: `${BASE}/roles`,                icon: '🛡️', label: 'Roles'     },
-        { to: `${BASE}/activity`,             icon: '📋', label: 'Activity'   },
+        { to: BASE,                  end: true, icon: '📊', label: 'Dashboard'  },
+        { to: `${BASE}/profile`,                icon: '👤', label: 'My Profile' },
+        { to: `${BASE}/users`,                  icon: '👥', label: 'Users'      },
+        { to: `${BASE}/roles`,                  icon: '🛡️', label: 'Roles'     },
+        { to: `${BASE}/activity`,               icon: '📋', label: 'Activity'   },
+        { to: `${BASE}/settings`,               icon: '⚙️', label: 'Settings'   },
     ];
 
     return (

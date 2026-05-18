@@ -1,4 +1,5 @@
 from rest_framework import viewsets, response
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from django.db.models import Q
 from itertools import chain
@@ -13,6 +14,7 @@ class GalleryViewSet(viewsets.ViewSet):
     Unified Construction Archive for all project media.
     Supports views: 'timeline' (all photos), 'phases' (grouped by phase), 'blueprints' (tech docs), 'permits' (legal).
     """
+    permission_classes = [IsAuthenticated]
     
     def list(self, request):
         view_mode = request.query_params.get('group_by', 'timeline') # renamed 'group_by' to 'view_mode' conceptualy, keeping param name for compatibility

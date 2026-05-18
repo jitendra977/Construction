@@ -3,6 +3,7 @@ PurchaseOrderViewSet, PurchaseOrderItemViewSet, StockMovementViewSet
 """
 from django.db import transaction
 from rest_framework import viewsets, mixins, status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ReadOnlyModelViewSet
@@ -17,6 +18,7 @@ from ..services.stock import StockService
 
 
 class PurchaseOrderViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     serializer_class = PurchaseOrderSerializer
 
     def get_queryset(self):
@@ -125,6 +127,7 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
 
 
 class PurchaseOrderItemViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     serializer_class = PurchaseOrderItemSerializer
 
     def get_queryset(self):
@@ -136,6 +139,7 @@ class PurchaseOrderItemViewSet(viewsets.ModelViewSet):
 
 
 class StockMovementViewSet(ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticated]
     serializer_class = StockMovementSerializer
 
     def get_queryset(self):

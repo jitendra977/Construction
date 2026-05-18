@@ -4,6 +4,7 @@ ResourceDashboardView — summary statistics for the resource module.
 GET /api/v1/resource/dashboard/?project=<id>
 """
 from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from ..models.material  import Material
@@ -15,6 +16,7 @@ from ..serializers.purchase import StockMovementSerializer
 
 
 class ResourceDashboardView(APIView):
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         pid = request.query_params.get("project")

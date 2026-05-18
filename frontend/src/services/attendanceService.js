@@ -129,6 +129,18 @@ export const attendanceService = {
     // Reboot one device (mac) or all project devices via MQTT cmd topic
     rebootDevice: (project, mac = null) =>
         api.post('/attendance/mqtt/devices/reboot/', { project, ...(mac ? { mac } : {}) }).then(r => r.data),
+
+    // Manually register a new NFC device (for devices not yet connected via MQTT)
+    registerNfcDevice: (payload) =>
+        api.post('/attendance/mqtt/devices/register/', payload).then(r => r.data),
+
+    // Update an existing NFC device's display fields
+    updateNfcDevice: (payload) =>
+        api.patch('/attendance/mqtt/devices/register/', payload).then(r => r.data),
+
+    // Remove a manually registered device
+    deleteNfcDevice: (mac) =>
+        api.delete('/attendance/mqtt/devices/register/', { data: { mac } }).then(r => r.data),
 };
 
 export default attendanceService;

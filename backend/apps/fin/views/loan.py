@@ -3,6 +3,7 @@ Loan views — Disbursements and EMI Payments.
 """
 from django.db import transaction
 from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated
 
 from ..models.loan import LoanDisbursement, LoanEMIPayment
 from ..serializers.loan import LoanDisbursementSerializer, LoanEMIPaymentSerializer
@@ -20,6 +21,7 @@ def _pid(request):
 
 
 class LoanDisbursementViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     serializer_class  = LoanDisbursementSerializer
     http_method_names = ["get", "post", "head", "options"]
 
@@ -43,6 +45,7 @@ class LoanDisbursementViewSet(viewsets.ModelViewSet):
 
 
 class LoanEMIPaymentViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     serializer_class  = LoanEMIPaymentSerializer
     http_method_names = ["get", "post", "head", "options"]
 

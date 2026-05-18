@@ -1,4 +1,5 @@
 from rest_framework import viewsets, filters
+from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from ..models import WorkerAssignment, WorkerEvaluation, SafetyRecord, PerformanceLog, EmergencyContact
 from ..serializers import (
@@ -7,6 +8,7 @@ from ..serializers import (
 )
 
 class WorkerAssignmentViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = WorkerAssignment.objects.select_related('worker', 'project', 'phase', 'task').all()
     serializer_class = WorkerAssignmentSerializer
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
@@ -123,6 +125,7 @@ class WorkerAssignmentViewSet(viewsets.ModelViewSet):
             self._sync_task_assignment(stub)
 
 class WorkerEvaluationViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = WorkerEvaluation.objects.all()
     serializer_class = WorkerEvaluationSerializer
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
@@ -130,6 +133,7 @@ class WorkerEvaluationViewSet(viewsets.ModelViewSet):
     ordering_fields = ['eval_date']
 
 class SafetyRecordViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = SafetyRecord.objects.all()
     serializer_class = SafetyRecordSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -138,6 +142,7 @@ class SafetyRecordViewSet(viewsets.ModelViewSet):
     ordering_fields = ['incident_date', 'severity']
 
 class PerformanceLogViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = PerformanceLog.objects.all()
     serializer_class = PerformanceLogSerializer
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
@@ -145,6 +150,7 @@ class PerformanceLogViewSet(viewsets.ModelViewSet):
     ordering_fields = ['log_date', 'rating']
 
 class EmergencyContactViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = EmergencyContact.objects.all()
     serializer_class = EmergencyContactSerializer
     filter_backends = [DjangoFilterBackend]

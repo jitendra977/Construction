@@ -3,6 +3,7 @@ JournalEntryViewSet — read all entries, or create a manual one.
 """
 from django.db import transaction
 from rest_framework import viewsets, status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from ..models.journal import JournalEntry
@@ -16,6 +17,7 @@ class JournalEntryViewSet(viewsets.ReadOnlyModelViewSet):
     GET  /journal-entries/{id}/      — retrieve one entry with lines
     POST /journal-entries/manual/    — create a manual journal entry
     """
+    permission_classes = [IsAuthenticated]
     serializer_class = JournalEntrySerializer
     http_method_names = ["get", "post", "head", "options"]
 

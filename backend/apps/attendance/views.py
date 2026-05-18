@@ -351,7 +351,8 @@ def _process_attendance_scan(worker, request=None, scan_source="QR", scan_time=N
 
 
 @api_view(["POST"])
-@permission_classes([AllowAny])
+@permission_classes([AllowAny])   # intentional — kiosk/scanner has no user session;
+                                   # security is the signed QR token (worker_id + qr_token pair)
 def qr_scan(request):
     """POST /api/v1/attendance/qr-scan/"""
     raw = request.data.get("qr_data", "")
@@ -373,7 +374,8 @@ def qr_scan(request):
 
 
 @api_view(["POST"])
-@permission_classes([AllowAny])
+@permission_classes([AllowAny])   # intentional — IoT device (ESP32/MQTT) has no user session;
+                                   # security is the NFC UID lookup against registered cards only
 def nfc_attendance_scan(request):
     """
     POST /api/v1/attendance/nfc-attendance/

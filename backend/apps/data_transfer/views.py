@@ -3,6 +3,13 @@ ConstructPro — Data Transfer API
 Export: GET  /api/v1/data-transfer/export/<project_id>/
 Import: POST /api/v1/data-transfer/import/
 List:   GET  /api/v1/data-transfer/projects/
+
+CSV/Excel endpoints (Phase 2):
+  GET  csv/export/<project_id>/?type=workforce|materials|attendance&fmt=csv|xlsx
+  GET  csv/template/?type=workforce|materials&fmt=csv|xlsx
+  POST csv/dry-run/<project_id>/   — preview without writing (multipart: file + type)
+  POST csv/import/<project_id>/    — commit import (multipart: file + type)
+  GET  csv/jobs/<project_id>/      — list ImportJob history for a project
 """
 import re
 import logging
@@ -415,6 +422,7 @@ class ImportProjectDataView(APIView):
     ─ Any member of the target project (or admin) can trigger this.
     """
     permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser]
 
     def post(self, request):
@@ -608,3 +616,218 @@ class SqlTerminalView(APIView):
             'truncated_at': SQL_TERMINAL_ROW_LIMIT if truncated else None,
             'execution_ms': elapsed,
         })
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CSV / Excel import-export (Phase 2)
+# ══════════════════════════════════════════════════════════════════════════════
+
+class CsvExportView(APIView):
+    """
+    GET /api/v1/data-transfer/csv/export/<project_id>/
+    ?type=workforce|materials|attendance
+    &fmt=csv|xlsx
+    &date_from=YYYY-MM-DD   (attendance only)
+    &date_to=YYYY-MM-DD     (attendance only)
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, project_id):
+        from apps.core.models import HouseProject, ProjectMember
+        from .csv_io import export_workforce, export_materials, export_attendance
+
+        # Permission check
+        user = request.user
+        if not (_is_admin(user) or ProjectMember.objects.filter(user=user, project_id=project_id).exists()):
+            return Response({'error': 'Access denied.'}, status=403)
+
+        import_type = request.query_params.get('type', 'workforce').lower()
+        fmt         = request.query_params.get('fmt', 'csv').lower()
+        if fmt not in ('csv', 'xlsx'):
+            fmt = 'csv'
+
+        try:
+            if import_type == 'workforce':
+                return export_workforce(project_id, fmt)
+            elif import_type == 'materials':
+                return export_materials(project_id, fmt)
+            elif import_type == 'attendance':
+                import datetime
+                def _d(val):
+                    try:
+                        return datetime.date.fromisoformat(val) if val else None
+                    except ValueError:
+                        return None
+                date_from = _d(request.query_params.get('date_from'))
+                date_to   = _d(request.query_params.get('date_to'))
+                return export_attendance(project_id, date_from, date_to, fmt)
+            else:
+                return Response({'error': f'Unknown type: {import_type}. Use workforce, materials, or attendance.'}, status=400)
+        except Exception as e:
+            logger.exception('CSV export failed for project %s type %s', project_id, import_type)
+            return Response({'error': str(e)}, status=500)
+
+
+class CsvTemplateView(APIView):
+    """
+    GET /api/v1/data-transfer/csv/template/?type=workforce|materials&fmt=csv|xlsx
+    Returns a blank template with headers + one sample row.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from .csv_io import download_template
+        import_type = request.query_params.get('type', 'workforce').lower()
+        fmt         = request.query_params.get('fmt', 'csv').lower()
+        try:
+            return download_template(import_type, fmt)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=400)
+
+
+class CsvDryRunView(APIView):
+    """
+    POST /api/v1/data-transfer/csv/dry-run/<project_id>/
+    Body (multipart):  file=<upload>  type=workforce|materials
+    Returns preview rows and errors without touching the DB.
+    """
+    permission_classes = [IsAuthenticated]
+    parser_classes     = [MultiPartParser]
+
+    def post(self, request, project_id):
+        from apps.core.models import ProjectMember
+        from .csv_io import dry_run_workforce, dry_run_materials
+
+        user = request.user
+        if not (_is_admin(user) or ProjectMember.objects.filter(user=user, project_id=project_id).exists()):
+            return Response({'error': 'Access denied.'}, status=403)
+
+        upload      = request.FILES.get('file')
+        import_type = (request.data.get('type') or '').lower()
+
+        if not upload:
+            return Response({'error': 'No file. Use field name: file'}, status=400)
+        if import_type not in ('workforce', 'materials'):
+            return Response({'error': 'type must be workforce or materials'}, status=400)
+
+        try:
+            if import_type == 'workforce':
+                preview, errors = dry_run_workforce(upload, project_id)
+            else:
+                preview, errors = dry_run_materials(upload, project_id)
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+
+        new_count    = sum(1 for p in preview if p.get('action') == 'new')
+        exists_count = sum(1 for p in preview if p.get('action') == 'exists')
+        error_count  = len(errors)
+
+        return Response({
+            'preview':       preview[:200],
+            'errors':        errors[:50],
+            'total_rows':    len(preview),
+            'new_rows':      new_count,
+            'existing_rows': exists_count,
+            'error_rows':    error_count,
+            'can_import':    new_count > 0 and error_count == 0,
+        })
+
+
+class CsvImportView(APIView):
+    """
+    POST /api/v1/data-transfer/csv/import/<project_id>/
+    Body (multipart):  file=<upload>  type=workforce|materials
+    Commits the import, creates an ImportJob record.
+    """
+    permission_classes = [IsAuthenticated]
+    parser_classes     = [MultiPartParser]
+
+    def post(self, request, project_id):
+        from apps.core.models import HouseProject, ProjectMember
+        from .models import ImportJob
+        from .csv_io import import_workforce, import_materials
+
+        user = request.user
+        if not (_is_admin(user) or ProjectMember.objects.filter(user=user, project_id=project_id).exists()):
+            return Response({'error': 'Access denied.'}, status=403)
+
+        try:
+            project = HouseProject.objects.get(pk=project_id)
+        except HouseProject.DoesNotExist:
+            return Response({'error': 'Project not found.'}, status=404)
+
+        upload      = request.FILES.get('file')
+        import_type = (request.data.get('type') or '').lower()
+
+        if not upload:
+            return Response({'error': 'No file. Use field name: file'}, status=400)
+        if import_type not in ('workforce', 'materials'):
+            return Response({'error': 'type must be workforce or materials'}, status=400)
+
+        file_name   = getattr(upload, 'name', 'upload')
+        file_format = 'xlsx' if file_name.lower().endswith(('.xlsx', '.xls')) else 'csv'
+
+        # Create tracking record
+        job = ImportJob.objects.create(
+            project       = project,
+            created_by    = user,
+            import_type   = import_type,
+            file_name     = file_name,
+            file_format   = file_format,
+            status        = 'importing',
+        )
+
+        try:
+            if import_type == 'workforce':
+                imported, skipped, errors = import_workforce(upload, project_id, user, job)
+            else:
+                imported, skipped, errors = import_materials(upload, project_id, user, job)
+        except Exception as e:
+            job.mark_failed(str(e))
+            logger.exception('CSV import failed for project %s type %s', project_id, import_type)
+            return Response({'error': str(e), 'job_id': job.id}, status=500)
+
+        return Response({
+            'success':   True,
+            'job_id':    job.id,
+            'imported':  imported,
+            'skipped':   skipped,
+            'errors':    errors[:50],
+            'message':   f'Imported {imported} {import_type} record(s). {skipped} skipped.',
+        })
+
+
+class ImportJobListView(APIView):
+    """
+    GET /api/v1/data-transfer/csv/jobs/<project_id>/
+    Returns recent ImportJob history for a project.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, project_id):
+        from apps.core.models import ProjectMember
+        from .models import ImportJob
+
+        user = request.user
+        if not (_is_admin(user) or ProjectMember.objects.filter(user=user, project_id=project_id).exists()):
+            return Response({'error': 'Access denied.'}, status=403)
+
+        jobs = ImportJob.objects.filter(project_id=project_id).select_related('created_by')[:50]
+        data = [
+            {
+                'id':            j.id,
+                'import_type':   j.import_type,
+                'file_name':     j.file_name,
+                'file_format':   j.file_format,
+                'status':        j.status,
+                'rows_total':    j.rows_total,
+                'rows_imported': j.rows_imported,
+                'rows_skipped':  j.rows_skipped,
+                'rows_failed':   j.rows_failed,
+                'created_by':    j.created_by.get_full_name() if j.created_by else '—',
+                'created_at':    j.created_at,
+                'completed_at':  j.completed_at,
+            }
+            for j in jobs
+        ]
+        return Response({'jobs': data, 'count': len(data)})

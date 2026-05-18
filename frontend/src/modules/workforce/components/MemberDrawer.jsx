@@ -252,11 +252,20 @@ export default function MemberDrawer({ member, onClose, onSaved, onDeleted, proj
             };
             delete payload.name;
 
+            let savedId;
             if (isEdit) {
                 await workforceService.updateMember(member.id, payload);
+                savedId = member.id;
             } else {
-                await workforceService.createMember(payload);
+                const created = await workforceService.createMember(payload);
+                savedId = created?.id;
             }
+
+            // Auto-create + link AttendanceWorker so today_status works immediately
+            if (savedId && (form.current_project || projectId)) {
+                try { await workforceService.syncAttendance(savedId); } catch { /* non-fatal */ }
+            }
+
             onSaved();
         } catch (e) {
             const data = e?.response?.data;

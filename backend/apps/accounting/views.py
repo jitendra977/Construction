@@ -465,6 +465,8 @@ class ReportsAPIView(APIView):
 # ─── SUMMARY (Single-call dashboard feed) ─────────────────────────────────────
 
 class SummaryAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
         pid = _project_id(request)
 

@@ -79,9 +79,10 @@ function DesktopDashboard() {
         { id: 'teams',         icon: '👥',  label: 'Team Management (टोली व्यवस्थापन)'     },
         { id: 'location',      icon: '📍',  label: 'Location (स्थान ट्र्याकिङ)'            },
         // Settings / Account
-        { id: 'accounts',      icon: '👤',  label: 'Accounts (खाता)'                      },
-        { id: 'guides',        icon: '📚',  label: 'User Guide (मद्दत निर्देशिका)'         },
-        { id: 'data-transfer', icon: '🔄',  label: 'Data Transfer (डाटा स्थानान्तरण)'      },
+        { id: 'accounts',          icon: '👤',  label: 'Accounts (खाता)'                      },
+        { id: 'accounts/settings', icon: '⚙️',  label: 'Settings (सेटिङ)'                     },
+        { id: 'guides',            icon: '📚',  label: 'User Guide (मद्दत निर्देशिका)'         },
+        { id: 'data-transfer',     icon: '🔄',  label: 'Data Transfer (डाटा स्थानान्तरण)'      },
     ];
 
     const sidebarW = collapsed ? SIDEBAR_COLLAPSED : SIDEBAR_EXPANDED;

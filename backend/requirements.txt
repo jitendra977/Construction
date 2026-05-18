@@ -24,6 +24,11 @@ django-celery-results==2.5.1
 drf-spectacular==0.27.2
 paho-mqtt==1.6.1
 
+# ── Observability ─────────────────────────────────────────────
+# sentry-sdk[django] instruments Django, DRF, Celery, and Redis automatically.
+# Set SENTRY_DSN in the environment; if unset, Sentry is disabled (no-op).
+sentry-sdk[django]>=2.0.0,<3.0.0
+
 # ── AI / LLM ──────────────────────────────────────────────────
 openai>=1.30.0
 edge-tts>=6.1.9

@@ -6,6 +6,41 @@ from datetime import timedelta
 from decouple import config, Csv
 import dj_database_url
 
+# ── Sentry — error tracking ───────────────────────────────────────────────────
+# Set SENTRY_DSN in your environment to enable error tracking.
+# Leave it unset (or empty) in local dev — Sentry is completely disabled then.
+_SENTRY_DSN = config('SENTRY_DSN', default='')
+if _SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+    from sentry_sdk.integrations.celery import CeleryIntegration
+    from sentry_sdk.integrations.redis import RedisIntegration
+    from sentry_sdk.integrations.logging import LoggingIntegration
+    import logging as _logging
+
+    sentry_sdk.init(
+        dsn=_SENTRY_DSN,
+        integrations=[
+            DjangoIntegration(
+                transaction_style='url',   # group by URL pattern, not view name
+                middleware_spans=True,
+            ),
+            CeleryIntegration(),
+            RedisIntegration(),
+            # Capture WARNING+ as breadcrumbs, ERROR+ as Sentry events
+            LoggingIntegration(
+                level=_logging.WARNING,
+                event_level=_logging.ERROR,
+            ),
+        ],
+        # % of transactions sent to Sentry Performance; tune per-env via env var
+        traces_sample_rate=config('SENTRY_TRACES_SAMPLE_RATE', default=0.0, cast=float),
+        # % of sessions with full profiling data
+        profiles_sample_rate=config('SENTRY_PROFILES_SAMPLE_RATE', default=0.0, cast=float),
+        environment=config('SENTRY_ENVIRONMENT', default='development'),
+        send_default_pii=False,   # never send passwords / tokens to Sentry
+    )
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -128,6 +163,8 @@ OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    # Attaches X-Request-Id to every request/response for log correlation + Sentry
+    'utils.request_id_middleware.RequestIdMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -137,6 +174,8 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'simple_history.middleware.HistoryRequestMiddleware',
     'apps.core.signals.AuditLogMiddleware',
+    # Injects Deprecation + Sunset headers on legacy API prefixes (/finance/, /estimator/)
+    'utils.deprecation_middleware.DeprecationWarningMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -281,7 +320,10 @@ REST_FRAMEWORK = {
         # so the old limit was easily exhausted during normal testing,
         # locking out legitimate users with no visible error.
         'anon': '300/day',
-        'user': '2000/day'
+        'user': '2000/day',
+        # Auth-specific: login has its own in-process throttle (views.py).
+        # password_reset is used by PasswordResetThrottle (accounts/throttles.py).
+        'password_reset': '10/hour',
     }
 }
 
@@ -323,25 +365,43 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = config('FILE_UPLOAD_MAX_MEMORY_SIZE', default=5242
 DATA_UPLOAD_MAX_MEMORY_SIZE = config('DATA_UPLOAD_MAX_MEMORY_SIZE', default=52428800, cast=int)
 
 # ── Logging ───────────────────────────────────────────────────
-# All errors (including 500s) go to stderr → captured by Docker logs.
+# All errors (including 500s) go to stderr → captured by Docker / systemd logs.
 # Run: docker logs construction_backend --tail=200 --follow
+#
+# In production (LOG_FORMAT=json) each line is a single JSON object:
+#   {"time":"…","level":"ERROR","logger":"…","message":"…","request_id":"…"}
+# This makes it easy to query in Datadog, CloudWatch, Loki, etc.
+# In development (LOG_FORMAT=text, the default) logs are human-readable.
+_LOG_FORMAT = config('LOG_FORMAT', default='text')
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'filters': {
+        'request_id': {
+            '()': 'utils.request_id_middleware.RequestIdFilter',
+        },
+    },
     'formatters': {
         'verbose': {
-            'format': '[{levelname}] {asctime} {module} {process:d} | {message}',
+            'format': '[{levelname}] {asctime} {module} {process:d} rid={request_id} | {message}',
             'style': '{',
         },
         'simple': {
             'format': '[{levelname}] {message}',
             'style': '{',
         },
+        # Structured JSON formatter — no extra dependency needed.
+        # Fields: time, level, logger, module, process, request_id, message
+        'json': {
+            '()': 'utils.json_log_formatter.JsonFormatter',
+        },
     },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
+            'formatter': 'json' if _LOG_FORMAT == 'json' else 'verbose',
+            'filters': ['request_id'],
         },
     },
     'root': {

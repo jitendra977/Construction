@@ -1,4 +1,5 @@
 from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
@@ -16,6 +17,7 @@ class WastageThresholdViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     PATCH  /api/v1/wastage-thresholds/{id}/  — update
     DELETE /api/v1/wastage-thresholds/{id}/  — delete
     """
+    permission_classes = [IsAuthenticated]
     queryset           = WastageThreshold.objects.select_related('material').order_by('material__name')
     serializer_class   = WastageThresholdSerializer
     http_method_names  = ['get', 'post', 'patch', 'delete', 'head', 'options']
@@ -31,6 +33,7 @@ class WastageAlertViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     GET   /api/v1/wastage-alerts/dashboard/  — aggregated wastage stats
     PATCH /api/v1/wastage-alerts/{id}/resolve/ — mark alert as resolved
     """
+    permission_classes = [IsAuthenticated]
     queryset           = WastageAlert.objects.select_related(
                              'material', 'threshold', 'transaction'
                          ).order_by('-created_at')

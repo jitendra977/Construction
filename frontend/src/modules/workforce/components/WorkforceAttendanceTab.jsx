@@ -428,7 +428,7 @@ export default function WorkforceAttendanceTab({ projectId }) {
                                                 disabled={isMarking}
                                                 title={`Mark ${b.label}`}
                                                 style={{
-                                                    padding: '4px 8px', borderRadius: 7, border: 'none',
+                                                    padding: '4px 8px', borderRadius: 7,
                                                     background: isCurrent ? b.bg : 'var(--t-surface)',
                                                     color: isCurrent ? '#fff' : 'var(--t-text3)',
                                                     fontWeight: 800, fontSize: 11,

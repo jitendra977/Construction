@@ -4,6 +4,7 @@ Creating a transfer automatically posts the journal entry.
 """
 from django.db import transaction
 from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated
 
 from ..models.transfer import CashTransfer
 from ..serializers.transfer import CashTransferSerializer
@@ -11,6 +12,7 @@ from ..services.banking import BankingService
 
 
 class CashTransferViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     serializer_class  = CashTransferSerializer
     http_method_names = ["get", "post", "head", "options"]   # transfers are immutable once posted
 

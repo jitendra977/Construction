@@ -2,6 +2,7 @@ import logging
 
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 
@@ -15,19 +16,27 @@ from .serializers import (
 )
 from apps.core.mixins import ProjectScopedMixin
 
+# ── DEPRECATED: apps.resources is the legacy module. ─────────────────────────
+# Canonical replacement is apps.resource (/api/v1/resource/).
+# These viewsets are kept alive for backward compat; all are IsAuthenticated.
+# ─────────────────────────────────────────────────────────────────────────────
+
 class SupplierViewSet(viewsets.ModelViewSet):
     queryset = Vendor.objects.all()
     serializer_class = SupplierSerializer
+    permission_classes = [IsAuthenticated]
 
 class ContractorViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = Contractor.objects.all()
     serializer_class = ContractorSerializer
+    permission_classes = [IsAuthenticated]
     project_field = 'project'
 
 
 class MaterialViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = Material.objects.all()
     serializer_class = MaterialSerializer
+    permission_classes = [IsAuthenticated]
     project_field = 'project'
 
     @action(detail=True, methods=['post'])
@@ -198,6 +207,7 @@ class MaterialViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
 class MaterialTransactionViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = MaterialTransaction.objects.all().order_by('-date', '-created_at')
     serializer_class = MaterialTransactionSerializer
+    permission_classes = [IsAuthenticated]
     project_field = 'material__project'
 
     def perform_create(self, serializer):
@@ -268,6 +278,7 @@ class MaterialTransactionViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
 class DocumentViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = Document.objects.all()
     serializer_class = DocumentSerializer
+    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['document_type']
     project_field = 'project'
@@ -282,6 +293,7 @@ class WastageAlertViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     """
     queryset = WastageAlert.objects.select_related('material', 'threshold', 'transaction').order_by('-created_at')
     serializer_class = WastageAlertSerializer
+    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['severity', 'is_resolved', 'material']
     http_method_names = ['get', 'patch', 'head', 'options']
@@ -394,6 +406,7 @@ class WastageThresholdViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     """
     queryset = WastageThreshold.objects.select_related('material').order_by('material__name')
     serializer_class = WastageThresholdSerializer
+    permission_classes = [IsAuthenticated]
     http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
     project_field = 'material__project'
 

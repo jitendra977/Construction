@@ -17,6 +17,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import attendanceService from '../../services/attendanceService';
+import workforceService from '../../services/workforceService';
 import QRScannerTab from './QRScannerTab';
 import ConfirmModal from '../../components/common/ConfirmModal';
 
@@ -407,6 +408,11 @@ function MobileDailySheet({ projectId, onAlertCount }) {
         if (!projectId) return;
         setLoading(true); setError('');
         try {
+            // Auto-sync: create AttendanceWorker records for any workforce members
+            // that don't have one yet — so ALL registered staff appear on this sheet.
+            // We await this so newly-synced workers are included in the getWorkers call below.
+            await workforceService.syncAllAttendance({ project: projectId }).catch(() => {});
+
             const [ws, recs, scanLogs, settingsData] = await Promise.all([
                 attendanceService.getWorkers({ project: projectId, active: 'true' }),
                 attendanceService.getRecords({ project: projectId, date }),

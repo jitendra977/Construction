@@ -13,6 +13,16 @@ from rest_framework.routers import DefaultRouter
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 
+def trigger_sentry_error(request):
+    """
+    Temporary debug endpoint — intentionally raises a ZeroDivisionError so you
+    can confirm Sentry is receiving events.
+    Visit http://localhost:8000/sentry-debug/ once, check your Sentry dashboard,
+    then REMOVE this view and its urlpattern.
+    """
+    division_by_zero = 1 / 0
+
+
 def health_check(request):
     """Lightweight health-check endpoint used by Docker and deploy scripts."""
     try:
@@ -70,15 +80,21 @@ urlpatterns = [
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 
     path('api/v1/health/', health_check, name='health-check'),
+    # ── TEMP: remove after Sentry is verified ─────────────────────────────────
+    path('sentry-debug/', trigger_sentry_error, name='sentry-debug'),
+    # ──────────────────────────────────────────────────────────────────────────
     path('admin/', admin.site.urls),
     path('api/v1/auth/', include('apps.accounts.urls')),      # Auth endpoints (legacy)
     path('api/v1/accounts/', include(accounts_urlpatterns)),  # Accounts module
     path('api/v1/worker/',   include(worker_urlpatterns)),    # Worker portal (phone+PIN)
     path('api/v1/dashboard/combined/', DashboardDataView.as_view(), name='dashboard-combined'),
     path('api/v1/', include(router.urls)),       # Main API
-    path('api/v1/finance/', include('apps.finance.urls')),
-    path('api/v1/accounting/', include('apps.accounting.urls')),
-    path('api/v1/estimator/', include('apps.estimator.urls')),
+    # ── DEPRECATED legacy modules — kept alive so old clients don't 500,
+    #    but new code should use /fin/, /resource/, and /estimate/ instead.
+    #    These will be removed in Phase 3 once all clients are migrated.
+    path('api/v1/finance/', include('apps.finance.urls')),      # legacy → use /fin/
+    path('api/v1/accounting/', include('apps.accounting.urls')),# legacy → no canonical replacement yet
+    path('api/v1/estimator/', include('apps.estimator.urls')),  # legacy → use /estimate/
     path('api/v1/permits/', include('apps.permits.urls')),
     path('api/v1/photo-intel/', include('apps.photo_intel.urls')),
     path('api/v1/analytics/', include('apps.analytics.urls')),

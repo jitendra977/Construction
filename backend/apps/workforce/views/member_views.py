@@ -1,4 +1,5 @@
 from rest_framework import viewsets, filters, status, permissions
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
@@ -12,6 +13,7 @@ from ..utils.badge_utils import generate_qr_base64
 
 
 class WorkforceMemberViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = WorkforceMember.objects.select_related(
         'account', 'role', 'current_project', 'attendance_worker'
     ).all()
@@ -56,11 +58,16 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
         return Response(data)
 
     @xframe_options_exempt
-    @action(detail=True, methods=['get'], permission_classes=[permissions.AllowAny])
+    @action(detail=True, methods=['get'], permission_classes=[permissions.IsAuthenticated])
     def badge(self, request, pk=None):
         """
         GET /api/v1/workforce/members/{id}/badge/
         Renders a printable ID card (badge) for the worker.
+
+        Security: requires authentication (IsAuthenticated, not AllowAny).
+        The badge contains the worker's QR token which doubles as an attendance
+        check-in credential — exposing it publicly would allow anyone who knows
+        a worker's ID to spoof their attendance record.
         """
         member = self.get_object()
         

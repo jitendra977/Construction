@@ -3,6 +3,7 @@ Bill & BillPayment views.
 """
 from django.db import transaction
 from rest_framework import viewsets, status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -22,6 +23,7 @@ def _pid(request):
 
 
 class BillViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     serializer_class = BillSerializer
 
     def get_queryset(self):
@@ -73,6 +75,7 @@ class BillViewSet(viewsets.ModelViewSet):
 
 
 class BillPaymentViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     serializer_class  = BillPaymentSerializer
     http_method_names = ["get", "post", "head", "options"]
 

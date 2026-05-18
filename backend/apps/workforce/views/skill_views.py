@@ -1,9 +1,11 @@
 from rest_framework import viewsets, filters
+from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from ..models import Skill, WorkerSkill
 from ..serializers import SkillSerializer, WorkerSkillSerializer
 
 class SkillViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = Skill.objects.all()
     serializer_class = SkillSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -12,6 +14,7 @@ class SkillViewSet(viewsets.ModelViewSet):
     ordering_fields = ['name']
 
 class WorkerSkillViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = WorkerSkill.objects.all()
     serializer_class = WorkerSkillSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]

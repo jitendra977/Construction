@@ -1,4 +1,5 @@
 from rest_framework import serializers, status, viewsets
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -69,6 +70,7 @@ class PermitChecklistSerializer(serializers.ModelSerializer):
 
 # ─── ViewSets ────────────────────────────────────────────────────────
 class MunicipalityTemplateViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = MunicipalityTemplate.objects.prefetch_related("steps__required_documents")
     serializer_class = MunicipalityTemplateSerializer
 
@@ -79,11 +81,13 @@ class MunicipalityTemplateViewSet(viewsets.ModelViewSet):
 
 
 class DocumentTemplateViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = DocumentTemplate.objects.all()
     serializer_class = DocumentTemplateSerializer
 
 
 class PermitChecklistViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = PermitChecklist.objects.prefetch_related("items").select_related("template")
     serializer_class = PermitChecklistSerializer
 
@@ -121,6 +125,7 @@ class PermitChecklistViewSet(viewsets.ModelViewSet):
 
 
 class ChecklistItemViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = ChecklistItem.objects.all()
     serializer_class = ChecklistItemSerializer
 
@@ -133,5 +138,6 @@ class ChecklistItemViewSet(viewsets.ModelViewSet):
 
 
 class DeadlineReminderViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = DeadlineReminder.objects.select_related("item").all()
     serializer_class = DeadlineReminderSerializer

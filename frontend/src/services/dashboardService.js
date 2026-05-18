@@ -22,7 +22,14 @@ export const dashboardService = {
     getTasks: () => api.get('tasks/'),
     getRecentUpdates: () => api.get('updates/'),
 
-    // Finance (budget categories & expenses)
+    // ── DEPRECATED: Legacy finance endpoints (/api/v1/finance/) ──────────────
+    // These call apps.finance (old module). The canonical replacement is
+    // apps.fin (/api/v1/fin/), but that module uses different models:
+    //   • apps.fin has no Expense or Payment models (use Bills instead)
+    //   • apps.fin BudgetCategory uses UUID PKs vs int PKs here
+    //   • FundingSource / PhaseBudgetAllocation have no fin equivalents yet
+    // Full migration is deferred to Phase 3. Backend adds Deprecation headers.
+    // ─────────────────────────────────────────────────────────────────────────
     getBudgetCategories: () => api.get('finance/budget-categories/'),
     createBudgetCategory: (data) => api.post('finance/budget-categories/', data),
     updateBudgetCategory: (id, data) => api.patch(`finance/budget-categories/${id}/`, data),
@@ -36,7 +43,7 @@ export const dashboardService = {
     exportExpensesPdf: (params = {}) =>
         api.get('finance/expenses/export-pdf/', { params, responseType: 'blob' }),
 
-    // Payments
+    // Payments (legacy — no fin equivalent; see note above)
     getPayments: () => api.get('finance/payments/'),
     createPayment: (data) => api.post('finance/payments/', data),
     updatePayment: (id, data) => api.patch(`finance/payments/${id}/`, data),
@@ -104,7 +111,7 @@ export const dashboardService = {
         }),
     getGallery: (groupBy = 'category') => api.get(`gallery/?group_by=${groupBy}`),
 
-    // Funding
+    // Funding (legacy — no fin equivalent; see DEPRECATED note above)
     getFundingSources: () => api.get('finance/funding-sources/'),
     createFundingSource: (data) => api.post('finance/funding-sources/', data),
     updateFundingSource: (id, data) => api.patch(`finance/funding-sources/${id}/`, data),

@@ -1,4 +1,5 @@
 from rest_framework import viewsets, status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import PermitStep, PermitDocument
@@ -8,11 +9,13 @@ from apps.core.mixins import ProjectScopedMixin
 
 class PermitDocumentViewSet(viewsets.ModelViewSet):
     """CRUD for permit documents (upload, list, delete)."""
+    permission_classes = [IsAuthenticated]
     queryset         = PermitDocument.objects.all().order_by('-uploaded_at')
     serializer_class = PermitDocumentSerializer
 
 
 class PermitStepViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset         = PermitStep.objects.all()
     serializer_class = PermitStepSerializer
     project_field    = 'project'

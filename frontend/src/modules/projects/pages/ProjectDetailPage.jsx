@@ -73,7 +73,7 @@ export default function ProjectDetailPage() {
     const s = stats;
 
     return (
-        <div style={{ padding: isMobile ? '14px 14px 24px' : '24px', maxWidth: 960, margin: '0 auto' }} className="space-y-5">
+        <div style={{ padding: isMobile ? '14px 14px 24px' : '24px' }} className="space-y-5">
             {/* Project banner */}
             {project && (
                 <div className="rounded-2xl p-5 flex flex-wrap items-start gap-4"

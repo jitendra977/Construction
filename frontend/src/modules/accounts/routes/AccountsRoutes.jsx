@@ -10,6 +10,7 @@
  *   /accounts/users     → UsersPage          (list / invite / manage users)
  *   /accounts/roles     → RolesPage          (CRUD roles + permissions)
  *   /accounts/activity  → ActivityPage       (audit log viewer)
+ *   /accounts/settings  → SettingsPage       (appearance, notifications, system)
  */
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
@@ -20,6 +21,7 @@ import ProfilePage         from '../pages/ProfilePage';
 import UsersPage           from '../pages/UsersPage';
 import RolesPage           from '../pages/RolesPage';
 import ActivityPage        from '../pages/ActivityPage';
+import SettingsPage        from '../pages/SettingsPage';
 
 export default function AccountsRoutes() {
     return (
@@ -31,6 +33,7 @@ export default function AccountsRoutes() {
                     <Route path="users"     element={<UsersPage />}         />
                     <Route path="roles"     element={<RolesPage />}         />
                     <Route path="activity"  element={<ActivityPage />}      />
+                    <Route path="settings"  element={<SettingsPage />}      />
                     <Route path="*"         element={<Navigate to="" replace />} />
                 </Routes>
             </AccountsLayout>

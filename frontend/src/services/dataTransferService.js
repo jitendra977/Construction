@@ -37,4 +37,46 @@ export const dataTransferService = {
             onUploadProgress,
         });
     },
+
+    // ── CSV / Excel (Phase 2) ──────────────────────────────────────────────
+
+    // Download workforce/materials/attendance as CSV or XLSX
+    csvExport: (projectId, type, fmt = 'csv', extra = {}) =>
+        api.get(`data-transfer/csv/export/${projectId}/`, {
+            params: { type, fmt, ...extra },
+            responseType: 'blob',
+        }),
+
+    // Download a blank template with headers + sample row
+    csvTemplate: (type, fmt = 'csv') =>
+        api.get('data-transfer/csv/template/', {
+            params: { type, fmt },
+            responseType: 'blob',
+        }),
+
+    // Dry-run preview without writing anything
+    csvDryRun: (projectId, type, file, onProgress) => {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('type', type);
+        return api.post(`data-transfer/csv/dry-run/${projectId}/`, fd, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            onUploadProgress: onProgress,
+        });
+    },
+
+    // Commit import (creates ImportJob)
+    csvImport: (projectId, type, file, onProgress) => {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('type', type);
+        return api.post(`data-transfer/csv/import/${projectId}/`, fd, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            onUploadProgress: onProgress,
+        });
+    },
+
+    // Import job history
+    csvJobs: (projectId) =>
+        api.get(`data-transfer/csv/jobs/${projectId}/`).then(r => r.data),
 };

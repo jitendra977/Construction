@@ -1,4 +1,5 @@
 from rest_framework import viewsets, filters
+from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from ..models import WageStructure, PayrollRecord
 from ..serializers import WageStructureSerializer, PayrollRecordSerializer
@@ -10,6 +11,7 @@ class WageStructureViewSet(viewsets.ModelViewSet):
     filterset_fields = ['worker']
 
 class PayrollRecordViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = PayrollRecord.objects.all()
     serializer_class = PayrollRecordSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
