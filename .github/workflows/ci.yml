@@ -100,7 +100,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             set -e
-            cd ${{ secrets.REMOTE_PROJECT_DIR }}
+            cd /home/nishanaweb/project/Construction
             echo "── Pulling latest code ──"
             git pull origin main
             echo "── Building images ──"
