@@ -20,7 +20,7 @@ class AuthenticationTestCase(TestCase):
     def test_login_success(self):
         """Test successful login"""
         response = self.client.post('/api/v1/auth/login/', {
-            'username': 'testuser',
+            'email': 'test@example.com',
             'password': 'testpass123'
         })
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -31,7 +31,7 @@ class AuthenticationTestCase(TestCase):
     def test_login_invalid_credentials(self):
         """Test login with invalid credentials"""
         response = self.client.post('/api/v1/auth/login/', {
-            'username': 'testuser',
+            'email': 'test@example.com',
             'password': 'wrongpassword'
         })
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -40,7 +40,7 @@ class AuthenticationTestCase(TestCase):
         """Test getting user profile"""
         # Login first
         login_response = self.client.post('/api/v1/auth/login/', {
-            'username': 'testuser',
+            'email': 'test@example.com',
             'password': 'testpass123'
         })
         token = login_response.data['access']
