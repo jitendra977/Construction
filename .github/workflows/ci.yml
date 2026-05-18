@@ -2,9 +2,20 @@ name: CI / CD
 
 on:
   push:
-    branches: ["**"]
+    branches:
+      - main        # deploy on merge to main
+      - dev         # tests only on dev branch
   pull_request:
-    branches: ["**"]
+    branches:
+      - main        # tests run on every PR targeting main
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: 'Deploy to VPS after tests pass?'
+        required: true
+        default: 'yes'
+        type: choice
+        options: ['yes', 'no']
 
 jobs:
   # ─────────────────────────────────────────────────────────────
@@ -89,7 +100,9 @@ jobs:
     name: Deploy to VPS
     runs-on: ubuntu-latest
     needs: [backend, frontend]   # only runs if both jobs pass
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: |
+      (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy == 'yes')
 
     steps:
       - name: Deploy via SSH
@@ -104,11 +117,12 @@ jobs:
             echo "── Pulling latest code ──"
             git pull origin main
             echo "── Building images ──"
-            docker compose -f docker-compose.prod.yml build --pull
+            make build
+            echo "── Starting containers ──"
+            make up
             echo "── Running migrations ──"
-            docker compose -f docker-compose.prod.yml run --rm --no-deps \
-              --entrypoint /bin/sh backend \
-              -c "python manage.py migrate --noinput"
-            echo "── Restarting containers ──"
-            docker compose -f docker-compose.prod.yml up -d
+            make migrate
+            echo "── Collecting static files ──"
+            make collectstatic
             echo "── Deploy complete ──"
+            make ps

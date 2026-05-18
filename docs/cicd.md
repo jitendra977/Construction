@@ -1,131 +1,222 @@
 # CI / CD Pipeline
 
 **Last updated:** 2026-05-18
+**Workflow file:** `.github/workflows/ci.yml`
 
-Every push to GitHub triggers the pipeline automatically. Tests run on all branches; deployment only fires on `main` after all tests pass.
+Every push to GitHub runs tests automatically. Every push to `main` that passes tests auto-deploys to the VPS using SSH + Make.
 
 ---
 
-## Pipeline Diagram
+## Pipeline Flow
 
 ```
 git push (any branch)
         │
-        ├─────────────────────────┐
-        ▼                         ▼
-  ┌─────────────┐         ┌─────────────────┐
-  │   Backend   │         │    Frontend     │
-  │  (Python 3.9)│         │   (Node 20)    │
-  │             │         │                 │
-  │ • manage.py │         │ • npm install   │
-  │   check     │         │ • ESLint        │
-  │ • migrate   │         │   (non-block)   │
-  │   (SQLite)  │         │ • vite build    │
-  │ • pytest    │         │                 │
-  └──────┬──────┘         └────────┬────────┘
-         │                         │
-         └──────────┬──────────────┘
+        ├──────────────────────────┐
+        ▼                          ▼
+  ┌─────────────┐          ┌──────────────┐
+  │   Backend   │          │   Frontend   │
+  │             │          │              │
+  │ manage.py   │          │ npm install  │
+  │   check     │          │ eslint       │
+  │ migrate     │          │ vite build   │
+  │ pytest      │          │              │
+  └──────┬──────┘          └──────┬───────┘
+         │     (run in parallel)  │
+         └──────────┬─────────────┘
                     ▼
-           branch = main
-           + both jobs pass?
+           branch = main AND both pass?
                     │
            ┌────────┴────────┐
-           │ NO              │ YES
+           NO                YES
            ▼                 ▼
-          stop        ┌─────────────────┐
-                      │  Deploy to VPS  │
-                      │                 │
-                      │ • SSH in        │
-                      │ • git pull main │
-                      │ • docker build  │
-                      │ • migrate       │
-                      │ • restart       │
-                      └─────────────────┘
+          stop        SSH → VPS
+                        git pull origin main
+                        make build
+                        make up
+                        make migrate
+                        make collectstatic
+                        make ps
 ```
 
 ---
 
-## Workflow File
+## Real-World Workflow
 
-Located at `.github/workflows/ci.yml`. Three jobs:
+**Never push directly to `main`.** Work on a feature branch, then merge when ready to deploy.
 
-**`backend`** — runs on every push/PR
+```bash
+# 1. Start a new feature
+git checkout -b feature/workforce-routes
 
-| Step | Command | What it checks |
-|------|---------|----------------|
-| Install deps | `pip install -r requirements-dev.txt` | All Python packages resolve |
-| Django check | `python manage.py check` | No configuration errors |
-| Migrate | `python manage.py migrate --run-syncdb` | All migrations apply cleanly |
-| Tests | `pytest` | No regressions |
+# 2. Work, commit as many times as you want
+git add .
+git commit -m "feat: add workforce member list page"
+# → CI runs tests only, no deploy. Safe to push freely.
+git push origin feature/workforce-routes
 
-Uses SQLite — no PostgreSQL service needed in CI. Settings fall back automatically when `DB_NAME` is not set.
+# 3. When ready to deploy → merge to main
+git checkout main
+git merge feature/workforce-routes
+git push origin main
+# → CI tests pass → auto-deploy to VPS
+```
 
-**`frontend`** — runs on every push/PR, in parallel with backend
+Or use **GitHub Pull Requests**: open a PR from your branch → review → merge. CI runs on the PR, deploy fires on merge.
 
-| Step | Command | What it checks |
-|------|---------|----------------|
-| Install deps | `npm install` | All packages resolve |
-| Lint | `npm run lint` | ESLint (non-blocking — pre-existing issues being cleaned up in Phase 3) |
-| Build | `npm run build` | Vite compiles without errors |
+### Manual deploy (no code push needed)
 
-**`deploy`** — runs only on push to `main`, only if both jobs above pass
-
-| Step | What happens |
-|------|-------------|
-| SSH | Connects to `nishanaweb.cloud` using `VPS_SSH_KEY` secret |
-| Pull | `git pull origin main` |
-| Build | `docker compose -f docker-compose.prod.yml build --pull` |
-| Migrate | `python manage.py migrate --noinput` inside the backend container |
-| Restart | `docker compose -f docker-compose.prod.yml up -d` |
+Go to **GitHub → Actions → CI/CD → Run workflow** and click Run. Useful when you want to re-deploy the current `main` without changing any code (e.g. after a server restart or env var change).
 
 ---
 
-## GitHub Secrets Required
+## Branch Rules
 
-Go to **GitHub repo → Settings → Secrets and variables → Actions** and add:
+| Branch | Tests run | Auto-deploys |
+|--------|-----------|-------------|
+| `main` | ✅ | ✅ on push/merge |
+| `dev` | ✅ | ❌ |
+| any PR → `main` | ✅ | ❌ (deploys only after merge) |
+| manual trigger | ✅ | ✅ if you choose yes |
+
+---
+
+## CI Jobs
+
+### Backend (Python 3.9)
+
+| Step | Command | Purpose |
+|------|---------|---------|
+| Install | `pip install -r requirements-dev.txt` | Python deps including pytest |
+| Check | `python manage.py check` | Catch config errors |
+| Migrate | `python manage.py migrate --run-syncdb` | All migrations apply cleanly |
+| Test | `pytest` | No regressions |
+
+> Uses SQLite — no DB server needed. Settings fall back automatically when `DB_NAME` is not set.
+
+### Frontend (Node 20)
+
+| Step | Command | Purpose |
+|------|---------|---------|
+| Install | `npm install` | Node deps |
+| Lint | `npm run lint` | ESLint (non-blocking until Phase 3) |
+| Build | `npm run build` | Vite compiles without errors |
+
+### Deploy (main only)
+
+Runs only after both jobs above pass. SSHes into the VPS and runs:
+
+```bash
+cd /home/nishanaweb/project/Construction
+git pull origin main
+make build        # docker compose build --pull
+make up           # docker compose up -d
+make migrate      # manage.py migrate --noinput
+make collectstatic
+make ps           # show container status
+```
+
+---
+
+## GitHub Secrets
+
+Go to **GitHub repo → Settings → Secrets and variables → Actions**:
 
 | Secret | Value |
 |--------|-------|
 | `VPS_HOST` | `nishanaweb.cloud` |
 | `VPS_USER` | `nishanaweb` |
-| `VPS_SSH_KEY` | Contents of `~/.ssh/id_rsa` (full private key including header/footer) |
+| `VPS_SSH_KEY` | Full contents of `~/.ssh/id_rsa` (including `-----BEGIN` / `-----END` lines) |
 
 ---
 
-## Branch Strategy
+## Make Commands — Reference
 
-| Branch | CI runs | Deploys |
-|--------|---------|---------|
-| `main` | ✅ | ✅ Auto-deploys if green |
-| any other | ✅ | ❌ Never |
+### Local development
 
----
+```bash
+make local            # start backend + frontend (no Docker, SQLite, hot reload)
+make local-setup      # first-time: create venv + install all deps
+make m-local          # makemigrations + migrate via local venv
+make seed             # re-seed demo data
+make reset-local      # wipe SQLite + migrations and rebuild from scratch
+```
 
-## Local vs CI Database
+### Docker dev stack
 
-| Environment | Database | Config |
-|------------|----------|--------|
-| CI | SQLite (auto) | No `DB_NAME` set → settings.py fallback |
-| Local dev | SQLite (auto) | `make local` uses `settings_local.py` |
-| Production | PostgreSQL 16 | `DB_NAME` set in `.env` |
+```bash
+make dev              # start Docker dev stack with hot reload
+make dev-build        # rebuild images then start
+make dev-down         # stop dev stack
+make dev-logs         # tail dev logs
+```
+
+### Production (local → server)
+
+```bash
+make deploy           # push code to origin/main (local step)
+make server-deploy    # SSH → pull + build + migrate + restart on VPS
+make full-deploy      # push code then immediately server-deploy (combined)
+make rollback         # roll back VPS to previous image tag
+```
+
+### Production (already on server / CI)
+
+```bash
+make build            # docker compose build --pull
+make up               # docker compose up -d
+make migrate          # manage.py migrate --noinput
+make collectstatic    # manage.py collectstatic --noinput --clear
+make restart          # restart all containers
+make ps               # show running containers
+make logs             # tail all logs
+make logs-backend     # backend logs only
+```
+
+### Database
+
+```bash
+make db-backup        # dump DB → backups/db_TIMESTAMP.sql.gz
+make db-restore FILE=backups/db_XXX.sql.gz
+make db-pull          # download backup FROM server to ./backups/
+make db-push FILE=backups/db_XXX.sql.gz   # upload + restore on server
+make showmigrations   # list migration status (Docker)
+make showmigrations-local                 # list migration status (local venv)
+make migrate-remote   # run migrations on VPS only
+```
+
+### Maintenance
+
+```bash
+make shell            # Django shell in container
+make bash             # bash in backend container
+make health           # check /api/v1/health/ endpoint
+make server-logs      # tail production backend logs (SSH)
+make server-shell     # Django shell on VPS (SSH)
+make env-check        # verify required .env vars are set
+make clean            # prune stopped containers + dangling images
+```
 
 ---
 
 ## Dev Dependencies
 
-CI installs from `backend/requirements-dev.txt` which wraps `requirements.txt` and adds:
+CI installs from `backend/requirements-dev.txt`:
 
 ```
+-r requirements.txt
 pytest==8.2.0
 pytest-django==4.8.0
 ```
 
-`pytest.ini` at `backend/pytest.ini` configures `DJANGO_SETTINGS_MODULE = config.settings` so pytest finds Django automatically.
+`backend/pytest.ini` sets `DJANGO_SETTINGS_MODULE = config.settings` so pytest finds Django automatically.
 
 ---
 
-## Known Limitations (to fix in Phase 3)
+## Known Limitations (Phase 3)
 
-- ESLint is `continue-on-error: true` — 487 pre-existing errors need to be resolved before enforcement is turned back on.
-- No test coverage threshold yet — target is 60% backend coverage by end of Phase 2.
-- `npm install` is used instead of `npm ci` — commit `package-lock.json` to the repo and switch to `npm ci` for faster, reproducible installs.
+| Issue | Fix |
+|-------|-----|
+| ESLint `continue-on-error: true` — 487 pre-existing errors | Clean up lint errors, remove `continue-on-error` |
+| No test coverage threshold | Add `--cov` to pytest, enforce 60% minimum |
+| `npm install` instead of `npm ci` | Commit `package-lock.json`, switch to `npm ci` |

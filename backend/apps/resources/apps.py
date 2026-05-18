@@ -12,8 +12,8 @@ class ResourcesConfig(AppConfig):
             "\n\n"
             "⚠️  DEPRECATED: apps.resources is the legacy resources module.\n"
             "   The canonical implementation is apps.resource (api/v1/resource/).\n"
-            "   Exception: WastageAlert and WastageThreshold have no equivalent yet —\n"
-            "   migrate those models to apps.resource before removing this app.\n"
+            "   WastageAlert and WastageThreshold have been migrated to apps.resource.\n"
+            "   This app is now safe to remove — delete URL includes, then the app.\n"
             "   Scheduled for URL removal in Phase 2, model deletion in Phase 3.\n",
             DeprecationWarning,
             stacklevel=2,

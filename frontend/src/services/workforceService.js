@@ -53,6 +53,15 @@ const workforceService = {
     seedFromAttendance: (body = {}) =>
         api.post('members/seed_from_attendance/', body).then(r => r.data),
 
+    // ── Attendance sync & marking ─────────────────────────────────────────────
+    // Auto-create AttendanceWorker for a single member and link them
+    syncAttendance:    (id)          => api.post(`members/${id}/sync_attendance/`).then(r => r.data),
+    // Sync ALL unlinked members in a project: { project }
+    syncAllAttendance: (body)        => api.post('members/sync_all_attendance/', body).then(r => r.data),
+    // Mark today's attendance for a member
+    // body: { status, date?, check_in?, check_out?, notes?, auto_sync? }
+    markToday: (id, body)            => api.post(`members/${id}/mark_today/`, body).then(r => r.data),
+
     // ── Project Assignment ────────────────────────────────────────────────────
     // Links / unlinks a WorkforceMember to a project (sets current_project).
     // This is the unified hook — once linked, the worker appears in:
@@ -152,6 +161,10 @@ const workforceService = {
 
     // ── Teams ─────────────────────────────────────────────────────────────────
     getTeams:         (params = {}) => api.get('teams/', { params }).then(r => r.data),
+    getTeam:          (id)          => api.get(`teams/${id}/`).then(r => r.data),
+    createTeam:       (data)        => api.post('teams/', data).then(r => r.data),
+    updateTeam:       (id, data)    => api.patch(`teams/${id}/`, data).then(r => r.data),
+    deleteTeam:       (id)          => api.delete(`teams/${id}/`).then(r => r.data),
     addTeamMembers:   (id, memberIds) => api.post(`teams/${id}/add_members/`, { member_ids: memberIds }).then(r => r.data),
     removeTeamMembers:(id, memberIds) => api.post(`teams/${id}/remove_members/`, { member_ids: memberIds }).then(r => r.data),
 };

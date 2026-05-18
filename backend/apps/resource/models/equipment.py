@@ -8,11 +8,17 @@ from django.db import models
 class Equipment(models.Model):
 
     class EquipmentType(models.TextChoices):
-        HEAVY   = "HEAVY",   "Heavy Machinery"
-        LIGHT   = "LIGHT",   "Light Equipment"
-        TOOL    = "TOOL",    "Tool"
-        VEHICLE = "VEHICLE", "Vehicle"
-        OTHER   = "OTHER",   "Other"
+        EXCAVATOR   = "EXCAVATOR",   "Excavator"
+        CRANE       = "CRANE",       "Crane"
+        BULLDOZER   = "BULLDOZER",   "Bulldozer"
+        MIXER       = "MIXER",       "Mixer"
+        GENERATOR   = "GENERATOR",   "Generator"
+        COMPACTOR   = "COMPACTOR",   "Compactor"
+        TRUCK       = "TRUCK",       "Truck"
+        LOADER      = "LOADER",      "Loader"
+        DRILL       = "DRILL",       "Drill"
+        SCAFFOLDING = "SCAFFOLDING", "Scaffolding"
+        OTHER       = "OTHER",       "Other"
 
     class Status(models.TextChoices):
         AVAILABLE   = "AVAILABLE",   "Available"

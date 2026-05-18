@@ -13,15 +13,19 @@ import { dashboardService } from '../../services/api';
 import IDCardModal from './components/IDCardModal';
 import MemberDrawer, { StatusBadge, TypeBadge, Spinner } from './components/MemberDrawer';
 import WorkforceMembersView from './components/WorkforceMembersView';
+import RolesTeamsTab from './components/RolesTeamsTab';
+import WorkforceAttendanceTab from './components/WorkforceAttendanceTab';
 import EmptyState from '../../shared/ui/EmptyState';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const TABS = [
     { id: 'MEMBERS',     label: 'Members',      short: 'Staff',   icon: '👥' },
+    { id: 'ATTENDANCE',  label: 'Attendance',   short: 'Attend',  icon: '📋' },
     { id: 'PAYROLL',     label: 'Payroll',      short: 'Wage',    icon: '💰' },
     { id: 'ASSIGNMENTS', label: 'Assignments',  short: 'Tasks',   icon: '🏗️' },
     { id: 'EVALUATIONS', label: 'Evaluations',  short: 'Stats',   icon: '📈' },
     { id: 'SAFETY',      label: 'Safety',       short: 'Safe',    icon: '🦺' },
+    { id: 'SETUP',       label: 'Setup',        short: 'Setup',   icon: '⚙️' },
 ];
 
 const STATUS_MAP = {
@@ -927,10 +931,12 @@ export default function WorkforceHub() {
     const renderTab = () => {
         switch (activeTab) {
             case 'MEMBERS':     return <WorkforceMembersView projectId={activeProjectId} />;
+            case 'ATTENDANCE':  return <WorkforceAttendanceTab projectId={activeProjectId} />;
             case 'PAYROLL':     return <PayrollTab     projectId={activeProjectId} />;
             case 'ASSIGNMENTS': return <AssignmentsTab projectId={activeProjectId} />;
             case 'EVALUATIONS': return <EvaluationsTab projectId={activeProjectId} />;
             case 'SAFETY':      return <SafetyTab      projectId={activeProjectId} />;
+            case 'SETUP':       return <RolesTeamsTab  projectId={activeProjectId} />;
             default:            return null;
         }
     };

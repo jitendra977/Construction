@@ -35,8 +35,7 @@ from apps.resource.views.labor import WorkerViewSet as ContractorViewSet
 from apps.resource.views.material import MaterialViewSet
 from apps.resource.views.supplier import SupplierViewSet
 from apps.permits.views import PermitDocumentViewSet as DocumentViewSet
-# WastageAlert/Threshold have no equivalent in the new resource app yet; keep legacy
-from apps.resources.views import WastageAlertViewSet, WastageThresholdViewSet
+from apps.resource.views.wastage import WastageAlertViewSet, WastageThresholdViewSet
 from apps.resource.views.transactions import MaterialTransactionViewSet as NewMaterialTransactionViewSet
 
 router = DefaultRouter()

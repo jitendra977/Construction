@@ -3,6 +3,7 @@ import { useConstruction } from '../../../context/ConstructionContext';
 import workforceService from '../../../services/workforceService';
 import IDCardModal from './IDCardModal';
 import MemberDrawer, { StatusBadge, TypeBadge, Spinner } from './MemberDrawer';
+import { useNavigate } from 'react-router-dom';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const STATUS_MAP = {

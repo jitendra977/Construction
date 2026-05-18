@@ -20,14 +20,18 @@ class Material(models.Model):
         OTHER       = "OTHER",       "Other"
 
     class Unit(models.TextChoices):
-        KG        = "KG",        "Kilogram"
-        BAG       = "BAG",       "Bag"
-        PIECE     = "PIECE",     "Piece"
-        METER     = "METER",     "Meter"
-        SQ_METER  = "SQ_METER",  "Square Meter"
-        CU_METER  = "CU_METER",  "Cubic Meter"
-        LITER     = "LITER",     "Liter"
-        TON       = "TON",       "Ton"
+        KG        = "kg",        "kg"
+        TON       = "ton",       "ton"
+        BAG       = "bag",       "bag"
+        PCS       = "pcs",       "pcs"
+        FT        = "ft",        "ft"
+        M         = "m",         "m"
+        M2        = "m2",        "m2"
+        M3        = "m3",        "m3"
+        LTR       = "ltr",       "ltr"
+        BUNDLE    = "bundle",    "bundle"
+        BOX       = "box",       "box"
+        ROLL      = "roll",      "roll"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     project = models.ForeignKey(
@@ -37,7 +41,7 @@ class Material(models.Model):
     )
     name        = models.CharField(max_length=255)
     category    = models.CharField(max_length=20, choices=Category.choices, default=Category.OTHER)
-    unit        = models.CharField(max_length=20, choices=Unit.choices, default=Unit.PIECE)
+    unit        = models.CharField(max_length=20, choices=Unit.choices, default=Unit.BAG)
     unit_price  = models.DecimalField(max_digits=15, decimal_places=2)
     stock_qty   = models.DecimalField(max_digits=15, decimal_places=3, default=Decimal("0"))
     reorder_level = models.DecimalField(max_digits=15, decimal_places=3, default=Decimal("0"))

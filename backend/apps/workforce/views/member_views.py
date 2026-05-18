@@ -117,6 +117,233 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
         return Response({'status': 'unlinked'})
 
     @action(detail=True, methods=['post'])
+    def sync_attendance(self, request, pk=None):
+        """
+        POST /api/v1/workforce/members/{id}/sync_attendance/
+        Finds or creates an AttendanceWorker for this member and links them.
+        Safe to call multiple times — idempotent.
+        """
+        from apps.attendance.models import AttendanceWorker
+        from apps.workforce.models.categories import WorkforceRole
+
+        member = self.get_object()
+
+        # Already linked — return existing
+        if member.attendance_worker_id:
+            aw = member.attendance_worker
+            return Response({
+                'status': 'already_linked',
+                'attendance_worker_id': aw.id,
+                'qr_token': str(aw.qr_token),
+            })
+
+        # Need a project to create AttendanceWorker
+        project = member.current_project
+        if not project:
+            return Response(
+                {'error': 'Member has no project assigned. Assign to a project first.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Map WorkforceMember.worker_type → AttendanceWorker.worker_type
+        wtype_map = {
+            'LABOUR': 'LABOUR', 'STAFF': 'STAFF',
+            'SUBCONTRACTOR': 'LABOUR', 'FREELANCE': 'LABOUR',
+        }
+        aw_type = wtype_map.get(member.worker_type, 'LABOUR')
+
+        # Map WorkforceRole.trade_code → AttendanceWorker.trade
+        trade = 'OTHER'
+        if member.role and member.role.trade_code:
+            trade = member.role.trade_code
+
+        # Check if an orphan AttendanceWorker with the same name exists for this project
+        aw = AttendanceWorker.objects.filter(
+            project=project,
+            name=member.full_name,
+            workforce_member__isnull=True,
+        ).first()
+
+        if not aw:
+            aw = AttendanceWorker.objects.create(
+                project=project,
+                name=member.full_name,
+                trade=trade,
+                worker_type=aw_type,
+                phone=member.phone or '',
+                address=member.address or '',
+                linked_user=member.account,
+                joined_date=member.join_date,
+                is_active=(member.status == 'ACTIVE'),
+            )
+
+        member.attendance_worker = aw
+        member.save(update_fields=['attendance_worker', 'updated_at'])
+
+        return Response({
+            'status': 'created' if not aw.pk else 'linked',
+            'attendance_worker_id': aw.id,
+            'qr_token': str(aw.qr_token),
+        })
+
+    @action(detail=False, methods=['post'])
+    def sync_all_attendance(self, request):
+        """
+        POST /api/v1/workforce/members/sync_all_attendance/
+        Body: { "project": "<project_id>" }
+        Sync ALL unlinked members in a project — creates AttendanceWorkers for each.
+        """
+        from apps.attendance.models import AttendanceWorker
+
+        project_id = request.data.get('project') or request.query_params.get('project')
+        if not project_id:
+            return Response({'error': 'project is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from apps.core.models import HouseProject
+        try:
+            project = HouseProject.objects.get(pk=project_id)
+        except HouseProject.DoesNotExist:
+            return Response({'error': 'Project not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        unlinked = WorkforceMember.objects.filter(
+            current_project=project,
+            attendance_worker__isnull=True,
+        ).select_related('role', 'account')
+
+        wtype_map = {
+            'LABOUR': 'LABOUR', 'STAFF': 'STAFF',
+            'SUBCONTRACTOR': 'LABOUR', 'FREELANCE': 'LABOUR',
+        }
+
+        created = 0
+        linked = 0
+        for member in unlinked:
+            aw_type = wtype_map.get(member.worker_type, 'LABOUR')
+            trade = 'OTHER'
+            if member.role and member.role.trade_code:
+                trade = member.role.trade_code
+
+            # Look for orphan first
+            aw = AttendanceWorker.objects.filter(
+                project=project,
+                name=member.full_name,
+                workforce_member__isnull=True,
+            ).first()
+
+            if aw:
+                linked += 1
+            else:
+                aw = AttendanceWorker.objects.create(
+                    project=project,
+                    name=member.full_name,
+                    trade=trade,
+                    worker_type=aw_type,
+                    phone=member.phone or '',
+                    address=member.address or '',
+                    linked_user=member.account,
+                    joined_date=member.join_date,
+                    is_active=(member.status == 'ACTIVE'),
+                )
+                created += 1
+
+            member.attendance_worker = aw
+            member.save(update_fields=['attendance_worker', 'updated_at'])
+
+        return Response({
+            'status': 'ok',
+            'created': created,
+            'linked': linked,
+            'total_synced': created + linked,
+        })
+
+    @action(detail=True, methods=['post'])
+    def mark_today(self, request, pk=None):
+        """
+        POST /api/v1/workforce/members/{id}/mark_today/
+        Body: { "status": "PRESENT|ABSENT|HALF_DAY|LEAVE|HOLIDAY",
+                "date": "YYYY-MM-DD",   (optional, defaults today)
+                "check_in": "HH:MM",    (optional)
+                "check_out": "HH:MM",   (optional)
+                "notes": "...",         (optional)
+                "auto_sync": true }     (create AttendanceWorker if missing)
+        Marks attendance for a member. Creates AttendanceWorker if auto_sync=true.
+        """
+        from apps.attendance.models import AttendanceWorker, DailyAttendance
+        from django.utils import timezone as tz
+        import datetime
+
+        member = self.get_object()
+        mark_status = request.data.get('status', 'PRESENT')
+        date_str = request.data.get('date')
+        check_in = request.data.get('check_in') or None
+        check_out = request.data.get('check_out') or None
+        notes = request.data.get('notes', '')
+        auto_sync = request.data.get('auto_sync', True)
+
+        # Parse date
+        if date_str:
+            try:
+                record_date = datetime.date.fromisoformat(date_str)
+            except ValueError:
+                return Response({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            record_date = tz.localdate()
+
+        # Auto-sync attendance worker if missing
+        if not member.attendance_worker_id:
+            if not auto_sync:
+                return Response({'error': 'Member is not linked to an AttendanceWorker.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            project = member.current_project
+            if not project:
+                return Response({'error': 'Member has no project. Assign to a project first.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            wtype_map = {'LABOUR': 'LABOUR', 'STAFF': 'STAFF', 'SUBCONTRACTOR': 'LABOUR', 'FREELANCE': 'LABOUR'}
+            trade = (member.role.trade_code if member.role and member.role.trade_code else 'OTHER')
+
+            aw = AttendanceWorker.objects.filter(
+                project=project, name=member.full_name, workforce_member__isnull=True,
+            ).first()
+            if not aw:
+                aw = AttendanceWorker.objects.create(
+                    project=project,
+                    name=member.full_name,
+                    trade=trade,
+                    worker_type=wtype_map.get(member.worker_type, 'LABOUR'),
+                    phone=member.phone or '',
+                    linked_user=member.account,
+                    joined_date=member.join_date,
+                    is_active=(member.status == 'ACTIVE'),
+                )
+            member.attendance_worker = aw
+            member.save(update_fields=['attendance_worker', 'updated_at'])
+
+        aw = member.attendance_worker
+
+        # Upsert daily attendance
+        record, created = DailyAttendance.objects.update_or_create(
+            worker=aw,
+            date=record_date,
+            defaults={
+                'project': aw.project,
+                'status': mark_status,
+                'check_in': check_in,
+                'check_out': check_out,
+                'notes': notes,
+                'recorded_by': request.user,
+            },
+        )
+
+        return Response({
+            'status': 'ok',
+            'attendance_id': record.id,
+            'date': str(record_date),
+            'attendance_status': record.status,
+            'attendance_worker_id': aw.id,
+            'created': created,
+        })
+
+    @action(detail=True, methods=['post'])
     def assign_project(self, request, pk=None):
         """
         POST /api/v1/workforce/members/{id}/assign_project/

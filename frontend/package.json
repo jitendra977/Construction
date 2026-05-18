@@ -26,8 +26,8 @@
     "react-leaflet": "^5.0.0",
     "react-loading-skeleton": "^3.5.0",
     "react-router-dom": "^7.13.0",
-    "sonner": "^1.7.4",
     "react-signature-canvas": "^1.1.0-alpha.2",
+    "sonner": "^1.7.4",
     "trim-canvas": "^0.1.2"
   },
   "devDependencies": {

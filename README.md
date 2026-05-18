@@ -4,6 +4,8 @@ A full-stack platform for managing the complete residential construction lifecyc
 
 **Live:** [construction.nishanaweb.cloud](https://construction.nishanaweb.cloud) · **API:** [api.construction.nishanaweb.cloud/api/v1](https://api.construction.nishanaweb.cloud/api/v1)
 
+📖 **Docs:** [Full Workflow Guide](docs/workflow.md) · [CI/CD Pipeline](docs/cicd.md) · [Module Deprecation Notes](docs/module-deprecation-notes.md)
+
 ---
 
 ## ⚡ Quick Start (Local — No Docker)
@@ -282,6 +284,24 @@ Production runs 6 Docker containers:
 Routed via **Nginx Proxy Manager** on the shared `app-network`:
 - `construction.nishanaweb.cloud` → frontend container
 - `backend.nishanaweb.cloud` → backend container
+
+---
+
+## ⚙️ CI / CD
+
+Every push to GitHub runs automated tests. Every push to `main` that passes tests auto-deploys to the VPS.
+
+```
+push to any branch  →  backend tests + frontend build  →  (stop)
+push to main        →  backend tests + frontend build  →  deploy to nishanaweb.cloud
+```
+
+| Branch | Tests | Deploy |
+|--------|-------|--------|
+| `main` | ✅ | ✅ Auto |
+| any other | ✅ | ❌ |
+
+→ **[Full CI/CD documentation](docs/cicd.md)**
 
 ---
 
