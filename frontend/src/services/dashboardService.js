@@ -22,28 +22,24 @@ export const dashboardService = {
     getTasks: () => api.get('tasks/'),
     getRecentUpdates: () => api.get('updates/'),
 
-    // ── DEPRECATED: Legacy finance endpoints (/api/v1/finance/) ──────────────
-    // These call apps.finance (old module). The canonical replacement is
-    // apps.fin (/api/v1/fin/), but that module uses different models:
-    //   • apps.fin has no Expense or Payment models (use Bills instead)
-    //   • apps.fin BudgetCategory uses UUID PKs vs int PKs here
-    //   • FundingSource / PhaseBudgetAllocation have no fin equivalents yet
-    // Full migration is deferred to Phase 3. Backend adds Deprecation headers.
-    // ─────────────────────────────────────────────────────────────────────────
-    getBudgetCategories: () => api.get('finance/budget-categories/'),
-    createBudgetCategory: (data) => api.post('finance/budget-categories/', data),
-    updateBudgetCategory: (id, data) => api.patch(`finance/budget-categories/${id}/`, data),
-    deleteBudgetCategory: (id) => api.delete(`finance/budget-categories/${id}/`),
+    // ── Canonical: fin expenses (/api/v1/fin/expenses/) ──────────────────────
+    getBudgetCategories: () => api.get('fin/budget-categories/'),
+    createBudgetCategory: (data) => api.post('fin/budget-categories/', data),
+    updateBudgetCategory: (id, data) => api.patch(`fin/budget-categories/${id}/`, data),
+    deleteBudgetCategory: (id) => api.delete(`fin/budget-categories/${id}/`),
 
-    getBudgetStats: () => api.get('finance/expenses/'),
-    getExpenses: () => api.get('finance/expenses/'),
-    createExpense: (data) => api.post('finance/expenses/', data),
-    updateExpense: (id, data) => api.patch(`finance/expenses/${id}/`, data),
-    deleteExpense: (id) => api.delete(`finance/expenses/${id}/`),
+    getBudgetStats: () => api.get('fin/expenses/'),
+    getExpenses: () => api.get('fin/expenses/'),
+    createExpense: (data) => api.post('fin/expenses/', data),
+    updateExpense: (id, data) => api.patch(`fin/expenses/${id}/`, data),
+    deleteExpense: (id) => api.delete(`fin/expenses/${id}/`),
+    // exportExpensesPdf not available on fin — keep legacy fallback if needed
     exportExpensesPdf: (params = {}) =>
         api.get('finance/expenses/export-pdf/', { params, responseType: 'blob' }),
 
-    // Payments (legacy — no fin equivalent; see note above)
+    // ── DEPRECATED: Legacy finance payments (/api/v1/finance/) ───────────────
+    // Payment / FundingSource / FundingTransaction have no fin equivalents yet
+    // ─────────────────────────────────────────────────────────────────────────
     getPayments: () => api.get('finance/payments/'),
     createPayment: (data) => api.post('finance/payments/', data),
     updatePayment: (id, data) => api.patch(`finance/payments/${id}/`, data),

@@ -7,6 +7,7 @@ from .budget               import BudgetCategory, BudgetAllocation
 from .contractor_payment   import ContractorContract, ContractorInstallment, InstallmentPayment
 from .vendor               import Vendor
 from .phase_budget         import PhaseBudgetLine, BudgetRevision
+from .expense              import Expense
 
 __all__ = [
     "Account", "AccountType",
@@ -18,4 +19,5 @@ __all__ = [
     "ContractorContract", "ContractorInstallment", "InstallmentPayment",
     "Vendor",
     "PhaseBudgetLine", "BudgetRevision",
+    "Expense",
 ]

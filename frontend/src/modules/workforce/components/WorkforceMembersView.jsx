@@ -463,166 +463,193 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
             {loading ? <Spinner /> : members.length === 0 ? (
                 <EmptyState icon="👷" title="No members found" subtitle="Add your first workforce member or import from attendance." />
             ) : (
-                /* Outer shell: fills remaining viewport height, scrolls both axes */
                 <div style={{
-                    position: 'relative',
-                    width: '90vw',
-                    maxWidth: '100%',
                     overflowX: 'auto',
                     overflowY: 'auto',
-                    maxHeight: 'calc(100vh - 260px)',
+                    maxHeight: 'calc(100vh - 280px)',
                     border: '1px solid var(--t-border)',
-                    borderRadius: 10,
+                    borderRadius: 12,
                 }}>
-                    <table style={{ width: '100%', minWidth: 860, tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: 12 }}>
+                    <table style={{ width: '100%', minWidth: 780, borderCollapse: 'collapse', fontSize: 13 }}>
                         {/* ── Sticky header ───────────────────────────────────── */}
                         <thead>
                             <tr style={{
                                 background: 'var(--t-surface)',
                                 borderBottom: '2px solid var(--t-border)',
-                                color: 'var(--t-text-muted)',
-                                textAlign: 'left',
                                 position: 'sticky', top: 0, zIndex: 2,
                             }}>
-                                {['ID','Name','Role','Type','Status','Project','Today','Rate/day','Phone','Actions'].map(h => (
-                                    <th key={h} style={{ padding: '8px 8px', fontWeight: 700, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                                {[
+                                    { label: 'Member',  w: '28%' },
+                                    { label: 'Type & Status', w: '18%' },
+                                    { label: 'Project', w: '16%' },
+                                    { label: 'Today',   w: '14%' },
+                                    { label: 'Rate / Phone', w: '13%' },
+                                    { label: 'Actions', w: '11%' },
+                                ].map(h => (
+                                    <th key={h.label} style={{
+                                        padding: '10px 12px', width: h.w,
+                                        fontWeight: 700, fontSize: 10, textTransform: 'uppercase',
+                                        letterSpacing: '0.06em', color: 'var(--t-text-muted)',
+                                        textAlign: 'left', whiteSpace: 'nowrap',
+                                    }}>{h.label}</th>
                                 ))}
                             </tr>
                         </thead>
                         <tbody>
-                            {members.map((m, i) => (
-                                <tr key={m.id} style={{
-                                    borderBottom: '1px solid var(--t-border)',
-                                    background: i % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.013)',
-                                    transition: 'background 0.1s',
-                                }}>
-                                    {/* ID */}
-                                    <td style={{ padding: '7px 8px', fontFamily: 'monospace', fontSize: 10, color: 'var(--t-text-muted)', whiteSpace: 'nowrap' }}>
-                                        {m.employee_id}
-                                    </td>
+                            {members.map((m, i) => {
+                                const initials = (m.full_name || '?').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
+                                const avatarColors = ['#3b82f6','#8b5cf6','#10b981','#f59e0b','#ef4444','#ec4899','#06b6d4','#f97316'];
+                                const avatarBg = avatarColors[(m.id || 0) % avatarColors.length];
+                                const statusBg    = { ACTIVE:'#d1fae5', ON_LEAVE:'#fef3c7', INACTIVE:'#f3f4f6', SUSPENDED:'#fee2e2', BLACKLISTED:'#1f2937', TERMINATED:'#fee2e2' }[m.status] || '#f3f4f6';
+                                const statusColor = { ACTIVE:'#065f46', ON_LEAVE:'#92400e', INACTIVE:'#6b7280', SUSPENDED:'#991b1b', BLACKLISTED:'#f9fafb', TERMINATED:'#991b1b' }[m.status] || '#374151';
+                                const todayS = TODAY_COLORS[m.today_status || 'NOT_MARKED'] || TODAY_COLORS.NOT_MARKED;
+                                const timeStr = m.today_check_in ? `${m.today_check_in}${m.today_check_out ? '→'+m.today_check_out : ''}` : '';
 
-                                    {/* Name */}
-                                    <td style={{ padding: '7px 8px', whiteSpace: 'nowrap' }}>
-                                        <div style={{ fontWeight: 700, fontSize: 12 }}>{m.full_name || '—'}</div>
-                                        {m.date_of_birth && <div style={{ fontSize: 10, color: 'var(--t-text-muted)' }}>{m.date_of_birth}</div>}
-                                    </td>
-
-                                    {/* Role */}
-                                    <td style={{ padding: '7px 8px', color: 'var(--t-text-muted)', fontSize: 11, whiteSpace: 'nowrap' }}>
-                                        {m.role_name || '—'}
-                                    </td>
-
-                                    {/* Type */}
-                                    <td style={{ padding: '7px 8px' }}>
-                                        <TypeBadge type={m.worker_type} />
-                                    </td>
-
-                                    {/* Status — inline pill select */}
-                                    <td style={{ padding: '7px 8px' }}>
-                                        <div style={{ position: 'relative', display: 'inline-block' }}>
-                                            <select
-                                                value={m.status}
-                                                onChange={e => handleQuickStatus(m, e.target.value)}
-                                                title="Change status"
-                                                style={{
-                                                    appearance: 'none', WebkitAppearance: 'none',
-                                                    padding: '2px 18px 2px 7px', borderRadius: 99, fontSize: 10, fontWeight: 700,
-                                                    border: 'none', cursor: 'pointer', outline: 'none', whiteSpace: 'nowrap',
-                                                    background: ({ ACTIVE:'#d1fae5', ON_LEAVE:'#fef3c7', INACTIVE:'#f3f4f6', SUSPENDED:'#fee2e2', BLACKLISTED:'#1f2937', TERMINATED:'#fee2e2' })[m.status] || '#f3f4f6',
-                                                    color:      ({ ACTIVE:'#065f46', ON_LEAVE:'#92400e', INACTIVE:'#6b7280', SUSPENDED:'#991b1b', BLACKLISTED:'#f9fafb', TERMINATED:'#991b1b' })[m.status] || '#374151',
+                                return (
+                                    <tr key={m.id} style={{
+                                        borderBottom: '1px solid var(--t-border)',
+                                        background: i % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.013)',
+                                    }}>
+                                        {/* ── Member: avatar + name + role + ID ── */}
+                                        <td style={{ padding: '10px 12px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                {/* Avatar */}
+                                                <div style={{
+                                                    width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                                                    background: `${avatarBg}22`, color: avatarBg,
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                    fontSize: 12, fontWeight: 900, letterSpacing: '0.03em',
+                                                    border: `1.5px solid ${avatarBg}44`,
                                                 }}>
-                                                <option value="ACTIVE">Active</option>
-                                                <option value="ON_LEAVE">On Leave</option>
-                                                <option value="INACTIVE">Inactive</option>
-                                                <option value="SUSPENDED">Suspended</option>
-                                                <option value="BLACKLISTED">Blacklisted</option>
-                                                <option value="TERMINATED">Terminated</option>
-                                            </select>
-                                            <span style={{ position: 'absolute', right: 5, top: '50%', transform: 'translateY(-50%)', fontSize: 7, pointerEvents: 'none' }}>▼</span>
-                                        </div>
-                                    </td>
+                                                    {initials}
+                                                </div>
+                                                <div style={{ minWidth: 0 }}>
+                                                    <div style={{ fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                        {m.full_name || '—'}
+                                                    </div>
+                                                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 2 }}>
+                                                        <span style={{ fontSize: 10, color: 'var(--t-text-muted)', fontFamily: 'monospace' }}>{m.employee_id}</span>
+                                                        {m.role_name && <span style={{ fontSize: 10, color: 'var(--t-text-muted)' }}>· {m.role_name}</span>}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
 
-                                    {/* Project — link/unlink inline select */}
-                                    <td style={{ padding: '7px 8px' }}>
-                                        {assigningProject[m.id] ? (
-                                            <span style={{ fontSize: 10, color: 'var(--t-text-muted)' }}>Saving…</span>
-                                        ) : (
-                                            <div style={{ position: 'relative', display: 'inline-block', maxWidth: 120 }}>
+                                        {/* ── Type + Status (stacked) ── */}
+                                        <td style={{ padding: '10px 12px' }}>
+                                            <TypeBadge type={m.worker_type} />
+                                            <div style={{ marginTop: 5, position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
                                                 <select
-                                                    value={m.current_project || ''}
-                                                    onChange={e => handleAssignProject(m, e.target.value || null)}
-                                                    title="Assign to project"
+                                                    value={m.status}
+                                                    onChange={e => handleQuickStatus(m, e.target.value)}
+                                                    title="Change status"
                                                     style={{
                                                         appearance: 'none', WebkitAppearance: 'none',
-                                                        padding: '2px 18px 2px 7px', borderRadius: 6, fontSize: 10, fontWeight: 600,
-                                                        border: `1px solid ${m.current_project ? '#86efac' : '#fcd34d'}`,
-                                                        background: m.current_project ? '#f0fdf4' : '#fffbeb',
-                                                        color: m.current_project ? '#065f46' : '#92400e',
+                                                        padding: '3px 20px 3px 8px', borderRadius: 99,
+                                                        fontSize: 10, fontWeight: 700, border: 'none',
                                                         cursor: 'pointer', outline: 'none',
-                                                        maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                                        background: statusBg, color: statusColor,
                                                     }}>
-                                                    <option value="">No Project</option>
-                                                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                                    <option value="ACTIVE">Active</option>
+                                                    <option value="ON_LEAVE">On Leave</option>
+                                                    <option value="INACTIVE">Inactive</option>
+                                                    <option value="SUSPENDED">Suspended</option>
+                                                    <option value="BLACKLISTED">Blacklisted</option>
+                                                    <option value="TERMINATED">Terminated</option>
                                                 </select>
-                                                <span style={{ position: 'absolute', right: 5, top: '50%', transform: 'translateY(-50%)', fontSize: 7, pointerEvents: 'none' }}>▼</span>
+                                                <span style={{ position: 'absolute', right: 6, top: '52%', transform: 'translateY(-50%)', fontSize: 7, pointerEvents: 'none', color: statusColor }}>▼</span>
                                             </div>
-                                        )}
-                                    </td>
+                                        </td>
 
-                                    {/* Today attendance + link badges */}
-                                    <td style={{ padding: '7px 8px', whiteSpace: 'nowrap' }}>
-                                        <TodayDot status={m.today_status || 'NOT_MARKED'} checkIn={m.today_check_in} checkOut={m.today_check_out} />
-                                        <div style={{ display: 'flex', gap: 3, marginTop: 4 }}>
-                                            {(m.has_attendance_link || m.attendance_worker_id) ? (
-                                                <span title="Linked to attendance" style={{ fontSize: 9, fontWeight: 800, padding: '1px 5px', borderRadius: 4, background: '#d1fae5', color: '#065f46' }}>⏱</span>
+                                        {/* ── Project assignment ── */}
+                                        <td style={{ padding: '10px 12px' }}>
+                                            {assigningProject[m.id] ? (
+                                                <span style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>Saving…</span>
                                             ) : (
-                                                <button onClick={() => handleSyncAttendance(m)} disabled={syncingAttendance[m.id]}
-                                                    title="Create attendance link"
-                                                    style={{ fontSize: 9, fontWeight: 800, padding: '1px 6px', borderRadius: 4, border: 'none', cursor: syncingAttendance[m.id] ? 'wait' : 'pointer', background: '#fef3c7', color: '#92400e' }}>
-                                                    {syncingAttendance[m.id] ? '⏳' : '⚡'}
-                                                </button>
+                                                <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', width: '100%', maxWidth: 140 }}>
+                                                    <select
+                                                        value={m.current_project || ''}
+                                                        onChange={e => handleAssignProject(m, e.target.value || null)}
+                                                        title="Assign to project"
+                                                        style={{
+                                                            appearance: 'none', WebkitAppearance: 'none',
+                                                            width: '100%', padding: '4px 22px 4px 8px',
+                                                            borderRadius: 7, fontSize: 11, fontWeight: 600,
+                                                            border: `1px solid ${m.current_project ? '#86efac' : '#fcd34d'}`,
+                                                            background: m.current_project ? '#f0fdf4' : '#fffbeb',
+                                                            color: m.current_project ? '#065f46' : '#92400e',
+                                                            cursor: 'pointer', outline: 'none',
+                                                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                                        }}>
+                                                        <option value="">No Project</option>
+                                                        {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                                    </select>
+                                                    <span style={{ position: 'absolute', right: 7, top: '50%', transform: 'translateY(-50%)', fontSize: 7, pointerEvents: 'none' }}>▼</span>
+                                                </div>
                                             )}
-                                            <span title={m.account ? 'Has login' : 'No login'} style={{ fontSize: 9, fontWeight: 800, padding: '1px 5px', borderRadius: 4, background: m.account ? '#ede9fe' : '#f3f4f6', color: m.account ? '#5b21b6' : '#9ca3af' }}>
-                                                {m.account ? '👤' : '—'}
-                                            </span>
-                                        </div>
-                                    </td>
+                                        </td>
 
-                                    {/* Rate */}
-                                    <td style={{ padding: '7px 8px', fontSize: 11, whiteSpace: 'nowrap' }}>
-                                        {m.daily_rate ? `NPR ${Number(m.daily_rate).toLocaleString()}` : <span style={{ color: '#d1d5db' }}>—</span>}
-                                    </td>
+                                        {/* ── Today attendance ── */}
+                                        <td style={{ padding: '10px 12px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                                <span style={{ width: 9, height: 9, borderRadius: '50%', background: todayS.bg, display: 'inline-block', flexShrink: 0 }} />
+                                                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--t-text)' }}>{todayS.label}</span>
+                                            </div>
+                                            {timeStr && <div style={{ fontSize: 10, color: 'var(--t-text-muted)', marginTop: 2, fontFamily: 'monospace' }}>{timeStr}</div>}
+                                            <div style={{ display: 'flex', gap: 3, marginTop: 4 }}>
+                                                {(m.has_attendance_link || m.attendance_worker_id) ? (
+                                                    <span title="Linked to attendance" style={{ fontSize: 9, fontWeight: 800, padding: '1px 6px', borderRadius: 4, background: '#d1fae5', color: '#065f46' }}>⏱ linked</span>
+                                                ) : (
+                                                    <button onClick={() => handleSyncAttendance(m)} disabled={syncingAttendance[m.id]}
+                                                        title="Create attendance link"
+                                                        style={{ fontSize: 9, fontWeight: 800, padding: '1px 7px', borderRadius: 4, border: 'none', cursor: syncingAttendance[m.id] ? 'wait' : 'pointer', background: '#fef3c7', color: '#92400e' }}>
+                                                        {syncingAttendance[m.id] ? '⏳' : '⚡ link'}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
 
-                                    {/* Phone */}
-                                    <td style={{ padding: '7px 8px', fontSize: 11, color: 'var(--t-text-muted)', whiteSpace: 'nowrap' }}>
-                                        {m.phone || '—'}
-                                    </td>
+                                        {/* ── Rate + Phone ── */}
+                                        <td style={{ padding: '10px 12px' }}>
+                                            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text)' }}>
+                                                {m.daily_rate ? `NPR ${Number(m.daily_rate).toLocaleString()}` : <span style={{ color: '#d1d5db', fontWeight: 400 }}>—</span>}
+                                            </div>
+                                            <div style={{ fontSize: 10, color: 'var(--t-text-muted)', marginTop: 2 }}>
+                                                {m.phone || <span style={{ color: '#d1d5db' }}>no phone</span>}
+                                            </div>
+                                            {m.account && (
+                                                <span style={{ display: 'inline-block', marginTop: 3, fontSize: 9, fontWeight: 800, padding: '1px 6px', borderRadius: 4, background: '#ede9fe', color: '#5b21b6' }}>👤 portal</span>
+                                            )}
+                                        </td>
 
-                                    {/* Actions — icon buttons to save space */}
-                                    <td style={{ padding: '7px 8px' }}>
-                                        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                                            <button onClick={() => setDrawer(m)} title="Edit member"
-                                                style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid var(--t-border)', background: 'transparent', color: 'var(--t-text)', cursor: 'pointer', fontSize: 11, whiteSpace: 'nowrap' }}>
-                                                ✏️
-                                            </button>
-                                            <button onClick={() => { setIdCardMemberId(m.id); setShowIDCard(true); }} title="View ID Card"
-                                                style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #3b82f6', background: '#eff6ff', color: '#1d4ed8', cursor: 'pointer', fontSize: 11, whiteSpace: 'nowrap' }}>
-                                                🪪
-                                            </button>
-                                            <button onClick={() => setPortalTarget(m)} title={m.account ? 'Portal account exists' : 'Create portal account'}
-                                                style={{
-                                                    padding: '4px 8px', borderRadius: 6, fontSize: 11, whiteSpace: 'nowrap',
-                                                    border: `1px solid ${m.account ? '#86efac' : '#f97316'}`,
-                                                    background: m.account ? '#f0fdf4' : '#fff7ed',
-                                                    color: m.account ? '#065f46' : '#c2410c',
-                                                    cursor: 'pointer',
-                                                }}>
-                                                {m.account ? '✅' : '📱'}
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
+                                        {/* ── Actions ── */}
+                                        <td style={{ padding: '10px 12px' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                                <button onClick={() => setDrawer(m)} title="Edit member"
+                                                    style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--t-border)', background: 'transparent', color: 'var(--t-text)', cursor: 'pointer', fontSize: 11, fontWeight: 600, textAlign: 'left' }}>
+                                                    ✏️ Edit
+                                                </button>
+                                                <div style={{ display: 'flex', gap: 4 }}>
+                                                    <button onClick={() => { setIdCardMemberId(m.id); setShowIDCard(true); }} title="ID Card"
+                                                        style={{ flex: 1, padding: '4px 6px', borderRadius: 6, border: '1px solid #93c5fd', background: '#eff6ff', color: '#1d4ed8', cursor: 'pointer', fontSize: 10, fontWeight: 700 }}>
+                                                        🪪
+                                                    </button>
+                                                    <button onClick={() => setPortalTarget(m)} title={m.account ? 'Manage portal' : 'Create portal account'}
+                                                        style={{
+                                                            flex: 1, padding: '4px 6px', borderRadius: 6, fontSize: 10, fontWeight: 700,
+                                                            border: `1px solid ${m.account ? '#86efac' : '#fdba74'}`,
+                                                            background: m.account ? '#f0fdf4' : '#fff7ed',
+                                                            color: m.account ? '#065f46' : '#c2410c',
+                                                            cursor: 'pointer',
+                                                        }}>
+                                                        {m.account ? '✅' : '📱'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>

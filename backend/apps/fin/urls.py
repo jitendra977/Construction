@@ -27,6 +27,9 @@ GET/POST        /fin/budget-categories/
 GET/POST        /fin/budget-allocations/
 
 GET             /fin/dashboard/
+
+GET/POST        /fin/expenses/
+GET/PATCH/DEL   /fin/expenses/{id}/
 """
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
@@ -41,6 +44,7 @@ from .views import (
     FinanceDashboardView,
     ContractorContractViewSet, ContractorInstallmentViewSet,
     InstallmentPaymentViewSet,
+    ExpenseViewSet,
 )
 
 router = DefaultRouter()
@@ -56,6 +60,7 @@ router.register(r"budget-allocations",      BudgetAllocationViewSet,      basena
 router.register(r"contractor-contracts",    ContractorContractViewSet,    basename="fin-contractor")
 router.register(r"contractor-installments", ContractorInstallmentViewSet, basename="fin-installment")
 router.register(r"installment-payments",    InstallmentPaymentViewSet,    basename="fin-inst-payment")
+router.register(r"expenses",               ExpenseViewSet,               basename="fin-expense")
 
 urlpatterns = [
     path("", include(router.urls)),

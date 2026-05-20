@@ -1,9 +1,21 @@
 /**
  * GanttView — horizontal bar chart with date ruler, dependency arrows,
- * critical-path highlighting and today indicator.
+ * critical-path highlighting and today indicator (desktop) /
+ * phase-grouped milestone list (mobile).
  */
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { useTimeline } from '../../context/TimelineContext';
+
+/* ── mobile detector ───────────────────────────────────────────────────────── */
+function useIsMobile() {
+    const [m, setM] = useState(() => window.innerWidth < 768);
+    useEffect(() => {
+        const h = () => setM(window.innerWidth < 768);
+        window.addEventListener('resize', h);
+        return () => window.removeEventListener('resize', h);
+    }, []);
+    return m;
+}
 
 /* ─── helpers ─────────────────────────────────────────────────────────────── */
 const DAY = 86400000;
@@ -14,6 +26,14 @@ const STATUS_COLOR = {
     HALTED:      '#ef4444',
     BLOCKED:     '#f59e0b',
     PENDING:     '#6b7280',
+};
+
+const STATUS_LABEL = {
+    COMPLETED:   'Done',
+    IN_PROGRESS: 'Active',
+    HALTED:      'Halted',
+    BLOCKED:     'Blocked',
+    PENDING:     'Pending',
 };
 
 const PRIORITY_DOT = {
@@ -33,6 +53,11 @@ function daysBetween(a, b) {
 
 function clamp(val, lo, hi) {
     return Math.max(lo, Math.min(hi, val));
+}
+
+function fmtShort(dateStr) {
+    if (!dateStr) return '—';
+    return new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
 }
 
 /* ─── Date Ruler ─────────────────────────────────────────────────────────── */
@@ -64,7 +89,6 @@ const DateRuler = ({ minDate, totalDays, colW }) => {
                     {m.label}
                 </div>
             ))}
-            {/* Week grid lines */}
             {Array.from({ length: Math.ceil(totalDays / 7) }, (_, i) => (
                 <div key={i} style={{
                     position: 'absolute', left: i * 7 * colW, top: 0,
@@ -96,7 +120,6 @@ const GanttBar = ({ left, width, color, isCritical, label, pct, onClick, isTask 
         }}
         className="hover:opacity-80"
     >
-        {/* Progress fill */}
         {pct > 0 && (
             <div style={{
                 position: 'absolute', left: 0, top: 0,
@@ -105,7 +128,6 @@ const GanttBar = ({ left, width, color, isCritical, label, pct, onClick, isTask 
                 pointerEvents: 'none',
             }} />
         )}
-        {/* Label */}
         {width > 60 && (
             <span style={{
                 position: 'absolute', left: 4, top: '50%', transform: 'translateY(-50%)',
@@ -119,6 +141,194 @@ const GanttBar = ({ left, width, color, isCritical, label, pct, onClick, isTask 
     </div>
 );
 
+/* ─── Mobile milestone list ───────────────────────────────────────────────── */
+function MobileGanttView({ phases, tasksByPhase, filteredTasks, criticalPathIds, onTaskClick }) {
+    const [expanded, setExpanded] = useState(() => new Set(phases.map(p => p.id)));
+
+    const toggle = (id) => setExpanded(prev => {
+        const s = new Set(prev);
+        s.has(id) ? s.delete(id) : s.add(id);
+        return s;
+    });
+
+    const filteredSet = new Set(filteredTasks.map(t => t.id));
+
+    return (
+        <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px 80px' }}>
+            {/* Info banner */}
+            <div style={{
+                padding: '8px 12px', borderRadius: 8, marginBottom: 12,
+                background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)',
+                display: 'flex', alignItems: 'center', gap: 8,
+            }}>
+                <span style={{ fontSize: 14 }}>📅</span>
+                <span style={{ fontSize: 11, color: 'var(--t-text2)', fontWeight: 600 }}>
+                    Gantt chart is available on desktop. Showing phase timeline below.
+                </span>
+            </div>
+
+            {phases.map(phase => {
+                const pTasks = (tasksByPhase[phase.id] || []).filter(t => filteredSet.has(t.id));
+                const isOpen = expanded.has(phase.id);
+                const sc     = STATUS_COLOR[phase.status] || '#6b7280';
+                const sl     = STATUS_LABEL[phase.status] || phase.status;
+                const done   = pTasks.filter(t => t.status === 'COMPLETED').length;
+                const pct    = pTasks.length ? Math.round((done / pTasks.length) * 100) : 0;
+
+                return (
+                    <div key={phase.id} style={{
+                        marginBottom: 10,
+                        border: '1px solid var(--t-border)',
+                        borderLeft: `3px solid ${sc}`,
+                        borderRadius: 10,
+                        background: 'var(--t-surface)',
+                        overflow: 'hidden',
+                    }}>
+                        {/* Phase header */}
+                        <div
+                            onClick={() => toggle(phase.id)}
+                            style={{
+                                padding: '10px 12px',
+                                cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', gap: 8,
+                            }}
+                        >
+                            <span style={{ fontSize: 13, transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s', display: 'inline-block' }}>›</span>
+
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <p style={{
+                                    margin: 0, fontSize: 13, fontWeight: 800,
+                                    color: 'var(--t-text)', wordBreak: 'break-word',
+                                }}>
+                                    {phase.name}
+                                </p>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3, flexWrap: 'wrap' }}>
+                                    <span style={{
+                                        fontSize: 9, padding: '1px 6px', borderRadius: 4,
+                                        background: `${sc}20`, color: sc, fontWeight: 800,
+                                    }}>{sl}</span>
+                                    <span style={{ fontSize: 10, color: 'var(--t-text3)' }}>
+                                        {done}/{pTasks.length} tasks
+                                    </span>
+                                    {phase.start_date && (
+                                        <span style={{ fontSize: 10, color: 'var(--t-text3)' }}>
+                                            {fmtShort(phase.start_date)} → {fmtShort(phase.end_date)}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+
+                            <span style={{ fontSize: 11, fontWeight: 900, color: 'var(--t-text3)', flexShrink: 0 }}>
+                                {pct}%
+                            </span>
+                        </div>
+
+                        {/* Progress bar */}
+                        <div style={{ position: 'relative', margin: '0 12px 4px' }}>
+                            <div style={{ height: 5, borderRadius: 3, background: 'var(--t-border)', overflow: 'hidden' }}>
+                                <div style={{
+                                    height: '100%', width: `${pct}%`,
+                                    background: pct === 100 ? '#10b981' : sc,
+                                    transition: 'width 0.4s',
+                                }} />
+                            </div>
+                        </div>
+
+                        {/* Task list */}
+                        {isOpen && pTasks.length > 0 && (
+                            <div style={{ padding: '4px 12px 10px' }}>
+                                {pTasks.map(task => {
+                                    const tc       = STATUS_COLOR[task.status] || '#6b7280';
+                                    const tl       = STATUS_LABEL[task.status] || task.status;
+                                    const isCrit   = criticalPathIds.includes(task.id);
+                                    const dl       = task.due_date
+                                        ? Math.round((new Date(task.due_date) - new Date()) / DAY)
+                                        : null;
+
+                                    return (
+                                        <div
+                                            key={task.id}
+                                            onClick={() => onTaskClick?.(task)}
+                                            style={{
+                                                padding: '8px 10px',
+                                                borderRadius: 8,
+                                                marginBottom: 6,
+                                                cursor: 'pointer',
+                                                background: 'var(--t-surface2)',
+                                                border: `1px solid ${isCrit ? 'rgba(239,68,68,0.4)' : 'var(--t-border)'}`,
+                                                display: 'flex', alignItems: 'flex-start', gap: 8,
+                                            }}
+                                        >
+                                            {/* Priority dot */}
+                                            <div style={{
+                                                width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
+                                                background: PRIORITY_DOT[task.priority] || '#6b7280',
+                                                marginTop: 4,
+                                            }} />
+
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+                                                    <span style={{
+                                                        fontSize: 12, fontWeight: 700,
+                                                        color: 'var(--t-text)', wordBreak: 'break-word',
+                                                    }}>
+                                                        {task.title}
+                                                    </span>
+                                                    {isCrit && (
+                                                        <span style={{
+                                                            fontSize: 8, padding: '1px 4px', borderRadius: 3,
+                                                            background: 'rgba(239,68,68,0.12)', color: '#ef4444', fontWeight: 900,
+                                                        }}>⚡CP</span>
+                                                    )}
+                                                </div>
+
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+                                                    <span style={{
+                                                        fontSize: 9, padding: '1px 5px', borderRadius: 4,
+                                                        background: `${tc}20`, color: tc, fontWeight: 800,
+                                                    }}>{tl}</span>
+
+                                                    {task.start_date && (
+                                                        <span style={{ fontSize: 10, color: 'var(--t-text3)' }}>
+                                                            ▶ {fmtShort(task.start_date)}
+                                                        </span>
+                                                    )}
+                                                    {task.due_date && (
+                                                        <span style={{
+                                                            fontSize: 10, fontWeight: 700,
+                                                            color: dl !== null && dl < 0 ? '#ef4444' : dl !== null && dl <= 3 ? '#f59e0b' : 'var(--t-text2)',
+                                                        }}>
+                                                            ⏰ {fmtShort(task.due_date)}
+                                                            {dl !== null && (
+                                                                <span style={{ marginLeft: 3, fontSize: 9, fontWeight: 600 }}>
+                                                                    {dl < 0 ? `(${Math.abs(dl)}d over)` : dl <= 3 ? `(${dl}d left)` : ''}
+                                                                </span>
+                                                            )}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {isOpen && pTasks.length === 0 && (
+                            <p style={{
+                                margin: 0, padding: '8px 14px 10px',
+                                fontSize: 11, color: 'var(--t-text3)', fontStyle: 'italic',
+                            }}>
+                                No tasks in this phase match the current filters.
+                            </p>
+                        )}
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
 /* ─── GanttView ───────────────────────────────────────────────────────────── */
 export default function GanttView({ onTaskClick }) {
     const {
@@ -126,20 +336,24 @@ export default function GanttView({ onTaskClick }) {
         criticalPathIds, dateRange,
     } = useTimeline();
 
-    const COL_W  = 28;   // pixels per day
-    const ROW_H  = 44;   // height of a phase row
-    const TASK_H = 32;
+    const isMobile = useIsMobile();
+
+    // ── All hooks must be called before any early return (Rules of Hooks) ──
+    const COL_W   = 28;
+    const ROW_H   = 44;
+    const TASK_H  = 32;
     const LABEL_W = 200;
 
-    const { min: minDate, max: maxDateRaw } = dateRange;
-    const maxDate    = addDays(maxDateRaw, 7);   // small right padding
+    // dateRange may be undefined on first render — guard here
+    const minDate    = dateRange?.min ?? new Date();
+    const maxDateRaw = dateRange?.max ?? new Date();
+    const maxDate    = addDays(maxDateRaw, 7);
     const totalDays  = Math.max(daysBetween(minDate, maxDate), 30);
     const totalWidth = totalDays * COL_W;
 
-    const today      = new Date();
-    const todayLeft  = clamp(daysBetween(minDate, today) * COL_W, 0, totalWidth);
+    const today     = new Date();
+    const todayLeft = clamp(daysBetween(minDate, today) * COL_W, 0, totalWidth);
 
-    // Build rows: phase + its tasks
     const rows = useMemo(() => {
         const result = [];
         for (const phase of phases) {
@@ -153,6 +367,23 @@ export default function GanttView({ onTaskClick }) {
         return result;
     }, [phases, tasksByPhase, filteredTasks]);
 
+    /* ── mobile path ─────────────────────────────────────────────────────── */
+    if (isMobile) {
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <MobileGanttView
+                    phases={phases}
+                    tasksByPhase={tasksByPhase}
+                    filteredTasks={filteredTasks}
+                    criticalPathIds={criticalPathIds}
+                    onTaskClick={onTaskClick}
+                />
+            </div>
+        );
+    }
+
+    /* ── desktop path ────────────────────────────────────────────────────── */
+
     function barProps(startDate, endDate, colW, totalDays) {
         if (!startDate) return null;
         const start = new Date(startDate);
@@ -164,14 +395,13 @@ export default function GanttView({ onTaskClick }) {
 
     return (
         <div style={{ display: 'flex', height: '100%', overflow: 'hidden', fontFamily: 'var(--f-sans)' }}>
-            {/* ── Left labels panel ─────────────────────────────────────── */}
+            {/* Left labels */}
             <div style={{
                 width: LABEL_W, flexShrink: 0,
                 borderRight: '1px solid var(--t-border)',
                 background: 'var(--t-surface)',
                 overflowY: 'auto', overflowX: 'hidden',
             }}>
-                {/* Header spacer */}
                 <div style={{ height: 28, borderBottom: '1px solid var(--t-border)' }} />
 
                 {rows.map((row, i) => {
@@ -205,12 +435,10 @@ export default function GanttView({ onTaskClick }) {
                                 <div style={{
                                     display: 'flex', alignItems: 'center', gap: 5, minWidth: 0, width: '100%',
                                 }}>
-                                    {/* Priority dot */}
                                     <span style={{
                                         width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
                                         background: PRIORITY_DOT[d.priority] || '#6b7280',
                                     }} />
-                                    {/* Critical path badge */}
                                     {criticalPathIds.includes(d.id) && (
                                         <span style={{
                                             fontSize: 8, padding: '1px 4px', borderRadius: 3,
@@ -235,10 +463,9 @@ export default function GanttView({ onTaskClick }) {
                 })}
             </div>
 
-            {/* ── Right chart panel ─────────────────────────────────────── */}
+            {/* Right chart panel */}
             <div style={{ flex: 1, overflowX: 'auto', overflowY: 'auto' }}>
                 <div style={{ minWidth: totalWidth + 16, position: 'relative' }}>
-                    {/* Date ruler */}
                     <DateRuler minDate={minDate} totalDays={totalDays} colW={COL_W} />
 
                     {/* Today line */}
@@ -249,7 +476,6 @@ export default function GanttView({ onTaskClick }) {
                         pointerEvents: 'none',
                     }} />
 
-                    {/* Rows */}
                     {rows.map((row) => {
                         const isPhase = row.type === 'phase';
                         const d = row.data;
@@ -257,9 +483,7 @@ export default function GanttView({ onTaskClick }) {
                             ? barProps(d.start_date, d.end_date, COL_W, totalDays)
                             : barProps(d.start_date, d.due_date, COL_W, totalDays);
                         const isCritical = !isPhase && criticalPathIds.includes(d.id);
-                        const color = isPhase
-                            ? (STATUS_COLOR[d.status] || '#6b7280')
-                            : (STATUS_COLOR[d.status] || '#6b7280');
+                        const color = STATUS_COLOR[d.status] || '#6b7280';
 
                         return (
                             <div key={`${row.type}-${d.id}`}
@@ -270,7 +494,6 @@ export default function GanttView({ onTaskClick }) {
                                     background: isPhase ? 'rgba(255,255,255,0.02)' : 'transparent',
                                 }}
                             >
-                                {/* Week grid */}
                                 {Array.from({ length: Math.ceil(totalDays / 7) }, (_, i) => (
                                     <div key={i} style={{
                                         position: 'absolute', left: i * 7 * COL_W, top: 0,
@@ -279,7 +502,6 @@ export default function GanttView({ onTaskClick }) {
                                     }} />
                                 ))}
 
-                                {/* Bar */}
                                 {bp && (
                                     <GanttBar
                                         left={bp.left} width={bp.width}

@@ -5,14 +5,12 @@
  * Desktop : header + horizontal tab bar + card wrapper (unchanged)
  */
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useConstruction } from '../../context/ConstructionContext';
 import attendanceService from '../../services/attendanceService';
 import DailySheetTab    from './DailySheetTab';
 import MonthlyReportTab from './MonthlyReportTab';
 import PayrollTab       from './PayrollTab';
-import SettingsTab      from './SettingsTab';
-import ManpowerTab      from './ManpowerTab';
 import { MqttProvider, useMqtt } from './MqttContext';
 import { playScanSound, speakScanResult, speakText, cancelVoice, unlockAudioOnGesture, forceUnlockAudio } from './attendanceSounds';
 
@@ -118,14 +116,11 @@ function MyQRModal({ projectId, onClose }) {
 }
 
 // ── Tab definitions ────────────────────────────────────────────────────────────
-// QR Scanner is now embedded inside DailySheetTab (no longer a standalone tab).
-// Records tab removed — data is visible directly in the Daily Sheet.
+// NFC Devices and Settings have moved to the Workforce page (/workforce).
 const TABS = [
-    { id: 'daily',    label: 'Daily Sheet',     icon: '📋', short: 'Sheet'    },
-    { id: 'manpower', label: 'Staff NFC',       icon: '🏷️', short: 'Staff'    },
-    { id: 'monthly',  label: 'Monthly Report', icon: '📅', short: 'Monthly'  },
-    { id: 'payroll',  label: 'Payroll',        icon: '💰', short: 'Pay'      },
-    { id: 'settings', label: 'Settings',       icon: '⚙️', short: 'Settings' },
+    { id: 'daily',   label: 'Daily Sheet', icon: '📋', short: 'Daily'   },
+    { id: 'monthly', label: 'Monthly',     icon: '📅', short: 'Monthly' },
+    { id: 'payroll', label: 'Payroll',     icon: '💰', short: 'Payroll' },
 ];
 
 // ── Mobile bottom scrollable tab bar ──────────────────────────────────────────
@@ -329,11 +324,9 @@ export default function AttendanceHub() {
     // ── Tab content ────────────────────────────────────────────────────────────
     const tabContent = (
         <>
-            {activeTab === 'daily'    && <DailySheetTab    projectId={activeProjectId} onAlertCount={setAlertCount} />}
-            {activeTab === 'manpower' && <ManpowerTab      projectId={activeProjectId} />}
-            {activeTab === 'monthly'  && <MonthlyReportTab  projectId={activeProjectId} />}
-            {activeTab === 'payroll'  && <PayrollTab        projectId={activeProjectId} />}
-            {activeTab === 'settings' && <SettingsTab       projectId={activeProjectId} />}
+            {activeTab === 'daily'   && <DailySheetTab    projectId={activeProjectId} onAlertCount={setAlertCount} />}
+            {activeTab === 'monthly' && <MonthlyReportTab  projectId={activeProjectId} />}
+            {activeTab === 'payroll' && <PayrollTab        projectId={activeProjectId} />}
         </>
     );
 
@@ -427,7 +420,7 @@ export default function AttendanceHub() {
                                 onMouseOver={e => e.currentTarget.style.background = 'var(--t-surface2)'}
                                 onMouseOut={e => e.currentTarget.style.background = 'var(--t-surface)'}
                             >🏠</button>
-                            <h1 style={{ margin: 0, fontSize: 24, fontWeight: 900, color: 'var(--t-text)' }}>Workforce Attendance</h1>
+                            <h1 style={{ margin: 0, fontSize: 24, fontWeight: 900, color: 'var(--t-text)' }}>Attendance</h1>
                         </div>
                         <p style={{ margin: 0, fontSize: 13, color: 'var(--t-text3)' }}>
                             {activeProject
@@ -435,20 +428,26 @@ export default function AttendanceHub() {
                                 : 'Select a project from Project Manager to get started.'}
                         </p>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <MqttStatusBadge />
+                        <Link to="/dashboard/desktop/workforce" style={{
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            padding: '8px 14px', borderRadius: 10, fontSize: 12, fontWeight: 700,
+                            background: 'rgba(99,102,241,.08)', border: '1px solid rgba(99,102,241,.2)',
+                            color: '#6366f1', textDecoration: 'none', whiteSpace: 'nowrap',
+                        }}>👷 Workforce →</Link>
                         <button onClick={() => window.open(`/kiosk/${activeProjectId || 1}`, '_blank')} title="Open Kiosk" style={{
                             display: 'flex', alignItems: 'center', gap: 6,
-                            padding: '8px 16px', borderRadius: 10, cursor: 'pointer',
+                            padding: '8px 14px', borderRadius: 10, cursor: 'pointer',
                             background: '#10b98115', border: '1px solid #10b98140',
                             color: '#10b981', fontWeight: 800, fontSize: 13,
                             whiteSpace: 'nowrap', flexShrink: 0,
                         }}>
-                            🖥️ Open Kiosk
+                            🖥️ Kiosk
                         </button>
                         <button onClick={() => setMyQROpen(true)} title="View my QR attendance badge" style={{
                             display: 'flex', alignItems: 'center', gap: 6,
-                            padding: '8px 16px', borderRadius: 10, cursor: 'pointer',
+                            padding: '8px 14px', borderRadius: 10, cursor: 'pointer',
                             background: '#f9731615', border: '1px solid #f9731640',
                             color: '#f97316', fontWeight: 800, fontSize: 13,
                             whiteSpace: 'nowrap', flexShrink: 0,

@@ -630,11 +630,17 @@ class WorkerLoginView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Look up by phone (stored as username) and check PIN directly.
+        # We cannot use authenticate(username=email, password=pin) here because
+        # the Django auth backend matches by the `username` field, which for
+        # worker accounts is the phone number — NOT the email address.
+        user = None
         try:
-            target_email = User.objects.get(username=phone).email
-            user = authenticate(request, username=target_email, password=pin)
+            user_obj = User.objects.get(username=phone)
+            if user_obj.is_active and user_obj.check_password(pin):
+                user = user_obj
         except User.DoesNotExist:
-            user = None
+            pass
 
         if not user:
             return Response(
@@ -691,6 +697,26 @@ class WorkerMeView(APIView):
         else:
             target_year, target_month = today.year, today.month
 
+        # ── Helper: convert a naive TimeField (stored in project-local tz)
+        # to a timezone-aware ISO-8601 string so the frontend can display
+        # it in the device's local timezone via new Date().
+        def _time_to_iso(date_val, time_val, aw):
+            if not time_val:
+                return None
+            try:
+                import datetime as _dt
+                import pytz
+                try:
+                    tz_name = aw.project.attendance_settings.timezone
+                    p_tz = pytz.timezone(tz_name)
+                except Exception:
+                    p_tz = timezone.get_current_timezone()
+                naive = _dt.datetime.combine(date_val, time_val)
+                return p_tz.localize(naive).isoformat()
+            except Exception:
+                # Fallback: return plain HH:MM so the UI still shows something
+                return time_val.strftime('%H:%M')
+
         # Today's attendance via the linked AttendanceWorker
         today_att = None
         if member.attendance_worker:
@@ -701,8 +727,8 @@ class WorkerMeView(APIView):
             if att:
                 today_att = {
                     'status':     att.status,
-                    'check_in':   str(att.check_in)  if att.check_in  else None,
-                    'check_out':  str(att.check_out) if att.check_out else None,
+                    'check_in':   _time_to_iso(att.date, att.check_in,  member.attendance_worker),
+                    'check_out':  _time_to_iso(att.date, att.check_out, member.attendance_worker),
                     'daily_rate': str(att.daily_rate_snapshot),
                 }
 
@@ -733,7 +759,7 @@ class WorkerMeView(APIView):
                     if log.scan_status == 'VALID':
                         scan_method = 'QR Scan'
                     logs_data.append({
-                        'time': log.scanned_at.strftime('%H:%M'),
+                        'time': log.scanned_at.isoformat(),   # ISO with tz → frontend converts to local
                         'type': log.get_scan_type_display(),
                         'status': log.scan_status,
                         'is_late': log.is_late,
@@ -743,8 +769,8 @@ class WorkerMeView(APIView):
 
                 month_att.append({
                     'date': str(r.date), 'status': r.status,
-                    'check_in': str(r.check_in) if r.check_in else None,
-                    'check_out': str(r.check_out) if r.check_out else None,
+                    'check_in':  _time_to_iso(r.date, r.check_in,  member.attendance_worker),
+                    'check_out': _time_to_iso(r.date, r.check_out, member.attendance_worker),
                     'wage': float(r.wage_earned),
                     'ot': float(r.overtime_hours),
                     'daily_rate': float(r.daily_rate_snapshot),
@@ -935,22 +961,24 @@ class WorkerCheckinView(APIView):
         now     = tz.now()
         today   = tz.localdate()
 
-        # Validate against ScanTimeWindow
+        # Use project-local time for storing check-in/out (not raw UTC).
+        # Try to get the project's configured timezone; fall back to Django's TIME_ZONE.
+        try:
+            import pytz
+            tz_name  = aw.project.attendance_settings.timezone
+            proj_tz  = pytz.timezone(tz_name)
+            local_now = now.astimezone(proj_tz)
+        except Exception:
+            local_now = tz.localtime(now)
+
+        local_time = local_now.time().replace(second=0, microsecond=0)
+
+        # NOTE: ScanTimeWindow is intentionally NOT enforced for manual portal
+        # check-ins.  Hardware QR / NFC scans (WorkerQRCheckinView) enforce
+        # the window.  A worker tapping the manual button should always succeed
+        # so they are never locked out when hardware is unavailable.
         from apps.attendance.models import ScanTimeWindow, DailyAttendance, QRScanLog
         window = ScanTimeWindow.objects.filter(project=project, is_active=True).first()
-        current_time = now.time().replace(second=0, microsecond=0)
-
-        if window:
-            if scan_type == 'CHECK_IN':
-                if not (window.checkin_start <= current_time <= window.checkin_end):
-                    return Response({
-                        'error': f'Check-in window is {window.checkin_start} – {window.checkin_end}. Current time: {current_time}.'
-                    }, status=status.HTTP_400_BAD_REQUEST)
-            else:
-                if not (window.checkout_start <= current_time <= window.checkout_end):
-                    return Response({
-                        'error': f'Check-out window is {window.checkout_start} – {window.checkout_end}. Current time: {current_time}.'
-                    }, status=status.HTTP_400_BAD_REQUEST)
 
         # Get or create today's DailyAttendance
         att, _ = DailyAttendance.objects.get_or_create(
@@ -963,12 +991,12 @@ class WorkerCheckinView(APIView):
             },
         )
 
-        # Apply check-in / check-out time
+        # Apply check-in / check-out time using project-local time
         is_late = is_early = False
         if scan_type == 'CHECK_IN':
             if att.check_in:
                 return Response({'error': 'Already checked in today.'}, status=400)
-            att.check_in = now.time()
+            att.check_in = local_time
             if window:
                 late_threshold = (
                     dt.datetime.combine(today, window.checkin_start)
@@ -981,7 +1009,7 @@ class WorkerCheckinView(APIView):
                 return Response({'error': 'Must check in before checking out.'}, status=400)
             if att.check_out:
                 return Response({'error': 'Already checked out today.'}, status=400)
-            att.check_out = now.time()
+            att.check_out = local_time
             if window:
                 is_early = att.check_out < window.checkout_start
             att.save(update_fields=['check_out'])
@@ -996,16 +1024,18 @@ class WorkerCheckinView(APIView):
             scanned_by=user,
             is_late=is_late,
             is_early=is_early,
-            note='Manual check-in via portal',
+            note='Manual check-in via worker portal',
         )
 
+        # Format displayed time using project-local time
+        display_time = local_now.strftime('%I:%M %p')
         return Response({
             'status':    'ok',
             'scan_type': scan_type,
-            'time':      now.strftime('%H:%M'),
+            'time':      display_time,
             'is_late':   is_late,
             'is_early':  is_early,
-            'message':   f'{"Check-in" if scan_type == "CHECK_IN" else "Check-out"} recorded at {now.strftime("%H:%M")}.',
+            'message':   f'{"Check-in" if scan_type == "CHECK_IN" else "Check-out"} recorded at {display_time}.',
         })
 
 
@@ -1059,10 +1089,20 @@ class WorkerQRCheckinView(APIView):
             }, status=status.HTTP_403_FORBIDDEN)
 
         # 3. Perform check-in / check-out
-        project      = my_worker.project
-        now          = tz.now()
-        today        = tz.localdate()
-        current_time = now.time().replace(second=0, microsecond=0)
+        project = my_worker.project
+        now     = tz.now()
+        today   = tz.localdate()
+
+        # Use project-local time for window checks and storing times (not raw UTC)
+        try:
+            import pytz
+            tz_name   = project.attendance_settings.timezone
+            proj_tz   = pytz.timezone(tz_name)
+            local_now = now.astimezone(proj_tz)
+        except Exception:
+            local_now = tz.localtime(now)
+
+        current_time = local_now.time().replace(second=0, microsecond=0)
 
         # Determine scan type
         att_today = DailyAttendance.objects.filter(worker=my_worker, date=today).first()
@@ -1120,15 +1160,17 @@ class WorkerQRCheckinView(APIView):
             },
         )
 
+        local_time = current_time  # already project-local, set above
+
         if scan_type == 'CHECK_IN':
             if att.check_in:
                 return Response({'error': 'Already checked in today.'}, status=400)
-            att.check_in = now.time()
+            att.check_in = local_time
             att.save(update_fields=['check_in', 'status'])
         else:
             if att.check_out:
                 return Response({'error': 'Already checked out today.'}, status=400)
-            att.check_out = now.time()
+            att.check_out = local_time
             att.save(update_fields=['check_out'])
 
         # Log the QR scan
@@ -1144,13 +1186,14 @@ class WorkerQRCheckinView(APIView):
             note='Self-scan via worker portal',
         )
 
+        display_time = local_now.strftime('%I:%M %p')
         return Response({
             'status':    'ok',
             'scan_type': scan_type,
-            'time':      now.strftime('%H:%M'),
+            'time':      display_time,
             'is_late':   is_late,
             'is_early':  is_early,
-            'message':   f'{"✅ Checked in" if scan_type == "CHECK_IN" else "👋 Checked out"} at {now.strftime("%H:%M")}.',
+            'message':   f'{"✅ Checked in" if scan_type == "CHECK_IN" else "👋 Checked out"} at {display_time}.',
         })
 
 

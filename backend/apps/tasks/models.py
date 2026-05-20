@@ -88,7 +88,7 @@ class TaskMedia(models.Model):
         ('DOCUMENT', 'Document'),
     ]
 
-    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='media')
+    task = models.ForeignKey(Task, on_delete=models.SET_NULL, null=True, blank=True, related_name='media')
     file = models.FileField(upload_to='task_updates/')
     media_type = models.CharField(max_length=10, choices=MEDIA_TYPES, default='IMAGE')
     created_at = models.DateTimeField(auto_now_add=True)

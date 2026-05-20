@@ -1,4 +1,5 @@
 from .account              import AccountSerializer
+from .expense              import ExpenseSerializer
 from .journal              import JournalEntrySerializer, JournalLineSerializer
 from .transfer             import CashTransferSerializer
 from .loan                 import LoanDisbursementSerializer, LoanEMIPaymentSerializer
@@ -13,6 +14,7 @@ from .contractor_payment   import (
 
 __all__ = [
     "AccountSerializer",
+    "ExpenseSerializer",
     "JournalEntrySerializer", "JournalLineSerializer",
     "CashTransferSerializer",
     "LoanDisbursementSerializer", "LoanEMIPaymentSerializer",

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { calculatorService } from '../../services/api';
+import { estimateService } from '../../services/estimateService';
 
 const BrickCalculator = () => {
     const [formData, setFormData] = useState({
-        length: '',
-        height: '',
+        length_ft: '',
+        height_ft: '',
         thickness: '9_INCH',
         ratio: '1:6'
     });
@@ -21,7 +21,12 @@ const BrickCalculator = () => {
         setLoading(true);
         setError(null);
         try {
-            const response = await calculatorService.calculateWall(formData);
+            const response = await estimateService.calculate('wall', {
+                length_ft: Number(formData.length_ft),
+                height_ft: Number(formData.height_ft),
+                thickness: formData.thickness,
+                ratio:     formData.ratio,
+            });
             setResult(response.data);
         } catch (err) {
             setError("Failed to calculate. Please check inputs.");
@@ -29,6 +34,12 @@ const BrickCalculator = () => {
             setLoading(false);
         }
     };
+
+    const mats = result?.materials ?? {};
+    const bricks     = mats.BRICK?.qty    ?? 0;
+    const cementBags = mats.CEMENT?.qty   ?? 0;
+    const sandCft    = mats.SAND?.qty     ?? 0;
+    const wallArea   = result?.summary?.net_area_sqft ?? 0;
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
@@ -47,8 +58,8 @@ const BrickCalculator = () => {
                         <div className="relative">
                             <input
                                 type="number"
-                                name="length"
-                                value={formData.length}
+                                name="length_ft"
+                                value={formData.length_ft}
                                 onChange={handleChange}
                                 placeholder="Total Length"
                                 className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-emerald-500 focus:bg-white outline-none transition-all font-bold text-gray-800"
@@ -62,8 +73,8 @@ const BrickCalculator = () => {
                         <div className="relative">
                             <input
                                 type="number"
-                                name="height"
-                                value={formData.height}
+                                name="height_ft"
+                                value={formData.height_ft}
                                 onChange={handleChange}
                                 placeholder="Total Height"
                                 className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-emerald-500 focus:bg-white outline-none transition-all font-bold text-gray-800"
@@ -124,25 +135,25 @@ const BrickCalculator = () => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center group hover:border-red-200 transition-colors">
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Bricks (Eeta)</p>
-                            <p className="text-3xl font-black text-red-600 tracking-tighter">{result.bricks.toLocaleString()}</p>
+                            <p className="text-3xl font-black text-red-600 tracking-tighter">{Number(bricks).toLocaleString()}</p>
                             <p className="text-xs font-bold text-gray-400 mt-1">Pieces</p>
                         </div>
 
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center group hover:border-emerald-200 transition-colors">
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Cement (Jhula)</p>
-                            <p className="text-3xl font-black text-gray-900 tracking-tighter">{result.cement_bags}</p>
+                            <p className="text-3xl font-black text-gray-900 tracking-tighter">{cementBags}</p>
                             <p className="text-xs font-bold text-gray-400 mt-1">Bags (50kg)</p>
                         </div>
 
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center group hover:border-amber-200 transition-colors">
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Sand (Baluwa)</p>
-                            <p className="text-3xl font-black text-amber-600 tracking-tighter">{result.sand_cft}</p>
+                            <p className="text-3xl font-black text-amber-600 tracking-tighter">{sandCft}</p>
                             <p className="text-xs font-bold text-gray-400 mt-1">Cubic Feet (Cft)</p>
                         </div>
                     </div>
 
                     <div className="mt-6 flex items-center justify-between px-4">
-                        <p className="text-[10px] font-bold text-gray-400">Wall Area: {result.wall_area_sqft} sq.ft</p>
+                        <p className="text-[10px] font-bold text-gray-400">Wall Area: {wallArea} sq.ft</p>
                         <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Standards: NS 2.30m x 1.10m Brick</p>
                     </div>
                 </div>

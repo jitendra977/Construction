@@ -16,6 +16,7 @@ import TimelapsePage   from '../../pages/TimelapsePage';
 import AnalyticsPage   from '../../pages/AnalyticsPage';
 import WorkerPortal    from '../../modules/worker/WorkerPortal';
 import TeamManagementPage from '../../pages/desktop/TeamManagementPage';
+import SettingsPage       from '../../pages/desktop/SettingsPage';
 
 // Self-contained modules
 import FinanceRoutes   from '../../modules/finance';
@@ -49,7 +50,9 @@ const DesktopRoutes = () => {
             <Route path="analytics"  element={<AnalyticsPage />}  />
             <Route path="attendance" element={<AttendanceHub />}  />
             <Route path="workforce"  element={<WorkforceHub />}  />
-            <Route path="teams"      element={<TeamManagementPage />} />
+            {/* /teams redirects into the Workforce hub (Teams tab) */}
+            <Route path="teams"      element={<Navigate to="/dashboard/desktop/workforce" replace />} />
+            <Route path="settings"   element={<SettingsPage />}      />
 
             {/* Self-contained modules */}
             <Route path="projects/*"  element={<ProjectsRoutes />} />

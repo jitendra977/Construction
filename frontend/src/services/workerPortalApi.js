@@ -130,6 +130,90 @@ const workerPortalApi = {
      * Team leader only — today's roster for all led teams.
      */
     getMyTeam: () => portalApi.get('my-team/').then(r => r.data),
+
+    // ── Phases ────────────────────────────────────────────────────────────────
+
+    /**
+     * GET /api/v1/worker/phases/
+     * All phases for worker's current project with task counts + progress %.
+     */
+    getPhases: () => portalApi.get('phases/').then(r => r.data),
+
+    // ── Tasks ─────────────────────────────────────────────────────────────────
+
+    /**
+     * GET /api/v1/worker/tasks/
+     * Tasks assigned to this worker.
+     * @param {object} params  { phase?, status? }
+     */
+    getTasks: (params = {}) => portalApi.get('tasks/', { params }).then(r => r.data),
+
+    /**
+     * GET /api/v1/worker/project-tasks/
+     * ALL tasks in the worker's current project (read-only view, not just assigned).
+     * @param {object} params  { phase?, status? }
+     */
+    getProjectTasks: (params = {}) => portalApi.get('project-tasks/', { params }).then(r => r.data),
+
+    /**
+     * PATCH /api/v1/worker/tasks/<id>/update/
+     * Update task status from worker side.
+     * @param {number} id
+     * @param {object} data  { status, blocker_reason?, progress_note? }
+     */
+    updateTask: (id, data) => portalApi.patch(`tasks/${id}/update/`, data).then(r => r.data),
+
+    // ── Photos ────────────────────────────────────────────────────────────────
+
+    /**
+     * GET /api/v1/worker/photos/
+     * This worker's uploaded photos (most recent 50).
+     */
+    getPhotos: () => portalApi.get('photos/').then(r => r.data),
+
+    /**
+     * POST /api/v1/worker/photos/upload/
+     * Upload a photo tagged to a task.
+     * @param {File}   file
+     * @param {number} taskId
+     * @param {string} description
+     * @param {function} onProgress  (0-100) optional
+     */
+    uploadPhoto: (file, taskId = null, description = '', onProgress = null) => {
+        const form = new FormData();
+        form.append('file', file);
+        // task_id is optional — only include it when a task is selected
+        if (taskId != null) form.append('task_id', taskId);
+        if (description) form.append('description', description);
+        return portalApi.post('photos/upload/', form, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            onUploadProgress: onProgress
+                ? e => onProgress(Math.round((e.loaded * 100) / e.total))
+                : undefined,
+        }).then(r => r.data);
+    },
+
+    // ── Resources ─────────────────────────────────────────────────────────────
+
+    /**
+     * GET /api/v1/worker/resources/
+     * Materials + equipment for the worker's current project (no costs).
+     */
+    getResources: () => portalApi.get('resources/').then(r => r.data),
+
+    /**
+     * POST /api/v1/worker/material-requests/
+     * Raise a restock request for a material.
+     * @param {string} materialId  UUID
+     * @param {number} quantity
+     * @param {string} notes
+     */
+    requestMaterial: (materialId, quantity, notes = '') =>
+        portalApi.post('material-requests/', {
+            material_id: materialId,
+            quantity,
+            notes,
+        }).then(r => r.data),
 };
 
 export default workerPortalApi;

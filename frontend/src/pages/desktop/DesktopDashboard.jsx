@@ -74,15 +74,14 @@ function DesktopDashboard() {
         { id: 'photos',        icon: '📸',  label: 'Gallery (फोटो ग्यालरी)'               },
         { id: 'timelapse',     icon: '🎞️', label: 'Timelapse (टाइमल्याप्स)'               },
         // Team & HR
-        { id: 'attendance',    icon: '🕐',  label: 'Workforce Attendance (हाजिरी)'         },
-        { id: 'workforce',     icon: '👷',  label: 'Workforce (कार्यबल व्यवस्थापन)'        },
-        { id: 'teams',         icon: '👥',  label: 'Team Management (टोली व्यवस्थापन)'     },
+        { id: 'attendance',    icon: '🕐',  label: 'Attendance (हाजिरी)'                   },
+        { id: 'workforce',     icon: '👷',  label: 'Workforce & Teams (कार्यबल)'            },
         { id: 'location',      icon: '📍',  label: 'Location (स्थान ट्र्याकिङ)'            },
-        // Settings / Account
-        { id: 'accounts',          icon: '👤',  label: 'Accounts (खाता)'                      },
-        { id: 'accounts/settings', icon: '⚙️',  label: 'Settings (सेटिङ)'                     },
-        { id: 'guides',            icon: '📚',  label: 'User Guide (मद्दत निर्देशिका)'         },
-        { id: 'data-transfer',     icon: '🔄',  label: 'Data Transfer (डाटा स्थानान्तरण)'      },
+        // Admin & Config
+        { id: 'accounts',      icon: '👤',  label: 'Accounts (खाता)'                      },
+        { id: 'settings',      icon: '⚙️',  label: 'Settings (सेटिङ)'                     },
+        { id: 'guides',        icon: '📚',  label: 'User Guide (मद्दत निर्देशिका)'         },
+        { id: 'data-transfer', icon: '🔄',  label: 'Data Transfer (डाटा स्थानान्तरण)'      },
     ];
 
     const sidebarW = collapsed ? SIDEBAR_COLLAPSED : SIDEBAR_EXPANDED;

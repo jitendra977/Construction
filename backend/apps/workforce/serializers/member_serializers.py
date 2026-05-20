@@ -61,11 +61,56 @@ class WorkforceMemberSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
-        # Explicitly map properties to underscore fields for the model instance
-        if 'first_name' in validated_data: instance._first_name = validated_data.pop('first_name')
-        if 'last_name' in validated_data:  instance._last_name  = validated_data.pop('last_name')
-        if 'email' in validated_data:      instance._email      = validated_data.pop('email')
-        if 'phone' in validated_data:      instance._phone      = validated_data.pop('phone')
+        # Pop the smart-property fields so they don't land in super().update()
+        first_name = validated_data.pop('first_name', None)
+        last_name  = validated_data.pop('last_name',  None)
+        email      = validated_data.pop('email',      None)
+        phone      = validated_data.pop('phone',      None)
+
+        # Always write to the local underscore columns
+        if first_name is not None:
+            instance._first_name = first_name
+        if last_name is not None:
+            instance._last_name = last_name
+        if email is not None:
+            instance._email = email
+        if phone is not None:
+            instance._phone = phone
+
+        # If the member has a linked User account, keep it in sync.
+        # The model's first_name / last_name / email / phone properties read
+        # from the account, so changes to the underscore fields alone are
+        # invisible in the UI when an account is linked.
+        account = instance.account
+        if account:
+            account_dirty = False
+            if first_name is not None and account.first_name != first_name:
+                account.first_name = first_name
+                account_dirty = True
+            if last_name is not None and account.last_name != last_name:
+                account.last_name = last_name
+                account_dirty = True
+            # Only sync email if the account is NOT using the auto-generated
+            # worker.local placeholder (which is the login identity placeholder).
+            if (email is not None
+                    and email
+                    and not account.email.endswith('@worker.local')
+                    and account.email != email):
+                account.email = email
+                account_dirty = True
+            # Sync phone_number field if the User model has it.
+            if phone is not None and hasattr(account, 'phone_number'):
+                if account.phone_number != phone:
+                    account.phone_number = phone
+                    account_dirty = True
+            if account_dirty:
+                update_fields = ['first_name', 'last_name']
+                if email is not None and email and not account.email.endswith('@worker.local'):
+                    update_fields.append('email')
+                if phone is not None and hasattr(account, 'phone_number'):
+                    update_fields.append('phone_number')
+                account.save(update_fields=update_fields)
+
         return super().update(instance, validated_data)
 
 class WorkforceMemberListSerializer(serializers.ModelSerializer):

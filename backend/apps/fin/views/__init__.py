@@ -6,6 +6,7 @@ from .bill                 import BillViewSet, BillPaymentViewSet
 from .budget               import BudgetCategoryViewSet, BudgetAllocationViewSet
 from .dashboard            import FinanceDashboardView
 from .contractor_payment   import ContractorContractViewSet, ContractorInstallmentViewSet, InstallmentPaymentViewSet
+from .expense              import ExpenseViewSet
 
 __all__ = [
     "AccountViewSet",
@@ -17,4 +18,5 @@ __all__ = [
     "FinanceDashboardView",
     "ContractorContractViewSet", "ContractorInstallmentViewSet",
     "InstallmentPaymentViewSet",
+    "ExpenseViewSet",
 ]

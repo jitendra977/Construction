@@ -34,6 +34,35 @@ class BudgetCategory(models.Model):
     def __str__(self):
         return self.name
 
+    @property
+    def allocation(self) -> Decimal:
+        """Total estimated budget = sum of all phase-wise allocated amounts."""
+        result = self.fin_allocations.aggregate(total=Sum("allocated_amount"))
+        return result["total"] or Decimal("0.00")
+
+    @property
+    def total_spent(self) -> Decimal:
+        """Total actual spend.
+        Tries to pull from the legacy finance.Expense records that are linked
+        to a matching BudgetCategory in the old app (same name, same project).
+        Falls back to zero if none found.
+        """
+        try:
+            from apps.finance.models import BudgetCategory as OldCat
+            old_cat = OldCat.objects.filter(
+                name=self.name,
+                project_id=self.project_id,
+            ).first()
+            if old_cat:
+                return old_cat.total_spent
+        except Exception:
+            pass
+        return Decimal("0.00")
+
+    @property
+    def remaining_budget(self) -> Decimal:
+        return self.allocation - self.total_spent
+
 
 class BudgetAllocation(models.Model):
     """

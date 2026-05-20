@@ -1524,7 +1524,9 @@ export default function ManpowerTab({ projectId }) {
 // ─── Components ──────────────────────────────────────────────────────────────
 
 function ScannerStatusBar() {
-  const { lastScan, status, clearScan } = useMqtt();
+  const mqtt = useMqtt();
+  if (!mqtt) return null;
+  const { lastScan, status, clearScan } = mqtt;
   if (status !== 'Connected' && !lastScan) return null;
 
   return (
@@ -1582,7 +1584,8 @@ function ScannerStatusBar() {
 // ─── Pairing Modal ──────────────────────────────────────────────────────────
 
 function PairingModal({ person, onClose, onAssigned }) {
-  const { lastScan, setLastScan, status, clearScan } = useMqtt();
+  const mqtt = useMqtt();
+  const { lastScan, setLastScan, status, clearScan } = mqtt || { lastScan: null, setLastScan: () => {}, status: 'Disconnected', clearScan: () => {} };
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
 

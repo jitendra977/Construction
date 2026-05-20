@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { calculatorService } from '../../services/api';
+import { estimateService } from '../../services/estimateService';
 
 const ConcreteCalculator = () => {
     const [formData, setFormData] = useState({
-        length: '',
-        width: '',
-        thickness: '',
+        length_ft: '',
+        width_ft: '',
+        depth_in: '',
         grade: 'M20',
-        structure_type: 'SLAB',
+        structure: 'SLAB',
         include_rebar: true
     });
     const [result, setResult] = useState(null);
@@ -24,7 +24,14 @@ const ConcreteCalculator = () => {
         setLoading(true);
         setError(null);
         try {
-            const response = await calculatorService.calculateConcrete(formData);
+            const response = await estimateService.calculate('concrete', {
+                length_ft:    Number(formData.length_ft),
+                width_ft:     Number(formData.width_ft),
+                depth_in:     Number(formData.depth_in),
+                grade:        formData.grade,
+                structure:    formData.structure,
+                include_rebar: formData.include_rebar,
+            });
             setResult(response.data);
         } catch (err) {
             setError("Failed to calculate. Please check inputs.");
@@ -39,6 +46,14 @@ const ConcreteCalculator = () => {
         'COLUMN': '🏛️',
         'FOOTING': '🧱'
     };
+
+    const mats      = result?.materials ?? {};
+    const cementBags = mats.CEMENT?.qty    ?? 0;
+    const sandCft    = mats.SAND?.qty      ?? 0;
+    const aggCft     = mats.AGGREGATE?.qty ?? 0;
+    const rebarKg    = mats.REBAR?.qty     ?? 0;
+    const volumeM3   = result?.summary?.volume_m3 ?? 0;
+    const areaSqft   = result?.summary?.area_sqft  ?? 0;
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
@@ -57,8 +72,8 @@ const ConcreteCalculator = () => {
                         <div className="relative">
                             <input
                                 type="number"
-                                name="length"
-                                value={formData.length}
+                                name="length_ft"
+                                value={formData.length_ft}
                                 onChange={handleChange}
                                 placeholder="Feet"
                                 className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-emerald-500 focus:bg-white outline-none transition-all font-bold text-gray-800"
@@ -68,12 +83,12 @@ const ConcreteCalculator = () => {
                         </div>
                     </div>
                     <div>
-                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Width/Width</label>
+                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Width</label>
                         <div className="relative">
                             <input
                                 type="number"
-                                name="width"
-                                value={formData.width}
+                                name="width_ft"
+                                value={formData.width_ft}
                                 onChange={handleChange}
                                 placeholder="Feet"
                                 className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-emerald-500 focus:bg-white outline-none transition-all font-bold text-gray-800"
@@ -83,12 +98,12 @@ const ConcreteCalculator = () => {
                         </div>
                     </div>
                     <div>
-                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Thickness</label>
+                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Depth</label>
                         <div className="relative">
                             <input
                                 type="number"
-                                name="thickness"
-                                value={formData.thickness}
+                                name="depth_in"
+                                value={formData.depth_in}
                                 onChange={handleChange}
                                 placeholder="Inches"
                                 className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-emerald-500 focus:bg-white outline-none transition-all font-bold text-gray-800"
@@ -103,8 +118,8 @@ const ConcreteCalculator = () => {
                     <div>
                         <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Structure Type</label>
                         <select
-                            name="structure_type"
-                            value={formData.structure_type}
+                            name="structure"
+                            value={formData.structure}
                             onChange={handleChange}
                             className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-emerald-500 focus:bg-white outline-none transition-all font-bold text-gray-800 appearance-none"
                         >
@@ -152,42 +167,48 @@ const ConcreteCalculator = () => {
                 </button>
             </form>
 
+            {error && (
+                <div className="p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl text-sm font-bold">
+                    ⚠️ {error}
+                </div>
+            )}
+
             {result && (
                 <div className="mt-10 p-8 border-2 border-blue-500/20 rounded-[32px] bg-blue-50/10 animate-in slide-in-from-bottom-6 duration-700">
                     <div className="flex justify-between items-center mb-8">
                         <h4 className="text-sm font-black text-blue-900 uppercase tracking-[0.2em]">Material Breakdown</h4>
                         <div className="px-4 py-1.5 bg-white rounded-full border border-blue-100 shadow-sm text-[10px] font-black text-blue-600 uppercase tracking-widest">
-                            {formData.structure_type} | {result.volume_m3} m³
+                            {formData.structure} | {volumeM3} m³
                         </div>
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center">
                             <span className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Cement</span>
-                            <span className="text-2xl font-black text-gray-900">{result.cement_bags}</span>
+                            <span className="text-2xl font-black text-gray-900">{cementBags}</span>
                             <span className="text-[10px] font-bold text-gray-400">Bags</span>
                         </div>
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center text-amber-600">
                             <span className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Sand</span>
-                            <span className="text-2xl font-black">{result.sand_cft}</span>
+                            <span className="text-2xl font-black">{sandCft}</span>
                             <span className="text-[10px] font-bold text-gray-400">Cft</span>
                         </div>
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center text-slate-700">
                             <span className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Gitti</span>
-                            <span className="text-2xl font-black">{result.aggregate_cft}</span>
+                            <span className="text-2xl font-black">{aggCft}</span>
                             <span className="text-[10px] font-bold text-gray-400">Cft</span>
                         </div>
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-blue-500/30 flex flex-col items-center text-blue-700 scale-105 shadow-md">
                             <span className="text-xs font-black text-blue-400 uppercase tracking-widest mb-1">Steel Rod</span>
-                            <span className="text-2xl font-black">{result.rebar_kg}</span>
+                            <span className="text-2xl font-black">{rebarKg}</span>
                             <span className="text-[10px] font-bold text-blue-400">KG</span>
                         </div>
                     </div>
 
                     <div className="mt-8 flex items-center justify-between px-4">
                         <div className="flex items-center gap-2">
-                            <span className="w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-gray-100 shadow-sm">{structureIcons[formData.structure_type]}</span>
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Area: {result.area_sqft} sq.ft</p>
+                            <span className="w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-gray-100 shadow-sm">{structureIcons[formData.structure]}</span>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Area: {areaSqft} sq.ft</p>
                         </div>
                         <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-blue-100">Mix: {formData.grade}</p>
                     </div>

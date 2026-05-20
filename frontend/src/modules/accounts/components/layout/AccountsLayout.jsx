@@ -17,7 +17,6 @@ export default function AccountsLayout({ children }) {
         { to: `${BASE}/users`,                  icon: '👥', label: 'Users'      },
         { to: `${BASE}/roles`,                  icon: '🛡️', label: 'Roles'     },
         { to: `${BASE}/activity`,               icon: '📋', label: 'Activity'   },
-        { to: `${BASE}/settings`,               icon: '⚙️', label: 'Settings'   },
     ];
 
     return (

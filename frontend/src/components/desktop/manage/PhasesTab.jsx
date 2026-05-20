@@ -14,7 +14,7 @@
  *  • Global search + status / priority filters
  *  • Summary stats bar at the top
  */
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
     DndContext, closestCenter, KeyboardSensor,
     PointerSensor, useSensor, useSensors,
@@ -351,6 +351,332 @@ function TaskRow({ task, onUpdate, onDelete, onTaskClick }) {
     );
 }
 
+/* ─── Mobile detection ───────────────────────────────────────────────────── */
+function useIsMobile() {
+    const [mobile, setMobile] = useState(() => window.innerWidth < 768);
+    useEffect(() => {
+        const fn = () => setMobile(window.innerWidth < 768);
+        window.addEventListener('resize', fn);
+        return () => window.removeEventListener('resize', fn);
+    }, []);
+    return mobile;
+}
+
+/* ─── MobilePhaseCard ────────────────────────────────────────────────────── */
+function MobilePhaseCard({
+    phase, tasks,
+    expanded, onToggle,
+    onPhaseUpdate, onPhaseDelete,
+    onTaskUpdate, onTaskDelete, onTaskAdded,
+    onPhaseClick, onTaskClick,
+    canManage, searchQuery, filterStatus, filterPriority,
+}) {
+    const sm = PHASE_STATUS_META[phase.status] || PHASE_STATUS_META.PENDING;
+
+    const visibleTasks = tasks.filter(t => {
+        if (filterStatus !== 'ALL' && t.status !== filterStatus) return false;
+        if (filterPriority !== 'ALL' && t.priority !== filterPriority) return false;
+        if (searchQuery && !t.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+        return true;
+    });
+
+    const totalT   = tasks.length;
+    const doneT    = tasks.filter(t => t.status === 'COMPLETED').length;
+    const overdueT = tasks.filter(t => t.due_date && daysLeft(t.due_date) < 0 && t.status !== 'COMPLETED').length;
+    const inProgT  = tasks.filter(t => t.status === 'IN_PROGRESS').length;
+    const progress = totalT > 0 ? Math.round(doneT / totalT * 100) : 0;
+
+    const cyclePhaseStatus = () => {
+        const idx  = PHASE_STATUSES.indexOf(phase.status);
+        const next = PHASE_STATUSES[(idx + 1) % PHASE_STATUSES.length];
+        onPhaseUpdate(phase.id, { status: next });
+    };
+
+    return (
+        <div style={{
+            marginBottom: 10, borderRadius: 14,
+            border: `1px solid ${expanded ? sm.color + '60' : 'var(--t-border)'}`,
+            background: 'var(--t-surface)',
+            overflow: 'hidden',
+            boxShadow: expanded ? `0 2px 12px ${sm.color}18` : 'none',
+            transition: 'box-shadow 0.2s, border-color 0.2s',
+        }}>
+            {/* ── Card header (tap to expand) ── */}
+            <div
+                onClick={() => onToggle(phase.id)}
+                style={{
+                    padding: '10px 12px 10px',
+                    background: expanded ? `${sm.color}08` : 'var(--t-surface)',
+                    cursor: 'pointer', userSelect: 'none',
+                }}
+            >
+                {/* Row 1: # · name · status · active count · tasks · detail · chevron */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 7 }}>
+                    {/* Order # */}
+                    <span style={{
+                        fontSize: 9, fontWeight: 900, width: 20, height: 20, borderRadius: 5,
+                        flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: 'rgba(249,115,22,0.12)', color: '#f97316',
+                        border: '1px solid rgba(249,115,22,0.2)',
+                    }}>
+                        {phase.order}
+                    </span>
+
+                    {/* Phase name — wraps freely, takes remaining space */}
+                    <span style={{
+                        flex: 1, fontSize: 13, fontWeight: 800, color: 'var(--t-text)',
+                        lineHeight: 1.3, wordBreak: 'break-word',
+                    }}>
+                        {phase.name}
+                    </span>
+
+                    {/* Budget — before status */}
+                    {phase.estimated_budget > 0 && (
+                        <span style={{
+                            fontSize: 9, fontWeight: 700, color: 'var(--t-text3)',
+                            flexShrink: 0, whiteSpace: 'nowrap',
+                        }}>
+                            Rs.{Number(phase.estimated_budget).toLocaleString()}
+                        </span>
+                    )}
+
+                    {/* Status badge — tap to cycle */}
+                    <button
+                        onClick={e => { e.stopPropagation(); cyclePhaseStatus(); }}
+                        style={{
+                            padding: '2px 8px', borderRadius: 4, fontSize: 9, fontWeight: 800,
+                            background: sm.bg, color: sm.color,
+                            border: `1px solid ${sm.color}40`,
+                            cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
+                        }}
+                    >
+                        {sm.label}
+                    </button>
+
+                    {/* Active count — right after status */}
+                    {inProgT > 0 && (
+                        <span style={{
+                            fontSize: 9, padding: '2px 6px', borderRadius: 4, fontWeight: 800,
+                            background: '#3b82f618', color: '#3b82f6', flexShrink: 0,
+                            whiteSpace: 'nowrap',
+                        }}>
+                            {inProgT} active
+                        </span>
+                    )}
+
+                    {/* Task count */}
+                    <span style={{
+                        fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 8,
+                        background: 'var(--t-surface2)', color: 'var(--t-text3)',
+                        border: '1px solid var(--t-border)', flexShrink: 0, whiteSpace: 'nowrap',
+                    }}>
+                        {totalT}t
+                    </span>
+
+                    {/* Detail → */}
+                    {onPhaseClick && (
+                        <button
+                            onClick={e => { e.stopPropagation(); onPhaseClick(phase); }}
+                            style={{
+                                padding: '2px 7px', borderRadius: 4, fontSize: 9, fontWeight: 800,
+                                background: 'rgba(249,115,22,0.08)', color: '#f97316',
+                                border: '1px solid rgba(249,115,22,0.2)',
+                                cursor: 'pointer', flexShrink: 0,
+                            }}
+                        >→</button>
+                    )}
+
+                    {/* Chevron */}
+                    <span style={{
+                        fontSize: 14, color: 'var(--t-text3)', flexShrink: 0,
+                        transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.2s',
+                    }}>›</span>
+                </div>
+
+                {/* Row 2: Progress bar with % label inside */}
+                <div style={{ position: 'relative' }}>
+                    {/* Background track */}
+                    <div style={{
+                        height: 16, borderRadius: 6,
+                        background: 'var(--t-border)',
+                        overflow: 'hidden',
+                    }}>
+                        {/* Filled portion */}
+                        <div style={{
+                            height: '100%', width: `${progress}%`, minWidth: progress > 0 ? 6 : 0,
+                            background: progress === 100
+                                ? 'linear-gradient(90deg,#10b981,#34d399)'
+                                : `linear-gradient(90deg,${sm.color},${sm.color}cc)`,
+                            borderRadius: 6,
+                            transition: 'width 0.45s cubic-bezier(.4,0,.2,1)',
+                        }} />
+                    </div>
+                    {/* % text floating above bar */}
+                    <span style={{
+                        position: 'absolute', right: 6, top: '50%',
+                        transform: 'translateY(-50%)',
+                        fontSize: 9, fontWeight: 900,
+                        color: progress > 85 ? '#fff' : 'var(--t-text2)',
+                        mixBlendMode: progress > 85 ? 'normal' : undefined,
+                        pointerEvents: 'none',
+                        letterSpacing: '0.02em',
+                    }}>
+                        {doneT}/{totalT} · {progress}%
+                    </span>
+                    {/* Overdue badge */}
+                    {overdueT > 0 && (
+                        <span style={{
+                            position: 'absolute', left: 6, top: '50%',
+                            transform: 'translateY(-50%)',
+                            fontSize: 9, fontWeight: 800,
+                            color: '#ef4444',
+                            pointerEvents: 'none',
+                        }}>⚠ {overdueT}</span>
+                    )}
+                </div>
+
+                {/* Row 3: dates (only if set) */}
+                {phase.start_date && (
+                    <div style={{ marginTop: 5 }}>
+                        <span style={{ fontSize: 10, color: 'var(--t-text3)' }}>
+                            📅 {fmtDate(phase.start_date)} → {fmtDate(phase.end_date) || '?'}
+                        </span>
+                    </div>
+                )}
+            </div>
+
+            {/* ── Expanded: mobile task list ── */}
+            {expanded && (
+                <div style={{ borderTop: `1px solid ${sm.color}30` }}>
+                    {visibleTasks.length === 0 && tasks.length > 0 ? (
+                        <div style={{ padding: '12px 16px', fontSize: 12, color: 'var(--t-text3)', textAlign: 'center', fontStyle: 'italic' }}>
+                            No tasks match filters.
+                        </div>
+                    ) : visibleTasks.length === 0 ? (
+                        <div style={{ padding: '12px 16px', fontSize: 12, color: 'var(--t-text3)', textAlign: 'center', fontStyle: 'italic' }}>
+                            No tasks yet — add one below.
+                        </div>
+                    ) : (
+                        <div style={{ padding: '4px 0' }}>
+                            {visibleTasks
+                                .slice()
+                                .sort((a, b) => {
+                                    const da = a.due_date ? new Date(a.due_date).getTime() : 9999999999999;
+                                    const db = b.due_date ? new Date(b.due_date).getTime() : 9999999999999;
+                                    if (da !== db) return da - db;
+                                    if (a.status === 'COMPLETED' && b.status !== 'COMPLETED') return 1;
+                                    if (a.status !== 'COMPLETED' && b.status === 'COMPLETED') return -1;
+                                    return (a.id || 0) - (b.id || 0);
+                                })
+                                .map(task => {
+                                    const tsm = TASK_STATUS_META[task.status] || TASK_STATUS_META.PENDING;
+                                    const isDone = task.status === 'COMPLETED';
+                                    const dl = daysLeft(task.due_date);
+                                    return (
+                                        <div key={task.id} style={{
+                                            display: 'flex', alignItems: 'flex-start', gap: 10,
+                                            padding: '10px 14px',
+                                            borderBottom: '1px solid var(--t-border)',
+                                            opacity: isDone ? 0.6 : 1,
+                                            borderLeft: `3px solid ${isDone ? '#10b98140' : (PRIORITY_COLOR[task.priority] || '#6b7280') + '80'}`,
+                                        }}>
+                                            {/* Checkbox */}
+                                            <input
+                                                type="checkbox"
+                                                checked={isDone}
+                                                onChange={() => onTaskUpdate(task.id, {
+                                                    status: isDone ? 'PENDING' : 'COMPLETED',
+                                                    progress_percentage: isDone ? 0 : 100,
+                                                })}
+                                                style={{ marginTop: 2, cursor: 'pointer', accentColor: '#10b981', flexShrink: 0 }}
+                                            />
+                                            {/* Title + meta */}
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div style={{
+                                                    fontSize: 13, fontWeight: 600,
+                                                    color: isDone ? 'var(--t-text3)' : 'var(--t-text)',
+                                                    textDecoration: isDone ? 'line-through' : 'none',
+                                                    wordBreak: 'break-word',
+                                                    lineHeight: 1.4,
+                                                }}>
+                                                    {task.title}
+                                                </div>
+                                                <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                                                    {/* priority dot */}
+                                                    <span style={{
+                                                        fontSize: 9, fontWeight: 800, padding: '1px 6px', borderRadius: 4,
+                                                        background: (PRIORITY_COLOR[task.priority] || '#6b7280') + '18',
+                                                        color: PRIORITY_COLOR[task.priority] || '#6b7280',
+                                                    }}>{task.priority}</span>
+                                                    {task.due_date && (
+                                                        <span style={{
+                                                            fontSize: 10, fontWeight: 700,
+                                                            color: dl !== null && dl < 0 ? '#ef4444' : dl !== null && dl <= 3 ? '#f59e0b' : 'var(--t-text3)',
+                                                        }}>
+                                                            {dl !== null && dl < 0 ? `⚠ ${Math.abs(dl)}d over` : `📅 ${fmtDate(task.due_date)}`}
+                                                        </span>
+                                                    )}
+                                                    {task.assigned_to_detail?.name && (
+                                                        <span style={{ fontSize: 10, color: 'var(--t-text3)' }}>
+                                                            👤 {task.assigned_to_detail.name}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            {/* Status badge + detail */}
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end', flexShrink: 0 }}>
+                                                <button
+                                                    onClick={() => onTaskUpdate(task.id, { status: tsm.next })}
+                                                    style={{
+                                                        padding: '3px 8px', borderRadius: 4, fontSize: 10, fontWeight: 800,
+                                                        background: tsm.color + '18', color: tsm.color,
+                                                        border: `1px solid ${tsm.color}30`, cursor: 'pointer',
+                                                        whiteSpace: 'nowrap',
+                                                    }}
+                                                >{tsm.label}</button>
+                                                {onTaskClick && (
+                                                    <button
+                                                        onClick={() => onTaskClick(task)}
+                                                        style={{
+                                                            padding: '2px 7px', borderRadius: 4, fontSize: 9, fontWeight: 800,
+                                                            background: 'rgba(249,115,22,0.08)', color: '#f97316',
+                                                            border: '1px solid rgba(249,115,22,0.2)', cursor: 'pointer',
+                                                        }}
+                                                    >Detail →</button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            }
+                        </div>
+                    )}
+
+                    {/* Quick-add task */}
+                    {canManage && (
+                        <QuickAddTask phaseId={phase.id} onAdded={onTaskAdded} />
+                    )}
+
+                    {/* Delete phase footer */}
+                    {canManage && (
+                        <div style={{ padding: '8px 14px', borderTop: '1px solid var(--t-border)', textAlign: 'right' }}>
+                            <button
+                                onClick={() => onPhaseDelete(phase.id)}
+                                style={{
+                                    padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700,
+                                    background: '#ef444410', color: '#ef4444',
+                                    border: '1px solid #ef444430', cursor: 'pointer',
+                                }}
+                            >🗑 Delete Phase</button>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
 /* ─── PhaseAccordion ─────────────────────────────────────────────────────── */
 function SortablePhaseAccordion({
     phase, tasks, expanded, onToggle,
@@ -645,16 +971,19 @@ function SummaryBar({ phases, tasks }) {
 
             {/* Stat chips */}
             <div style={{
-                display: 'flex', gap: 0, borderRadius: 10, overflow: 'hidden',
-                border: '1px solid var(--t-border)', background: 'var(--t-surface)',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: 6,
             }}>
-                {stats.map((s, i) => (
+                {stats.map((s) => (
                     <div key={s.label} style={{
-                        flex: 1, padding: '9px 12px', textAlign: 'center',
-                        borderRight: i < stats.length - 1 ? '1px solid var(--t-border)' : 'none',
+                        padding: '8px 10px', textAlign: 'center',
+                        background: 'var(--t-surface)',
+                        border: '1px solid var(--t-border)',
+                        borderRadius: 8,
                     }}>
-                        <div style={{ fontSize: 18, fontWeight: 900, color: s.color }}>{s.value}</div>
-                        <div style={{ fontSize: 9, color: 'var(--t-text3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 1 }}>
+                        <div style={{ fontSize: 17, fontWeight: 900, color: s.color }}>{s.value}</div>
+                        <div style={{ fontSize: 9, color: 'var(--t-text3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginTop: 1 }}>
                             {s.label}
                         </div>
                     </div>
@@ -787,6 +1116,7 @@ function AddPhaseForm({ phaseCount, projectId, onCreated, onCancel }) {
 const PhasesTab = ({ searchQuery = '', onPhaseClick, onTaskClick }) => {
     const { dashboardData, refreshData, activeProjectId } = useConstruction();
     const canManage = authService.hasPermission('can_manage_phases');
+    const isMobile  = useIsMobile();
 
     const [phases, setPhases] = useState([]);
     const [tasks,  setTasks]  = useState([]);
@@ -887,6 +1217,7 @@ const PhasesTab = ({ searchQuery = '', onPhaseClick, onTaskClick }) => {
                     padding: '6px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600,
                     border: '1px solid var(--t-border)', background: 'var(--t-surface)',
                     color: 'var(--t-text)', cursor: 'pointer',
+                    flex: isMobile ? '1' : undefined,
                 }}>
                     <option value="ALL">All Statuses</option>
                     {TASK_STATUSES.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
@@ -896,31 +1227,52 @@ const PhasesTab = ({ searchQuery = '', onPhaseClick, onTaskClick }) => {
                     padding: '6px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600,
                     border: '1px solid var(--t-border)', background: 'var(--t-surface)',
                     color: 'var(--t-text)', cursor: 'pointer',
+                    flex: isMobile ? '1' : undefined,
                 }}>
                     <option value="ALL">All Priorities</option>
                     {TASK_PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
 
-                <div style={{ flex: 1 }} />
+                {!isMobile && <div style={{ flex: 1 }} />}
+                {isMobile && <div style={{ width: '100%', display: 'flex', gap: 8 }}>
+                    <button onClick={expandAll} style={{
+                        flex: 1, padding: '7px 0', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                        border: '1px solid var(--t-border)', background: 'var(--t-surface2)',
+                        color: 'var(--t-text)', cursor: 'pointer',
+                    }}>↕ All</button>
+                    <button onClick={collapseAll} style={{
+                        flex: 1, padding: '7px 0', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                        border: '1px solid var(--t-border)', background: 'var(--t-surface2)',
+                        color: 'var(--t-text)', cursor: 'pointer',
+                    }}>↕ Collapse</button>
+                    {canManage && (
+                        <button onClick={() => setShowAddPhase(true)} style={{
+                            flex: 1, padding: '7px 0', borderRadius: 8, fontSize: 11, fontWeight: 800,
+                            background: '#f97316', color: '#fff', border: 'none', cursor: 'pointer',
+                        }}>+ Phase</button>
+                    )}
+                </div>}
 
-                <button onClick={expandAll} style={{
-                    padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700,
-                    border: '1px solid var(--t-border)', background: 'var(--t-surface2)',
-                    color: 'var(--t-text)', cursor: 'pointer',
-                }}>↕ Expand All</button>
+                {!isMobile && <>
+                    <button onClick={expandAll} style={{
+                        padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                        border: '1px solid var(--t-border)', background: 'var(--t-surface2)',
+                        color: 'var(--t-text)', cursor: 'pointer',
+                    }}>↕ Expand All</button>
 
-                <button onClick={collapseAll} style={{
-                    padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700,
-                    border: '1px solid var(--t-border)', background: 'var(--t-surface2)',
-                    color: 'var(--t-text)', cursor: 'pointer',
-                }}>↕ Collapse All</button>
+                    <button onClick={collapseAll} style={{
+                        padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                        border: '1px solid var(--t-border)', background: 'var(--t-surface2)',
+                        color: 'var(--t-text)', cursor: 'pointer',
+                    }}>↕ Collapse All</button>
 
-                {canManage && (
-                    <button onClick={() => setShowAddPhase(true)} style={{
-                        padding: '6px 18px', borderRadius: 8, fontSize: 11, fontWeight: 800,
-                        background: '#f97316', color: '#fff', border: 'none', cursor: 'pointer',
-                    }}>+ Add Phase</button>
-                )}
+                    {canManage && (
+                        <button onClick={() => setShowAddPhase(true)} style={{
+                            padding: '6px 18px', borderRadius: 8, fontSize: 11, fontWeight: 800,
+                            background: '#f97316', color: '#fff', border: 'none', cursor: 'pointer',
+                        }}>+ Add Phase</button>
+                    )}
+                </>}
             </div>
 
             {/* Inline add phase form */}
@@ -933,11 +1285,11 @@ const PhasesTab = ({ searchQuery = '', onPhaseClick, onTaskClick }) => {
                 />
             )}
 
-            {/* Phase accordions */}
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={filteredPhases.map(p => p.id)} strategy={verticalListSortingStrategy}>
+            {/* Phase list — mobile cards or desktop accordions */}
+            {isMobile ? (
+                <div>
                     {filteredPhases.map(phase => (
-                        <SortablePhaseAccordion
+                        <MobilePhaseCard
                             key={phase.id}
                             phase={phase}
                             tasks={tasks.filter(t => t.phase === phase.id)}
@@ -951,14 +1303,39 @@ const PhasesTab = ({ searchQuery = '', onPhaseClick, onTaskClick }) => {
                             onPhaseClick={onPhaseClick}
                             onTaskClick={onTaskClick}
                             canManage={canManage}
-                            activeProjectId={activeProjectId}
                             searchQuery={searchQuery}
                             filterStatus={filterStatus}
                             filterPriority={filterPriority}
                         />
                     ))}
-                </SortableContext>
-            </DndContext>
+                </div>
+            ) : (
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                    <SortableContext items={filteredPhases.map(p => p.id)} strategy={verticalListSortingStrategy}>
+                        {filteredPhases.map(phase => (
+                            <SortablePhaseAccordion
+                                key={phase.id}
+                                phase={phase}
+                                tasks={tasks.filter(t => t.phase === phase.id)}
+                                expanded={expandedIds.has(phase.id)}
+                                onToggle={toggleExpand}
+                                onPhaseUpdate={handlePhaseUpdate}
+                                onPhaseDelete={handlePhaseDelete}
+                                onTaskUpdate={handleTaskUpdate}
+                                onTaskDelete={handleTaskDelete}
+                                onTaskAdded={handleTaskAdded}
+                                onPhaseClick={onPhaseClick}
+                                onTaskClick={onTaskClick}
+                                canManage={canManage}
+                                activeProjectId={activeProjectId}
+                                searchQuery={searchQuery}
+                                filterStatus={filterStatus}
+                                filterPriority={filterPriority}
+                            />
+                        ))}
+                    </SortableContext>
+                </DndContext>
+            )}
 
             {/* Empty state */}
             {filteredPhases.length === 0 && !showAddPhase && (

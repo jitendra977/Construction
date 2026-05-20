@@ -14,7 +14,7 @@
  *   GET  /api/v1/attendance/workers/
  *   POST /api/v1/attendance/records/bulk/
  *   GET  /api/v1/phases/            → phase list for expense
- *   POST /api/v1/finance/expenses/  → quick expense (DEPRECATED — Phase 3: migrate to /fin/bills/)
+ *   POST /api/v1/fin/expenses/       → quick expense (canonical fin module)
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
@@ -550,9 +550,7 @@ function ExpenseTab({ projectId }) {
         if (!title.trim() || !amount || Number(amount) <= 0) return;
         setSaving(true);
         try {
-            // TODO Phase 3: migrate to /fin/bills/ once Bill model supports
-            // quick-expense semantics (expense_type, paid_to, phase FK).
-            await api.post('/finance/expenses/', {
+            await api.post('/fin/expenses/', {
                 title: title.trim(),
                 amount: Number(amount),
                 expense_type: type,

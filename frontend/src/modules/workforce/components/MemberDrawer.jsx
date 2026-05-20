@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import workforceService from '../../../services/workforceService';
+import { dashboardService } from '../../../services/dashboardService';
 
 // ── Shared style helpers ─────────────────────────────────────────────────────
 const inputStyle = {
@@ -142,7 +143,7 @@ function DeleteConfirmModal({ member, onConfirm, onCancel, deleting }) {
 export default function MemberDrawer({ member, onClose, onSaved, onDeleted, projectId }) {
     const isEdit = !!member;
     const [allRoles, setAllRoles] = useState([]);
-    const [projects, setProjects] = useState([]);
+    const [projects, setProjects] = useState([]);   // all projects for dropdown
     const [teams, setTeams]       = useState([]);
     const [saving, setSaving]     = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -175,28 +176,43 @@ export default function MemberDrawer({ member, onClose, onSaved, onDeleted, proj
     useEffect(() => {
         const loadInitial = async () => {
             try {
-                const [r, t] = await Promise.all([
+                const [r, t, pRes] = await Promise.all([
                     workforceService.getRoles({ page_size: 200 }),
-                    workforceService.getTeams({ project: projectId, page_size: 100 }),
+                    workforceService.getTeams({ page_size: 200 }),
+                    dashboardService.getProjects(),
                 ]);
-                const roleList = Array.isArray(r) ? r : (r.results || []);
-                const teamList = Array.isArray(t) ? t : (t.results || []);
+                const roleList    = Array.isArray(r) ? r : (r.results || []);
+                const teamList    = Array.isArray(t) ? t : (t.results || []);
+                const projectList = Array.isArray(pRes?.data)
+                    ? pRes.data
+                    : (pRes?.data?.results || []);
                 setAllRoles(roleList.filter(role => role.is_active !== false));
                 setTeams(teamList);
+                setProjects(projectList);
 
                 if (isEdit) {
                     const full = await workforceService.getMember(member.id);
+                    // Only map known editable fields — do NOT spread the full API
+                    // response into the form (it includes read-only computed fields
+                    // like full_name, skills[], etc. which confuse the UI).
                     setForm({
                         ...BLANK,
-                        ...full,
-                        name: `${full.first_name || ''} ${full.last_name || ''}`.trim(),
-                        phone: full.phone || '',
-                        phone_alt: full.phone_alt || '',
-                        email: full.email || '',
-                        date_of_birth: full.date_of_birth || '',
-                        end_date: full.end_date || '',
-                        team_id: full.team_id || '',
+                        name:            `${full.first_name || ''} ${full.last_name || ''}`.trim(),
+                        phone:           full.phone           || '',
+                        phone_alt:       full.phone_alt       || '',
+                        email:           full.email           || '',
+                        worker_type:     full.worker_type     || 'LABOUR',
+                        status:          full.status          || 'ACTIVE',
+                        join_date:       full.join_date       || new Date().toISOString().slice(0, 10),
+                        end_date:        full.end_date        || '',
                         current_project: full.current_project || projectId || '',
+                        team_id:         full.team_id         || '',
+                        role:            full.role            || '',
+                        gender:          full.gender          || 'M',
+                        date_of_birth:   full.date_of_birth   || '',
+                        address:         full.address         || '',
+                        nationality:     full.nationality     || 'Nepali',
+                        language:        full.language        || 'Nepali',
                     });
                 }
             } catch (e) {
@@ -241,16 +257,28 @@ export default function MemberDrawer({ member, onClose, onSaved, onDeleted, proj
 
         try {
             const parts = form.name.trim().split(/\s+/);
+            // Build a clean payload — only send editable model fields.
+            // Do NOT spread the full form (which contains API read-only fields
+            // like full_name, skills[], status_display, etc.) to avoid confusing
+            // the DRF serializer or causing unexpected side-effects.
             const payload = {
-                ...form,
-                first_name: parts[0],
-                last_name: parts.length > 1 ? parts.slice(1).join(' ') : '',
+                first_name:      parts[0],
+                last_name:       parts.length > 1 ? parts.slice(1).join(' ') : '',
+                phone:           form.phone           || '',
+                phone_alt:       form.phone_alt       || '',
+                email:           form.email           || '',
+                worker_type:     form.worker_type,
+                status:          form.status,
+                join_date:       form.join_date,
+                end_date:        form.end_date        || null,
                 current_project: form.current_project || projectId || null,
-                role: form.role || null,
-                date_of_birth: form.date_of_birth || null,
-                end_date: form.end_date || null,
+                role:            form.role            || null,
+                gender:          form.gender          || 'M',
+                date_of_birth:   form.date_of_birth   || null,
+                address:         form.address         || '',
+                nationality:     form.nationality     || '',
+                language:        form.language        || '',
             };
-            delete payload.name;
 
             let savedId;
             if (isEdit) {
@@ -499,8 +527,15 @@ export default function MemberDrawer({ member, onClose, onSaved, onDeleted, proj
                                                 value={form.current_project || ''}
                                                 onChange={e => set('current_project', e.target.value)}
                                             >
-                                                <option value="">All Projects / Unassigned</option>
-                                                {projectId && <option value={projectId}>Current Project</option>}
+                                                <option value="">— Unassigned —</option>
+                                                {projects.length > 0
+                                                    ? projects.map(p => (
+                                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                                    ))
+                                                    : projectId && (
+                                                        <option value={projectId}>Current Project</option>
+                                                    )
+                                                }
                                             </select>
                                         </Field>
                                         <Field label="Assign to Team">

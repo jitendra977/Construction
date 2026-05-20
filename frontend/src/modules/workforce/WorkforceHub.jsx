@@ -16,16 +16,23 @@ import WorkforceMembersView from './components/WorkforceMembersView';
 import RolesTeamsTab from './components/RolesTeamsTab';
 import WorkforceAttendanceTab from './components/WorkforceAttendanceTab';
 import EmptyState from '../../shared/ui/EmptyState';
+import TeamManagementPage from '../../pages/desktop/TeamManagementPage';
+import ManpowerTab from '../attendance/ManpowerTab';
+import SettingsTab from '../attendance/SettingsTab';
+import { MqttProvider } from '../attendance/MqttContext';
 
 // ── Constants ────────────────────────────────────────────────────────────────
+// Tab order: Members first (most-used), Teams second, then operational tabs, Setup last.
+// "Attendance" tab removed — use the dedicated /attendance page for full attendance mgmt.
 const TABS = [
     { id: 'MEMBERS',     label: 'Members',      short: 'Staff',   icon: '👥' },
-    { id: 'ATTENDANCE',  label: 'Attendance',   short: 'Attend',  icon: '📋' },
-    { id: 'PAYROLL',     label: 'Payroll',      short: 'Wage',    icon: '💰' },
+    { id: 'TEAMS',       label: 'Teams',        short: 'Teams',   icon: '👫' },
+    { id: 'PAYROLL',     label: 'Payroll',      short: 'Pay',     icon: '💰' },
     { id: 'ASSIGNMENTS', label: 'Assignments',  short: 'Tasks',   icon: '🏗️' },
-    { id: 'EVALUATIONS', label: 'Evaluations',  short: 'Stats',   icon: '📈' },
-    { id: 'SAFETY',      label: 'Safety',       short: 'Safe',    icon: '🦺' },
-    { id: 'SETUP',       label: 'Setup',        short: 'Setup',   icon: '⚙️' },
+    { id: 'EVALUATIONS', label: 'Evaluations',  short: 'Evals',   icon: '📈' },
+    { id: 'SAFETY',      label: 'Safety',       short: 'Safety',  icon: '🦺' },
+    { id: 'NFC',         label: 'NFC Devices',  short: 'NFC',     icon: '🏷️' },
+    { id: 'CONFIG',      label: 'Settings',     short: 'Config',  icon: '⚙️' },
 ];
 
 const STATUS_MAP = {
@@ -931,12 +938,13 @@ export default function WorkforceHub() {
     const renderTab = () => {
         switch (activeTab) {
             case 'MEMBERS':     return <WorkforceMembersView projectId={activeProjectId} />;
-            case 'ATTENDANCE':  return <WorkforceAttendanceTab projectId={activeProjectId} />;
+            case 'TEAMS':       return <TeamManagementPage />;
             case 'PAYROLL':     return <PayrollTab     projectId={activeProjectId} />;
             case 'ASSIGNMENTS': return <AssignmentsTab projectId={activeProjectId} />;
             case 'EVALUATIONS': return <EvaluationsTab projectId={activeProjectId} />;
             case 'SAFETY':      return <SafetyTab      projectId={activeProjectId} />;
-            case 'SETUP':       return <RolesTeamsTab  projectId={activeProjectId} />;
+            case 'NFC':         return <MqttProvider projectId={activeProjectId}><ManpowerTab projectId={activeProjectId} /></MqttProvider>;
+            case 'CONFIG':      return <SettingsTab    projectId={activeProjectId} />;
             default:            return null;
         }
     };
@@ -945,28 +953,48 @@ export default function WorkforceHub() {
     if (!isMobile) {
         return (
             <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
-                <div style={{ marginBottom: 20 }}>
-                    <h1 style={{ margin: 0, fontSize: 24, fontWeight: 900 }}>Workforce Management</h1>
-                    <p style={{ margin: '4px 0 0', color: 'var(--t-text-muted)', fontSize: 13 }}>
-                        Manage members, payroll, assignments, evaluations and safety records.
-                    </p>
+                {/* Header row */}
+                <div style={{ marginBottom: 20, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                    <div>
+                        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 900, color: 'var(--t-text)' }}>Workforce & Teams</h1>
+                        <p style={{ margin: '4px 0 0', color: 'var(--t-text3)', fontSize: 13 }}>
+                            Manage staff, teams, payroll, assignments, evaluations and safety records.
+                        </p>
+                    </div>
+                    {/* Quick cross-links to related pages */}
+                    <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
+                        <Link to="/dashboard/desktop/attendance" style={{
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            padding: '8px 14px', borderRadius: 10, fontSize: 12, fontWeight: 700,
+                            background: '#10b98115', border: '1px solid #10b98140', color: '#10b981',
+                            textDecoration: 'none', whiteSpace: 'nowrap',
+                        }}>🕐 Attendance →</Link>
+                        <Link to="/dashboard/desktop/location" style={{
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            padding: '8px 14px', borderRadius: 10, fontSize: 12, fontWeight: 700,
+                            background: 'rgba(99,102,241,.08)', border: '1px solid rgba(99,102,241,.2)', color: '#6366f1',
+                            textDecoration: 'none', whiteSpace: 'nowrap',
+                        }}>📍 Location →</Link>
+                    </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '2px solid var(--t-border)', paddingBottom: 0 }}>
+                {/* Tabs */}
+                <div style={{ display: 'flex', gap: 2, marginBottom: 24, borderBottom: '2px solid var(--t-border)', paddingBottom: 0, overflowX: 'auto' }}>
                     {TABS.map(t => (
                         <button key={t.id} onClick={() => setActiveTab(t.id)} style={{
+                            display: 'flex', alignItems: 'center', gap: 6,
                             padding: '10px 18px', border: 'none', cursor: 'pointer',
                             background: 'transparent', fontSize: 13, fontWeight: 600,
-                            color: activeTab === t.id ? 'var(--t-primary)' : 'var(--t-text-muted)',
+                            color: activeTab === t.id ? 'var(--t-primary)' : 'var(--t-text3)',
                             borderBottom: activeTab === t.id ? '2px solid var(--t-primary)' : '2px solid transparent',
-                            marginBottom: -2, transition: 'color 0.15s',
+                            marginBottom: -2, transition: 'color 0.15s', whiteSpace: 'nowrap',
                         }}>
-                            {t.icon} {t.label}
+                            <span>{t.icon}</span> {t.label}
                         </button>
                     ))}
                 </div>
 
-                <div style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)', borderRadius: 14, padding: 24 }}>
+                <div style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)', borderRadius: 14, padding: ['TEAMS','NFC','CONFIG'].includes(activeTab) ? 0 : 24, overflow: 'hidden' }}>
                     {renderTab()}
                 </div>
 
@@ -988,8 +1016,11 @@ export default function WorkforceHub() {
     // Mobile layout
     return (
         <div style={{ paddingBottom: 70 }}>
-            <div style={{ padding: '16px 16px 0', background: 'var(--t-bg)' }}>
-                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 900 }}>Workforce</h2>
+            <div style={{ padding: '16px 16px 8px', background: 'var(--t-bg)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 900 }}>Workforce & Teams</h2>
+                <Link to="/dashboard/desktop/attendance" style={{ fontSize: 11, fontWeight: 700, color: '#10b981', textDecoration: 'none', padding: '4px 10px', borderRadius: 8, background: '#10b98115', border: '1px solid #10b98130' }}>
+                    🕐 Attendance
+                </Link>
             </div>
 
             <div style={{ padding: 16 }}>
