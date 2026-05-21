@@ -40,7 +40,7 @@ class Migration(migrations.Migration):
                 ('qr_token', models.UUIDField(default=uuid.uuid4, editable=False, help_text='Unique token embedded in QR badge. Scan to mark check-in/out.', unique=True)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
-                ('contractor', models.OneToOneField(blank=True, help_text='Linked resource/contractor record for this attendance worker', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='attendance_worker', to='resource.contractor')),
+                ('contractor', models.OneToOneField(blank=True, help_text='Linked resource/contractor record for this attendance worker', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='attendance_worker', to='financials.vendor')),
                 ('linked_user', models.ForeignKey(blank=True, help_text='Link to system user account (for staff)', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='attendance_worker_profile', to=settings.AUTH_USER_MODEL)),
                 ('project', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='attendance_workers', to='core.houseproject')),
                 ('project_member', models.OneToOneField(blank=True, help_text='Link to project team member (if this worker is also a team member)', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='attendance_worker', to='core.projectmember')),

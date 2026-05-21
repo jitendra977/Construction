@@ -22,7 +22,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='purchaseorder',
             name='contractor',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='purchase_orders', to='resource.contractor'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='purchase_orders', to='financials.vendor'),
         ),
         migrations.AddField(
             model_name='purchaseorder',
@@ -137,7 +137,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='historicalexpense',
             name='receipt',
-            field=models.ForeignKey(blank=True, db_constraint=False, null=True, on_delete=django.db.models.deletion.DO_NOTHING, related_name='+', to='resource.document'),
+            field=models.ForeignKey(blank=True, db_constraint=False, null=True, on_delete=django.db.models.deletion.DO_NOTHING, related_name='+', to='tasks.taskdocument'),
         ),
         migrations.AddField(
             model_name='historicalexpense',
@@ -207,7 +207,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='expense',
             name='receipt',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='expenses', to='resource.document'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='expenses', to='tasks.taskdocument'),
         ),
         migrations.AddField(
             model_name='expense',
@@ -277,7 +277,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='bill',
             name='contractor',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='bills', to='resource.contractor'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='bills', to='financials.vendor'),
         ),
         migrations.AddField(
             model_name='bill',
