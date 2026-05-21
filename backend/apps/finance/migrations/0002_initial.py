@@ -12,7 +12,6 @@ class Migration(migrations.Migration):
     dependencies = [
         ('resource', '0001_initial'),
         ('tasks', '0005_add_taskdocument_own_model'),
-        ('financials', '0001_initial'),
         ('finance', '0001_initial'),
         ('core', '0002_initial'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
