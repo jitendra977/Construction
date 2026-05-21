@@ -93,8 +93,8 @@ def rebuild_alerts() -> List[BudgetAlert]:
             ),
             severity=severity,
             data={
-                "supplier_id": t.supplier_id,
-                "material_id": t.material_id,
+                "supplier_id": str(t.supplier_id),
+                "material_id": str(t.material_id),
                 "change_pct": t.change_pct_last_month,
                 "avg_30d": float(t.avg_rate_30d),
                 "avg_90d": float(t.avg_rate_90d),

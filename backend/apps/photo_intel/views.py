@@ -118,7 +118,7 @@ class TimelapseViewSet(viewsets.ModelViewSet):
             project = get_object_or_404(HouseProject, pk=data["project"])
         if data.get("room"):
             room = get_object_or_404(Room, pk=data["room"])
-            if not project: project = room.project
+            if not project: project = room.floor.project
         if data.get("floor"):
             floor = get_object_or_404(Floor, pk=data["floor"])
             if not project: project = floor.project
