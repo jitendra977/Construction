@@ -44,18 +44,35 @@ if _SENTRY_DSN:
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-this-in-production')
+# SECURITY: No default — container refuses to start if SECRET_KEY is missing from .env
+SECRET_KEY = config('SECRET_KEY')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=True, cast=bool)
+# Default False — must be explicitly set to True only in local dev .env
+DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,192.168.0.112,192.168.0.129', cast=Csv())
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
 
-# Security Settings
-SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=False, cast=bool)
-CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='http://localhost:8000,http://127.0.0.1:8000,http://localhost:8001,http://localhost:5174,http://192.168.0.112:8000', cast=Csv())
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+# ── Security headers & cookie hardening ───────────────────────
+SECURE_SSL_REDIRECT           = config('SECURE_SSL_REDIRECT', default=False, cast=bool)
+CSRF_TRUSTED_ORIGINS          = config('CSRF_TRUSTED_ORIGINS', default='http://localhost:8000,http://localhost:5173,http://localhost:5174', cast=Csv())
+SECURE_PROXY_SSL_HEADER       = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_CONTENT_TYPE_NOSNIFF   = True
+SECURE_BROWSER_XSS_FILTER     = True
+X_FRAME_OPTIONS               = 'SAMEORIGIN'
+
+# HSTS — enable after confirming HTTPS is stable; start at 3600 then ramp to 31536000
+SECURE_HSTS_SECONDS            = config('SECURE_HSTS_SECONDS',            default=0,     cast=int)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = config('SECURE_HSTS_INCLUDE_SUBDOMAINS', default=False, cast=bool)
+SECURE_HSTS_PRELOAD            = config('SECURE_HSTS_PRELOAD',            default=False, cast=bool)
+
+# Cookies: always secure + httponly in production; override to False in local dev only
+SESSION_COOKIE_SECURE   = config('SESSION_COOKIE_SECURE',  default=True,  cast=bool)
+CSRF_COOKIE_SECURE      = config('CSRF_COOKIE_SECURE',     default=True,  cast=bool)
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY    = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE    = 'Lax'
+
 # NOTE: Do NOT set USE_X_FORWARDED_HOST = True with Nginx Proxy Manager.
 # NPM already sets `Host: <domain>` correctly on the proxied request.
 # Enabling USE_X_FORWARDED_HOST causes Django to read X-Forwarded-Host instead,
@@ -338,10 +355,9 @@ SIMPLE_JWT = {
 }
 
 # CORS settings
-# CORS_ALLOW_ALL_ORIGINS=True lets any LAN client (ESP32 device pages, mobile
-# browsers on the same network) call the API without needing to enumerate IPs.
-# Set CORS_ALLOW_ALL_ORIGINS=False in production and list explicit origins instead.
-CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', default=True, cast=bool)
+# Default False — production must set CORS_ALLOWED_ORIGINS explicitly.
+# Set CORS_ALLOW_ALL_ORIGINS=True only in local dev .env for LAN/ESP32 access.
+CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', default=False, cast=bool)
 CORS_ALLOWED_ORIGINS = config(
     'CORS_ALLOWED_ORIGINS',
     default='http://localhost:3000,http://localhost:5173,http://localhost:5174',

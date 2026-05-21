@@ -13,15 +13,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# System deps (PostgreSQL client + build tools)
+# System deps (PostgreSQL only — MySQL packages removed, project uses PostgreSQL)
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libpq-dev \
         build-essential \
         pkg-config \
         curl \
-        # Keep mysql libs so existing mysqlclient install doesn't break
-        default-libmysqlclient-dev \
-        default-mysql-client \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Stage 2: deps (cached layer) ─────────────────────────────

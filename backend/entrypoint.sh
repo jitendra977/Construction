@@ -93,8 +93,11 @@ if user:
     print(f"  Updated admin user: {admin_email}")
 else:
     if not admin_pass:
-        admin_pass = "adminpass"
-        print(f"  WARNING: DJANGO_SUPERUSER_PASSWORD not set — using default 'adminpass'")
+        import sys
+        print("ERROR: DJANGO_SUPERUSER_PASSWORD env var is not set. "
+              "Cannot create admin user with a blank/default password. "
+              "Set DJANGO_SUPERUSER_PASSWORD in your .env file and restart.")
+        sys.exit(1)
     User.objects.create_superuser(
         username=admin_username,
         email=admin_email,
