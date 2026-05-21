@@ -8,7 +8,6 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('financials', '0006_vendor_phasebudgetline_budgetrevision'),
         ('finance', '0006_add_expensedocument_own_model'),
     ]
 
