@@ -30,11 +30,7 @@ class Migration(migrations.Migration):
                 ('completed_date', models.DateField(blank=True, null=True)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
-<<<<<<< HEAD
                 ('assigned_to', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='tasks', to='workforce.workforcemember')),
-=======
-                ('assigned_to', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='tasks', to='resource.worker')),
->>>>>>> 9c7acd1 (fix: migrations)
                 ('blocked_by', models.ForeignKey(blank=True, help_text='This task cannot be completed until the blocked_by task is completed.', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='blocking_tasks', to='tasks.task')),
                 ('category', models.ForeignKey(blank=True, help_text='Finance category this task belongs to', null=True, on_delete=django.db.models.deletion.PROTECT, related_name='tasks', to='finance.budgetcategory')),
                 ('phase', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='tasks', to='core.constructionphase')),
