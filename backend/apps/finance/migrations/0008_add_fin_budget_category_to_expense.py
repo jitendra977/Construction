@@ -7,7 +7,8 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('financials', '0009_billitem_budget_category_expense_budget_category'),
+        # Must run AFTER 0010 so Django's state knows financials models use fin_* tables
+        ('financials', '0010_fix_table_names'),
         ('finance', '0007_alter_bill_supplier_alter_purchaseorder_supplier'),
     ]
 
