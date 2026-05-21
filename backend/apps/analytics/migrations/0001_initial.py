@@ -65,7 +65,7 @@ class Migration(migrations.Migration):
                 ('transactions_count', models.PositiveIntegerField(default=0)),
                 ('window_end', models.DateField()),
                 ('computed_at', models.DateTimeField(auto_now=True)),
-                ('material', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='rate_trends', to='resources.material')),
+                ('material', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='rate_trends', to='resource.material')),
                 ('supplier', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='rate_trends', to='financials.vendor')),
             ],
             options={

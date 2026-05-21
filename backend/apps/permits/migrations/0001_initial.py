@@ -29,7 +29,7 @@ class Migration(migrations.Migration):
                 ('completed_at', models.DateField(blank=True, null=True)),
                 ('notes', models.TextField(blank=True)),
                 ('assigned_to', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='permit_items', to=settings.AUTH_USER_MODEL)),
-                ('attached_documents', models.ManyToManyField(blank=True, related_name='permit_items', to='resources.document')),
+                ('attached_documents', models.ManyToManyField(blank=True, related_name='permit_items', to='resource.document')),
             ],
             options={
                 'ordering': ['order', 'id'],
@@ -75,7 +75,7 @@ class Migration(migrations.Migration):
                 ('date_issued', models.DateField(blank=True, null=True)),
                 ('notes', models.TextField(blank=True, null=True)),
                 ('order', models.PositiveIntegerField(default=0)),
-                ('documents', models.ManyToManyField(blank=True, help_text='Documents required/submitted for this permit step', related_name='permit_steps', to='resources.document')),
+                ('documents', models.ManyToManyField(blank=True, help_text='Documents required/submitted for this permit step', related_name='permit_steps', to='resource.document')),
                 ('project', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='permit_steps', to='core.houseproject')),
             ],
             options={
