@@ -1,221 +1,347 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Worker Badge - {{ member.full_name }}</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@500;700&display=swap');
+  <meta charset="UTF-8">
+  <title>ID Badge — {{ member.full_name }}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap');
 
-        :root {
-            --primary: #1a2a6c;
-            --secondary: #b21f1f;
-            --accent: #fdbb2d;
-            --text: #2d3436;
-            --bg: #f5f6fa;
-        }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        body {
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background: #dfe6e9;
-            font-family: 'Inter', sans-serif;
-            overflow: hidden;
-        }
+    body {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #e8edf5;
+      font-family: 'Inter', sans-serif;
+    }
 
-        .badge-container {
-            width: 320px;
-            height: 540px;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08); /* Reduced shadow */
-            overflow: hidden;
-            position: relative;
-            border: 1px solid rgba(0,0,0,0.1);
-            display: flex;
-            flex-direction: column;
-            background: linear-gradient(135deg, #ffffff 0%, #f9f9f9 100%);
-        }
+    /* ── Card: landscape ID-card proportions ───────────────────────────── */
+    .card {
+      width: 520px;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.13);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
 
-        /* Project Header */
-        .project-header {
-            background: var(--primary);
-            padding: 15px 20px;
-            text-align: center;
-            color: white;
-            border-bottom: 4px solid var(--accent);
-        }
+    /* ── Header ────────────────────────────────────────────────────────── */
+    .header {
+      background: linear-gradient(90deg, #0f2460 0%, #1e4fa3 100%);
+      padding: 10px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 3px solid #fdbb2d;
+      flex-shrink: 0;
+    }
 
-        .project-label {
-            font-size: 0.6rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: var(--accent);
-            margin-bottom: 4px;
-        }
+    .header-left { display: flex; align-items: center; gap: 9px; }
+    .header-icon  { font-size: 1.2rem; }
 
-        .project-name {
-            font-family: 'Outfit', sans-serif;
-            font-size: 1rem;
-            font-weight: 700;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
+    .project-name {
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 800;
+      color: #fff;
+      max-width: 260px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
+    .badge-type {
+      font-size: 0.5rem;
+      font-weight: 700;
+      color: #fdbb2d;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      background: rgba(255,255,255,0.08);
+      padding: 3px 9px;
+      border-radius: 20px;
+      border: 1px solid rgba(253,187,45,0.35);
+    }
 
+    /* ── Body: photo · details · qr  (3 fixed columns, no flex-grow) ──── */
+    .body {
+      display: flex;
+      flex-direction: row;
+      flex: 1;
+    }
 
-        /* Info Section */
-        .info-section {
-            padding: 10px 25px;
-            text-align: center;
-            flex-grow: 1;
-        }
+    /* ── Photo column ──────────────────────────────────────────────────── */
+    .photo-col {
+      width: 140px;
+      flex-shrink: 0;
+      background: linear-gradient(160deg, #f0f4ff, #e8eef8);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px 12px;
+      border-right: 1px solid #dde6f5;
+      gap: 8px;
+    }
 
-        .worker-name {
-            font-family: 'Outfit', sans-serif;
-            font-size: 1.4rem;
-            font-weight: 700;
-            color: var(--primary);
-            margin: 10px 0 5px;
-        }
+    .photo-wrap {
+      width: 90px;
+      height: 90px;
+      border-radius: 13px;
+      overflow: hidden;
+      border: 3px solid #fff;
+      box-shadow: 0 4px 14px rgba(15,36,96,0.18);
+      background: #c8d3ea;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
 
-        .worker-role {
-            font-size: 0.9rem;
-            color: var(--secondary);
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 15px;
-        }
+    .photo-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .photo-placeholder { font-size: 2.4rem; color: #7a93c8; }
 
-        .detail-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px dashed #eee;
-            font-size: 0.8rem;
-        }
+    .emp-id-pill {
+      background: #0f2460;
+      color: #fdbb2d;
+      font-size: 0.58rem;
+      font-weight: 800;
+      letter-spacing: 1.4px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
 
-        .detail-label {
-            color: #7f8c8d;
-            font-weight: 500;
-        }
+    .type-pill {
+      font-size: 0.48rem;
+      font-weight: 700;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 20px;
+      {% if member.worker_type == 'STAFF' %}
+        background: rgba(59,130,246,0.12); color: #1d4ed8;
+      {% else %}
+        background: rgba(234,88,12,0.1); color: #c2410c;
+      {% endif %}
+    }
 
-        .detail-value {
-            color: var(--text);
-            font-weight: 600;
-        }
+    /* ── Details column ────────────────────────────────────────────────── */
+    .details-col {
+      flex: 1;
+      min-width: 0;
+      padding: 14px 14px 10px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border-right: 1px solid #dde6f5;
+    }
 
-        /* QR Section */
-        .qr-section {
-            background: #ffffff;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            border-top: 2px dashed #edf2f7;
-            gap: 10px;
-        }
+    .worker-name {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #0f2460;
+      line-height: 1.2;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
-        .qr-frame {
-            width: 160px;
-            height: 160px;
-            background: white;
-            padding: 10px;
-            border-radius: 12px;
-            border: 1px solid #e2e8f0;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        }
+    .worker-role {
+      font-size: 0.66rem;
+      font-weight: 700;
+      color: #b21f1f;
+      text-transform: uppercase;
+      letter-spacing: 0.9px;
+      margin-bottom: 10px;
+    }
 
-        .qr-frame img {
-            width: 100%;
-            height: 100%;
-            display: block;
-        }
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5px 8px;
+    }
 
-        .scan-text {
-            font-size: 0.65rem;
-            color: #94a3b8;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
+    .detail-item { display: flex; flex-direction: column; gap: 1px; }
 
-        .footer {
-            height: 40px;
-            background: var(--primary);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.65rem;
-            font-weight: 500;
-            letter-spacing: 0.5px;
-        }
+    .detail-label {
+      font-size: 0.47rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #94a3b8;
+    }
 
-        /* Print Settings */
-        @media print {
-            body {
-                background: white;
-                padding: 0;
-            }
-            .badge-container {
-                box-shadow: none;
-                border: 1px solid #ddd;
-            }
-        }
-    </style>
+    .detail-value {
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: #1e293b;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── QR column ─────────────────────────────────────────────────────── */
+    .qr-col {
+      width: 130px;
+      flex-shrink: 0;
+      background: linear-gradient(160deg, #f8faff, #f0f4ff);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 14px 10px;
+      gap: 7px;
+    }
+
+    .qr-wrap {
+      width: 100px;
+      height: 100px;
+      background: #fff;
+      border-radius: 10px;
+      padding: 5px;
+      border: 1.5px solid #dde5f5;
+      box-shadow: 0 3px 12px rgba(15,36,96,0.12);
+    }
+
+    .qr-wrap img { width: 100%; height: 100%; display: block; }
+
+    .scan-label {
+      font-size: 0.52rem;
+      font-weight: 800;
+      color: #0f2460;
+      text-transform: uppercase;
+      letter-spacing: 1.3px;
+      text-align: center;
+    }
+
+    .scan-sub {
+      font-size: 0.46rem;
+      color: #94a3b8;
+      font-weight: 500;
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    /* ── Footer: text only ─────────────────────────────────────────────── */
+    .footer {
+      background: #0f2460;
+      padding: 7px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .footer-brand {
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.6rem;
+      font-weight: 800;
+      color: rgba(255,255,255,0.75);
+      letter-spacing: 0.5px;
+    }
+
+    .footer-project {
+      font-size: 0.52rem;
+      color: #fdbb2d;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      max-width: 200px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── Print ─────────────────────────────────────────────────────────── */
+    @media print {
+      body { background: white; }
+      .card { box-shadow: none; border: 1px solid #ddd; }
+    }
+  </style>
 </head>
 <body>
 
-<div class="badge-container">
-    <div class="project-header">
-        <div class="project-label">SITE ACCESS PASS</div>
-        <div class="project-name">🏢 {{ member.current_project.name|default:"Floating Project" }}</div>
+<div class="card">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <span class="header-icon">🏗️</span>
+      <span class="project-name">{{ member.current_project.name|default:"Construction Project" }}</span>
+    </div>
+    <span class="badge-type">Site Access Pass</span>
+  </div>
+
+  <!-- Body: photo | details | qr -->
+  <div class="body">
+
+    <!-- Photo -->
+    <div class="photo-col">
+      <div class="photo-wrap">
+        {% if member.photo %}
+          <img src="{{ member.photo.url }}" alt="{{ member.full_name }}">
+        {% else %}
+          <span class="photo-placeholder">👷</span>
+        {% endif %}
+      </div>
+      <div class="emp-id-pill">{{ member.employee_id }}</div>
+      <div class="type-pill">{{ member.get_worker_type_display|default:"Worker" }}</div>
     </div>
 
-    <div class="qr-section">
-        <div class="qr-frame">
-            <img src="{{ qr_code_base64 }}" alt="Check-in QR">
-        </div>
-        <div class="scan-text">Scan for Attendance</div>
-    </div>
-
-    <div class="info-section">
+    <!-- Details -->
+    <div class="details-col">
+      <div>
         <div class="worker-name">{{ member.full_name }}</div>
-        <div class="worker-role">{{ member.role.title|default:"GENERAL WORKER" }}</div>
-        <div style="font-size: 0.75rem; color: #95a5a6; font-weight: 700; margin-bottom: 20px; letter-spacing: 1px;">
-            ID: {{ member.employee_id }}
+        <div class="worker-role">{{ member.role.title|default:"General Worker" }}</div>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-item">
+          <span class="detail-label">Skill</span>
+          <span class="detail-value">{{ member.primary_skill|default:"General Labour"|truncatechars:18 }}</span>
         </div>
-
-        <div class="detail-row">
-            <span class="detail-label">Skillset</span>
-            <span class="detail-value">{{ member.primary_skill|default:"General Labour" }}</span>
+        <div class="detail-item">
+          <span class="detail-label">Experience</span>
+          <span class="detail-value">{{ member.experience_years|default:"—" }} yrs</span>
         </div>
-        <div class="detail-row">
-            <span class="detail-label">Experience</span>
-            <span class="detail-value">{{ member.experience_years|default:"0" }} Years</span>
+        <div class="detail-item">
+          <span class="detail-label">Contact</span>
+          <span class="detail-value">{{ member.phone|default:"—" }}</span>
         </div>
-        <div class="detail-row">
-            <span class="detail-label">Contact</span>
-            <span class="detail-value">{{ member.phone }}</span>
+        <div class="detail-item">
+          <span class="detail-label">Blood Group</span>
+          <span class="detail-value">{{ member.blood_group|default:"N/A" }}</span>
         </div>
-        <div class="detail-row">
-            <span class="detail-label">Blood Grp</span>
-            <span class="detail-value">{{ member.blood_group|default:"N/A" }}</span>
+        <div class="detail-item">
+          <span class="detail-label">Status</span>
+          <span class="detail-value">{{ member.get_status_display|default:"Active" }}</span>
         </div>
+        <div class="detail-item">
+          <span class="detail-label">Joined</span>
+          <span class="detail-value">{{ member.join_date|date:"d M Y"|default:"—" }}</span>
+        </div>
+      </div>
     </div>
 
-
-    <div class="footer">
-        PROPERTY OF CONSTRUCTPRO SYSTEMS
+    <!-- QR -->
+    <div class="qr-col">
+      <div class="qr-wrap">
+        <img src="{{ qr_code_base64 }}" alt="Attendance QR">
+      </div>
+      <div class="scan-label">Scan to Check In</div>
+      <div class="scan-sub">Point camera at QR<br>for attendance</div>
     </div>
+
+  </div>
+
+  <!-- Footer: text only -->
+  <div class="footer">
+    <span class="footer-brand">ConstructPro · Workforce Management</span>
+    <span class="footer-project">{{ member.current_project.name|default:"" }}</span>
+  </div>
+
 </div>
 
 </body>

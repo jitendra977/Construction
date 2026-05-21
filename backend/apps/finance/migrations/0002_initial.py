@@ -11,9 +11,8 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('resource', '0001_initial'),
-        ('resources', '0001_initial'),
         ('tasks', '0001_initial'),
-        ('accounting', '0003_initial'),
+
         ('finance', '0001_initial'),
         ('core', '0002_initial'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
@@ -38,7 +37,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='purchaseorder',
             name='supplier',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='legacy_purchase_orders', to='accounting.vendor'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='legacy_purchase_orders', to='financials.vendor'),
         ),
         migrations.AddField(
             model_name='phasebudgetallocation',
@@ -298,7 +297,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='bill',
             name='supplier',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='legacy_bills', to='accounting.vendor'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='legacy_bills', to='financials.vendor'),
         ),
         migrations.AddField(
             model_name='banktransfer',

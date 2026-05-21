@@ -47,6 +47,7 @@ class GalleryViewSet(viewsets.ViewSet):
         # B. Task Media (Updates)
         for tm in TaskMedia.objects.select_related('task', 'task__phase').all():
             if not tm.file: continue
+            if not tm.task: continue  # skip orphaned media (task FK is nullable)
             phase_id = tm.task.phase.id if tm.task.phase else 0
             phase_info = phase_map.get(phase_id, {'name': 'Unassigned', 'order': 99})
             items.append({

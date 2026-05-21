@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import workforceService from '../../../services/workforceService';
 import { dashboardService } from '../../../services/dashboardService';
+import { getMediaUrl } from '../../../services/api';
 
 // ── Shared style helpers ─────────────────────────────────────────────────────
 const inputStyle = {
@@ -152,6 +153,13 @@ export default function MemberDrawer({ member, onClose, onSaved, onDeleted, proj
     const [fetching, setFetching] = useState(true);
     const [showAllRoles, setShowAllRoles] = useState(false);
 
+    // Photo upload state
+    const [photoPreview, setPhotoPreview] = useState(null);   // local blob preview
+    const [photoUploading, setPhotoUploading] = useState(false);
+    const [photoError, setPhotoError]     = useState('');
+    const photoInputRef  = useRef(null);
+    const pendingPhotoRef = useRef(null);   // holds file for new-member upload after create
+
     const BLANK = {
         name: '',
         phone: '',
@@ -248,6 +256,33 @@ export default function MemberDrawer({ member, onClose, onSaved, onDeleted, proj
         setShowAllRoles(false);
     };
 
+    const handlePhotoChange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) { setPhotoError('Please select an image file.'); return; }
+        if (file.size > 5 * 1024 * 1024) { setPhotoError('Image must be under 5 MB.'); return; }
+
+        // Show instant local preview
+        setPhotoPreview(URL.createObjectURL(file));
+        setPhotoError('');
+
+        // If editing an existing member, upload immediately
+        if (isEdit && member?.id) {
+            setPhotoUploading(true);
+            try {
+                await workforceService.uploadPhoto(member.id, file);
+            } catch {
+                setPhotoError('Photo upload failed. Try again.');
+            } finally {
+                setPhotoUploading(false);
+            }
+        } else {
+            // For new members, stash the file — upload right after create
+            pendingPhotoRef.current = file;
+        }
+        e.target.value = '';  // reset so same file can be re-selected
+    };
+
     const handleSave = async () => {
         if (!form.name.trim()) { setError('Full name is required.'); return; }
         if (!form.phone.trim()) { setError('Phone number is required.'); return; }
@@ -287,6 +322,12 @@ export default function MemberDrawer({ member, onClose, onSaved, onDeleted, proj
             } else {
                 const created = await workforceService.createMember(payload);
                 savedId = created?.id;
+                // Upload any pending photo chosen before the member existed
+                if (savedId && pendingPhotoRef.current) {
+                    try { await workforceService.uploadPhoto(savedId, pendingPhotoRef.current); }
+                    catch { /* non-fatal — badge will show placeholder until re-uploaded */ }
+                    pendingPhotoRef.current = null;
+                }
             }
 
             // Auto-create + link AttendanceWorker so today_status works immediately
@@ -355,6 +396,89 @@ export default function MemberDrawer({ member, onClose, onSaved, onDeleted, proj
                             <div style={sectionStyle()}>
                                 <h3 style={sectionTitleStyle}>👤 Identity</h3>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+                                    {/* ── Photo upload widget ── */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 18, padding: '14px 0 6px' }}>
+                                        {/* Avatar preview */}
+                                        <div
+                                            onClick={() => photoInputRef.current?.click()}
+                                            style={{
+                                                width: 88, height: 88, borderRadius: 16, flexShrink: 0,
+                                                border: '2px dashed var(--t-border)',
+                                                background: 'var(--t-surface)',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                overflow: 'hidden', cursor: 'pointer', position: 'relative',
+                                                transition: 'border-color 0.2s',
+                                            }}
+                                            title="Click to upload photo"
+                                        >
+                                            {photoUploading && (
+                                                <div style={{
+                                                    position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 14,
+                                                }}>
+                                                    <div style={{ width: 22, height: 22, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                                                </div>
+                                            )}
+                                            {(photoPreview || (isEdit && member?.photo)) ? (
+                                                <img
+                                                    src={photoPreview || getMediaUrl(member.photo)}
+                                                    alt="Member photo"
+                                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                    onError={e => { e.target.style.display = 'none'; }}
+                                                />
+                                            ) : (
+                                                <span style={{ fontSize: 32 }}>👷</span>
+                                            )}
+                                            {/* Hover overlay */}
+                                            <div style={{
+                                                position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                opacity: 0, transition: 'opacity 0.2s', borderRadius: 14,
+                                            }}
+                                                className="photo-hover-overlay"
+                                            >
+                                                <span style={{ color: '#fff', fontSize: 20 }}>📷</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Label + hint */}
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t-text)', marginBottom: 4 }}>
+                                                Profile Photo
+                                            </div>
+                                            <div style={{ fontSize: 11, color: 'var(--t-text3)', marginBottom: 10, lineHeight: 1.5 }}>
+                                                Shown on the ID badge. JPG, PNG, WebP · max 5 MB
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => photoInputRef.current?.click()}
+                                                disabled={photoUploading}
+                                                style={{
+                                                    padding: '7px 16px', borderRadius: 9, border: '1px solid var(--t-border)',
+                                                    background: 'var(--t-surface)', color: 'var(--t-text)',
+                                                    fontSize: 12, fontWeight: 700, cursor: photoUploading ? 'not-allowed' : 'pointer',
+                                                    opacity: photoUploading ? 0.6 : 1,
+                                                }}
+                                            >
+                                                {photoUploading ? 'Uploading…' : (photoPreview || (isEdit && member?.photo)) ? '📷 Change Photo' : '📷 Upload Photo'}
+                                            </button>
+                                            {photoError && (
+                                                <div style={{ fontSize: 11, color: '#ef4444', marginTop: 5 }}>{photoError}</div>
+                                            )}
+                                        </div>
+
+                                        {/* Hidden file input */}
+                                        <input
+                                            ref={photoInputRef}
+                                            type="file"
+                                            accept="image/*"
+                                            style={{ display: 'none' }}
+                                            onChange={handlePhotoChange}
+                                        />
+                                    </div>
+                                    <style>{`.photo-hover-overlay { } div:hover > .photo-hover-overlay { opacity: 1 !important; }`}</style>
+
                                     <Field label="Full Name *">
                                         <input
                                             className="premium-input"

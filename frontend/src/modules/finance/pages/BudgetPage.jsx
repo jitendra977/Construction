@@ -28,10 +28,11 @@ function Sheet({ open, onClose, title, children }) {
     if (!open) return null;
 
     return (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center' }}>
             <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)' }} />
             <div style={{
                 position: 'relative', zIndex: 1,
+                width: '100%', maxWidth: 700, // Slightly wider as requested
                 background: 'var(--t-surface)', borderRadius: '20px 20px 0 0',
                 maxHeight: '94vh', display: 'flex', flexDirection: 'column',
                 boxShadow: '0 -8px 40px rgba(0,0,0,0.3)',
@@ -467,6 +468,165 @@ function BudgetCard({ cat, onEdit }) {
     );
 }
 
+/* ── budget table ─────────────────────────────────────────────────────────── */
+function BudgetTable({ categories, phases, onEdit, onDragReorder, onInlineSave }) {
+    const [draggedIdx, setDraggedIdx] = useState(null);
+    const [overIdx, setOverIdx] = useState(null);
+    const [editId, setEditId] = useState(null);
+    const [editVal, setEditVal] = useState("");
+
+    const handleDragStart = (e, index) => {
+        setDraggedIdx(index);
+        e.dataTransfer.effectAllowed = 'move';
+        setTimeout(() => { if (e.target) e.target.style.opacity = '0.4'; }, 0);
+    };
+
+    const handleDragEnter = (e, index) => {
+        e.preventDefault();
+        if (draggedIdx !== null && draggedIdx !== index) {
+            setOverIdx(index);
+        }
+    };
+
+    const handleDragOver = (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    };
+
+    const handleDrop = (e, index) => {
+        e.preventDefault();
+        if (draggedIdx !== null && draggedIdx !== index) {
+            onDragReorder(draggedIdx, index);
+        }
+        setDraggedIdx(null);
+        setOverIdx(null);
+        if (e.target.closest('tr')) e.target.closest('tr').style.opacity = '1';
+    };
+
+    const handleDragEnd = (e) => {
+        if (e.target) e.target.style.opacity = '1';
+        setDraggedIdx(null);
+        setOverIdx(null);
+    };
+
+    return (
+        <div style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)', borderRadius: 14, overflow: 'hidden', marginBottom: 14 }}>
+            <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 600 }}>
+                    <thead>
+                        <tr style={{ borderBottom: '1px solid var(--t-border)', background: 'var(--t-surface2)' }}>
+                            <th style={{ padding: '12px 14px', fontSize: 10, fontWeight: 900, color: 'var(--t-text3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Category</th>
+                            <th style={{ padding: '12px 14px', fontSize: 10, fontWeight: 900, color: 'var(--t-text3)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Estimated</th>
+                            <th style={{ padding: '12px 14px', fontSize: 10, fontWeight: 900, color: 'var(--t-text3)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Actual Spent</th>
+                            <th style={{ padding: '12px 14px', fontSize: 10, fontWeight: 900, color: 'var(--t-text3)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Variance</th>
+                            <th style={{ padding: '12px 14px', fontSize: 10, fontWeight: 900, color: 'var(--t-text3)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Status</th>
+                            <th style={{ padding: '12px 14px', width: 40, textAlign: 'center' }}></th>
+                            <th style={{ padding: '12px 14px', fontSize: 10, fontWeight: 900, color: 'var(--t-text3)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {categories.map((cat, index) => {
+                            const spent = Number(cat.total_spent || 0);
+                            const alloc = Number(cat.allocation || 0);
+                            const remaining = alloc - spent;
+                            const p = pct(spent, alloc);
+                            const sc = statusColor(p);
+
+                            const isOver = overIdx === index;
+                            const isDragged = draggedIdx === index;
+
+                            return (
+                                <tr 
+                                    key={cat.id} 
+                                    draggable
+                                    onDragStart={(e) => handleDragStart(e, index)}
+                                    onDragEnter={(e) => handleDragEnter(e, index)}
+                                    onDragOver={handleDragOver}
+                                    onDrop={(e) => handleDrop(e, index)}
+                                    onDragEnd={handleDragEnd}
+                                    style={{
+                                        borderTop:    isOver && draggedIdx > index  ? '2px solid #3b82f6' : undefined,
+                                        borderBottom: isOver && draggedIdx < index  ? '2px solid #3b82f6' : '1px solid var(--t-border)',
+                                        background:   isDragged ? 'var(--t-surface2)' : isOver ? 'rgba(59,130,246,0.05)' : 'transparent',
+                                        transition:   'background 0.2s',
+                                        cursor:       'grab'
+                                    }}
+                                >
+                                    <td style={{ padding: '12px 14px' }}>
+                                        <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: 'var(--t-text)' }}>{cat.name}</p>
+                                    </td>
+                                    <td 
+                                        style={{ padding: '12px 14px', textAlign: 'right', cursor: 'text' }}
+                                        onClick={() => {
+                                            if (editId !== cat.id) {
+                                                setEditId(cat.id);
+                                                setEditVal(alloc.toString());
+                                            }
+                                        }}
+                                    >
+                                        {editId === cat.id ? (
+                                            <input 
+                                                autoFocus
+                                                type="number"
+                                                value={editVal}
+                                                onChange={e => setEditVal(e.target.value)}
+                                                onBlur={() => {
+                                                    const amt = Number(editVal) || 0;
+                                                    if (amt !== alloc) onInlineSave(cat, amt);
+                                                    setEditId(null);
+                                                }}
+                                                onKeyDown={e => {
+                                                    if (e.key === 'Enter') {
+                                                        const amt = Number(editVal) || 0;
+                                                        if (amt !== alloc) onInlineSave(cat, amt);
+                                                        setEditId(null);
+                                                    }
+                                                    if (e.key === 'Escape') setEditId(null);
+                                                }}
+                                                style={{ width: 80, padding: '4px 6px', textAlign: 'right', fontSize: 12, fontFamily: 'var(--f-mono)', border: '1px solid #3b82f6', borderRadius: 4, outline: 'none' }}
+                                            />
+                                        ) : (
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }} title="Click to quick-edit">
+                                                <span style={{ fontSize: 10, color: 'var(--t-text3)', opacity: 0.5 }}>✎</span>
+                                                <p style={{ margin: 0, fontSize: 12, fontWeight: 800, color: 'var(--t-text2)', fontFamily: 'var(--f-mono)' }}>{fmt(alloc)}</p>
+                                            </div>
+                                        )}
+                                    </td>
+                                    <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                                        <p style={{ margin: 0, fontSize: 12, fontWeight: 800, color: sc.text, fontFamily: 'var(--f-mono)' }}>{fmt(spent)}</p>
+                                    </td>
+                                    <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                                        <p style={{ margin: 0, fontSize: 12, fontWeight: 900, color: remaining < 0 ? '#ef4444' : '#16a34a', fontFamily: 'var(--f-mono)' }}>
+                                            {remaining < 0 ? '−' : '+'}{fmt(Math.abs(remaining))}
+                                        </p>
+                                    </td>
+                                    <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                                        {alloc > 0 ? (
+                                            <span style={{ fontSize: 9, padding: '3px 8px', borderRadius: 20, background: sc.bg, color: sc.text, border: `1px solid ${sc.border}`, fontWeight: 900 }}>
+                                                {p.toFixed(0)}%
+                                            </span>
+                                        ) : (
+                                            <span style={{ fontSize: 9, color: '#d97706', fontWeight: 700 }}>⚠ Set Budget</span>
+                                        )}
+                                    </td>
+                                    <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                                        <div style={{ color: 'var(--t-text3)', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <span style={{ cursor: 'grab' }}>⠿</span>
+                                        </div>
+                                    </td>
+                                    <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                                        <button onClick={() => onEdit(cat)} style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid var(--t-border)', background: 'var(--t-surface2)', color: 'var(--t-text3)', fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>✏️</button>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}
+
 /* ── summary bar ──────────────────────────────────────────────────────────── */
 function SummaryBar({ categories }) {
     const totalEst   = categories.reduce((s, c) => s + Number(c.allocation   || 0), 0);
@@ -518,16 +678,39 @@ export default function BudgetPage() {
     const { dashboardData }        = useConstruction();
     const phases                   = dashboardData?.phases || [];
 
-    const [categories, setCategories] = useState([]);
-    const [fetching,   setFetching]   = useState(false);
-    const [sheetOpen,  setSheetOpen]  = useState(false);
-    const [editing,    setEditing]    = useState(null);
+    const [rawCategories, setRawCategories] = useState([]);
+    const [fetching,      setFetching]      = useState(false);
+    const [sheetOpen,     setSheetOpen]     = useState(false);
+    const [editing,       setEditing]       = useState(null);
+    const [viewMode,      setViewMode]      = useState('table');
+
+    // Enrich categories with any legacy spent already present in dashboardData
+    // so the page shows correct numbers even before the next backend aggregation.
+    const categories = useMemo(() => {
+        return rawCategories.map(cat => {
+            const serverSpent  = Number(cat.total_spent || 0);
+            // Try to find the matching old-system category by name for extra coverage
+            const oldCat = (dashboardData?.budgetCategories || [])
+                .find(c => c.name.toLowerCase().trim() === cat.name.toLowerCase().trim());
+            if (!oldCat) return cat;
+            const legacySpent = (dashboardData?.expenses || [])
+                .filter(e => e.category === oldCat.id && !e.is_inventory_usage)
+                .reduce((sum, e) => sum + Number(e.amount || 0), 0);
+            const mergedSpent = Math.max(serverSpent, legacySpent);
+            const allocation  = Number(cat.allocation || 0);
+            return {
+                ...cat,
+                total_spent:      mergedSpent,
+                remaining_budget: allocation - mergedSpent,
+            };
+        });
+    }, [rawCategories, dashboardData?.budgetCategories, dashboardData?.expenses]);
 
     const load = async () => {
         setFetching(true);
         try {
             const res = await financeApi.getBudgetCategories(projectId);
-            setCategories(res.data?.results || res.data || []);
+            setRawCategories(res.data?.results || res.data || []);
         } catch { /* ignore */ }
         finally { setFetching(false); }
     };
@@ -538,15 +721,55 @@ export default function BudgetPage() {
     const openEdit = (c) => { setEditing(c);    setSheetOpen(true); };
     const handleDone = () => { setSheetOpen(false); load(); };
 
+    const handleMove = async (fromIndex, toIndex) => {
+        const newCats = [...rawCategories];
+        const [moved] = newCats.splice(fromIndex, 1);
+        newCats.splice(toIndex, 0, moved);
+        setRawCategories(newCats); // Optimistic UI update
+
+        try {
+            await financeApi.reorderBudgetCategories(newCats.map(c => c.id));
+        } catch {
+            load(); // revert on fail
+        }
+    };
+
+    const handleInlineSave = async (cat, newAmount) => {
+        const existingAlloc = cat.phase_allocations?.[0];
+        try {
+            if (existingAlloc) {
+                await financeApi.updateBudgetAllocation(existingAlloc.id, {
+                    category: cat.id,
+                    phase: existingAlloc.phase,
+                    amount: newAmount
+                });
+            } else if (phases.length > 0) {
+                await financeApi.createBudgetAllocation({
+                    category: cat.id,
+                    phase: phases[0].id,
+                    amount: newAmount
+                });
+            }
+            load();
+        } catch (e) {
+            console.error('Inline save failed', e);
+        }
+    };
+
     return (
-        <div>
+        <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', padding: '0 16px', paddingBottom: 40 }}>
             <PageHeader
                 title="Budget"
                 subtitle="Category allocations & spend tracking"
                 actions={
-                    <button onClick={openNew} style={{ padding: '8px 16px', borderRadius: 10, border: 'none', background: 'var(--t-text)', color: 'var(--t-bg)', fontSize: 12, fontWeight: 900, cursor: 'pointer' }}>
-                        🎯 Add Category
-                    </button>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={() => setViewMode(v => v === 'table' ? 'cards' : 'table')} style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid var(--t-border)', background: 'var(--t-surface2)', color: 'var(--t-text2)', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
+                            {viewMode === 'table' ? '📱 Card View' : '📋 Table View'}
+                        </button>
+                        <button onClick={openNew} style={{ padding: '8px 16px', borderRadius: 10, border: 'none', background: 'var(--t-text)', color: 'var(--t-bg)', fontSize: 12, fontWeight: 900, cursor: 'pointer' }}>
+                            🎯 Add Category
+                        </button>
+                    </div>
                 }
             />
 
@@ -566,9 +789,19 @@ export default function BudgetPage() {
             ) : (
                 <>
                     <SummaryBar categories={categories} />
-                    {categories.map(cat => (
-                        <BudgetCard key={cat.id} cat={cat} onEdit={openEdit} />
-                    ))}
+                    {viewMode === 'table' ? (
+                        <BudgetTable 
+                            categories={categories} 
+                            phases={phases}
+                            onEdit={openEdit}
+                            onDragReorder={handleMove}
+                            onInlineSave={handleInlineSave}
+                        />
+                    ) : (
+                        categories.map(cat => (
+                            <BudgetCard key={cat.id} cat={cat} onEdit={openEdit} />
+                        ))
+                    )}
                 </>
             )}
 

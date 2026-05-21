@@ -9,8 +9,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('resources', '0001_initial'),
-        ('accounting', '0003_initial'),
+        ('resource', '0001_initial'),
         ('finance', '0002_initial'),
     ]
 
@@ -67,7 +66,7 @@ class Migration(migrations.Migration):
                 ('window_end', models.DateField()),
                 ('computed_at', models.DateTimeField(auto_now=True)),
                 ('material', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='rate_trends', to='resources.material')),
-                ('supplier', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='rate_trends', to='accounting.vendor')),
+                ('supplier', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='rate_trends', to='financials.vendor')),
             ],
             options={
                 'ordering': ['-change_pct_last_month'],

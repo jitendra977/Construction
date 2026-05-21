@@ -47,7 +47,7 @@ def _sync_phase_budget(phase):
 
     # 3. Mirror into accounting.PhaseBudgetLine (best-effort, no crash if missing)
     try:
-        from apps.accounting.models.budget import PhaseBudgetLine
+        from apps.financials.models.phase_budget import PhaseBudgetLine
 
         pbl = PhaseBudgetLine.objects.filter(phase=phase).first()
         if pbl and pbl.budgeted_amount != task_total:

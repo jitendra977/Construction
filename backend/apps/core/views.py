@@ -12,7 +12,7 @@ from apps.tasks.models import Task
 from apps.tasks.serializers import TaskSerializer
 from apps.resource.models import Material, Supplier, StockMovement as MaterialTransaction
 from apps.workforce.models import WorkforceMember
-from apps.accounting.models.payables import Vendor
+from apps.financials.models.vendor import Vendor
 from apps.resource.serializers.material import MaterialSerializer
 from apps.resource.serializers.supplier import SupplierSerializer
 from apps.resource.serializers.purchase import StockMovementSerializer as MaterialTransactionSerializer
@@ -21,8 +21,12 @@ from apps.tasks.serializers import AssignedMemberSerializer as WorkforceMemberBr
 from apps.permits.models import PermitStep
 from apps.permits.serializers import PermitStepSerializer
 
-from apps.finance.models import Expense, BudgetCategory, FundingSource, PhaseBudgetAllocation, Account
-from apps.finance.serializers import ExpenseSerializer, BudgetCategorySerializer, FundingSourceSerializer, PhaseBudgetAllocationSerializer, AccountSerializer
+from apps.finance.models import Expense, FundingSource, Account
+from apps.finance.serializers import ExpenseSerializer, FundingSourceSerializer, AccountSerializer
+
+# Budget categories and allocations now come from apps.financials (canonical system)
+from apps.financials.models.budget import BudgetCategory as FinBudgetCategory, BudgetAllocation as FinBudgetAllocation
+from apps.financials.serializers.budget import BudgetCategorySerializer, BudgetAllocationSerializer as PhaseBudgetAllocationSerializer
 class HouseProjectViewSet(viewsets.ModelViewSet):
     serializer_class = HouseProjectSerializer
     permission_classes = [IsAuthenticated]
@@ -338,23 +342,35 @@ class DashboardDataView(APIView):
             transactions = MaterialTransaction.objects.filter(project=project).select_related('material')
             permits = PermitStep.objects.filter(project=project).prefetch_related('documents')
             
-            # 3. Finance (Using direct project link I just added)
-            expenses = Expense.objects.filter(project=project).select_related('category', 'phase', 'supplier', 'contractor', 'funding_source').prefetch_related('payments')
-            budget_categories = BudgetCategory.objects.filter(project=project).prefetch_related('expenses')
+            # 3. Finance — Expenses still come from apps.finance (rich model);
+            #    Budget categories + allocations now come from apps.financials (canonical).
+            expenses = Expense.objects.filter(project=project).select_related(
+                'category', 'phase', 'supplier', 'contractor', 'funding_source',
+                'fin_budget_category',
+            ).prefetch_related('payments')
+            budget_categories = FinBudgetCategory.objects.filter(
+                project=project
+            ).prefetch_related('fin_allocations__phase', 'finance_expenses', 'fin_expenses', 'fin_bill_items')
             funding = FundingSource.objects.filter(project=project).prefetch_related('transactions')
-            phase_allocations = PhaseBudgetAllocation.objects.filter(category__project=project).select_related('category', 'phase')
+            phase_allocations = FinBudgetAllocation.objects.filter(
+                category__project=project
+            ).select_related('category', 'phase')
             accounts = Account.objects.filter(project=project)
         else:
             phases = ConstructionPhase.objects.all()
             rooms = Room.objects.all()
             tasks = Task.objects.prefetch_related('updates', 'media').all()
-            expenses = Expense.objects.select_related('category', 'phase', 'supplier', 'contractor', 'funding_source').prefetch_related('payments').all()
+            expenses = Expense.objects.select_related(
+                'category', 'phase', 'supplier', 'contractor', 'funding_source', 'fin_budget_category'
+            ).prefetch_related('payments').all()
             floors = Floor.objects.prefetch_related('rooms').all()
             materials = Material.objects.all()
-            budget_categories = BudgetCategory.objects.prefetch_related('expenses').all()
+            budget_categories = FinBudgetCategory.objects.prefetch_related(
+                'fin_allocations__phase', 'finance_expenses', 'fin_expenses', 'fin_bill_items'
+            ).all()
             transactions = MaterialTransaction.objects.select_related('material').all()
             funding = FundingSource.objects.prefetch_related('transactions').all()
-            phase_allocations = PhaseBudgetAllocation.objects.select_related('category', 'phase').all()
+            phase_allocations = FinBudgetAllocation.objects.select_related('category', 'phase').all()
             accounts = Account.objects.all()
 
         contractors = (

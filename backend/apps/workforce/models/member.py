@@ -185,7 +185,8 @@ class WorkforceMember(models.Model):
 
     @property
     def photo(self):
-        if self.account:
+        # Prefer linked account's profile image only when it actually has a file
+        if self.account and self.account.profile_image:
             return self.account.profile_image
         return self._photo
 

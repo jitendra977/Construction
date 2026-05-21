@@ -8,7 +8,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('fin', '0006_vendor_phasebudgetline_budgetrevision'),
+        ('financials', '0006_vendor_phasebudgetline_budgetrevision'),
         ('analytics', '0002_switch_material_fk_to_resource'),
     ]
 
@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
                 migrations.AlterField(
                     model_name='supplierratetrend',
                     name='supplier',
-                    field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='rate_trends', to='fin.vendor'),
+                    field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='rate_trends', to='financials.vendor'),
                 ),
             ],
             database_operations=[],  # same table accounting_vendor — no DB change

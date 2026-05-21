@@ -81,15 +81,14 @@ urlpatterns = [
     #    but new code should use /fin/, /resource/, and /estimate/ instead.
     #    These will be removed in Phase 3 once all clients are migrated.
     path('api/v1/finance/', include('apps.finance.urls')),      # legacy → use /fin/
-    path('api/v1/accounting/', include('apps.accounting.urls')),# legacy → no canonical replacement yet
-    path('api/v1/estimator/', include('apps.estimator.urls')),  # legacy → use /estimate/
+
     path('api/v1/permits/', include('apps.permits.urls')),
     path('api/v1/photo-intel/', include('apps.photo_intel.urls')),
     path('api/v1/analytics/', include('apps.analytics.urls')),
     path('api/v1/assistant/', include('apps.assistant.urls')),
 
     # ── Finance Module (clean separate implementation) ──────────────────────
-    path('api/v1/fin/', include('apps.fin.urls')),
+    path('api/v1/financials/', include('apps.financials.urls')),
 
     # ── Resource Module ──────────────────────────────────────────────────────
     path('api/v1/resource/', include('apps.resource.urls')),

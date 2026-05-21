@@ -11,8 +11,8 @@ class FinanceConfig(AppConfig):
         warnings.warn(
             "\n\n"
             "⚠️  DEPRECATED: apps.finance is the legacy finance module.\n"
-            "   The canonical implementation is apps.fin (api/v1/fin/).\n"
-            "   Do NOT add new features here. Migrate remaining logic to apps.fin.\n"
+            "   The canonical implementation is apps.financials (api/v1/financials/).\n"
+            "   Do NOT add new features here. Migrate remaining logic to apps.financials.\n"
             "   Scheduled for URL removal in Phase 2, model deletion in Phase 3.\n",
             DeprecationWarning,
             stacklevel=2,

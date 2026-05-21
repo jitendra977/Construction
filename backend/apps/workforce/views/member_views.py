@@ -2,6 +2,7 @@ from rest_framework import viewsets, filters, status, permissions
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser
 from django_filters.rest_framework import DjangoFilterBackend
 from django.shortcuts import render
 from django.http import HttpResponse
@@ -86,6 +87,32 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
         }
         
         return render(request, 'workforce/worker_badge.html', context)
+
+    @action(detail=True, methods=['post'], url_path='upload_photo')
+    def upload_photo(self, request, pk=None):
+        """
+        POST /api/v1/workforce/members/{id}/upload_photo/
+        Accepts multipart/form-data with a 'photo' file field.
+        Saves it to the member's _photo column and returns the new photo URL.
+        """
+        member = self.get_object()
+        photo = request.FILES.get('photo')
+        if not photo:
+            return Response({'error': 'No photo file provided.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate: images only
+        if not photo.content_type.startswith('image/'):
+            return Response({'error': 'File must be an image.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Max 5 MB
+        if photo.size > 5 * 1024 * 1024:
+            return Response({'error': 'Image must be under 5 MB.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        member._photo = photo
+        member.save(update_fields=['_photo'])
+
+        photo_url = request.build_absolute_uri(member._photo.url) if member._photo else None
+        return Response({'photo_url': photo_url}, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'])
     def link_attendance(self, request, pk=None):

@@ -12,7 +12,7 @@ const lbl = 'block text-[10px] font-bold text-gray-500 uppercase tracking-wider 
 const EMPTY_BILL = {
   bill_number: '', vendor_name: '', bill_date: '', due_date: '', description: '', notes: '',
 };
-const EMPTY_ITEM = { description: '', quantity: '1', unit_price: '', amount: '' };
+const EMPTY_ITEM = { description: '', quantity: '1', unit_price: '', amount: '', budget_category: '' };
 
 export default function BillForm({ bill = null, onDone }) {
   const { projectId, refresh } = useFinance();
@@ -20,17 +20,26 @@ export default function BillForm({ bill = null, onDone }) {
   const [items, setItems] = useState([{ ...EMPTY_ITEM }]);
   const [busy, setBusy]   = useState(false);
   const [err,  setErr]    = useState('');
+  const [categories, setCategories] = useState([]);
 
   useEffect(() => {
     if (bill) {
       setForm({ ...EMPTY_BILL, ...bill });
-      setItems(bill.items?.length ? bill.items.map((i) => ({ ...EMPTY_ITEM, ...i })) : [{ ...EMPTY_ITEM }]);
+      setItems(bill.items?.length ? bill.items.map((i) => ({ ...EMPTY_ITEM, ...i, budget_category: i.budget_category || '' })) : [{ ...EMPTY_ITEM }]);
     } else {
       const today = new Date().toISOString().split('T')[0];
       const due   = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
       setForm({ ...EMPTY_BILL, bill_date: today, due_date: due });
     }
   }, [bill]);
+
+  useEffect(() => {
+    if (projectId) {
+      financeApi.getBudgetCategories(projectId)
+        .then(r => setCategories(r.data?.results || r.data || []))
+        .catch(console.error);
+    }
+  }, [projectId]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -116,22 +125,28 @@ export default function BillForm({ bill = null, onDone }) {
         </div>
         <div className="space-y-2">
           {items.map((item, idx) => (
-            <div key={idx} className="grid grid-cols-12 gap-2 items-center">
-              <div className="col-span-5">
-                <input className={inp} placeholder="Description" value={item.description}
+            <div key={idx} className="grid grid-cols-12 gap-2 items-center mb-2 p-2 bg-gray-50 border border-gray-100 rounded-lg">
+              <div className="col-span-12 sm:col-span-4">
+                <input className={inp} placeholder="Item Description" value={item.description}
                   onChange={(e) => setItem(idx, 'description', e.target.value)} />
               </div>
-              <div className="col-span-2">
+              <div className="col-span-12 sm:col-span-3">
+                <select className={inp} value={item.budget_category || ''} onChange={(e) => setItem(idx, 'budget_category', e.target.value)}>
+                  <option value="">-- No Category --</option>
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div className="col-span-4 sm:col-span-1">
                 <input type="number" min="0" step="0.01" className={inp} placeholder="Qty" value={item.quantity}
                   onChange={(e) => setItem(idx, 'quantity', e.target.value)} />
               </div>
-              <div className="col-span-2">
+              <div className="col-span-4 sm:col-span-2">
                 <input type="number" min="0" step="0.01" className={inp} placeholder="Rate" value={item.unit_price}
                   onChange={(e) => setItem(idx, 'unit_price', e.target.value)} />
               </div>
-              <div className="col-span-2">
-                <input type="number" step="0.01" className={`${inp} bg-gray-50`} placeholder="Amount" value={item.amount}
-                  onChange={(e) => setItem(idx, 'amount', e.target.value)} />
+              <div className="col-span-3 sm:col-span-1">
+                <input type="number" step="0.01" className={`${inp} bg-gray-100 font-bold`} placeholder="Amt" value={item.amount}
+                  readOnly />
               </div>
               <div className="col-span-1 flex justify-center">
                 {items.length > 1 && (

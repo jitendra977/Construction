@@ -1290,7 +1290,7 @@ function ExpenseTab({ projectId }) {
     const [phaseId,setPhaseId]=useState(''); const [paidTo,setPaidTo]=useState('');
     const [saving,setSaving]=useState(false); const [done,setDone]=useState(false);
     useEffect(()=>{constructionService.getPhases().then(d=>{setPhases(Array.isArray(d)?d:d.results||[]);}).catch(()=>{});}, []);
-    const submit=async()=>{if(!title.trim()||!amount||Number(amount)<=0)return;setSaving(true);try{await api.post('/fin/expenses/',{title:title.trim(),amount:Number(amount),expense_type:type,date:today(),paid_to:paidTo.trim(),is_paid:true,...(phaseId?{phase:Number(phaseId)}:{}),...(projectId?{project:projectId}:{})});setTitle('');setAmount('');setPaidTo('');setDone(true);setTimeout(()=>setDone(false),2000);}catch{alert('खर्च सेभ गर्न सकिएन।');}finally{setSaving(false);}};
+    const submit=async()=>{if(!title.trim()||!amount||Number(amount)<=0)return;setSaving(true);try{await api.post('/financials/expenses/',{title:title.trim(),amount:Number(amount),expense_type:type,date:today(),paid_to:paidTo.trim(),is_paid:true,...(phaseId?{phase:Number(phaseId)}:{}),...(projectId?{project:projectId}:{})});setTitle('');setAmount('');setPaidTo('');setDone(true);setTimeout(()=>setDone(false),2000);}catch{alert('खर्च सेभ गर्न सकिएन।');}finally{setSaving(false);}};
     return (
         <div className="flex flex-col gap-4">
             <div><label style={lbl}>📂 खर्चको किसिम</label>

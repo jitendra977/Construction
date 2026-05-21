@@ -292,16 +292,27 @@ export const ConstructionProvider = ({ children }) => {
         if (ownCapital > 0) dte = (totalDebt / ownCapital).toFixed(2);
         else if (totalDebt > 0) dte = 'High';
 
-        // Category breakdown
+        // Category breakdown — budgetCategories now come from apps.fin (UUID IDs).
+        // Expenses are still from apps.finance but carry fin_budget_category (UUID FK).
         const categories = (dashboardData.budgetCategories || []).map(cat => {
+            const catId = String(cat.id);
             const spentInCat = expenses
-                .filter(e => e.category === cat.id && !e.is_inventory_usage)
+                .filter(e => {
+                    if (e.is_inventory_usage) return false;
+                    // Primary: new fin_budget_category FK (UUID)
+                    if (e.fin_budget_category && String(e.fin_budget_category) === catId) return true;
+                    // Fallback: server already computed total_spent on the category
+                    return false;
+                })
                 .reduce((acc, e) => acc + Number(e.amount), 0);
+            // Use the higher of client-computed vs server-provided spent
+            const serverSpent = Number(cat.total_spent || 0);
+            const finalSpent  = Math.max(spentInCat, serverSpent);
             return {
                 ...cat,
-                spent: spentInCat,
-                percent: cat.allocation > 0 ? (spentInCat / cat.allocation) * 100 : 0,
-                remaining: Math.max(0, cat.allocation - spentInCat)
+                spent:     finalSpent,
+                percent:   cat.allocation > 0 ? (finalSpent / cat.allocation) * 100 : 0,
+                remaining: Math.max(0, cat.allocation - finalSpent),
             };
         });
 

@@ -1,79 +1,82 @@
 import api from './client';
 
 export const accountingService = {
-    // Summary
+    // Summary / Dashboard
     getSummary: (projectId) =>
-        api.get('accounting/summary/' + (projectId ? '?project=' + projectId : '')),
+        api.get('financials/dashboard/' + (projectId ? '?project=' + projectId : '')),
 
     // Accounts / Ledger
     getAccounts: (projectId) =>
-        api.get('accounting/accounts/' + (projectId ? '?project=' + projectId : '')),
-    createAccount: (data) => api.post('accounting/accounts/', data),
-    updateAccount: (id, data) => api.patch(`accounting/accounts/${id}/`, data),
-    deleteAccount: (id) => api.delete(`accounting/accounts/${id}/`),
+        api.get('financials/accounts/' + (projectId ? '?project=' + projectId : '')),
+    createAccount: (data) => api.post('financials/accounts/', data),
+    updateAccount: (id, data) => api.patch(`financials/accounts/${id}/`, data),
+    deleteAccount: (id) => api.delete(`financials/accounts/${id}/`),
 
     getJournalEntries: (projectId) =>
-        api.get('accounting/journal-entries/' + (projectId ? '?project=' + projectId : '')),
-    createJournalEntry: (data) => api.post('accounting/journal-entries/', data),
+        api.get('financials/journal-entries/' + (projectId ? '?project=' + projectId : '')),
+    createJournalEntry: (data) => api.post('financials/journal-entries/', data),
 
     // Treasury / Banks
     getBanks: (projectId) =>
-        api.get(`accounting/accounts/?account_type=ASSET${projectId ? '&project=' + projectId : ''}`),
+        api.get(`financials/accounts/?account_type=ASSET${projectId ? '&project=' + projectId : ''}`),
     createBank: (data) =>
-        api.post('accounting/accounts/', { ...data, account_type: 'ASSET', is_bank: true }),
-    updateBank: (id, data) => api.patch(`accounting/accounts/${id}/`, data),
-    deleteBank: (id) => api.delete(`accounting/accounts/${id}/`),
-    addBankBalance: (id, data) => api.post(`accounting/accounts/${id}/add-balance/`, data),
-    payEMI: (id, data) => api.post(`accounting/accounts/${id}/pay-emi/`, data),
-    getCapitalSources: () => api.get('accounting/capital-sources/'),
-    createCapitalSource: (data) => api.post('accounting/capital-sources/', data),
-    updateCapitalSource: (id, data) => api.patch(`accounting/capital-sources/${id}/`, data),
+        api.post('financials/accounts/', { ...data, account_type: 'ASSET', is_bank: true }),
+    updateBank: (id, data) => api.patch(`financials/accounts/${id}/`, data),
+    deleteBank: (id) => api.delete(`financials/accounts/${id}/`),
+    addBankBalance: (id, data) => api.post(`financials/accounts/${id}/deposit/`, data),
+    payEMI: (id, data) => api.post(`financials/accounts/${id}/pay-emi/`, data),
+
+    // Capital Sources (legacy finance endpoints)
+    getCapitalSources: () => api.get('finance/funding-sources/'),
+    createCapitalSource: (data) => api.post('finance/funding-sources/', data),
+    updateCapitalSource: (id, data) => api.patch(`finance/funding-sources/${id}/`, data),
+
     getTransfers: (projectId) =>
-        api.get('accounting/transfers/' + (projectId ? '?project=' + projectId : '')),
-    createTransfer: (data) => api.post('accounting/transfers/', data),
+        api.get('financials/transfers/' + (projectId ? '?project=' + projectId : '')),
+    createTransfer: (data) => api.post('financials/transfers/', data),
 
     // Vendors
-    getVendors: () => api.get('accounting/vendors/'),
-    createVendor: (data) => api.post('accounting/vendors/', data),
-    updateVendor: (id, data) => api.patch(`accounting/vendors/${id}/`, data),
-    deleteVendor: (id) => api.delete(`accounting/vendors/${id}/`),
+    getVendors: () => api.get('financials/vendors/'),
+    createVendor: (data) => api.post('financials/vendors/', data),
+    updateVendor: (id, data) => api.patch(`financials/vendors/${id}/`, data),
+    deleteVendor: (id) => api.delete(`financials/vendors/${id}/`),
 
     // Bills
     getBills: (projectId) =>
-        api.get('accounting/bills/' + (projectId ? '?project=' + projectId : '')),
-    createBill: (data) => api.post('accounting/bills/', data),
-    updateBill: (id, data) => api.patch(`accounting/bills/${id}/`, data),
+        api.get('financials/bills/' + (projectId ? '?project=' + projectId : '')),
+    createBill: (data) => api.post('financials/bills/', data),
+    updateBill: (id, data) => api.patch(`financials/bills/${id}/`, data),
 
-    // Payments
-    getPayments: () => api.get('accounting/payments/'),
-    createPayment: (data) => api.post('accounting/payments/', data),
+    // Payments (legacy finance)
+    getPayments: () => api.get('finance/payments/'),
+    createPayment: (data) => api.post('finance/payments/', data),
 
-    // Purchase Orders
+    // Purchase Orders (legacy finance)
     getPurchaseOrders: (projectId) =>
-        api.get('accounting/purchase-orders/' + (projectId ? '?project=' + projectId : '')),
-    createPurchaseOrder: (data) => api.post('accounting/purchase-orders/', data),
+        api.get('finance/purchase-orders/' + (projectId ? '?project=' + projectId : '')),
+    createPurchaseOrder: (data) => api.post('finance/purchase-orders/', data),
 
     // Phase Budgets
     getPhaseBudgets: (projectId) =>
-        api.get('accounting/phase-budgets/?project=' + projectId),
+        api.get('financials/phase-budgets/?project=' + projectId),
     getBudgetVariance: (projectId) =>
-        api.get('accounting/phase-budgets/variance/?project=' + projectId),
-    updateBudget: (data) => api.post('accounting/phase-budgets/', data),
+        api.get('financials/phase-budgets/variance/?project=' + projectId),
+    updateBudget: (data) => api.post('financials/phase-budgets/', data),
     getBudgetRevisions: (budgetLineId) =>
-        api.get('accounting/budget-revisions/?budget_line=' + budgetLineId),
+        api.get('financials/budget-revisions/?budget_line=' + budgetLineId),
 
     // Contractor Payment Requests
     getPaymentRequests: (projectId) =>
-        api.get('accounting/payment-requests/' + (projectId ? '?project=' + projectId : '')),
-    createPaymentRequest: (data) => api.post('accounting/payment-requests/', data),
-    approvePaymentRequest: (id) => api.post(`accounting/payment-requests/${id}/approve/`),
-    getRetentionReleases: () => api.get('accounting/retention-releases/'),
-    createRetentionRelease: (data) => api.post('accounting/retention-releases/', data),
+        api.get('financials/contractor-contracts/' + (projectId ? '?project=' + projectId : '')),
+    createPaymentRequest: (data) => api.post('financials/contractor-contracts/', data),
+    approvePaymentRequest: (id) => api.post(`financials/contractor-installments/${id}/add_payment/`),
+    getRetentionReleases: () => api.get('financials/installment-payments/'),
+    createRetentionRelease: (data) => api.post('financials/installment-payments/', data),
 
     // Reports
     getReport: (type, projectId, months) =>
         api.get(
-            'accounting/reports/?type=' + type +
+            'financials/reports/?type=' + type +
             (projectId ? '&project=' + projectId : '') +
             '&months=' + (months || 6),
         ),

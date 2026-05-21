@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useConstruction } from '../../context/ConstructionContext';
-import { dashboardService } from '../../services/api';
+import financeApi from '../../modules/finance/services/financeApi';
 import Modal from '../common/Modal';
 import ConfirmModal from '../common/ConfirmModal';
 
@@ -61,49 +61,42 @@ const CategoryManageModal = ({ isOpen, onClose, category }) => {
         setLoading(true);
         try {
             let categoryId = category?.id;
+            const projectId = dashboardData?.project?.id;
 
             if (isEdit) {
-                // 1. Update Category Metadata & Budget
-                await dashboardService.updateBudgetCategory(categoryId, {
+                await financeApi.updateBudgetCategory(categoryId, {
                     name: localName,
-                    code: localCode,
-                    allocation: currentDistTotal // Use the calculated total
+                    description: localCode,  // store code in description for now
                 });
             } else {
-                // 1. Create New Category
-                const res = await dashboardService.createBudgetCategory({
+                const res = await financeApi.createBudgetCategory({
                     name: localName,
-                    code: localCode,
-                    allocation: currentDistTotal
+                    description: localCode,
+                    project: projectId,
                 });
                 categoryId = res.data.id;
             }
 
-            // 2. Update Phase Allocations (Only if we have a categoryId)
+            // 2. Upsert phase allocations via apps.fin.BudgetAllocation
             if (categoryId) {
                 const promises = dashboardData.phases?.map(async (phase) => {
                     const amount = Number(localAllocations[phase.id]) || 0;
                     const existing = dashboardData.phaseBudgetAllocations?.find(
-                        a => a.category === categoryId && a.phase === phase.id
+                        a => String(a.category) === String(categoryId) && String(a.phase) === String(phase.id)
                     );
 
-                    const data = {
-                        category: categoryId,
-                        phase: phase.id,
-                        amount: amount
-                    };
+                    const data = { category: categoryId, phase: phase.id, amount };
 
                     if (existing) {
                         if (amount === 0) {
-                            return dashboardService.deletePhaseBudgetAllocation(existing.id);
+                            return financeApi.deleteBudgetAllocation(existing.id);
                         }
-                        return dashboardService.updatePhaseBudgetAllocation(existing.id, data);
+                        return financeApi.updateBudgetAllocation(existing.id, data);
                     } else if (amount > 0) {
-                        return dashboardService.createPhaseBudgetAllocation(data);
+                        return financeApi.createBudgetAllocation(data);
                     }
                 });
-
-                if (promises) await Promise.all(promises);
+                if (promises) await Promise.all(promises.filter(Boolean));
             }
 
             refreshData();
@@ -124,7 +117,7 @@ const CategoryManageModal = ({ isOpen, onClose, category }) => {
             type: "danger",
             onConfirm: async () => {
                 try {
-                    await dashboardService.deleteBudgetCategory(category.id);
+                    await financeApi.deleteBudgetCategory(category.id);
                     refreshData();
                     onClose();
                 } catch (error) {

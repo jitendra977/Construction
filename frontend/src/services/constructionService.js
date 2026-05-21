@@ -38,25 +38,25 @@ export const constructionService = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DEPRECATED: calculatorService calls /api/v1/estimator/* (legacy module).
+// DEPRECATED: calculatorService calls /api/v1/estimate/* (legacy module).
 // The canonical replacement is /api/v1/estimate/ but it uses a different
 // request shape — a full migration requires updating EstimatorHub + BoQWizard.
 // Sunset target: Phase 3 (see backend utils/deprecation_middleware.py).
 // ─────────────────────────────────────────────────────────────────────────────
 if (typeof window !== 'undefined') {
     console.warn(
-        '[ConstructPro] calculatorService uses deprecated /api/v1/estimator/ endpoints. ' +
+        '[ConstructPro] calculatorService uses deprecated /api/v1/estimate/ endpoints. ' +
         'Migrate to /api/v1/estimate/ in Phase 3.'
     );
 }
 
 // Legacy calculator service (kept for backward compat with old BoQ wizard)
 export const calculatorService = {
-    calculateWall: (data) => api.post('estimator/wall/', data),
-    calculateConcrete: (data) => api.post('estimator/concrete/', data),
-    calculatePlaster: (data) => api.post('estimator/plaster/', data),
-    calculateFlooring: (data) => api.post('estimator/flooring/', data),
-    calculateBudget: (data) => api.post('estimator/budget/', data),
-    getRates: () => api.get('estimator/rates/'),
-    updateRate: (id, data) => api.patch(`estimator/rates/${id}/`, data),
+    calculateWall: (data) => api.post('estimate/wall/', data),
+    calculateConcrete: (data) => api.post('estimate/concrete/', data),
+    calculatePlaster: (data) => api.post('estimate/plaster/', data),
+    calculateFlooring: (data) => api.post('estimate/flooring/', data),
+    calculateBudget: (data) => api.post('estimate/budget/', data),
+    getRates: () => api.get('estimate/rates/'),
+    updateRate: (id, data) => api.patch(`estimate/rates/${id}/`, data),
 };

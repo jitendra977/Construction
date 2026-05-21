@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { dashboardService } from '../../../services/api';
+import financeApi from '../../../modules/finance/services/financeApi';
 import Modal from '../../common/Modal';
 import { useConstruction } from '../../../context/ConstructionContext';
 import ExpenseDetailModal from '../../common/ExpenseDetailModal';
@@ -20,6 +21,8 @@ import { EmailLogHistoryModal, EmailConfirmationModal } from './expenses/Payment
 const ExpensesTab = ({ searchQuery: initialSearchQuery = '', initialViewMode = 'expenses' }) => {
     const { dashboardData, refreshData, formatCurrency, budgetStats } = useConstruction();
     const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
+    // New fin.BudgetCategory list — drives Finance Category dropdown
+    const [finBudgetCategories, setFinBudgetCategories] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [selectedExpenseId, setSelectedExpenseId] = useState(null);
@@ -211,7 +214,8 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '', initialViewMode = '
         let parts = [];
         if (expenseStatusFilter !== 'ALL') parts.push(`Status: ${expenseStatusFilter}`);
         if (expenseCategoryFilter !== 'ALL') {
-            const cat = dashboardData.budgetCategories?.find(c => c.id === parseInt(expenseCategoryFilter));
+            const cat = finBudgetCategories.find(c => String(c.id) === String(expenseCategoryFilter))
+                     || dashboardData.budgetCategories?.find(c => c.id === parseInt(expenseCategoryFilter));
             parts.push(`Category: ${cat?.name || 'Unknown'}`);
         }
         if (expenseDateFilter.start || expenseDateFilter.end) {
@@ -237,6 +241,15 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '', initialViewMode = '
     useEffect(() => {
         fetchLogs();
     }, [fetchLogs]);
+
+    // Load new fin.BudgetCategory list once on mount
+    useEffect(() => {
+        const projectId = dashboardData?.project?.id;
+        if (!projectId) return;
+        financeApi.getBudgetCategories(projectId)
+            .then(res => setFinBudgetCategories(res.data?.results || res.data || []))
+            .catch(() => {});
+    }, [dashboardData?.project?.id]);
 
     const flattenedPayments = useMemo(() => {
         if (!dashboardData?.expenses) return [];
@@ -323,11 +336,15 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '', initialViewMode = '
 
     const handleOpenModal = (expense = null) => {
         setEditingItem(expense);
-        setFormData(expense ? { ...expense } : {
-            category: dashboardData.budgetCategories[0]?.id,
+        setFormData(expense ? {
+            ...expense,
+            // Populate fin_budget_category from existing record if present
+            fin_budget_category: expense.fin_budget_category || '',
+        } : {
             date: new Date().toISOString().split('T')[0],
             expense_type: 'MATERIAL',
-            task: null
+            task: null,
+            fin_budget_category: finBudgetCategories[0]?.id || '',
         });
         setIsModalOpen(true);
     };
@@ -356,8 +373,8 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '', initialViewMode = '
         setLoading(true);
         try {
             let dataToSubmit = { ...formData };
-            // Sanitize foreign keys
-            ['supplier', 'contractor', 'material', 'room', 'phase', 'category', 'funding_source'].forEach(key => {
+            // Sanitize foreign keys — empty string → null so Django doesn't reject
+            ['supplier', 'contractor', 'material', 'room', 'phase', 'category', 'funding_source', 'fin_budget_category'].forEach(key => {
                 if (dataToSubmit[key] === '') dataToSubmit[key] = null;
             });
 
@@ -513,7 +530,7 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '', initialViewMode = '
                 setExpenseCategoryFilter={setExpenseCategoryFilter}
                 expenseDateFilter={expenseDateFilter}
                 setExpenseDateFilter={setExpenseDateFilter}
-                budgetCategories={dashboardData.budgetCategories || []}
+                budgetCategories={finBudgetCategories.length > 0 ? finBudgetCategories : (dashboardData.budgetCategories || [])}
 
                 // Payment Filters
                 paymentMethodFilter={paymentMethodFilter}
@@ -860,13 +877,13 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '', initialViewMode = '
                             </label>
                             <div className="relative">
                                 <select
-                                    value={formData.category || ''}
-                                    onChange={e => setFormData({ ...formData, category: e.target.value })}
+                                    value={formData.fin_budget_category || ''}
+                                    onChange={e => setFormData({ ...formData, fin_budget_category: e.target.value })}
                                     className="w-full rounded-2xl border-[var(--t-border)] bg-[var(--t-surface2)] shadow-sm focus:ring-4 focus:ring-[var(--t-primary)]/10 focus:border-[var(--t-primary)] p-4 border outline-none appearance-none font-bold text-[var(--t-text2)]"
                                     required
                                 >
                                     <option value="">Select Finance Category</option>
-                                    {dashboardData.budgetCategories?.map(c => (
+                                    {(finBudgetCategories.length > 0 ? finBudgetCategories : dashboardData.budgetCategories || []).map(c => (
                                         <option key={c.id} value={c.id}>{c.name}</option>
                                     ))}
                                 </select>
@@ -874,6 +891,9 @@ const ExpensesTab = ({ searchQuery: initialSearchQuery = '', initialViewMode = '
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
                                 </div>
                             </div>
+                            {finBudgetCategories.length === 0 && (
+                                <p className="text-[10px] text-amber-500 mt-1.5 px-1">⚠ No budget categories in the Finance module yet. Create them in Finance → Budget first.</p>
+                            )}
                         </div>
                     </div>
 

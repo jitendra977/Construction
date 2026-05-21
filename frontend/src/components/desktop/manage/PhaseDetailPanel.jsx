@@ -886,9 +886,22 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                         <Field label="Estimated Budget">
                             {isEditing
                                 ? <input type="number" style={inp} value={localPhase.estimated_budget} onChange={e => set('estimated_budget', e.target.value)} />
-                                : <span style={{ fontSize: 14, fontWeight: 900, color: '#f97316' }}>
-                                    {formatCurrency ? formatCurrency(localPhase.estimated_budget) : `Rs. ${Number(localPhase.estimated_budget).toLocaleString()}`}
-                                  </span>
+                                : <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                      <span style={{ fontSize: 14, fontWeight: 900, color: '#f97316' }}>
+                                          {formatCurrency ? formatCurrency(localPhase.estimated_budget) : `Rs. ${Number(localPhase.estimated_budget).toLocaleString()}`}
+                                      </span>
+                                      {!isEditing && phase?.budget_breakdown && phase.budget_breakdown.length > 0 && (
+                                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4, padding: '8px', background: 'var(--t-surface2)', borderRadius: '8px', border: '1px solid var(--t-border)' }}>
+                                              <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--t-text3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Budget Categories</span>
+                                              {phase.budget_breakdown.map((b, i) => (
+                                                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+                                                      <span style={{ color: 'var(--t-text2)', fontWeight: 600 }}>{b.category_name}</span>
+                                                      <span style={{ color: 'var(--t-text)', fontWeight: 800, fontFamily: 'var(--f-mono)' }}>Rs.{Number(b.amount).toLocaleString()}</span>
+                                                  </div>
+                                              ))}
+                                          </div>
+                                      )}
+                                  </div>
                             }
                         </Field>
 

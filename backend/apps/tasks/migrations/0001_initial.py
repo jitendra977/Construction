@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ('finance', '0001_initial'),
         ('core', '0001_initial'),
-        ('resources', '0001_initial'),
+        ('resource', '0001_initial'),
     ]
 
     operations = [

@@ -667,7 +667,7 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
             )}
 
             {showIDCard && idCardMemberId && (
-                <IDCardModal badgeUrl={workforceService.getBadgeUrl(idCardMemberId)} onClose={() => setShowIDCard(false)} />
+                <IDCardModal memberId={idCardMemberId} onClose={() => setShowIDCard(false)} />
             )}
 
             {portalTarget && (

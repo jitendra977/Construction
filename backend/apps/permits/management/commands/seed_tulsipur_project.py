@@ -3,7 +3,7 @@ from django.utils import timezone
 from apps.core.models import HouseProject, ConstructionPhase
 from apps.finance.models import BudgetCategory, FundingSource, Expense, Payment, FundingTransaction
 from apps.resource.models import Material, Worker as Contractor, StockMovement
-from apps.accounting.models import Vendor
+from apps.financials.models.vendor import Vendor
 from apps.permits.models import PermitStep
 from decimal import Decimal
 import random

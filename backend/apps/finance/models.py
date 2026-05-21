@@ -339,7 +339,7 @@ class PurchaseOrder(models.Model):
 
     po_number = models.CharField(max_length=50, unique=True)
     date = models.DateField()
-    supplier = models.ForeignKey("fin.Vendor", on_delete=models.SET_NULL, null=True, blank=True, related_name="legacy_purchase_orders")
+    supplier = models.ForeignKey("financials.Vendor", on_delete=models.SET_NULL, null=True, blank=True, related_name="legacy_purchase_orders")
     contractor = models.ForeignKey("resource.Worker", on_delete=models.SET_NULL, null=True, blank=True, related_name="finance_purchase_orders")
     phase = models.ForeignKey(ConstructionPhase, on_delete=models.SET_NULL, null=True, blank=True)
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=ZERO)
@@ -370,7 +370,7 @@ class Bill(models.Model):
 
     bill_number = models.CharField(max_length=50, blank=True)
     purchase_order = models.ForeignKey(PurchaseOrder, on_delete=models.SET_NULL, null=True, blank=True, related_name="bills")
-    supplier = models.ForeignKey("fin.Vendor", on_delete=models.SET_NULL, null=True, blank=True, related_name="legacy_bills")
+    supplier = models.ForeignKey("financials.Vendor", on_delete=models.SET_NULL, null=True, blank=True, related_name="legacy_bills")
     contractor = models.ForeignKey("resource.Worker", on_delete=models.SET_NULL, null=True, blank=True, related_name="finance_bills")
     date_issued = models.DateField()
     due_date = models.DateField()
@@ -512,6 +512,12 @@ class Expense(models.Model):
     contractor = models.ForeignKey("resource.Worker", on_delete=models.SET_NULL, null=True, blank=True, related_name="expenses")
     funding_source = models.ForeignKey(FundingSource, on_delete=models.SET_NULL, null=True, blank=True, related_name="expenses")
     task = models.ForeignKey("tasks.Task", on_delete=models.SET_NULL, null=True, blank=True, related_name="expenses")
+    # Link to new apps.financials budget category — used by BudgetPage to show spent amounts
+    fin_budget_category = models.ForeignKey(
+        "financials.BudgetCategory", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="finance_expenses",
+        help_text="New fin.BudgetCategory this expense belongs to (for BudgetPage tracking)",
+    )
 
     date = models.DateField()
     paid_to = models.CharField(max_length=200)

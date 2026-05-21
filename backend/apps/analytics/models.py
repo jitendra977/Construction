@@ -16,7 +16,7 @@ from django.conf import settings
 
 from apps.finance.models import BudgetCategory
 from apps.resource.models import Material
-from apps.fin.models.vendor import Vendor
+from apps.financials.models.vendor import Vendor
 
 
 class BudgetForecast(models.Model):

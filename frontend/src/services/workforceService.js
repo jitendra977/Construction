@@ -43,6 +43,16 @@ const workforceService = {
     updateMember:     (id, data)    => api.patch(`members/${id}/`, data).then(r => r.data),
     deleteMember:     (id)          => api.delete(`members/${id}/`).then(r => r.data),
     getBadgeUrl:      (id)          => `${API_URL}/workforce/members/${id}/badge/`,
+    // Fetch badge HTML server-side with the JWT token (iframe src= doesn't send auth headers)
+    fetchBadgeHtml:   (id)          => api.get(`members/${id}/badge/`, { responseType: 'text' }).then(r => r.data),
+    // Upload a profile photo for a member (multipart/form-data)
+    uploadPhoto: (id, file) => {
+        const fd = new FormData();
+        fd.append('photo', file);
+        return api.post(`members/${id}/upload_photo/`, fd, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        }).then(r => r.data);
+    },
 
     // Dashboard summary counts (supports ?project=<id> filter)
     getSummaryStats:  (project) =>

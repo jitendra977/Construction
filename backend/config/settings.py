@@ -89,16 +89,13 @@ INSTALLED_APPS = [
     'apps.core',
     'apps.tasks',
     'apps.finance',
-    'apps.accounting',   # LEGACY — only Vendor + PhaseBudgetLine still used externally; moving to fin
-    'apps.resources',    # LEGACY — no other app imports from here; kept for DB tables + wastage endpoints
-    'apps.estimator',
     'apps.permits',
     'apps.photo_intel',
     'apps.analytics',
     'apps.assistant',
 
     # ── Finance Module (clean separate implementation) ──────────────────────
-    'apps.fin',
+    'apps.financials',
 
     # ── Resource Module ──────────────────────────────────────────────────────
     'apps.resource',
@@ -130,16 +127,13 @@ MIGRATION_MODULES = {
     'workforce': 'apps.workforce.migrations',
     'tasks': 'apps.tasks.migrations',
     'finance': 'apps.finance.migrations',
-    'accounting': 'apps.accounting.migrations',
-    'resources': 'apps.resources.migrations',
-    'fin': 'apps.fin.migrations',
+    'financials': 'apps.financials.migrations',
     'resource': 'apps.resource.migrations',
     'analytics': 'apps.analytics.migrations',
     'assistant': 'apps.assistant.migrations',
     'permits': 'apps.permits.migrations',
     'photo_intel': 'apps.photo_intel.migrations',
     'data_transfer': 'apps.data_transfer.migrations',
-    'estimator': 'apps.estimator.migrations',
     'estimate': 'apps.estimate.migrations',
     'location_tracking': 'apps.location_tracking.migrations',
     'worker': 'apps.worker.migrations',

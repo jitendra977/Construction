@@ -102,6 +102,29 @@ class ConstructionPhaseSerializer(serializers.ModelSerializer):
         from django.db.models import Sum
         return obj.expenses.aggregate(total=Sum('amount'))['total'] or 0
 
+    def to_representation(self, instance):
+        repr = super().to_representation(instance)
+        try:
+            from apps.financials.models.budget import BudgetAllocation
+            from django.db.models import Sum
+            allocations = BudgetAllocation.objects.filter(phase=instance).select_related('category')
+            
+            allocs_total = allocations.aggregate(total=Sum('allocated_amount'))['total']
+            if allocs_total is not None:
+                repr['estimated_budget'] = str(allocs_total)
+            
+            # Add breakdown for frontend
+            repr['budget_breakdown'] = [
+                {
+                    "category_id": str(a.category.id),
+                    "category_name": a.category.name,
+                    "amount": str(a.allocated_amount)
+                } for a in allocations
+            ]
+        except Exception:
+            pass
+        return repr
+
 # ── Floor / Room ───────────────────────────────────────────────────────────────
 class RoomSerializer(serializers.ModelSerializer):
     class Meta:

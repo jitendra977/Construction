@@ -14,7 +14,7 @@
  *   GET  /api/v1/attendance/workers/
  *   POST /api/v1/attendance/records/bulk/
  *   GET  /api/v1/phases/            → phase list for expense
- *   POST /api/v1/fin/expenses/       → quick expense (canonical fin module)
+ *   POST /api/v1/financials/expenses/       → quick expense (canonical fin module)
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
@@ -550,7 +550,7 @@ function ExpenseTab({ projectId }) {
         if (!title.trim() || !amount || Number(amount) <= 0) return;
         setSaving(true);
         try {
-            await api.post('/fin/expenses/', {
+            await api.post('/financials/expenses/', {
                 title: title.trim(),
                 amount: Number(amount),
                 expense_type: type,

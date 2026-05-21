@@ -107,7 +107,7 @@ class TaskViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
         Optional body: { "project_id": 4 }
         """
         from apps.core.models import ConstructionPhase
-        from apps.accounting.models.budget import PhaseBudgetLine
+        from apps.financials.models.phase_budget import PhaseBudgetLine
 
         project_id = request.data.get('project_id') or request.query_params.get('project')
 

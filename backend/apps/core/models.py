@@ -94,7 +94,7 @@ class HouseProject(models.Model):
             ph_dist_total = PhaseBudgetAllocation.objects.filter(phase=ph).aggregate(total=models.Sum('amount'))['total'] or ZERO
             
             # Sync check with Accounting
-            from apps.accounting.models.budget import PhaseBudgetLine
+            from apps.financials.models.phase_budget import PhaseBudgetLine
             pbl = PhaseBudgetLine.objects.filter(phase=ph).first()
             if pbl and abs(pbl.budgeted_amount - ph.estimated_budget) > Decimal("0.01"):
                 issues.append({
