@@ -35,12 +35,16 @@ def _add_uuid_fk(table, col, ref_table, null=True, on_delete='SET NULL'):
 
 def _create_partial_unique_index(index_name, table, col):
     def forward(apps, schema_editor):
+        if schema_editor.connection.vendor == 'sqlite':
+            return
         with schema_editor.connection.cursor() as cur:
             cur.execute(
                 f'CREATE UNIQUE INDEX IF NOT EXISTS "{index_name}" '
                 f'ON "{table}" ("{col}") WHERE "{col}" IS NOT NULL'
             )
     def reverse(apps, schema_editor):
+        if schema_editor.connection.vendor == 'sqlite':
+            return
         with schema_editor.connection.cursor() as cur:
             cur.execute(f'DROP INDEX IF EXISTS "{index_name}"')
     return forward, reverse

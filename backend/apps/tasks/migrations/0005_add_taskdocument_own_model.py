@@ -21,7 +21,7 @@ class Migration(migrations.Migration):
                 ('uploaded_at', models.DateTimeField(auto_now_add=True)),
             ],
         ),
-        migrations.AlterField(
+        migrations.AddField(
             model_name='taskupdate',
             name='attachments',
             field=models.ManyToManyField(blank=True, related_name='task_updates', to='tasks.taskdocument'),

@@ -9,9 +9,9 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
+        ('resource', '0001_initial'),
         ('finance', '0001_initial'),
         ('core', '0001_initial'),
-        ('resource', '0001_initial'),
     ]
 
     operations = [
@@ -30,7 +30,11 @@ class Migration(migrations.Migration):
                 ('completed_date', models.DateField(blank=True, null=True)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
+<<<<<<< HEAD
                 ('assigned_to', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='tasks', to='workforce.workforcemember')),
+=======
+                ('assigned_to', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='tasks', to='resource.worker')),
+>>>>>>> 9c7acd1 (fix: migrations)
                 ('blocked_by', models.ForeignKey(blank=True, help_text='This task cannot be completed until the blocked_by task is completed.', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='blocking_tasks', to='tasks.task')),
                 ('category', models.ForeignKey(blank=True, help_text='Finance category this task belongs to', null=True, on_delete=django.db.models.deletion.PROTECT, related_name='tasks', to='finance.budgetcategory')),
                 ('phase', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='tasks', to='core.constructionphase')),
@@ -44,7 +48,11 @@ class Migration(migrations.Migration):
                 ('note', models.TextField()),
                 ('progress_percentage', models.IntegerField(default=0, help_text='0-100')),
                 ('date', models.DateTimeField(auto_now_add=True)),
+<<<<<<< HEAD
                 ('attachments', models.ManyToManyField(blank=True, related_name='task_updates', to='tasks.taskdocument')),
+=======
+                # attachments M2M added in migration 0005 (TaskDocument created there)
+>>>>>>> 9c7acd1 (fix: migrations)
                 ('task', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='updates', to='tasks.task')),
             ],
         ),
