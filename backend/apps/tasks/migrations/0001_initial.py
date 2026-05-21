@@ -48,11 +48,7 @@ class Migration(migrations.Migration):
                 ('note', models.TextField()),
                 ('progress_percentage', models.IntegerField(default=0, help_text='0-100')),
                 ('date', models.DateTimeField(auto_now_add=True)),
-<<<<<<< HEAD
                 ('attachments', models.ManyToManyField(blank=True, related_name='task_updates', to='tasks.taskdocument')),
-=======
-                # attachments M2M added in migration 0005 (TaskDocument created there)
->>>>>>> 9c7acd1 (fix: migrations)
                 ('task', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='updates', to='tasks.task')),
             ],
         ),

@@ -134,18 +134,11 @@ class Migration(migrations.Migration):
             name='project',
             field=models.ForeignKey(blank=True, db_constraint=False, null=True, on_delete=django.db.models.deletion.DO_NOTHING, related_name='+', to='core.houseproject'),
         ),
-<<<<<<< HEAD
         migrations.AddField(
             model_name='historicalexpense',
             name='receipt',
             field=models.ForeignKey(blank=True, db_constraint=False, null=True, on_delete=django.db.models.deletion.DO_NOTHING, related_name='+', to='tasks.taskdocument'),
         ),
-=======
-        # receipt (resource.document removed — no Document model in resource app)
-        # migrations.AddField(
-        #     model_name='historicalexpense', name='receipt', ...
-        # ),
->>>>>>> 9c7acd1 (fix: migrations)
         migrations.AddField(
             model_name='historicalexpense',
             name='supplier',
