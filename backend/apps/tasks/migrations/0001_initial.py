@@ -44,7 +44,6 @@ class Migration(migrations.Migration):
                 ('note', models.TextField()),
                 ('progress_percentage', models.IntegerField(default=0, help_text='0-100')),
                 ('date', models.DateTimeField(auto_now_add=True)),
-                ('attachments', models.ManyToManyField(blank=True, related_name='task_updates', to='tasks.taskdocument')),
                 ('task', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='updates', to='tasks.task')),
             ],
         ),

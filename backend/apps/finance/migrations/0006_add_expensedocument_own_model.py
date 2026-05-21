@@ -22,12 +22,12 @@ class Migration(migrations.Migration):
                 ('uploaded_at', models.DateTimeField(auto_now_add=True)),
             ],
         ),
-        migrations.AddField(
+        migrations.AlterField(
             model_name='expense',
             name='receipt',
             field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='expenses', to='finance.expensedocument'),
         ),
-        migrations.AddField(
+        migrations.AlterField(
             model_name='historicalexpense',
             name='receipt',
             field=models.ForeignKey(blank=True, db_constraint=False, null=True, on_delete=django.db.models.deletion.DO_NOTHING, related_name='+', to='finance.expensedocument'),
