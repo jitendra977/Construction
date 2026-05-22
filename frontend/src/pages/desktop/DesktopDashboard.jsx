@@ -56,6 +56,8 @@ function DesktopDashboard() {
         );
     }
 
+    const can = (permission) => !permission || authService.hasPermission(permission);
+
     const navItems = [
         // Projects
         { id: 'projects',      icon: '🗂️',  label: 'Projects (परियोजनाहरू)'              },
@@ -64,25 +66,25 @@ function DesktopDashboard() {
         { id: 'analytics',     icon: '📈',  label: 'Analytics (विश्लेषण)'                 },
         { id: 'estimator',     icon: '🧮',  label: 'Estimator (इस्टिमेटर)'                },
         // Construction
-        { id: 'permits',       icon: '📜',  label: 'Permits (नक्सा पास)'                  },
-        { id: 'phases',        icon: '📋',  label: 'Phases & Tasks (चरण र कार्य)'          },
-        { id: 'manage',        icon: '🛠️', label: 'Manage (व्यवस्थापन)'                  },
-        { id: 'timeline',      icon: '📅',  label: 'Timeline (समयरेखा)'                   },
-        { id: 'finance',       icon: '💰',  label: 'Finance (वित्त)'                      },
-        { id: 'resource',      icon: '🧱',  label: 'Resource (स्रोत)'                     },
-        { id: 'structure',     icon: '🏛️', label: 'Structure (संरचना)'                   },
+        { id: 'permits',       icon: '📜',  label: 'Permits (नक्सा पास)', permission: 'can_manage_phases' },
+        { id: 'phases',        icon: '📋',  label: 'Phases & Tasks (चरण र कार्य)', permission: 'can_manage_phases' },
+        { id: 'manage',        icon: '🛠️', label: 'Manage (व्यवस्थापन)', permission: 'can_manage_phases' },
+        { id: 'timeline',      icon: '📅',  label: 'Timeline (समयरेखा)', permission: 'can_manage_phases' },
+        { id: 'finance',       icon: '💰',  label: 'Finance (वित्त)', permission: 'can_view_finances' },
+        { id: 'resource',      icon: '🧱',  label: 'Resource (स्रोत)', permission: 'can_manage_resources' },
+        { id: 'structure',     icon: '🏛️', label: 'Structure (संरचना)', permission: 'can_view_structure' },
         { id: 'photos',        icon: '📸',  label: 'Gallery (फोटो ग्यालरी)'               },
         { id: 'timelapse',     icon: '🎞️', label: 'Timelapse (टाइमल्याप्स)'               },
         // Team & HR
-        { id: 'attendance',    icon: '🕐',  label: 'Attendance (हाजिरी)'                   },
-        { id: 'workforce',     icon: '👷',  label: 'Workforce & Teams (कार्यबल)'            },
-        { id: 'location',      icon: '📍',  label: 'Location (स्थान ट्र्याकिङ)'            },
+        { id: 'attendance',    icon: '🕐',  label: 'Attendance (हाजिरी)', permission: 'can_manage_workforce' },
+        { id: 'workforce',     icon: '👷',  label: 'Workforce & Teams (कार्यबल)', permission: 'can_manage_workforce' },
+        { id: 'location',      icon: '📍',  label: 'Location (स्थान ट्र्याकिङ)', permission: 'can_manage_workforce' },
         // Admin & Config
-        { id: 'accounts',      icon: '👤',  label: 'Accounts (खाता)'                      },
-        { id: 'settings',      icon: '⚙️',  label: 'Settings (सेटिङ)'                     },
+        { id: 'accounts',      icon: '👤',  label: 'Accounts (खाता)', permission: 'can_manage_users' },
+        { id: 'settings',      icon: '⚙️',  label: 'Settings (सेटिङ)', permission: 'can_manage_settings' },
         { id: 'guides',        icon: '📚',  label: 'User Guide (मद्दत निर्देशिका)'         },
-        { id: 'data-transfer', icon: '🔄',  label: 'Data Transfer (डाटा स्थानान्तरण)'      },
-    ];
+        { id: 'data-transfer', icon: '🔄',  label: 'Data Transfer (डाटा स्थानान्तरण)', permission: 'can_manage_data_transfer' },
+    ].filter(item => can(item.permission));
 
     const sidebarW = collapsed ? SIDEBAR_COLLAPSED : SIDEBAR_EXPANDED;
 

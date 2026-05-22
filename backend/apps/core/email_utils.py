@@ -378,6 +378,8 @@ def send_worker_portal_credentials(
     employee_id,
     username,
     pin,
+    password='',
+    admin_url='',
     project_name='Construction Site',
     portal_url='',
     user=None,
@@ -400,6 +402,9 @@ def send_worker_portal_credentials(
         'employee_id':  employee_id,
         'username':     username,
         'pin':          pin,
+        'password':     password,
+        'admin_url':    admin_url or '',
+        'has_admin_access': bool(password),
         'project_name': project_name,
         'portal_url':   portal_url or '#',
     }

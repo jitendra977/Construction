@@ -630,14 +630,15 @@ class WorkerLoginView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Look up by phone (stored as username) and check PIN directly.
-        # We cannot use authenticate(username=email, password=pin) here because
-        # the Django auth backend matches by the `username` field, which for
-        # worker accounts is the phone number — NOT the email address.
+        # Look up by phone (stored as username) and verify the worker portal PIN
+        # against the linked WorkforceMember. This keeps portal PIN separate
+        # from the dashboard/admin password.
         user = None
         try:
             user_obj = User.objects.get(username=phone)
-            if user_obj.is_active and user_obj.check_password(pin):
+            member_obj = getattr(user_obj, 'workforce_profile', None)
+            legacy_pin_ok = not getattr(member_obj, 'portal_pin_hash', '') and user_obj.check_password(pin)
+            if user_obj.is_active and member_obj and (member_obj.check_portal_pin(pin) or legacy_pin_ok):
                 user = user_obj
         except User.DoesNotExist:
             pass

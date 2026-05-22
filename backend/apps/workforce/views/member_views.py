@@ -424,19 +424,23 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
         """
         POST /api/v1/workforce/members/{id}/create_account/
 
-        Creates a User account for a WorkforceMember so they can log in to
-        the worker portal.  Uses phone number as username + a PIN.
+        Creates a User account for a WorkforceMember. Worker Portal uses
+        phone + PIN. Optional admin access uses email + generated password
+        and the selected accounts.Role permissions.
 
         Body (all optional):
             phone  — overrides stored phone
             pin    — 4-6 digit PIN; auto-generated if omitted
             email  — optional email address
+            admin_access — true to allow dashboard/admin panel login
+            role_id — accounts.Role id used when admin_access is true
 
-        Returns { employee_id, username, pin, email }
-        PIN is returned ONCE only — manager must record it.
+        Returns generated credentials ONCE only.
         """
-        import random, string
+        import random, string, re
         from django.contrib.auth import get_user_model
+        from django.utils.crypto import get_random_string
+        from apps.accounts.models import Role
 
         User   = get_user_model()
         member = self.get_object()
@@ -448,9 +452,9 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        import re
         phone = (request.data.get('phone') or member.phone or '').strip()
         phone = re.sub(r'[^\d\+]', '', phone)
+        admin_access = bool(request.data.get('admin_access', False))
         
         if not phone:
             return Response(
@@ -467,24 +471,58 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
         raw_pin = str(request.data.get('pin') or '').strip()
         if not raw_pin:
             raw_pin = ''.join(random.choices(string.digits, k=6))
+        if not raw_pin.isdigit() or len(raw_pin) < 4 or len(raw_pin) > 6:
+            return Response(
+                {'error': 'PIN must be 4-6 digits.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         email = request.data.get('email') or member.email or f'{phone}@worker.local'
+        email = str(email).strip().lower()
+        if User.objects.filter(email=email).exists():
+            return Response(
+                {'error': f'An account already exists for email {email}.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        role = None
+        raw_password = None
+        if admin_access:
+            role_id = request.data.get('role_id')
+            if not role_id:
+                return Response(
+                    {'error': 'role_id is required when admin_access is enabled.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            try:
+                role = Role.objects.get(pk=role_id)
+            except Role.DoesNotExist:
+                return Response({'error': 'Role not found.'}, status=status.HTTP_404_NOT_FOUND)
+            raw_password = request.data.get('password') or get_random_string(14)
 
         user = User.objects.create_user(
             username=phone,
             email=email,
-            password=raw_pin,
+            password=raw_password or None,
             first_name=member.first_name,
             last_name=member.last_name,
+            role=role,
+            is_staff=admin_access,
             is_active=True,
         )
+        if not admin_access:
+            user.set_unusable_password()
         if hasattr(user, 'phone_number'):
             user.phone_number = phone
-            user.save(update_fields=['phone_number'])
+        update_fields = ['password', 'phone_number'] if hasattr(user, 'phone_number') else ['password']
+        if admin_access:
+            update_fields.extend(['role', 'is_staff'])
+        user.save(update_fields=update_fields)
 
         member.account = user
         member._phone  = phone
-        member.save(update_fields=['account', '_phone', 'updated_at'])
+        member.set_portal_pin(raw_pin)
+        member.save(update_fields=['account', '_phone', 'portal_pin_hash', 'updated_at'])
 
         return Response({
             'message':     f'Account created for {member.full_name}.',
@@ -492,6 +530,10 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
             'username':    phone,
             'pin':         raw_pin,
             'email':       email,
+            'admin_access': admin_access,
+            'admin_username': email if admin_access else None,
+            'password': raw_password if admin_access else None,
+            'role': role.name if role else None,
         }, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['post'])
@@ -519,15 +561,19 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
         raw_pin = str(request.data.get('pin') or '').strip()
         if not raw_pin:
             raw_pin = ''.join(random.choices(string.digits, k=6))
+        if not raw_pin.isdigit() or len(raw_pin) < 4 or len(raw_pin) > 6:
+            return Response(
+                {'error': 'PIN must be 4-6 digits.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
             
-        user = member.account
-        user.set_password(raw_pin)
-        user.save(update_fields=['password'])
+        member.set_portal_pin(raw_pin)
+        member.save(update_fields=['portal_pin_hash', 'updated_at'])
         
         return Response({
             'message': f'PIN reset for {member.full_name}.',
             'employee_id': member.employee_id,
-            'username': user.username,
+            'username': member.account.username,
             'pin': raw_pin,
         })
 
@@ -551,6 +597,8 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
         member          = self.get_object()
         recipient_email = request.data.get('recipient_email', '').strip()
         pin             = request.data.get('pin', '').strip()
+        password        = request.data.get('password', '').strip()
+        admin_url       = request.data.get('admin_url', '')
         portal_url      = request.data.get('portal_url', '')
         project_name    = request.data.get('project_name', 'Construction Site')
 
@@ -559,7 +607,11 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
         if not pin:
             return Response({'error': 'pin is required (PIN is only available immediately after account creation).'}, status=status.HTTP_400_BAD_REQUEST)
 
-        username = member.phone or (member.account.username if member.account else '')
+        username = (
+            member.account.email
+            if password and member.account
+            else member.phone or (member.account.username if member.account else '')
+        )
 
         ok = send_worker_portal_credentials(
             recipient_email = recipient_email,
@@ -567,6 +619,8 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
             employee_id     = member.employee_id,
             username        = username,
             pin             = pin,
+            password        = password,
+            admin_url       = admin_url,
             project_name    = project_name,
             portal_url      = portal_url,
             user            = request.user,

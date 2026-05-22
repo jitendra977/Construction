@@ -1,5 +1,6 @@
 import uuid
 from django.db import models
+from django.contrib.auth.hashers import check_password, make_password
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 
@@ -66,6 +67,11 @@ class WorkforceMember(models.Model):
             'Linked attendance record. Provides QR token, daily_rate, '
             'trade, and all check-in/out history.'
         ),
+    )
+    portal_pin_hash = models.CharField(
+        max_length=128,
+        blank=True,
+        help_text=_('Hashed PIN used only for Worker Portal login.'),
     )
 
     # ── Auto employee ID ──────────────────────────────────────
@@ -219,6 +225,12 @@ class WorkforceMember(models.Model):
         if self.attendance_worker_id:
             return self.attendance_worker.qr_token
         return None
+
+    def set_portal_pin(self, raw_pin):
+        self.portal_pin_hash = make_password(str(raw_pin))
+
+    def check_portal_pin(self, raw_pin):
+        return bool(self.portal_pin_hash) and check_password(str(raw_pin), self.portal_pin_hash)
 
     @property
     def effective_trade(self):

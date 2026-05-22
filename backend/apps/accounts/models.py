@@ -101,6 +101,23 @@ class Role(models.Model):
         help_text="Can view floors and rooms"
     )
 
+    can_manage_resources = models.BooleanField(
+        default=False,
+        help_text="Can manage materials, suppliers, workers, and equipment"
+    )
+    can_manage_workforce = models.BooleanField(
+        default=False,
+        help_text="Can manage workforce, attendance, payroll, and teams"
+    )
+    can_manage_data_transfer = models.BooleanField(
+        default=False,
+        help_text="Can import, export, and restore system data"
+    )
+    can_manage_settings = models.BooleanField(
+        default=False,
+        help_text="Can manage application settings"
+    )
+
     def __str__(self):
         return f"{self.name} ({self.code})"
 
@@ -223,6 +240,26 @@ class User(AbstractUser):
     def can_view_structure_perm(self):
         if not self.is_active: return False
         return self.is_system_admin or (self.role and (self.role.can_view_structure or self.role.can_manage_structure))
+
+    @property
+    def can_manage_resources_perm(self):
+        if not self.is_active: return False
+        return self.is_system_admin or (self.role and self.role.can_manage_resources)
+
+    @property
+    def can_manage_workforce_perm(self):
+        if not self.is_active: return False
+        return self.is_system_admin or (self.role and self.role.can_manage_workforce)
+
+    @property
+    def can_manage_data_transfer_perm(self):
+        if not self.is_active: return False
+        return self.is_system_admin or (self.role and self.role.can_manage_data_transfer)
+
+    @property
+    def can_manage_settings_perm(self):
+        if not self.is_active: return False
+        return self.is_system_admin or (self.role and self.role.can_manage_settings)
 
     # ----- OVERRIDE SAVE -----
     def save(self, *args, **kwargs):

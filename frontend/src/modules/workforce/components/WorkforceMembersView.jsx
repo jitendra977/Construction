@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useConstruction } from '../../../context/ConstructionContext';
 import workforceService from '../../../services/workforceService';
+import { accountsService } from '../../../services/accountsService';
 import IDCardModal from './IDCardModal';
 import MemberDrawer, { StatusBadge, TypeBadge, Spinner } from './MemberDrawer';
 
@@ -84,6 +85,9 @@ function CreateAccountModal({ member, onClose }) {
     const [result, setResult]             = useState(null);
     const [loading, setLoading]           = useState(false);
     const [error, setError]               = useState('');
+    const [adminAccess, setAdminAccess]   = useState(false);
+    const [systemRoles, setSystemRoles]   = useState([]);
+    const [roleId, setRoleId]             = useState('');
     // Email send step
     const [emailDest, setEmailDest]       = useState('member'); // 'member' | 'custom'
     const [customEmail, setCustomEmail]   = useState('');
@@ -96,6 +100,18 @@ function CreateAccountModal({ member, onClose }) {
     // Pre-fill member email when result arrives or from member object
     const memberEmail = member.email && !member.email.endsWith('@worker.local') ? member.email : '';
 
+    useEffect(() => {
+        accountsService.getRoles()
+            .then(res => {
+                const data = res.data;
+                const roles = Array.isArray(data) ? data : (data.results || []);
+                setSystemRoles(roles);
+                const fallback = roles.find(r => r.code === 'VIEWER') || roles[0];
+                if (fallback) setRoleId(String(fallback.id));
+            })
+            .catch(() => setSystemRoles([]));
+    }, []);
+
     const executeAction = async (actionFn, actionName) => {
         if (sendEmail) {
             const resolvedEmail = emailDest === 'member' ? memberEmail : customEmail.trim();
@@ -104,10 +120,22 @@ function CreateAccountModal({ member, onClose }) {
                 return;
             }
         }
+        if (!member.account && adminAccess && !roleId) {
+            setError('Select a system role for admin panel access.');
+            return;
+        }
         
         setLoading(true); setError(''); setEmailError('');
         try {
-            const data = await actionFn(member.id, pin ? { pin } : {});
+            const payload = pin ? { pin } : {};
+            if (!member.account) {
+                payload.admin_access = adminAccess;
+                if (adminAccess) {
+                    payload.role_id = roleId;
+                    payload.email = memberEmail || customEmail.trim() || undefined;
+                }
+            }
+            const data = await actionFn(member.id, payload);
             setResult(data);
             
             if (sendEmail) {
@@ -117,7 +145,9 @@ function CreateAccountModal({ member, onClose }) {
                     await workforceService.sendPortalCredentials(member.id, {
                         recipient_email: resolvedEmail,
                         pin:             data.pin,
+                        password:        data.password || '',
                         portal_url:      `${window.location.origin}/worker`,
+                        admin_url:       `${window.location.origin}/dashboard/desktop`,
                         project_name:    member.project_name || 'Construction Site',
                     });
                     setEmailStatus('sent');
@@ -210,6 +240,29 @@ function CreateAccountModal({ member, onClose }) {
                                 />
                             </div>
                             {renderEmailConfig()}
+                            {!member.account && (
+                                <div style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
+                                        <input type="checkbox" checked={adminAccess} onChange={e => setAdminAccess(e.target.checked)} style={{ width: 16, height: 16, cursor: 'pointer' }} />
+                                        Allow admin panel access
+                                    </label>
+                                    {adminAccess && (
+                                        <div style={{ marginTop: 12 }}>
+                                            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 6 }}>
+                                                System role
+                                            </label>
+                                            <select value={roleId} onChange={e => setRoleId(e.target.value)} style={fieldStyle}>
+                                                {systemRoles.map(role => (
+                                                    <option key={role.id} value={role.id}>{role.name}</option>
+                                                ))}
+                                            </select>
+                                            <p style={{ margin: '8px 0 0', fontSize: 11, color: 'var(--t-text-muted)' }}>
+                                                A random dashboard password will be generated. Sidebar and routes use this role's permissions.
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                             {error && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 12 }}>{error}</div>}
                             <div style={{ display: 'flex', gap: 10 }}>
                                 <button onClick={handleReset} disabled={loading || sending} style={{
@@ -256,6 +309,11 @@ function CreateAccountModal({ member, onClose }) {
                                 { label: 'Employee ID',      value: result.employee_id },
                                 { label: 'Username (phone)', value: result.username },
                                 { label: 'PIN',              value: result.pin, mono: true, highlight: true },
+                                ...(result.admin_access ? [
+                                    { label: 'Admin email', value: result.admin_username || result.email },
+                                    { label: 'Admin password', value: result.password, mono: true },
+                                    { label: 'Role', value: result.role || '—' },
+                                ] : []),
                             ].map(f => (
                                 <div key={f.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                                     <span style={{ fontSize: 12, color: '#065f46', opacity: 0.8 }}>{f.label}</span>

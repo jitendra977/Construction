@@ -28,6 +28,25 @@ import AccountsRoutes  from '../../modules/accounts';
 import LocationRoutes  from '../../modules/location/LocationRoutes';
 
 import { useConstruction } from '../../context/ConstructionContext';
+import { authService } from '../../services/auth';
+
+function AccessDenied() {
+    return (
+        <div style={{ padding: 48, color: 'var(--t-text)' }}>
+            <h2 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 900 }}>Access denied</h2>
+            <p style={{ margin: 0, color: 'var(--t-text3)', fontSize: 14 }}>
+                Your account role does not allow access to this page.
+            </p>
+        </div>
+    );
+}
+
+function RequirePermission({ permission, children }) {
+    if (permission && !authService.hasPermission(permission)) {
+        return <AccessDenied />;
+    }
+    return children;
+}
 
 const DesktopRoutes = () => {
     const { activeProjectId } = useConstruction();
@@ -40,32 +59,32 @@ const DesktopRoutes = () => {
             {/* Stand-alone pages */}
             <Route path="home"       element={<Dashboard />}      />
             <Route path="estimator"  element={<EstimatorHub />}   />
-            <Route path="permits"    element={<PermitPage />}     />
-            <Route path="manage"     element={<DesktopManage />}  />
-            <Route path="phases"     element={<PhasesPage />}     />
+            <Route path="permits"    element={<RequirePermission permission="can_manage_phases"><PermitPage /></RequirePermission>}     />
+            <Route path="manage"     element={<RequirePermission permission="can_manage_phases"><DesktopManage /></RequirePermission>}  />
+            <Route path="phases"     element={<RequirePermission permission="can_manage_phases"><PhasesPage /></RequirePermission>}     />
             <Route path="photos"     element={<DesktopPhotos />}  />
-            <Route path="data-transfer"  element={<DataTransferPage />}  />
+            <Route path="data-transfer"  element={<RequirePermission permission="can_manage_data_transfer"><DataTransferPage /></RequirePermission>}  />
             <Route path="guides"     element={<UserGuidePage />}  />
             <Route path="timelapse"  element={<TimelapsePage />}  />
             <Route path="analytics"  element={<AnalyticsPage />}  />
-            <Route path="attendance" element={<AttendanceHub />}  />
-            <Route path="workforce"  element={<WorkforceHub />}  />
+            <Route path="attendance" element={<RequirePermission permission="can_manage_workforce"><AttendanceHub /></RequirePermission>}  />
+            <Route path="workforce"  element={<RequirePermission permission="can_manage_workforce"><WorkforceHub /></RequirePermission>}  />
             {/* /teams redirects into the Workforce hub (Teams tab) */}
             <Route path="teams"      element={<Navigate to="/dashboard/desktop/workforce" replace />} />
-            <Route path="settings"   element={<SettingsPage />}      />
+            <Route path="settings"   element={<RequirePermission permission="can_manage_settings"><SettingsPage /></RequirePermission>}      />
 
             {/* Self-contained modules */}
             <Route path="projects/*"  element={<ProjectsRoutes />} />
-            <Route path="finance/*"   element={<FinanceRoutes   projectId={activeProjectId} />} />
-            <Route path="resource/*"  element={<ResourceRoutes  projectId={activeProjectId} />} />
-            <Route path="structure/*" element={<StructureRoutes projectId={activeProjectId} />} />
-            <Route path="timeline/*"  element={<TimelineRoutes />} />
+            <Route path="finance/*"   element={<RequirePermission permission="can_view_finances"><FinanceRoutes   projectId={activeProjectId} /></RequirePermission>} />
+            <Route path="resource/*"  element={<RequirePermission permission="can_manage_resources"><ResourceRoutes  projectId={activeProjectId} /></RequirePermission>} />
+            <Route path="structure/*" element={<RequirePermission permission="can_view_structure"><StructureRoutes projectId={activeProjectId} /></RequirePermission>} />
+            <Route path="timeline/*"  element={<RequirePermission permission="can_manage_phases"><TimelineRoutes /></RequirePermission>} />
 
             {/* Accounts module — users, roles, profile, activity */}
-            <Route path="accounts/*"  element={<AccountsRoutes />} />
+            <Route path="accounts/*"  element={<RequirePermission permission="can_manage_users"><AccountsRoutes /></RequirePermission>} />
 
             {/* Location Tracking module */}
-            <Route path="location/*"  element={<LocationRoutes projectId={activeProjectId} />} />
+            <Route path="location/*"  element={<RequirePermission permission="can_manage_workforce"><LocationRoutes projectId={activeProjectId} /></RequirePermission>} />
 
             {/* Legacy redirects for old scattered account routes */}
             <Route path="profile"       element={<Navigate to="/dashboard/desktop/accounts/profile"  replace />} />

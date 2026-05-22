@@ -5,6 +5,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from apps.attendance.models import AttendanceWorker
+from apps.accounts.models import Role
 from apps.core.models import HouseProject
 from apps.workforce.models import WorkforceMember
 
@@ -108,3 +109,45 @@ class WorkforceAttendanceImportTestCase(TestCase):
         self.assertEqual(member.current_project_id, self.project.id)
         self.assertIsNotNone(member.attendance_worker_id)
         self.assertEqual(member.attendance_worker.project_id, self.project.id)
+
+    def test_create_account_can_separate_worker_pin_from_admin_password(self):
+        role = Role.objects.create(
+            code="CONTRACTOR",
+            name="Contractor",
+            can_manage_workforce=True,
+        )
+        member = WorkforceMember(
+            worker_type="LABOUR",
+            status="ACTIVE",
+            join_date=date(2026, 1, 10),
+            current_project=self.project,
+            created_by=self.user,
+        )
+        member.first_name = "Portal"
+        member.last_name = "Admin"
+        member.phone = "+81-90-1111-2222"
+        member.email = "portal-admin@example.com"
+        member.save()
+
+        response = self.client.post(
+            f"/api/v1/workforce/members/{member.id}/create_account/",
+            {"pin": "123456", "admin_access": True, "role_id": role.id},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["pin"], "123456")
+        self.assertTrue(response.data["password"])
+        member.refresh_from_db()
+        self.assertTrue(member.check_portal_pin("123456"))
+        self.assertFalse(member.account.check_password("123456"))
+        self.assertTrue(member.account.check_password(response.data["password"]))
+        self.assertEqual(member.account.role_id, role.id)
+        self.assertTrue(member.account.is_staff)
+
+        login_response = self.client.post(
+            "/api/v1/worker/login/",
+            {"phone": "+81-90-1111-2222", "pin": "123456"},
+            format="json",
+        )
+        self.assertEqual(login_response.status_code, 200)
