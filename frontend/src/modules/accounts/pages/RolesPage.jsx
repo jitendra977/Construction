@@ -1,13 +1,27 @@
 /**
  * RolesPage — view, create, edit roles and their permission flags.
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useAccounts } from '../context/AccountsContext';
 import accountsApi from '../services/accountsApi';
 import Modal from '../components/shared/Modal';
 import Badge from '../components/shared/Badge';
 
 const ROLE_COLORS = { SUPER_ADMIN:'#ef4444', HOME_OWNER:'#f97316', LEAD_ENGINEER:'#3b82f6', CONTRACTOR:'#8b5cf6', VIEWER:'#6b7280' };
+
+const PERMISSION_GROUPS = [
+    { key: 'System', label: 'System', icon: '🛡️', hint: 'Global override and high-level control' },
+    { key: 'Projects', label: 'Projects', icon: '🗂️', hint: 'Project access and project operations' },
+    { key: 'Dashboard', label: 'Dashboard', icon: '📊', hint: 'Home, analytics, estimator, guides, media' },
+    { key: 'Profile', label: 'Profile', icon: '👤', hint: 'Personal profile pages' },
+    { key: 'Admin Config', label: 'Admin Config', icon: '⚙️', hint: 'Users, roles, activity, and admin tools' },
+    { key: 'Construction', label: 'Construction', icon: '🏗️', hint: 'Phases, tasks, and timeline control' },
+    { key: 'Finance', label: 'Finance', icon: '💰', hint: 'Budgets, expenses, and payments' },
+    { key: 'Structure', label: 'Structure', icon: '🏛️', hint: 'Floors and rooms' },
+    { key: 'Resources', label: 'Resources', icon: '🧱', hint: 'Materials, suppliers, and purchases' },
+    { key: 'Workforce', label: 'Workforce', icon: '👷', hint: 'Workers, attendance, payroll, and teams' },
+    { key: 'Admin', label: 'Admin Tools', icon: '📦', hint: 'Settings and data transfer' },
+];
 
 const PERMISSIONS = [
     { key: 'can_manage_all_systems', label: 'Manage All Systems',    desc: 'Full system access',              group: 'System' },
@@ -30,6 +44,11 @@ const PERMISSIONS = [
     { key: 'can_manage_settings',    label: 'Manage Settings',       desc: 'Application settings',            group: 'Admin' },
     { key: 'can_manage_data_transfer', label: 'Manage Data Transfer', desc: 'Import, export, restore data',   group: 'Admin' },
 ];
+
+const PERMISSIONS_BY_GROUP = PERMISSIONS.reduce((acc, perm) => {
+    (acc[perm.group] = acc[perm.group] || []).push(perm);
+    return acc;
+}, {});
 
 const inp = { width:'100%', padding:'8px 12px', fontSize:13, borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text)', outline:'none', fontFamily:'inherit', boxSizing:'border-box' };
 const lbl = { display:'block', fontSize:10, fontWeight:800, textTransform:'uppercase', letterSpacing:'0.07em', color:'var(--t-text3)', marginBottom:4 };
@@ -54,6 +73,15 @@ function PermToggle({ permKey, label, desc, value, onChange, disabled }) {
     );
 }
 
+function SearchIcon() {
+    return (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            <circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" strokeWidth="2" />
+        </svg>
+    );
+}
+
 /* ── Role form ─────────────────────────────────────────────────────────── */
 function RoleForm({ role, onDone }) {
     const isEdit = !!role;
@@ -72,8 +100,62 @@ function RoleForm({ role, onDone }) {
     });
     const [busy, setBusy] = useState(false);
     const [err,  setErr]  = useState('');
+    const [query, setQuery] = useState('');
+    const [activeGroup, setActiveGroup] = useState('All');
 
     const setPerm = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+    const filteredGroups = useMemo(() => {
+        const normalized = query.trim().toLowerCase();
+        return PERMISSION_GROUPS.map(group => {
+            const perms = PERMISSIONS_BY_GROUP[group.key] || [];
+            const visible = perms.filter(p => {
+                const matchesGroup = activeGroup === 'All' || activeGroup === group.key;
+                if (!matchesGroup) return false;
+                if (!normalized) return true;
+                return [p.label, p.desc, p.key, group.key].some(text => text.toLowerCase().includes(normalized));
+            });
+            return { ...group, perms: visible, total: perms.length };
+        }).filter(group => group.perms.length > 0);
+    }, [query, activeGroup]);
+
+    const permissionCount = useMemo(
+        () => PERMISSIONS.filter(p => form[p.key]).length,
+        [form]
+    );
+    const totalPermissionCount = PERMISSIONS.length;
+    const groupCount = PERMISSION_GROUPS.length;
+
+    const quickSetAll = (value) => {
+        setForm(f => {
+            const next = { ...f };
+            PERMISSIONS.forEach(p => { next[p.key] = value; });
+            next.can_manage_all_systems = value;
+            if (value) {
+                next.can_view_projects = true;
+                next.can_view_dashboard = true;
+                next.can_view_profile = true;
+                next.can_view_phases = true;
+                next.can_view_structure = true;
+                next.can_view_resources = true;
+                next.can_view_workforce = true;
+            }
+            return next;
+        });
+    };
+
+    const clearPermissions = () => {
+        setForm(f => {
+            const next = { ...f };
+            PERMISSIONS.forEach(p => { next[p.key] = false; });
+            next.can_view_projects = true;
+            next.can_view_dashboard = true;
+            next.can_view_profile = true;
+            next.can_view_phases = true;
+            next.can_view_structure = true;
+            return next;
+        });
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -87,11 +169,28 @@ function RoleForm({ role, onDone }) {
         } finally { setBusy(false); }
     };
 
-    const byGroup = PERMISSIONS.reduce((acc, p) => { (acc[p.group] = acc[p.group] || []).push(p); return acc; }, {});
-
     return (
         <form onSubmit={handleSubmit} style={{ padding:24 }} className="space-y-4">
             {err && <div style={{ padding:'8px 12px', borderRadius:8, background:'#ef444412', color:'#ef4444', fontSize:12, fontWeight:600 }}>❌ {err}</div>}
+
+            <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+                padding: '14px 16px', borderRadius: 14, border: '1px solid var(--t-border)', background: 'var(--t-surface)',
+            }}>
+                <div>
+                    <p style={{ margin: 0, fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--t-text3)' }}>
+                        Permission summary
+                    </p>
+                    <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--t-text2)' }}>
+                        {permissionCount} enabled of {totalPermissionCount} permissions across {groupCount} groups
+                    </p>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <button type="button" onClick={() => quickSetAll(true)} style={summaryBtnStyle('#10b981')}>Enable all</button>
+                    <button type="button" onClick={clearPermissions} style={summaryBtnStyle('#f59e0b')}>Reset</button>
+                    <button type="button" onClick={() => quickSetAll(false)} style={summaryBtnStyle('#ef4444')}>Disable all</button>
+                </div>
+            </div>
 
             {!isSystem && (
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
@@ -106,24 +205,180 @@ function RoleForm({ role, onDone }) {
                 </div>
             )}
             {isSystem && (
-                <div style={{ padding:'10px 14px', borderRadius:10, background:'rgba(245,158,11,0.08)', border:'1px solid rgba(245,158,11,0.2)', fontSize:12, color:'#f59e0b', fontWeight:600 }}>
+                <div style={{ padding:'10px 14px', borderRadius:12, background:'rgba(245,158,11,0.08)', border:'1px solid rgba(245,158,11,0.2)', fontSize:12, color:'#f59e0b', fontWeight:600 }}>
                     ⚠️ System role — name and code are fixed. You can only edit permission flags.
                 </div>
             )}
 
-            {/* Permission groups */}
-            <div>
-                <p style={{ margin:'4px 0 12px', fontSize:11, fontWeight:900, color:'var(--t-text)', textTransform:'uppercase', letterSpacing:'0.07em' }}>Permissions</p>
-                {Object.entries(byGroup).map(([group, perms]) => (
-                    <div key={group} style={{ marginBottom:16 }}>
-                        <p style={{ margin:'0 0 4px', fontSize:9, fontWeight:900, color:'var(--t-text3)', textTransform:'uppercase', letterSpacing:'0.1em' }}>{group}</p>
-                        {perms.map(p => (
-                            <PermToggle key={p.key} permKey={p.key} label={p.label} desc={p.desc}
-                                value={form[p.key]} onChange={setPerm}
-                                disabled={form.can_manage_all_systems && p.key !== 'can_manage_all_systems'} />
-                        ))}
+            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 12 }}>
+                <div style={{ padding: 16, borderRadius: 14, border: '1px solid var(--t-border)', background: 'var(--t-surface)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
+                        <div>
+                            <p style={{ margin: 0, fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--t-text3)' }}>
+                                Permission groups
+                            </p>
+                            <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--t-text3)' }}>
+                                Use the filters to jump to a category.
+                            </p>
+                        </div>
+                        <label style={{
+                            display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px',
+                            borderRadius: 10, border: '1px solid var(--t-border)', background: 'var(--t-bg)', minWidth: 220,
+                        }}>
+                            <SearchIcon />
+                            <input
+                                value={query}
+                                onChange={e => setQuery(e.target.value)}
+                                placeholder="Search permissions"
+                                style={{ border: 'none', outline: 'none', background: 'transparent', color: 'var(--t-text)', width: '100%', fontSize: 12 }}
+                            />
+                        </label>
                     </div>
-                ))}
+
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+                        <FilterChip active={activeGroup === 'All'} onClick={() => setActiveGroup('All')} label={`All (${PERMISSIONS.length})`} />
+                        {PERMISSION_GROUPS.map(group => {
+                            const count = (PERMISSIONS_BY_GROUP[group.key] || []).length;
+                            return (
+                                <FilterChip
+                                    key={group.key}
+                                    active={activeGroup === group.key}
+                                    onClick={() => setActiveGroup(group.key)}
+                                    label={`${group.icon} ${group.label} (${count})`}
+                                />
+                            );
+                        })}
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
+                        {filteredGroups.map(group => (
+                            <div key={group.key} style={{
+                                borderRadius: 14,
+                                border: '1px solid var(--t-border)',
+                                background: 'var(--t-bg)',
+                                overflow: 'hidden',
+                            }}>
+                                <div style={{
+                                    padding: '12px 14px',
+                                    borderBottom: '1px solid var(--t-border)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    gap: 10,
+                                }}>
+                                    <div>
+                                        <p style={{ margin: 0, fontSize: 13, fontWeight: 900, color: 'var(--t-text)' }}>
+                                            {group.icon} {group.label}
+                                        </p>
+                                        <p style={{ margin: '3px 0 0', fontSize: 10, color: 'var(--t-text3)' }}>
+                                            {group.hint}
+                                        </p>
+                                    </div>
+                                    <div style={{
+                                        padding: '3px 8px',
+                                        borderRadius: 999,
+                                        fontSize: 10,
+                                        fontWeight: 900,
+                                        color: '#6366f1',
+                                        background: 'color-mix(in srgb, #6366f1 12%, transparent)',
+                                        border: '1px solid color-mix(in srgb, #6366f1 24%, transparent)',
+                                        whiteSpace: 'nowrap',
+                                    }}>
+                                        {group.perms.length}/{group.total}
+                                    </div>
+                                </div>
+                                <div style={{ padding: '2px 14px 10px' }}>
+                                    {group.perms.map(p => (
+                                        <PermToggle
+                                            key={p.key}
+                                            permKey={p.key}
+                                            label={p.label}
+                                            desc={p.desc}
+                                            value={form[p.key]}
+                                            onChange={setPerm}
+                                            disabled={form.can_manage_all_systems && p.key !== 'can_manage_all_systems'}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                        {filteredGroups.length === 0 && (
+                            <div style={{
+                                gridColumn: '1 / -1',
+                                padding: 24,
+                                borderRadius: 14,
+                                border: '1px dashed var(--t-border)',
+                                color: 'var(--t-text3)',
+                                fontSize: 12,
+                            }}>
+                                No permissions match the current search or group filter.
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div style={{ padding: 16, borderRadius: 14, border: '1px solid var(--t-border)', background: 'var(--t-surface)' }}>
+                        <p style={{ margin: 0, fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--t-text3)' }}>
+                            Selected role
+                        </p>
+                        <p style={{ margin: '6px 0 0', fontSize: 15, fontWeight: 900, color: 'var(--t-text)' }}>{form.name || 'Untitled role'}</p>
+                        <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--t-text3)', fontFamily: 'monospace' }}>{form.code || 'NO_CODE'}</p>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
+                            {PERMISSIONS.filter(p => form[p.key]).slice(0, 10).map(p => (
+                                <span key={p.key} style={{ padding: '2px 8px', borderRadius: 999, fontSize: 10, fontWeight: 800, color: '#10b981', background: '#10b98114', border: '1px solid #10b98124' }}>
+                                    ✓ {p.label}
+                                </span>
+                            ))}
+                            {permissionCount > 10 && (
+                                <span style={{ padding: '2px 8px', borderRadius: 999, fontSize: 10, fontWeight: 800, color: 'var(--t-text3)', background: 'var(--t-bg)', border: '1px solid var(--t-border)' }}>
+                                    +{permissionCount - 10} more
+                                </span>
+                            )}
+                            {permissionCount === 0 && (
+                                <span style={{ fontSize: 11, color: 'var(--t-text3)' }}>No permissions enabled</span>
+                            )}
+                        </div>
+                    </div>
+
+                    <div style={{ padding: 16, borderRadius: 14, border: '1px solid var(--t-border)', background: 'var(--t-surface)' }}>
+                        <p style={{ margin: 0, fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--t-text3)' }}>
+                            Permission categories
+                        </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+                            {PERMISSION_GROUPS.map(group => {
+                                const groupPerms = PERMISSIONS_BY_GROUP[group.key] || [];
+                                const enabled = groupPerms.filter(p => form[p.key]).length;
+                                return (
+                                    <button
+                                        key={group.key}
+                                        type="button"
+                                        onClick={() => setActiveGroup(group.key)}
+                                        style={{
+                                            textAlign: 'left',
+                                            borderRadius: 12,
+                                            border: activeGroup === group.key ? '1px solid #6366f1' : '1px solid var(--t-border)',
+                                            background: activeGroup === group.key ? 'color-mix(in srgb, #6366f1 10%, transparent)' : 'var(--t-bg)',
+                                            padding: '10px 12px',
+                                            cursor: 'pointer',
+                                            color: 'var(--t-text)',
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                            <div>
+                                                <div style={{ fontSize: 12, fontWeight: 900 }}>{group.icon} {group.label}</div>
+                                                <div style={{ fontSize: 10, color: 'var(--t-text3)', marginTop: 2 }}>{group.hint}</div>
+                                            </div>
+                                            <div style={{ fontSize: 11, fontWeight: 900, color: enabled ? '#10b981' : 'var(--t-text3)' }}>
+                                                {enabled}/{groupPerms.length}
+                                            </div>
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <button type="submit" disabled={busy}
@@ -134,10 +389,48 @@ function RoleForm({ role, onDone }) {
     );
 }
 
+function summaryBtnStyle(color) {
+    return {
+        padding: '7px 10px',
+        borderRadius: 10,
+        border: `1px solid color-mix(in srgb, ${color} 25%, transparent)`,
+        background: `color-mix(in srgb, ${color} 10%, transparent)`,
+        color,
+        fontSize: 11,
+        fontWeight: 900,
+        cursor: 'pointer',
+    };
+}
+
+function FilterChip({ active, label, onClick }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            style={{
+                padding: '7px 10px',
+                borderRadius: 999,
+                border: active ? '1px solid #6366f1' : '1px solid var(--t-border)',
+                background: active ? 'color-mix(in srgb, #6366f1 12%, transparent)' : 'var(--t-bg)',
+                color: active ? '#6366f1' : 'var(--t-text3)',
+                fontSize: 11,
+                fontWeight: 800,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+            }}
+        >
+            {label}
+        </button>
+    );
+}
+
 /* ── Role card ─────────────────────────────────────────────────────────── */
 function RoleCard({ role, onEdit, onDelete }) {
     const color = ROLE_COLORS[role.code] || '#6366f1';
-    const perms = PERMISSIONS.filter(p => role[p.key]);
+    const grouped = PERMISSION_GROUPS.map(group => ({
+        ...group,
+        perms: (PERMISSIONS_BY_GROUP[group.key] || []).filter(p => role[p.key]),
+    })).filter(group => group.perms.length > 0);
     const SYSTEM_CODES = ['SUPER_ADMIN','HOME_OWNER','LEAD_ENGINEER','CONTRACTOR','VIEWER'];
     const isSystem = SYSTEM_CODES.includes(role.code);
 
@@ -162,14 +455,33 @@ function RoleCard({ role, onEdit, onDelete }) {
 
             {/* Permissions */}
             <div style={{ padding:'12px 18px' }}>
-                {perms.length === 0 ? (
+                {grouped.length === 0 ? (
                     <p style={{ fontSize:11, color:'var(--t-text3)', fontStyle:'italic' }}>No permissions granted</p>
                 ) : (
-                    <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-                        {perms.map(p => (
-                            <span key={p.key} style={{ padding:'2px 8px', borderRadius:6, background:`${color}12`, color, fontSize:10, fontWeight:700, border:`1px solid ${color}20` }}>
-                                ✓ {p.label}
-                            </span>
+                    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                        {grouped.map(group => (
+                            <div key={group.key} style={{ padding:'10px 12px', borderRadius:10, background:'var(--t-bg)', border:'1px solid var(--t-border)' }}>
+                                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:6 }}>
+                                    <div style={{ fontSize:10, fontWeight:900, textTransform:'uppercase', letterSpacing:'0.08em', color:'var(--t-text3)' }}>
+                                        {group.icon} {group.label}
+                                    </div>
+                                    <div style={{ fontSize:10, fontWeight:900, color }}>
+                                        {group.perms.length}
+                                    </div>
+                                </div>
+                                <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                                    {group.perms.slice(0, 3).map(p => (
+                                        <span key={p.key} style={{ padding:'2px 8px', borderRadius:6, background:`${color}12`, color, fontSize:10, fontWeight:700, border:`1px solid ${color}20` }}>
+                                            ✓ {p.label}
+                                        </span>
+                                    ))}
+                                    {group.perms.length > 3 && (
+                                        <span style={{ padding:'2px 8px', borderRadius:6, background:'var(--t-bg)', color:'var(--t-text3)', fontSize:10, fontWeight:700, border:'1px solid var(--t-border)' }}>
+                                            +{group.perms.length - 3} more
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
                         ))}
                     </div>
                 )}
@@ -212,17 +524,34 @@ export default function RolesPage() {
         } finally { setDelBusy(false); }
     };
 
+    const roleGroups = useMemo(() => PERMISSION_GROUPS, []);
+
     return (
-        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+        <div style={{ maxWidth: 1240, margin: '0 auto' }}>
 
             {/* Toolbar */}
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
-                <div>
-                    <p style={{ margin:0, fontSize:20, fontWeight:900, color:'var(--t-text)' }}>🛡️ Roles & Permissions</p>
-                    <p style={{ margin:'4px 0 0', fontSize:12, color:'var(--t-text3)' }}>Define what each role can access and do</p>
+            <div style={{
+                display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:16,
+                marginBottom:20, padding:18, borderRadius:16, border:'1px solid var(--t-border)', background:'var(--t-surface)',
+            }}>
+                <div style={{ minWidth:0 }}>
+                    <p style={{ margin:0, fontSize:22, fontWeight:900, color:'var(--t-text)' }}>Roles & Permissions</p>
+                    <p style={{ margin:'6px 0 0', fontSize:12, color:'var(--t-text3)', maxWidth:720 }}>
+                        Permissions are grouped by module so admins can find the right control quickly.
+                    </p>
+                    <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginTop:12 }}>
+                        {roleGroups.map(group => (
+                            <span key={group.key} style={{
+                                padding:'5px 10px', borderRadius:999, border:'1px solid var(--t-border)',
+                                background:'var(--t-bg)', color:'var(--t-text3)', fontSize:11, fontWeight:800,
+                            }}>
+                                {group.icon} {group.label}
+                            </span>
+                        ))}
+                    </div>
                 </div>
                 <button onClick={() => setShowCreate(true)}
-                    style={{ padding:'8px 18px', borderRadius:10, background:'#6366f1', color:'#fff', fontSize:12, fontWeight:900, border:'none', cursor:'pointer' }}>
+                    style={{ padding:'10px 18px', borderRadius:12, background:'#6366f1', color:'#fff', fontSize:12, fontWeight:900, border:'none', cursor:'pointer', flexShrink:0 }}>
                     ➕ New Role
                 </button>
             </div>
@@ -230,7 +559,7 @@ export default function RolesPage() {
             {loading ? (
                 <div style={{ textAlign:'center', padding:60 }}><div className="animate-spin w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full mx-auto" /></div>
             ) : (
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:16 }}>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(320px, 1fr))', gap:16 }}>
                     {roles.map(role => (
                         <RoleCard key={role.id} role={role}
                             onEdit={r => setEditing(r)}
@@ -247,15 +576,28 @@ export default function RolesPage() {
             )}
 
             {/* Permissions legend */}
-            <div style={{ marginTop:24, padding:20, borderRadius:14, border:'1px solid var(--t-border)', background:'var(--t-surface)' }}>
-                <p style={{ margin:'0 0 12px', fontSize:11, fontWeight:900, color:'var(--t-text3)', textTransform:'uppercase', letterSpacing:'0.07em' }}>📖 Permission Reference</p>
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(260px, 1fr))', gap:10 }}>
-                    {PERMISSIONS.map(p => (
-                        <div key={p.key} style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
-                            <span style={{ fontSize:12, marginTop:1 }}>🔑</span>
-                            <div>
-                                <p style={{ margin:0, fontSize:11, fontWeight:700, color:'var(--t-text)' }}>{p.label}</p>
-                                <p style={{ margin:'1px 0 0', fontSize:10, color:'var(--t-text3)' }}>{p.desc}</p>
+            <div style={{ marginTop:24, padding:20, borderRadius:16, border:'1px solid var(--t-border)', background:'var(--t-surface)' }}>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, marginBottom:12 }}>
+                    <div>
+                        <p style={{ margin:0, fontSize:11, fontWeight:900, color:'var(--t-text3)', textTransform:'uppercase', letterSpacing:'0.07em' }}>📖 Permission reference</p>
+                        <p style={{ margin:'4px 0 0', fontSize:12, color:'var(--t-text3)' }}>All permissions grouped by area.</p>
+                    </div>
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:12 }}>
+                    {PERMISSION_GROUPS.map(group => (
+                        <div key={group.key} style={{ padding:14, borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-bg)' }}>
+                            <p style={{ margin:0, fontSize:12, fontWeight:900, color:'var(--t-text)' }}>{group.icon} {group.label}</p>
+                            <p style={{ margin:'4px 0 10px', fontSize:10, color:'var(--t-text3)' }}>{group.hint}</p>
+                            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                                {(PERMISSIONS_BY_GROUP[group.key] || []).map(p => (
+                                    <div key={p.key} style={{ display:'flex', gap:8, alignItems:'flex-start' }}>
+                                        <span style={{ width:8, height:8, borderRadius:2, background:'#6366f1', marginTop:4, flexShrink:0 }} />
+                                        <div>
+                                            <p style={{ margin:0, fontSize:11, fontWeight:700, color:'var(--t-text)' }}>{p.label}</p>
+                                            <p style={{ margin:'1px 0 0', fontSize:10, color:'var(--t-text3)' }}>{p.desc}</p>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     ))}
