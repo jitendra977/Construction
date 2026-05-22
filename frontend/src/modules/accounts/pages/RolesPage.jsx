@@ -10,12 +10,23 @@ import Badge from '../components/shared/Badge';
 const ROLE_COLORS = { SUPER_ADMIN:'#ef4444', HOME_OWNER:'#f97316', LEAD_ENGINEER:'#3b82f6', CONTRACTOR:'#8b5cf6', VIEWER:'#6b7280' };
 
 const PERMISSIONS = [
-    { key: 'can_manage_all_systems', label: 'Manage All Systems',   desc: 'Full system access — superpower', group: 'System'   },
-    { key: 'can_manage_finances',    label: 'Manage Finances',      desc: 'Create/edit expenses, budgets',   group: 'Finance'  },
-    { key: 'can_view_finances',      label: 'View Finances',        desc: 'Read-only access to finance data',group: 'Finance'  },
-    { key: 'can_manage_phases',      label: 'Manage Phases & Tasks',desc: 'Create/edit construction phases', group: 'Construction' },
-    { key: 'can_view_phases',        label: 'View Phases',          desc: 'Read-only access to timeline',    group: 'Construction' },
-    { key: 'can_manage_users',       label: 'Manage Users',         desc: 'Invite, edit, deactivate users',  group: 'Admin'    },
+    { key: 'can_manage_all_systems', label: 'Manage All Systems',    desc: 'Full system access',              group: 'System' },
+    { key: 'can_view_projects',      label: 'View Projects',         desc: 'Open assigned projects',          group: 'Projects' },
+    { key: 'can_manage_projects',    label: 'Manage Projects',       desc: 'Create/edit/delete projects',     group: 'Projects' },
+    { key: 'can_view_dashboard',     label: 'View Dashboard',        desc: 'Dashboard, analytics, estimator, gallery, guides', group: 'Dashboard' },
+    { key: 'can_view_phases',        label: 'View Phases',           desc: 'Read-only phases and timeline',   group: 'Construction' },
+    { key: 'can_manage_phases',      label: 'Manage Phases & Tasks', desc: 'Create/edit construction work',   group: 'Construction' },
+    { key: 'can_view_finances',      label: 'View Finances',         desc: 'Read-only finance data',          group: 'Finance' },
+    { key: 'can_manage_finances',    label: 'Manage Finances',       desc: 'Create/edit expenses and budgets',group: 'Finance' },
+    { key: 'can_view_structure',     label: 'View Structure',        desc: 'Read-only floors and rooms',      group: 'Structure' },
+    { key: 'can_manage_structure',   label: 'Manage Structure',      desc: 'Create/edit floors and rooms',    group: 'Structure' },
+    { key: 'can_view_resources',     label: 'View Resources',        desc: 'Read-only materials and suppliers', group: 'Resources' },
+    { key: 'can_manage_resources',   label: 'Manage Resources',      desc: 'Create/edit resources and purchases', group: 'Resources' },
+    { key: 'can_view_workforce',     label: 'View Workforce',        desc: 'Read-only workforce and attendance', group: 'Workforce' },
+    { key: 'can_manage_workforce',   label: 'Manage Workforce',      desc: 'Manage workforce, attendance, payroll', group: 'Workforce' },
+    { key: 'can_manage_users',       label: 'Manage Users & Roles',  desc: 'Invite, edit, deactivate users',  group: 'Admin' },
+    { key: 'can_manage_settings',    label: 'Manage Settings',       desc: 'Application settings',            group: 'Admin' },
+    { key: 'can_manage_data_transfer', label: 'Manage Data Transfer', desc: 'Import, export, restore data',   group: 'Admin' },
 ];
 
 const inp = { width:'100%', padding:'8px 12px', fontSize:13, borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text)', outline:'none', fontFamily:'inherit', boxSizing:'border-box' };
@@ -50,12 +61,11 @@ function RoleForm({ role, onDone }) {
     const [form, setForm] = useState({
         code:                   role?.code        || '',
         name:                   role?.name        || '',
-        can_manage_all_systems: role?.can_manage_all_systems ?? false,
-        can_manage_finances:    role?.can_manage_finances    ?? false,
-        can_view_finances:      role?.can_view_finances      ?? false,
-        can_manage_phases:      role?.can_manage_phases      ?? false,
+        ...PERMISSIONS.reduce((acc, p) => ({ ...acc, [p.key]: role?.[p.key] ?? false }), {}),
+        can_view_projects:      role?.can_view_projects      ?? true,
+        can_view_dashboard:     role?.can_view_dashboard     ?? true,
         can_view_phases:        role?.can_view_phases        ?? true,
-        can_manage_users:       role?.can_manage_users       ?? false,
+        can_view_structure:     role?.can_view_structure     ?? true,
     });
     const [busy, setBusy] = useState(false);
     const [err,  setErr]  = useState('');

@@ -55,7 +55,6 @@ class Role(models.Model):
     code = models.CharField(
         max_length=50,
         unique=True,
-        choices=ROLE_CODES
     )
     name = models.CharField(max_length=50)
     
@@ -63,6 +62,20 @@ class Role(models.Model):
     can_manage_all_systems = models.BooleanField(
         default=False,
         help_text="Full system access - can manage all data"
+    )
+
+    # Project / Dashboard Permissions
+    can_view_projects = models.BooleanField(
+        default=True,
+        help_text="Can view assigned projects"
+    )
+    can_manage_projects = models.BooleanField(
+        default=False,
+        help_text="Can create, edit, and delete projects"
+    )
+    can_view_dashboard = models.BooleanField(
+        default=True,
+        help_text="Can view dashboard, analytics, estimator, gallery, guides, and timelapse"
     )
     
     # Financial Permissions
@@ -105,9 +118,17 @@ class Role(models.Model):
         default=False,
         help_text="Can manage materials, suppliers, workers, and equipment"
     )
+    can_view_resources = models.BooleanField(
+        default=False,
+        help_text="Can view materials, suppliers, workers, and equipment"
+    )
     can_manage_workforce = models.BooleanField(
         default=False,
         help_text="Can manage workforce, attendance, payroll, and teams"
+    )
+    can_view_workforce = models.BooleanField(
+        default=False,
+        help_text="Can view workforce, attendance, payroll, and teams"
     )
     can_manage_data_transfer = models.BooleanField(
         default=False,
@@ -217,6 +238,21 @@ class User(AbstractUser):
         return self.is_system_admin or (self.role and self.role.can_manage_finances)
 
     @property
+    def can_view_projects_perm(self):
+        if not self.is_active: return False
+        return self.is_system_admin or (self.role and (self.role.can_view_projects or self.role.can_manage_projects))
+
+    @property
+    def can_manage_projects_perm(self):
+        if not self.is_active: return False
+        return self.is_system_admin or (self.role and self.role.can_manage_projects)
+
+    @property
+    def can_view_dashboard_perm(self):
+        if not self.is_active: return False
+        return self.is_system_admin or (self.role and self.role.can_view_dashboard)
+
+    @property
     def can_view_finances_perm(self):
         if not self.is_active: return False
         return self.is_system_admin or (self.role and (self.role.can_view_finances or self.role.can_manage_finances))
@@ -247,9 +283,19 @@ class User(AbstractUser):
         return self.is_system_admin or (self.role and self.role.can_manage_resources)
 
     @property
+    def can_view_resources_perm(self):
+        if not self.is_active: return False
+        return self.is_system_admin or (self.role and (self.role.can_view_resources or self.role.can_manage_resources))
+
+    @property
     def can_manage_workforce_perm(self):
         if not self.is_active: return False
         return self.is_system_admin or (self.role and self.role.can_manage_workforce)
+
+    @property
+    def can_view_workforce_perm(self):
+        if not self.is_active: return False
+        return self.is_system_admin or (self.role and (self.role.can_view_workforce or self.role.can_manage_workforce))
 
     @property
     def can_manage_data_transfer_perm(self):

@@ -56,8 +56,12 @@ class AuthenticationTestCase(TestCase):
         role = Role.objects.create(
             code='FINANCE_VIEWER',
             name='Finance Viewer',
+            can_view_projects=True,
+            can_view_dashboard=True,
             can_view_finances=True,
             can_view_structure=True,
+            can_view_resources=True,
+            can_view_workforce=True,
         )
         self.user.role = role
         self.user.save(update_fields=['role'])
@@ -74,5 +78,37 @@ class AuthenticationTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data['can_view_finances'])
         self.assertTrue(response.data['can_view_structure'])
+        self.assertTrue(response.data['can_view_projects'])
+        self.assertTrue(response.data['can_view_dashboard'])
+        self.assertTrue(response.data['can_view_resources'])
+        self.assertTrue(response.data['can_view_workforce'])
         self.assertFalse(response.data['can_manage_finances'])
         self.assertFalse(response.data['can_manage_structure'])
+
+    def test_role_api_saves_full_permission_matrix(self):
+        role = Role.objects.create(code='SITE_AUDITOR', name='Site Auditor')
+        self.user.is_superuser = True
+        self.user.save(update_fields=['is_superuser'])
+        self.client.force_authenticate(self.user)
+
+        response = self.client.patch(f'/api/v1/accounts/roles/{role.id}/', {
+            'can_view_projects': True,
+            'can_manage_projects': True,
+            'can_view_dashboard': True,
+            'can_view_resources': True,
+            'can_manage_resources': True,
+            'can_view_workforce': True,
+            'can_manage_workforce': True,
+            'can_manage_data_transfer': True,
+            'can_manage_settings': True,
+        }, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        role.refresh_from_db()
+        self.assertTrue(role.can_manage_projects)
+        self.assertTrue(role.can_view_resources)
+        self.assertTrue(role.can_manage_resources)
+        self.assertTrue(role.can_view_workforce)
+        self.assertTrue(role.can_manage_workforce)
+        self.assertTrue(role.can_manage_data_transfer)
+        self.assertTrue(role.can_manage_settings)
