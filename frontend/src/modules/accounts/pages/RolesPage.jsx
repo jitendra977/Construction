@@ -78,9 +78,10 @@ const PAGE_CSS = `
   }
   .roles-table {
     width: 100%;
-    min-width: 1120px;
+    min-width: 980px;
     border-collapse: separate;
-    border-spacing: 0 10px;
+    border-spacing: 0;
+    table-layout: fixed;
   }
   .roles-table th {
     font-size: 10px;
@@ -89,27 +90,32 @@ const PAGE_CSS = `
     color: var(--t-text3);
     text-align: left;
     font-weight: 900;
-    padding: 0 12px 6px;
+    padding: 14px 14px 12px;
+    position: sticky;
+    top: 0;
+    background: color-mix(in srgb, var(--t-surface) 96%, black);
+    z-index: 1;
+    border-bottom: 1px solid var(--t-border);
   }
+  .roles-table th:first-child { border-top-left-radius: 14px; }
+  .roles-table th:last-child { border-top-right-radius: 14px; }
   .roles-table td {
-    padding: 14px 12px;
+    padding: 14px;
     vertical-align: top;
+    border-bottom: 1px solid var(--t-border);
+    background: color-mix(in srgb, var(--t-surface) 94%, transparent);
   }
   .roles-table-row {
     background: var(--t-surface);
-    border: 1px solid var(--t-border);
-    box-shadow: inset 0 0 0 1px transparent;
   }
   .roles-table-row:hover {
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, #6366f1 14%, transparent);
+    background: color-mix(in srgb, var(--t-surface) 88%, #6366f1);
   }
-  .roles-table-row td:first-child {
-    border-top-left-radius: 14px;
-    border-bottom-left-radius: 14px;
+  .roles-table-row:nth-child(even) td {
+    background: color-mix(in srgb, var(--t-bg) 62%, var(--t-surface));
   }
-  .roles-table-row td:last-child {
-    border-top-right-radius: 14px;
-    border-bottom-right-radius: 14px;
+  .roles-table-row:hover td {
+    background: color-mix(in srgb, var(--t-surface) 84%, #6366f1);
   }
   .roles-role-name {
     display: flex;
@@ -124,6 +130,54 @@ const PAGE_CSS = `
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
+  }
+  .roles-mini-bar {
+    width: 100%;
+    height: 7px;
+    border-radius: 999px;
+    background: var(--t-border);
+    overflow: hidden;
+    margin-top: 8px;
+  }
+  .roles-mini-bar > span {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+  }
+  .roles-table-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--t-border);
+    background: color-mix(in srgb, var(--t-surface) 96%, transparent);
+  }
+  .roles-table-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(110px, 1fr));
+    gap: 10px;
+  }
+  .roles-table-stat {
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--t-border);
+    background: var(--t-bg);
+    min-width: 0;
+  }
+  .roles-table-stat-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 900;
+    color: var(--t-text3);
+  }
+  .roles-table-stat-value {
+    margin-top: 4px;
+    font-size: 16px;
+    font-weight: 900;
+    color: var(--t-text);
   }
   .roles-legend-grid {
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -181,7 +235,7 @@ const PAGE_CSS = `
       align-items: stretch;
     }
     .roles-table {
-      min-width: 980px;
+      min-width: 920px;
     }
   }
 `;
@@ -649,16 +703,43 @@ function RoleTable({ roles, onEdit, onDelete }) {
         })).filter(group => group.count > 0);
 
     return (
-        <div className="roles-table-wrap" style={{ borderRadius: 16, border: '1px solid var(--t-border)', background: 'var(--t-surface)' }}>
+        <div className="roles-table-wrap" style={{ borderRadius: 16, border: '1px solid var(--t-border)', background: 'var(--t-surface)', overflow: 'hidden' }}>
+            <div className="roles-table-head">
+                <div>
+                    <p style={{ margin: 0, fontSize: 12, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--t-text3)' }}>
+                        Roles table
+                    </p>
+                    <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--t-text3)' }}>
+                        Clean summary view for quickly reviewing access.
+                    </p>
+                </div>
+                <div className="roles-table-stats">
+                    <div className="roles-table-stat">
+                        <div className="roles-table-stat-label">Roles</div>
+                        <div className="roles-table-stat-value">{roles.length}</div>
+                    </div>
+                    <div className="roles-table-stat">
+                        <div className="roles-table-stat-label">System</div>
+                        <div className="roles-table-stat-value">{roles.filter(role => ['SUPER_ADMIN','HOME_OWNER','LEAD_ENGINEER','CONTRACTOR','VIEWER'].includes(role.code)).length}</div>
+                    </div>
+                    <div className="roles-table-stat">
+                        <div className="roles-table-stat-label">Custom</div>
+                        <div className="roles-table-stat-value">{roles.filter(role => !['SUPER_ADMIN','HOME_OWNER','LEAD_ENGINEER','CONTRACTOR','VIEWER'].includes(role.code)).length}</div>
+                    </div>
+                    <div className="roles-table-stat">
+                        <div className="roles-table-stat-label">Access</div>
+                        <div className="roles-table-stat-value">{Math.round((roles.reduce((sum, role) => sum + PERMISSIONS.filter(p => role[p.key]).length, 0) / Math.max(roles.length, 1)) * 10) / 10}</div>
+                    </div>
+                </div>
+            </div>
             <table className="roles-table">
                 <thead>
                     <tr>
                         <th style={{ width: '22%' }}>Role</th>
-                        <th style={{ width: '9%' }}>Users</th>
-                        <th style={{ width: '14%' }}>Type</th>
-                        <th style={{ width: '34%' }}>Enabled Groups</th>
-                        <th style={{ width: '10%' }}>Permissions</th>
-                        <th style={{ width: '11%' }}>Actions</th>
+                        <th style={{ width: '18%' }}>Access</th>
+                        <th style={{ width: '32%' }}>Groups</th>
+                        <th style={{ width: '16%' }}>Status</th>
+                        <th style={{ width: '12%' }}>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -666,6 +747,8 @@ function RoleTable({ roles, onEdit, onDelete }) {
                         const color = ROLE_COLORS[role.code] || '#6366f1';
                         const groups = getEnabledGroups(role);
                         const enabledPerms = PERMISSIONS.filter(p => role[p.key]);
+                        const totalPerms = PERMISSIONS.length;
+                        const pct = Math.max(4, Math.round((enabledPerms.length / totalPerms) * 100));
                         const SYSTEM_CODES = ['SUPER_ADMIN','HOME_OWNER','LEAD_ENGINEER','CONTRACTOR','VIEWER'];
                         const isSystem = SYSTEM_CODES.includes(role.code);
 
@@ -685,19 +768,16 @@ function RoleTable({ roles, onEdit, onDelete }) {
                                     </div>
                                 </td>
                                 <td>
-                                    <div style={{ fontSize: 12, fontWeight: 900, color }}>
-                                        {role.user_count ?? 0}
-                                    </div>
-                                    <div style={{ fontSize: 10, color:'var(--t-text3)', marginTop: 2 }}>
-                                        user{(role.user_count ?? 0) !== 1 ? 's' : ''}
-                                    </div>
-                                </td>
-                                <td>
-                                    <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                                        {isSystem && <Badge label="System" color="#6b7280" />}
-                                        <div style={{ fontSize: 11, fontWeight: 800, color:'var(--t-text3)' }}>
-                                            {isSystem ? 'Fixed role' : 'Custom role'}
+                                    <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', gap:8 }}>
+                                        <div style={{ fontSize: 13, fontWeight: 900, color:'var(--t-text)' }}>
+                                            {enabledPerms.length}
                                         </div>
+                                        <div style={{ fontSize: 10, color:'var(--t-text3)' }}>
+                                            of {totalPerms}
+                                        </div>
+                                    </div>
+                                    <div className="roles-mini-bar" aria-hidden="true">
+                                        <span style={{ width: `${pct}%` }} />
                                     </div>
                                 </td>
                                 <td>
@@ -724,23 +804,40 @@ function RoleTable({ roles, onEdit, onDelete }) {
                                     </div>
                                 </td>
                                 <td>
-                                    <div style={{ fontSize: 13, fontWeight: 900, color:'var(--t-text)' }}>
-                                        {enabledPerms.length}
-                                    </div>
-                                    <div style={{ fontSize: 10, color:'var(--t-text3)', marginTop: 2 }}>
-                                        active permissions
+                                    <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                                        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
+                                            <div style={{ fontSize: 12, fontWeight: 900, color }}>
+                                                {role.user_count ?? 0}
+                                            </div>
+                                            <div style={{ fontSize: 10, color:'var(--t-text3)' }}>
+                                                user{(role.user_count ?? 0) !== 1 ? 's' : ''}
+                                            </div>
+                                        </div>
+                                        <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+                                            {isSystem && <Badge label="System" color="#6b7280" />}
+                                            <span style={{
+                                                padding:'3px 8px', borderRadius:999, fontSize:10, fontWeight:800,
+                                                color: isSystem ? '#ef4444' : '#10b981',
+                                                background: isSystem ? 'rgba(239,68,68,0.08)' : 'rgba(16,185,129,0.08)',
+                                                border:`1px solid ${isSystem ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)'}`,
+                                            }}>
+                                                {isSystem ? 'Fixed' : 'Custom'}
+                                            </span>
+                                        </div>
                                     </div>
                                 </td>
                                 <td>
-                                    <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                                    <div style={{ display:'flex', gap:8, alignItems:'center', justifyContent:'flex-start' }}>
                                         <button onClick={() => onEdit(role)}
-                                            style={{ padding:'8px 10px', borderRadius:10, background:`${color}12`, color, fontSize:11, fontWeight:900, border:`1px solid ${color}25`, cursor:'pointer', whiteSpace:'nowrap' }}>
-                                            Edit
+                                            title="Edit role"
+                                            style={{ width:34, height:34, display:'inline-flex', alignItems:'center', justifyContent:'center', borderRadius:10, background:`${color}12`, color, fontSize:14, fontWeight:900, border:`1px solid ${color}25`, cursor:'pointer' }}>
+                                            ✏️
                                         </button>
                                         {!isSystem && (
                                             <button onClick={() => onDelete(role)}
-                                                style={{ padding:'8px 10px', borderRadius:10, background:'rgba(239,68,68,0.08)', color:'#ef4444', fontSize:11, fontWeight:900, border:'1px solid rgba(239,68,68,0.2)', cursor:'pointer', whiteSpace:'nowrap' }}>
-                                                Delete
+                                                title="Delete role"
+                                                style={{ width:34, height:34, display:'inline-flex', alignItems:'center', justifyContent:'center', borderRadius:10, background:'rgba(239,68,68,0.08)', color:'#ef4444', fontSize:14, fontWeight:900, border:'1px solid rgba(239,68,68,0.2)', cursor:'pointer' }}>
+                                                🗑️
                                             </button>
                                         )}
                                     </div>
@@ -750,7 +847,7 @@ function RoleTable({ roles, onEdit, onDelete }) {
                     })}
                     {roles.length === 0 && (
                         <tr>
-                            <td colSpan={6} style={{ padding: 24, color: 'var(--t-text3)', textAlign: 'center' }}>
+                            <td colSpan={5} style={{ padding: 24, color: 'var(--t-text3)', textAlign: 'center' }}>
                                 No roles yet
                             </td>
                         </tr>
