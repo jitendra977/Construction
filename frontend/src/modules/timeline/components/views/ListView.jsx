@@ -177,7 +177,9 @@ function MobileTaskCard({ task, phaseMap, criticalPathIds, onTaskClick }) {
 }
 
 /* ── Summary bar — declared outside ListView so React never recreates it ─── */
-function SummaryBar({ counts, isMobile, criticalPathIds }) {
+const EMPTY_COUNTS = { total: 0, done: 0, inProgress: 0, blocked: 0 };
+
+function SummaryBar({ counts = EMPTY_COUNTS, isMobile = false, criticalPathIds = [] }) {
     return (
         <div style={{
             padding: isMobile ? '8px 12px' : '8px 16px',
@@ -204,7 +206,7 @@ function SummaryBar({ counts, isMobile, criticalPathIds }) {
 
 /* ── main component ─────────────────────────────────────────────────────── */
 export default function ListView({ onTaskClick }) {
-    const { filteredTasks, phases, criticalPathIds } = useTimeline();
+    const { filteredTasks = [], phases = [], criticalPathIds = [] } = useTimeline();
     const [sortKey, setSortKey] = useState('due_date');
     const [sortDir, setSortDir] = useState('asc');
     const isMobile = useIsMobile();
@@ -311,7 +313,7 @@ export default function ListView({ onTaskClick }) {
     /* ── desktop: table ──────────────────────────────────────────────────── */
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <SummaryBar />
+            <SummaryBar counts={counts} isMobile={isMobile} criticalPathIds={criticalPathIds} />
             <div style={{ flex: 1, overflowY: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                     <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
