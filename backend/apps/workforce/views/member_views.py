@@ -42,10 +42,16 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def summary_stats(self, request):
         """Return summary counts for dashboard widgets."""
+        from apps.attendance.models import AttendanceWorker
+
         project = request.query_params.get('project')
         qs = self.get_queryset()
+        unlinked_attendance_qs = AttendanceWorker.objects.filter(
+            workforce_member__isnull=True,
+        )
         if project:
             qs = qs.filter(current_project=project)
+            unlinked_attendance_qs = unlinked_attendance_qs.filter(project_id=project)
         data = {
             'total':      qs.count(),
             'active':     qs.filter(status='ACTIVE').count(),
@@ -54,7 +60,7 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
             'staff':      qs.filter(worker_type='STAFF').count(),
             'labour':     qs.filter(worker_type='LABOUR').count(),
             'linked':     qs.filter(attendance_worker__isnull=False).count(),
-            'unlinked':   qs.filter(attendance_worker__isnull=True).count(),
+            'unlinked':   unlinked_attendance_qs.count(),
         }
         return Response(data)
 
@@ -577,6 +583,7 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
         Creates WorkforceMember records for every AttendanceWorker that is
         not yet linked to a WorkforceMember. Returns counts and a preview list.
         """
+        from django.db import transaction
         from django.utils import timezone
         from apps.attendance.models import AttendanceWorker
 
@@ -590,12 +597,12 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
         if project_id:
             qs = qs.filter(project_id=project_id)
 
-        workers = list(qs)
+        workers = list(qs.order_by('name', 'id'))
         preview = []
         created = 0
         errors  = []
 
-        for aw in workers:
+        def build_member_for_attendance_worker(aw):
             full_name = (aw.name or '').strip()
             if ' ' in full_name:
                 parts      = full_name.rsplit(' ', 1)
@@ -617,31 +624,52 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
                 'project': str(aw.project_id),
                 'worker_type': wtype,
             }
+            member = WorkforceMember(
+                attendance_worker=aw,
+                account=aw.linked_user,
+                worker_type=wtype,
+                status='ACTIVE' if aw.is_active else 'INACTIVE',
+                join_date=join_date,
+                current_project=aw.project,
+                created_by=request.user,
+            )
+            member.first_name = first_name
+            member.last_name  = last_name
+            member.phone      = phone
+            member.email      = email
+            return entry, member
+
+        for aw in workers:
+            entry, _ = build_member_for_attendance_worker(aw)
             preview.append(entry)
 
-            if not dry_run:
-                try:
-                    member = WorkforceMember(
-                        attendance_worker=aw,
-                        account=aw.linked_user,
-                        worker_type=wtype,
-                        status='ACTIVE' if aw.is_active else 'INACTIVE',
-                        join_date=join_date,
-                        current_project=aw.project,
-                        created_by=request.user,
-                    )
-                    member.first_name = first_name
-                    member.last_name  = last_name
-                    member.phone      = phone
-                    member.email      = email
-                    member.save()
-                    created += 1
-                    entry['workforce_member_id'] = str(member.id)
-                    entry['employee_id']         = member.employee_id
-                except Exception as exc:
-                    errors.append({'worker': full_name, 'error': str(exc)})
+        if not dry_run and workers:
+            try:
+                with transaction.atomic():
+                    locked_qs = AttendanceWorker.objects.select_for_update().select_related(
+                        'project', 'linked_user',
+                    ).filter(
+                        workforce_member__isnull=True,
+                        id__in=[aw.id for aw in workers],
+                    ).order_by('name', 'id')
+
+                    if project_id:
+                        locked_qs = locked_qs.filter(project_id=project_id)
+
+                    preview = []
+                    for aw in locked_qs:
+                        entry, member = build_member_for_attendance_worker(aw)
+                        member.save()
+                        created += 1
+                        entry['workforce_member_id'] = str(member.id)
+                        entry['employee_id']         = member.employee_id
+                        preview.append(entry)
+            except Exception as exc:
+                errors.append({'worker': 'bulk_import', 'error': str(exc)})
+                created = 0
 
         return Response({
+            'status':         'preview' if dry_run else ('ok' if not errors else 'error'),
             'dry_run':        dry_run,
             'total_eligible': len(workers),
             'created':        created if not dry_run else 0,
