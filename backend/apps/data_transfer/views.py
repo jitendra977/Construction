@@ -79,6 +79,20 @@ def _split_statements(sql: str) -> list[str]:
     return stmts
 
 
+def _normalize_sql_for_connection(sql: str) -> str:
+    """
+    Make our PostgreSQL-style exports executable on the current database.
+    Local development commonly runs SQLite, while production exports include
+    PostgreSQL casts like '2026-01-01'::date and ::timestamptz.
+    """
+    if connection.vendor != 'sqlite':
+        return sql
+
+    sql = re.sub(r"'([^']*)'::(?:timestamptz|timestamp|date|time)", r"'\1'", sql, flags=re.IGNORECASE)
+    sql = re.sub(r"::(?:timestamptz|timestamp|jsonb?|numeric|decimal|varchar|date|time|uuid|text)", "", sql, flags=re.IGNORECASE)
+    return sql
+
+
 class ProjectListView(APIView):
     """GET /api/v1/data-transfer/projects/ — list all projects for export selector."""
     permission_classes = [IsAuthenticated]
@@ -229,6 +243,7 @@ class ImportSqlView(APIView):
             except Exception:
                 return Response({'success': False, 'error': 'File must be UTF-8 encoded.'}, status=400)
 
+        sql_content = _normalize_sql_for_connection(sql_content)
         statements = _split_statements(sql_content)
         if not statements:
             return Response({'success': False, 'error': 'No executable SQL statements found.'}, status=400)
@@ -470,6 +485,7 @@ class ImportProjectDataView(APIView):
             remapped = True
 
         # ── Split & safety-check ───────────────────────────────────────────
+        sql_content = _normalize_sql_for_connection(sql_content)
         statements = _split_statements(sql_content)
         if not statements:
             return Response({'success': False, 'error': 'No executable SQL statements found.'}, status=400)

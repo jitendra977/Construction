@@ -308,15 +308,50 @@ function MqttStatusBadge() {
     );
 }
 
-export default function AttendanceHub() {
+function resolveAttendanceProject(activeProjectId, projects, dashboardProject) {
+    const projectList = Array.isArray(projects) ? projects : [];
+    const listedProject = projectList.find(p => String(p.id) === String(activeProjectId));
+
+    if (listedProject) {
+        return {
+            project: listedProject,
+            projectId: listedProject.id,
+        };
+    }
+
+    if (dashboardProject && (!activeProjectId || String(dashboardProject.id) === String(activeProjectId))) {
+        return {
+            project: dashboardProject,
+            projectId: dashboardProject.id,
+        };
+    }
+
+    if (projectList.length === 0 && activeProjectId) {
+        return {
+            project: null,
+            projectId: activeProjectId,
+        };
+    }
+
+    return {
+        project: null,
+        projectId: null,
+    };
+}
+
+function AttendanceHubContent() {
     const [activeTab,      setActiveTab]      = useState('daily');
     const [myQROpen,       setMyQROpen]       = useState(false);
     const [alertCount,     setAlertCount]     = useState(0); 
     const navigate = useNavigate();
     const isMobile = useIsMobile();
 
-    const { activeProjectId, projects } = useConstruction();
-    const activeProject = projects?.find(p => p.id === activeProjectId);
+    const { activeProjectId, projects, dashboardData } = useConstruction();
+    const { project: activeProject, projectId: effectiveProjectId } = resolveAttendanceProject(
+        activeProjectId,
+        projects,
+        dashboardData?.project,
+    );
     const { settings } = useMqtt();
 
     // Unlock Web Audio + SpeechSynthesis on first user gesture (required on mobile)
@@ -325,9 +360,9 @@ export default function AttendanceHub() {
     // ── Tab content ────────────────────────────────────────────────────────────
     const tabContent = (
         <>
-            {activeTab === 'daily'   && <DailySheetTab    projectId={activeProjectId} onAlertCount={setAlertCount} />}
-            {activeTab === 'monthly' && <MonthlyReportTab  projectId={activeProjectId} />}
-            {activeTab === 'payroll' && <PayrollTab        projectId={activeProjectId} />}
+            {activeTab === 'daily'   && <DailySheetTab    projectId={effectiveProjectId} onAlertCount={setAlertCount} />}
+            {activeTab === 'monthly' && <MonthlyReportTab  projectId={effectiveProjectId} />}
+            {activeTab === 'payroll' && <PayrollTab        projectId={effectiveProjectId} />}
         </>
     );
 
@@ -378,7 +413,7 @@ export default function AttendanceHub() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <button 
-                        onClick={() => window.open(`/kiosk/${activeProjectId || 1}`, '_blank')}
+                        onClick={() => effectiveProjectId && window.open(`/kiosk/${effectiveProjectId}`, '_blank')}
                         style={{ background: 'none', border: '1px solid #10b98140', borderRadius: 8, padding: '4px 8px', fontSize: 10, color: '#10b981', fontWeight: 800, cursor: 'pointer' }}
                     >🖥️ Kiosk</button>
                     <button 
@@ -401,7 +436,7 @@ export default function AttendanceHub() {
             </div>
 
             <MobileTabBar active={activeTab} onChange={setActiveTab} onQR={() => setMyQROpen(true)} alertCount={alertCount} />
-            {myQROpen && <MyQRModal projectId={activeProjectId} onClose={() => setMyQROpen(false)} />}
+            {myQROpen && <MyQRModal projectId={effectiveProjectId} onClose={() => setMyQROpen(false)} />}
         </div>
     ) : (
         <div className="min-h-screen" style={{ background: 'var(--t-bg)', padding: '24px 32px 60px' }}>
@@ -437,7 +472,7 @@ export default function AttendanceHub() {
                             background: 'rgba(99,102,241,.08)', border: '1px solid rgba(99,102,241,.2)',
                             color: '#6366f1', textDecoration: 'none', whiteSpace: 'nowrap',
                         }}>👷 Workforce →</Link>
-                        <button onClick={() => window.open(`/kiosk/${activeProjectId || 1}`, '_blank')} title="Open Kiosk" style={{
+                        <button onClick={() => effectiveProjectId && window.open(`/kiosk/${effectiveProjectId}`, '_blank')} title="Open Kiosk" style={{
                             display: 'flex', alignItems: 'center', gap: 6,
                             padding: '8px 14px', borderRadius: 10, cursor: 'pointer',
                             background: '#10b98115', border: '1px solid #10b98140',
@@ -495,14 +530,29 @@ export default function AttendanceHub() {
                     {tabContent}
                 </div>
             </div>
-            {myQROpen && <MyQRModal projectId={activeProjectId} onClose={() => setMyQROpen(false)} />}
+            {myQROpen && <MyQRModal projectId={effectiveProjectId} onClose={() => setMyQROpen(false)} />}
         </div>
     );
 
     return (
-        <MqttProvider projectId={activeProjectId}>
+        <>
             <LiveScanNotifier />
             {content}
+        </>
+    );
+}
+
+export default function AttendanceHub() {
+    const { activeProjectId, projects, dashboardData } = useConstruction();
+    const { projectId: effectiveProjectId } = resolveAttendanceProject(
+        activeProjectId,
+        projects,
+        dashboardData?.project,
+    );
+
+    return (
+        <MqttProvider projectId={effectiveProjectId}>
+            <AttendanceHubContent />
         </MqttProvider>
     );
 }

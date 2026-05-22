@@ -12,6 +12,7 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 
+from apps.core.models import HouseProject
 from .models import AttendanceWorker, DailyAttendance, QRScanLog, ScanTimeWindow, ProjectHoliday, ProjectAttendanceSettings
 from .serializers import (
     AttendanceWorkerSerializer,
@@ -2257,7 +2258,12 @@ def attendance_settings(request):
     if not project_id:
         return Response({"error": "project is required."}, status=400)
 
-    obj, _ = ProjectAttendanceSettings.objects.get_or_create(project_id=project_id)
+    try:
+        project = HouseProject.objects.get(pk=project_id)
+    except (HouseProject.DoesNotExist, ValueError, TypeError):
+        return Response({"error": "project not found."}, status=404)
+
+    obj, _ = ProjectAttendanceSettings.objects.get_or_create(project=project)
 
     if request.method == "GET":
         return Response(ProjectAttendanceSettingsSerializer(obj).data)

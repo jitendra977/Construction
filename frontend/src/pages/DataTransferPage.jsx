@@ -322,6 +322,7 @@ function ExportTab({ user }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 function ImportTab({ user }) {
     const fileRef = useRef(null);
+    const [mode, setMode] = useState('project');
 
     // Project selector state
     const [projects, setProjects]         = useState([]);
@@ -374,14 +375,14 @@ function ImportTab({ user }) {
     };
 
     const handleImport = async () => {
-        if (!file || !targetProject || !canImport) return;
+        if (!file || !canImport) return;
+        if (mode === 'project' && !targetProject) return;
         setLoading(true); setError(null); setResult(null); setProgress(0);
         try {
-            const r = await dataTransferService.importSqlToProject(
-                targetProject.id,
-                file,
-                e => { if (e.total) setProgress(Math.round(e.loaded / e.total * 100)); },
-            );
+            const onProgress = e => { if (e.total) setProgress(Math.round(e.loaded / e.total * 100)); };
+            const r = mode === 'system'
+                ? await dataTransferService.importSql(file, onProgress)
+                : await dataTransferService.importSqlToProject(targetProject.id, file, onProgress);
             setResult(r.data);
         } catch (e) {
             setError(e.response?.data?.error || e.response?.data?.message || 'Import failed.');
@@ -405,14 +406,47 @@ function ImportTab({ user }) {
         );
     }
 
-    const ready = !!file && !!targetProject;
+    const ready = !!file && (mode === 'system' || !!targetProject);
 
     return (
         <div className="space-y-5">
 
-            {/* ── Step 1: Select target project ─────────────────────── */}
+            {/* ── Step 1: Choose import mode ─────────────────────── */}
             <div>
-                <Label>Step 1 — Select target project</Label>
+                <Label>Step 1 — Choose import mode</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                        onClick={() => { setMode('project'); setResult(null); setError(null); }}
+                        className={`text-left px-3.5 py-3 rounded-lg border transition-all ${
+                            mode === 'project'
+                                ? 'border-slate-800 bg-slate-800 text-white shadow-sm'
+                                : 'border-slate-200 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50'
+                        }`}
+                    >
+                        <p className={`font-semibold text-[13px] ${mode === 'project' ? 'text-white' : 'text-slate-800'}`}>Import into one project</p>
+                        <p className={`text-[11px] mt-1 leading-relaxed ${mode === 'project' ? 'text-slate-300' : 'text-slate-400'}`}>
+                            Use for single-project exports. Project IDs are remapped to the selected target.
+                        </p>
+                    </button>
+                    <button
+                        onClick={() => { setMode('system'); setTargetProject(null); setResult(null); setError(null); }}
+                        className={`text-left px-3.5 py-3 rounded-lg border transition-all ${
+                            mode === 'system'
+                                ? 'border-slate-800 bg-slate-800 text-white shadow-sm'
+                                : 'border-slate-200 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50'
+                        }`}
+                    >
+                        <p className={`font-semibold text-[13px] ${mode === 'system' ? 'text-white' : 'text-slate-800'}`}>Full system restore</p>
+                        <p className={`text-[11px] mt-1 leading-relaxed ${mode === 'system' ? 'text-slate-300' : 'text-slate-400'}`}>
+                            Use for full-system backup files. No project remapping is applied.
+                        </p>
+                    </button>
+                </div>
+            </div>
+
+            {mode === 'project' && (
+            <div>
+                <Label>Step 2 — Select target project</Label>
                 <p className="text-[11px] text-slate-400 mb-2">
                     The SQL file will be imported into this project. Project IDs are remapped automatically.
                 </p>
@@ -451,12 +485,13 @@ function ImportTab({ user }) {
                     </div>
                 )}
             </div>
+            )}
 
             <Div />
 
             {/* ── Step 2: Upload SQL file ────────────────────────────── */}
             <div>
-                <Label>Step 2 — Upload SQL backup file</Label>
+                <Label>{mode === 'project' ? 'Step 3' : 'Step 2'} — Upload SQL backup file</Label>
                 <div
                     onDragOver={e => { e.preventDefault(); setDrag(true); }}
                     onDragLeave={() => setDrag(false)}
@@ -589,8 +624,8 @@ function ImportTab({ user }) {
 
             {/* ── Step 3: Import button ─────────────────────────────── */}
             <div>
-                <Label>Step 3 — Run import</Label>
-                {!targetProject && (
+                <Label>{mode === 'project' ? 'Step 4' : 'Step 3'} — Run import</Label>
+                {mode === 'project' && !targetProject && (
                     <p className="text-[11px] text-amber-600 mb-2">Select a target project above first.</p>
                 )}
                 {!file && (
@@ -600,17 +635,26 @@ function ImportTab({ user }) {
                     <I name="upload" size={14} />
                     {loading
                         ? 'Importing…'
+                        : mode === 'system'
+                        ? 'Restore full system SQL'
                         : targetProject
                         ? `Import into "${targetProject.name}"`
                         : 'Import SQL'}
                 </Btn>
             </div>
 
-            <Alert type="info">
-                User rows (<code>accounts_user</code>, <code>core_projectmember</code>) are skipped automatically — they don't transfer between systems.
-                All other rows use savepoints so one FK violation never rolls back the whole import.
-                <strong> DROP TABLE</strong> and <strong>TRUNCATE</strong> are always blocked.
-            </Alert>
+            {mode === 'project' ? (
+                <Alert type="info">
+                    User rows (<code>accounts_user</code>, <code>core_projectmember</code>) are skipped automatically — they don't transfer between systems.
+                    All other rows use savepoints so one FK violation never rolls back the whole import.
+                    <strong> DROP TABLE</strong> and <strong>TRUNCATE</strong> are always blocked.
+                </Alert>
+            ) : (
+                <Alert type="warn">
+                    Full system restore imports every compatible row from the backup. Existing rows are preserved when the SQL uses
+                    <strong> ON CONFLICT DO NOTHING</strong>. Constraint failures are skipped per statement and reported after import.
+                </Alert>
+            )}
         </div>
     );
 }
