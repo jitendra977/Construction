@@ -77,6 +77,16 @@ class Role(models.Model):
         default=True,
         help_text="Can view dashboard, analytics, estimator, gallery, guides, and timelapse"
     )
+
+    # Profile / Admin Config Permissions
+    can_view_profile = models.BooleanField(
+        default=True,
+        help_text="Can view the personal profile page"
+    )
+    can_manage_admin_config = models.BooleanField(
+        default=False,
+        help_text="Can manage users, roles, and other admin configuration pages"
+    )
     
     # Financial Permissions
     can_manage_finances = models.BooleanField(
@@ -266,6 +276,16 @@ class User(AbstractUser):
     def can_manage_users_perm(self):
         if not self.is_active: return False
         return self.is_system_admin or (self.role and self.role.can_manage_users)
+
+    @property
+    def can_view_profile_perm(self):
+        if not self.is_active: return False
+        return self.is_system_admin or (self.role and self.role.can_view_profile)
+
+    @property
+    def can_manage_admin_config_perm(self):
+        if not self.is_active: return False
+        return self.is_system_admin or (self.role and self.role.can_manage_admin_config)
 
     @property
     def can_manage_structure_perm(self):

@@ -177,3 +177,25 @@ class WorkforceAttendanceImportTestCase(TestCase):
         self.assertEqual(member.current_project_id, self.project.id)
         self.assertEqual(member.account.active_project_id, self.project.id)
         self.assertTrue(member.account.assigned_projects.filter(pk=self.project.id).exists())
+
+    def test_worker_portal_launch_mints_tokens_without_pin(self):
+        member = WorkforceMember(
+            worker_type="LABOUR",
+            status="ACTIVE",
+            join_date=date(2026, 1, 10),
+            created_by=self.user,
+        )
+        member.first_name = "Launch"
+        member.last_name = "User"
+        member.phone = "+81-90-3333-4444"
+        member.email = "launch-user@example.com"
+        member.save()
+        member.account = self.user
+        member.save(update_fields=["account"])
+
+        response = self.client.post("/api/v1/worker/launch/", {}, format="json")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("access", response.data)
+        self.assertIn("refresh", response.data)
+        self.assertEqual(response.data["worker"]["employee_id"], member.employee_id)

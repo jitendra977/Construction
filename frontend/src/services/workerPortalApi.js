@@ -9,6 +9,7 @@
  * worker can log in on a shared device without displacing the manager.
  */
 import axios from 'axios';
+import api from './api';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
@@ -72,6 +73,18 @@ const workerPortalApi = {
      */
     qrLogin: async (qrData) => {
         const { data } = await axios.post(`${API_URL}/worker/qr-login/`, { qr_data: qrData });
+        localStorage.setItem(PORTAL_ACCESS_KEY,  data.access);
+        localStorage.setItem(PORTAL_REFRESH_KEY, data.refresh);
+        localStorage.setItem(PORTAL_USER_KEY,    JSON.stringify(data.worker));
+        return data;
+    },
+
+    /**
+     * Launch the worker portal from the admin dashboard without re-entering PIN.
+     * Requires the currently authenticated admin user to already have a workforce profile.
+     */
+    launchFromAdmin: async () => {
+        const { data } = await api.post('worker/launch/');
         localStorage.setItem(PORTAL_ACCESS_KEY,  data.access);
         localStorage.setItem(PORTAL_REFRESH_KEY, data.refresh);
         localStorage.setItem(PORTAL_USER_KEY,    JSON.stringify(data.worker));

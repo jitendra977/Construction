@@ -4,19 +4,24 @@
 import { NavLink } from 'react-router-dom';
 import { usePlatformBase } from '../../../../shared/utils/platformNav';
 import { useAccounts } from '../../context/AccountsContext';
+import { authService } from '../../../../services/auth';
 
 export default function AccountsLayout({ children }) {
     const { stats, loading } = useAccounts();
     const base = usePlatformBase();
     const BASE = `${base}/accounts`;
+    const canViewProfile = authService.hasPermission('can_view_profile') || authService.hasPermission('can_manage_admin_config') || authService.hasPermission('can_manage_users');
+    const canManageAdminConfig = authService.hasPermission('can_manage_admin_config') || authService.hasPermission('can_manage_users');
 
     // TABS must be inside the component — BASE is a hook-derived value
     const TABS = [
-        { to: BASE,                  end: true, icon: '📊', label: 'Dashboard'  },
-        { to: `${BASE}/profile`,                icon: '👤', label: 'My Profile' },
-        { to: `${BASE}/users`,                  icon: '👥', label: 'Users'      },
-        { to: `${BASE}/roles`,                  icon: '🛡️', label: 'Roles'     },
-        { to: `${BASE}/activity`,               icon: '📋', label: 'Activity'   },
+        ...(canManageAdminConfig ? [{ to: BASE, end: true, icon: '📊', label: 'Dashboard' }] : []),
+        ...(canViewProfile ? [{ to: `${BASE}/profile`, icon: '👤', label: 'My Profile' }] : []),
+        ...(canManageAdminConfig ? [
+            { to: `${BASE}/users`, icon: '👥', label: 'Users' },
+            { to: `${BASE}/roles`, icon: '🛡️', label: 'Roles' },
+            { to: `${BASE}/activity`, icon: '📋', label: 'Activity' },
+        ] : []),
     ];
 
     return (
@@ -33,12 +38,12 @@ export default function AccountsLayout({ children }) {
                         </div>
                         <div>
                             <p style={{ margin: 0, fontSize: 13, fontWeight: 900, color: 'var(--t-text)', lineHeight: 1 }}>Accounts</p>
-                            <p style={{ margin: 0, fontSize: 10, color: 'var(--t-text3)', marginTop: 2 }}>User & role management</p>
+                            <p style={{ margin: 0, fontSize: 10, color: 'var(--t-text3)', marginTop: 2 }}>Profile and admin configuration</p>
                         </div>
                     </div>
 
                     {/* Quick stats pills */}
-                    {stats && !loading && (
+                    {canManageAdminConfig && stats && !loading && (
                         <div style={{ display: 'flex', gap: 8 }}>
                             {[
                                 { label: 'Total Users',  value: stats.total_users,  color: '#6366f1' },

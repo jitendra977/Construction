@@ -69,6 +69,7 @@ accounts_urlpatterns = [
 worker_urlpatterns = [
     path('login/',      views.WorkerLoginView.as_view(),     name='worker-login'),
     path('qr-login/',   views.WorkerQRLoginView.as_view(),   name='worker-qr-login'),
+    path('launch/',     views.WorkerPortalLaunchView.as_view(), name='worker-launch'),
     path('me/',         views.WorkerMeView.as_view(),        name='worker-me'),
     path('checkin/',    views.WorkerCheckinView.as_view(),   name='worker-checkin'),
     path('qr-checkin/', views.WorkerQRCheckinView.as_view(), name='worker-qr-checkin'),

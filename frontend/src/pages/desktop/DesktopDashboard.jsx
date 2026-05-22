@@ -56,7 +56,11 @@ function DesktopDashboard() {
         );
     }
 
-    const can = (permission) => !permission || authService.hasPermission(permission);
+    const can = (permission) => {
+        if (!permission) return true;
+        if (Array.isArray(permission)) return permission.some(p => authService.hasPermission(p));
+        return authService.hasPermission(permission);
+    };
 
     const navItems = [
         // Projects
@@ -80,7 +84,7 @@ function DesktopDashboard() {
         { id: 'workforce',     icon: '👷',  label: 'Workforce & Teams (कार्यबल)', permission: 'can_view_workforce' },
         { id: 'location',      icon: '📍',  label: 'Location (स्थान ट्र्याकिङ)', permission: 'can_view_workforce' },
         // Admin & Config
-        { id: 'accounts',      icon: '👤',  label: 'Accounts (खाता)', permission: 'can_manage_users' },
+        { id: 'accounts',      icon: '👤',  label: 'Accounts (खाता)', permission: ['can_manage_admin_config', 'can_manage_users'] },
         { id: 'settings',      icon: '⚙️',  label: 'Settings (सेटिङ)', permission: 'can_manage_settings' },
         { id: 'guides',        icon: '📚',  label: 'User Guide (मद्दत निर्देशिका)', permission: 'can_view_dashboard' },
         { id: 'data-transfer', icon: '🔄',  label: 'Data Transfer (डाटा स्थानान्तरण)', permission: 'can_manage_data_transfer' },

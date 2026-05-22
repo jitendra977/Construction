@@ -11,9 +11,11 @@
  *   onLogout   fn
  *   navItems   array
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { mediaUrl } from '../../services/createApiClient';
+import { authService } from '../../services/auth';
+import workerPortalApi from '../../services/workerPortalApi';
 import { useConstruction } from '../../context/ConstructionContext';
 import ThemeToggle from '../common/ThemeToggle';
 import ProjectSwitcher from '../common/ProjectSwitcher';
@@ -220,6 +222,7 @@ function RailSection({ items }) {
 /* ── Main ─────────────────────────────────────────────────────── */
 const DesktopSidebar = ({ user, onLogout, navItems, collapsed, onToggle }) => {
     const { dashboardData } = useConstruction();
+    const [launchingWorkerPortal, setLaunchingWorkerPortal] = useState(false);
 
     const enriched = navItems.map(item => {
         if (item.id === 'phases' && dashboardData) {
@@ -232,6 +235,24 @@ const DesktopSidebar = ({ user, onLogout, navItems, collapsed, onToggle }) => {
 
     const getInitials = (name = '') =>
         name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
+
+    const canViewProfile = authService.hasPermission('can_view_profile') || authService.hasPermission('can_manage_admin_config') || authService.hasPermission('can_manage_users');
+
+    const launchWorkerPortal = useCallback(async () => {
+        if (launchingWorkerPortal) return;
+        const popup = window.open('about:blank', '_blank');
+        setLaunchingWorkerPortal(true);
+        try {
+            await workerPortalApi.launchFromAdmin();
+            if (popup) popup.location.href = '/worker';
+            else window.location.href = '/worker';
+        } catch (e) {
+            if (popup) popup.location.href = '/worker';
+            else window.location.href = '/worker';
+        } finally {
+            setLaunchingWorkerPortal(false);
+        }
+    }, [launchingWorkerPortal]);
 
     const W = collapsed ? 56 : 256;
 
@@ -338,7 +359,7 @@ const DesktopSidebar = ({ user, onLogout, navItems, collapsed, onToggle }) => {
                 alignItems: collapsed ? 'center' : 'stretch',
             }}>
                 {/* User profile */}
-                {collapsed ? (
+                {canViewProfile && (collapsed ? (
                     <NavLink
                         to="/dashboard/desktop/accounts/profile"
                         title={user?.username || 'Profile'}
@@ -388,31 +409,39 @@ const DesktopSidebar = ({ user, onLogout, navItems, collapsed, onToggle }) => {
                             </p>
                         </div>
                     </NavLink>
-                )}
+                ))}
 
                 {/* Worker portal */}
                 {collapsed ? (
-                    <a href="/worker" target="_blank" rel="noopener noreferrer"
+                    <button
+                        type="button"
+                        onClick={launchWorkerPortal}
                         title="Worker Portal"
                         style={{
                             width: 34, height: 34, borderRadius: 9, margin: '0 auto',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             fontSize: 15, textDecoration: 'none', color: 'var(--t-primary)',
-                            transition: 'background 0.13s',
+                            transition: 'background 0.13s', border: 'none', background: 'transparent',
+                            cursor: 'pointer',
                         }}
                         onMouseEnter={e => e.currentTarget.style.background = 'color-mix(in srgb, var(--t-primary) 10%, transparent)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
-                        📱
-                    </a>
+                        {launchingWorkerPortal ? '…' : '📱'}
+                    </button>
                 ) : (
-                    <a href="/worker" target="_blank" rel="noopener noreferrer" className="sb-portal-link">
+                    <button
+                        type="button"
+                        onClick={launchWorkerPortal}
+                        className="sb-portal-link"
+                        style={{ width: '100%', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer' }}
+                    >
                         <span style={{ fontSize: 13 }}>📱</span>
-                        <span style={{ flex: 1 }}>Worker Portal</span>
+                        <span style={{ flex: 1 }}>{launchingWorkerPortal ? 'Opening…' : 'Worker Portal'}</span>
                         <svg width="9" height="9" viewBox="0 0 12 12" fill="none" style={{ opacity: 0.4 }}>
                             <path d="M2 10L10 2M10 2H5M10 2V7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
-                    </a>
+                    </button>
                 )}
 
                 {/* Theme + Logout */}

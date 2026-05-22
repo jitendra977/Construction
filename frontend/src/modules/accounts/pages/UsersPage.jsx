@@ -65,6 +65,8 @@ const SYSTEM_PERM_LABELS = {
     can_view_projects:        'View Projects',
     can_manage_projects:      'Manage Projects',
     can_view_dashboard:       'View Dashboard',
+    can_view_profile:         'View Profile',
+    can_manage_admin_config:  'Manage Admin Config',
     can_view_phases:          'View Phases',
     can_manage_phases:        'Manage Phases',
     can_view_finances:        'View Finance',

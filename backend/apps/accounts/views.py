@@ -92,6 +92,27 @@ def log_activity(request, user, action, model_name,
         logger.warning("Failed to log activity: %s", e)
 
 
+def _issue_worker_portal_tokens(user):
+    """
+    Create a worker portal JWT payload for a user that already has a workforce profile.
+    """
+    if not hasattr(user, 'workforce_profile'):
+        return None
+
+    member = user.workforce_profile
+    refresh = RefreshToken.for_user(user)
+    return {
+        'access': str(refresh.access_token),
+        'refresh': str(refresh),
+        'worker': {
+            'employee_id': member.employee_id,
+            'full_name': member.full_name,
+            'role': member.role.title if member.role else member.worker_type,
+            'project_id': str(member.current_project_id) if member.current_project_id else None,
+        },
+    }
+
+
 # ── Auth endpoints ────────────────────────────────────────────────────────────
 
 @api_view(['POST'])
@@ -658,19 +679,10 @@ class WorkerLoginView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        refresh = RefreshToken.for_user(user)
-        member  = user.workforce_profile
-
-        return Response({
-            'access':  str(refresh.access_token),
-            'refresh': str(refresh),
-            'worker': {
-                'employee_id': member.employee_id,
-                'full_name':   member.full_name,
-                'role':        member.role.title if member.role else member.worker_type,
-                'project_id':  str(member.current_project_id) if member.current_project_id else None,
-            }
-        })
+        token_data = _issue_worker_portal_tokens(user)
+        if not token_data:
+            return Response({'error': 'This account is not linked to a workforce profile.'}, status=status.HTTP_403_FORBIDDEN)
+        return Response(token_data)
 
 
 class WorkerMeView(APIView):
@@ -915,20 +927,29 @@ class WorkerQRLoginView(APIView):
         if not hasattr(user, 'workforce_profile'):
             return Response({'error': 'Your account is not fully configured as a workforce profile.'}, status=403)
 
-        # 5. Success -> Issue JWT
-        member = user.workforce_profile
-        refresh = RefreshToken.for_user(user)
+        token_data = _issue_worker_portal_tokens(user)
+        if not token_data:
+            return Response({'error': 'This account is not linked to a workforce profile.'}, status=status.HTTP_403_FORBIDDEN)
 
-        return Response({
-            'access':  str(refresh.access_token),
-            'refresh': str(refresh),
-            'worker': {
-                'employee_id': member.employee_id,
-                'full_name':   member.full_name,
-                'role':        member.role.title if member.role else member.worker_type,
-                'project_id':  str(member.current_project_id) if member.current_project_id else None,
-            }
-        })
+        return Response(token_data)
+
+
+class WorkerPortalLaunchView(APIView):
+    """
+    POST /api/v1/worker/launch/
+    Uses the current authenticated admin/dashboard session to mint worker portal
+    tokens for the same account, so the portal can open without re-entering PIN.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        token_data = _issue_worker_portal_tokens(request.user)
+        if not token_data:
+            return Response(
+                {'error': 'This account does not have a worker portal profile.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return Response(token_data)
 
 
 class WorkerCheckinView(APIView):

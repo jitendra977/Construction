@@ -58,6 +58,8 @@ class AuthenticationTestCase(TestCase):
             name='Finance Viewer',
             can_view_projects=True,
             can_view_dashboard=True,
+            can_view_profile=True,
+            can_manage_admin_config=True,
             can_view_finances=True,
             can_view_structure=True,
             can_view_resources=True,
@@ -80,6 +82,8 @@ class AuthenticationTestCase(TestCase):
         self.assertTrue(response.data['can_view_structure'])
         self.assertTrue(response.data['can_view_projects'])
         self.assertTrue(response.data['can_view_dashboard'])
+        self.assertTrue(response.data['can_view_profile'])
+        self.assertTrue(response.data['can_manage_admin_config'])
         self.assertTrue(response.data['can_view_resources'])
         self.assertTrue(response.data['can_view_workforce'])
         self.assertFalse(response.data['can_manage_finances'])
@@ -95,6 +99,8 @@ class AuthenticationTestCase(TestCase):
             'can_view_projects': True,
             'can_manage_projects': True,
             'can_view_dashboard': True,
+            'can_view_profile': True,
+            'can_manage_admin_config': True,
             'can_view_resources': True,
             'can_manage_resources': True,
             'can_view_workforce': True,
@@ -106,6 +112,8 @@ class AuthenticationTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         role.refresh_from_db()
         self.assertTrue(role.can_manage_projects)
+        self.assertTrue(role.can_view_profile)
+        self.assertTrue(role.can_manage_admin_config)
         self.assertTrue(role.can_view_resources)
         self.assertTrue(role.can_manage_resources)
         self.assertTrue(role.can_view_workforce)

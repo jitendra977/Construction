@@ -14,6 +14,8 @@ const PERMISSIONS = [
     { key: 'can_view_projects',      label: 'View Projects',         desc: 'Open assigned projects',          group: 'Projects' },
     { key: 'can_manage_projects',    label: 'Manage Projects',       desc: 'Create/edit/delete projects',     group: 'Projects' },
     { key: 'can_view_dashboard',     label: 'View Dashboard',        desc: 'Dashboard, analytics, estimator, gallery, guides', group: 'Dashboard' },
+    { key: 'can_view_profile',       label: 'View Profile',          desc: 'Open personal profile pages',     group: 'Profile' },
+    { key: 'can_manage_admin_config', label: 'Manage Admin Config',   desc: 'Users, roles, activity, admin tools', group: 'Admin Config' },
     { key: 'can_view_phases',        label: 'View Phases',           desc: 'Read-only phases and timeline',   group: 'Construction' },
     { key: 'can_manage_phases',      label: 'Manage Phases & Tasks', desc: 'Create/edit construction work',   group: 'Construction' },
     { key: 'can_view_finances',      label: 'View Finances',         desc: 'Read-only finance data',          group: 'Finance' },
@@ -64,6 +66,7 @@ function RoleForm({ role, onDone }) {
         ...PERMISSIONS.reduce((acc, p) => ({ ...acc, [p.key]: role?.[p.key] ?? false }), {}),
         can_view_projects:      role?.can_view_projects      ?? true,
         can_view_dashboard:     role?.can_view_dashboard     ?? true,
+        can_view_profile:       role?.can_view_profile       ?? true,
         can_view_phases:        role?.can_view_phases        ?? true,
         can_view_structure:     role?.can_view_structure     ?? true,
     });

@@ -48,6 +48,12 @@ function RequirePermission({ permission, children }) {
     return children;
 }
 
+function RequireAnyPermission({ permissions, children }) {
+    if (!permissions || permissions.length === 0) return children;
+    if (permissions.some(permission => authService.hasPermission(permission))) return children;
+    return <AccessDenied />;
+}
+
 const DesktopRoutes = () => {
     const { activeProjectId } = useConstruction();
 
@@ -81,7 +87,7 @@ const DesktopRoutes = () => {
             <Route path="timeline/*"  element={<RequirePermission permission="can_view_phases"><TimelineRoutes /></RequirePermission>} />
 
             {/* Accounts module — users, roles, profile, activity */}
-            <Route path="accounts/*"  element={<RequirePermission permission="can_manage_users"><AccountsRoutes /></RequirePermission>} />
+            <Route path="accounts/*"  element={<RequireAnyPermission permissions={['can_view_profile', 'can_manage_admin_config', 'can_manage_users']}><AccountsRoutes /></RequireAnyPermission>} />
 
             {/* Location Tracking module */}
             <Route path="location/*"  element={<RequirePermission permission="can_view_workforce"><LocationRoutes projectId={activeProjectId} /></RequirePermission>} />

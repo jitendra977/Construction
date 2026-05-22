@@ -5,11 +5,12 @@ from .models import User, Role, ActivityLog
 
 @admin.register(Role)
 class RoleAdmin(admin.ModelAdmin):
-    list_display = ('name', 'code', 'can_manage_all_systems', 'can_view_projects', 'can_view_dashboard', 'can_manage_users')
+    list_display = ('name', 'code', 'can_manage_all_systems', 'can_view_projects', 'can_view_dashboard', 'can_view_profile', 'can_manage_admin_config', 'can_manage_users')
     search_fields = ('name', 'code')
     list_filter = (
         'can_manage_all_systems', 'can_view_projects', 'can_manage_projects',
-        'can_view_dashboard', 'can_view_finances', 'can_manage_finances',
+        'can_view_dashboard', 'can_view_profile', 'can_manage_admin_config',
+        'can_view_finances', 'can_manage_finances',
         'can_view_phases', 'can_manage_phases', 'can_view_resources',
         'can_manage_resources', 'can_view_workforce', 'can_manage_workforce',
         'can_manage_users', 'can_manage_settings', 'can_manage_data_transfer',
