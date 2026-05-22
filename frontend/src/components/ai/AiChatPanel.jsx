@@ -343,13 +343,14 @@ const AiChatPanel = ({ onClose, projectId = null, isDesktop = true }) => {
     const [ttsEnabled,     setTtsEnabled]     = useState(true);
     const [showStarter,    setShowStarter]    = useState(true);  // starter prompts before first send
 
-    const bottomRef    = useRef(null);
-    const inputRef     = useRef(null);
-    const recognRef    = useRef(null);
-    const historyRef   = useRef([]);
-    const voiceModeRef = useRef(false);
-    const busyRef      = useRef(false);
-    const voicesRef    = useRef([]);   // pre-loaded TTS voices
+    const bottomRef       = useRef(null);
+    const inputRef        = useRef(null);
+    const recognRef       = useRef(null);
+    const historyRef      = useRef([]);
+    const voiceModeRef    = useRef(false);
+    const busyRef         = useRef(false);
+    const voicesRef       = useRef([]);   // pre-loaded TTS voices
+    const sendMessageRef  = useRef(null); // forward ref so startListening can call sendMessage
 
     // keep refs in sync
     useEffect(() => { voiceModeRef.current = voiceMode; }, [voiceMode]);
@@ -487,7 +488,7 @@ const AiChatPanel = ({ onClose, projectId = null, isDesktop = true }) => {
             setInterim(interimText);
             if (finalText.trim()) {
                 setInterim('');
-                sendMessage(finalText.trim());
+                sendMessageRef.current?.(finalText.trim());
             }
         };
 
@@ -564,6 +565,10 @@ const AiChatPanel = ({ onClose, projectId = null, isDesktop = true }) => {
 
         setTimeout(() => inputRef.current?.focus(), 80);
     }, [projectId, speakText, startListening, stopListening, ttsEnabled]);
+
+    // Keep the forward ref up-to-date so startListening can call sendMessage
+    // (must be in useEffect — refs cannot be assigned during render)
+    useEffect(() => { sendMessageRef.current = sendMessage; }, [sendMessage]);
 
     const handleKey = (e) => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); }

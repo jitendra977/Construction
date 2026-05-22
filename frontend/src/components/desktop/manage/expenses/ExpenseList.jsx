@@ -2,6 +2,12 @@ import React from 'react';
 import { getMediaUrl } from '../../../../services/api';
 import { authService } from '../../../../services/auth';
 
+/* Declared outside the component so React never recreates it on each render */
+const SortIcon = ({ column, sortConfig }) => {
+    if (sortConfig.key !== column) return <span className="opacity-20 ml-1">⇅</span>;
+    return <span className="ml-1 text-[var(--t-primary)]">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>;
+};
+
 const ExpenseList = ({
     expenses,
     handleViewDetail,
@@ -10,7 +16,7 @@ const ExpenseList = ({
     handleDelete,
     formatCurrency,
     dashboardData,
-    
+
     // Selection Props
     selectedIds = [],
     toggleSelect,
@@ -25,11 +31,6 @@ const ExpenseList = ({
             key,
             direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
         }));
-    };
-
-    const SortIcon = ({ column }) => {
-        if (sortConfig.key !== column) return <span className="opacity-20 ml-1">⇅</span>;
-        return <span className="ml-1 text-[var(--t-primary)]">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>;
     };
 
     const getTypeStyle = (type) => {
@@ -67,25 +68,25 @@ const ExpenseList = ({
                                 className="px-8 py-4 text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.2em] cursor-pointer hover:text-[var(--t-primary)] transition-colors"
                                 onClick={() => handleSort('title')}
                             >
-                                Expense Details <SortIcon column="title" />
+                                Expense Details <SortIcon column="title" sortConfig={sortConfig} />
                             </th>
-                            <th 
+                            <th
                                 className="px-8 py-4 text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.2em] cursor-pointer hover:text-[var(--t-primary)] transition-colors"
                                 onClick={() => handleSort('status')}
                             >
-                                Status <SortIcon column="status" />
+                                Status <SortIcon column="status" sortConfig={sortConfig} />
                             </th>
-                            <th 
+                            <th
                                 className="px-8 py-4 text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.2em] cursor-pointer hover:text-[var(--t-primary)] transition-colors"
                                 onClick={() => handleSort('amount')}
                             >
-                                Financials <SortIcon column="amount" />
+                                Financials <SortIcon column="amount" sortConfig={sortConfig} />
                             </th>
-                            <th 
+                            <th
                                 className="px-8 py-4 text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.2em] cursor-pointer hover:text-[var(--t-primary)] transition-colors"
                                 onClick={() => handleSort('date')}
                             >
-                                Recipient & Date <SortIcon column="date" />
+                                Recipient & Date <SortIcon column="date" sortConfig={sortConfig} />
                             </th>
                             <th className="px-8 py-4 text-[10px] font-['DM_Mono',monospace] text-[var(--t-text3)] uppercase tracking-[0.2em] text-right">Actions</th>
                         </tr>

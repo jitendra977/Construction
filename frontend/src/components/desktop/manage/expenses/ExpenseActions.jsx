@@ -37,11 +37,12 @@ const ExpenseActions = ({
             case 'TODAY':
                 start = end;
                 break;
-            case 'WEEK':
+            case 'WEEK': {
                 const lastWeek = new Date();
                 lastWeek.setDate(now.getDate() - 7);
                 start = lastWeek.toISOString().split('T')[0];
                 break;
+            }
             case 'MONTH':
                 start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
                 break;

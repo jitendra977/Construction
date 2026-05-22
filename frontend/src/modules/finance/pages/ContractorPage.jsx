@@ -1148,13 +1148,18 @@ function QuickPayDashboard({ contracts, bankAccounts, onRefresh }) {
     return list;
   }, [contracts]);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today    = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const in14Days = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 14);
+    return d.toISOString().slice(0, 10);
+  }, []);
 
   const overdue  = allUnpaid.filter(i => i.status === 'OVERDUE' || (i.due_date && i.due_date < today && i.status !== 'PAID'));
   const partial  = allUnpaid.filter(i => i.status === 'PARTIAL' && !(i.due_date && i.due_date < today));
   const dueSoon  = allUnpaid.filter(i =>
     i.status === 'PENDING' && i.due_date && i.due_date >= today &&
-    i.due_date <= new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)
+    i.due_date <= in14Days
   );
 
   // Priority sort: overdue → partial → due-soon → rest
@@ -1162,7 +1167,7 @@ function QuickPayDashboard({ contracts, bankAccounts, onRefresh }) {
     const weight = i => {
       if (i.status === 'OVERDUE' || (i.due_date && i.due_date < today)) return 0;
       if (i.status === 'PARTIAL') return 1;
-      if (i.due_date && i.due_date <= new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)) return 2;
+      if (i.due_date && i.due_date <= in14Days) return 2;
       return 3;
     };
     return [...allUnpaid].sort((a, b) => {
@@ -1171,7 +1176,7 @@ function QuickPayDashboard({ contracts, bankAccounts, onRefresh }) {
       const da = a.due_date || '9999', db = b.due_date || '9999';
       return da < db ? -1 : da > db ? 1 : 0;
     });
-  }, [allUnpaid, today]);
+  }, [allUnpaid, today, in14Days]);
 
   const shownList = filterMode === 'urgent'  ? urgentList
                   : filterMode === 'partial' ? allUnpaid.filter(i => i.status === 'PARTIAL')

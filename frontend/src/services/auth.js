@@ -117,7 +117,7 @@ export const authService = {
         if (!userStr || userStr === "undefined") return null;
         try {
             return JSON.parse(userStr);
-        } catch (e) {
+        } catch (_e) {
             return null;
         }
     },

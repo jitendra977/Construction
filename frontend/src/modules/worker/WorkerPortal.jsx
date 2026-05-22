@@ -239,6 +239,7 @@ function QRScanCheckin({ onSuccess }) {
   const videoRef=useRef(null);
   const streamRef=useRef(null);
   const rafRef=useRef(null);
+  const canvasRef=useRef(null); // reusable canvas for QR frame decoding
 
   const stopScan=()=>{
     if(rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -265,8 +266,8 @@ function QRScanCheckin({ onSuccess }) {
     const v=videoRef.current;
     if(!v||!window.jsQR||busy) return;
     if(v.readyState===v.HAVE_ENOUGH_DATA){
-      if(!window._sc) window._sc=document.createElement('canvas');
-      const c=window._sc;
+      if(!canvasRef.current) canvasRef.current=document.createElement('canvas');
+      const c=canvasRef.current;
       c.width=v.videoWidth; c.height=v.videoHeight;
       c.getContext('2d').drawImage(v,0,0,c.width,c.height);
       const img=c.getContext('2d').getImageData(0,0,c.width,c.height);

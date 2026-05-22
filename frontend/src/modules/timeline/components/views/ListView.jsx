@@ -176,6 +176,32 @@ function MobileTaskCard({ task, phaseMap, criticalPathIds, onTaskClick }) {
     );
 }
 
+/* ── Summary bar — declared outside ListView so React never recreates it ─── */
+function SummaryBar({ counts, isMobile, criticalPathIds }) {
+    return (
+        <div style={{
+            padding: isMobile ? '8px 12px' : '8px 16px',
+            borderBottom: '1px solid var(--t-border)',
+            background: 'var(--t-surface)',
+            display: 'flex', gap: isMobile ? 12 : 20,
+            flexWrap: 'wrap',
+        }}>
+            {[
+                ['Total',       counts.total,             'var(--t-text)'],
+                ['Done',        counts.done,              '#10b981'],
+                ['In Progress', counts.inProgress,        '#3b82f6'],
+                ['Blocked',     counts.blocked,           '#f59e0b'],
+                ['Critical',    criticalPathIds.length,   '#ef4444'],
+            ].map(([label, val, color]) => (
+                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ fontSize: isMobile ? 14 : 16, fontWeight: 900, color }}>{val}</span>
+                    <span style={{ fontSize: 10, color: 'var(--t-text3)', fontWeight: 600 }}>{label}</span>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 /* ── main component ─────────────────────────────────────────────────────── */
 export default function ListView({ onTaskClick }) {
     const { filteredTasks, phases, criticalPathIds } = useTimeline();
@@ -214,35 +240,11 @@ export default function ListView({ onTaskClick }) {
         return c;
     }, [filteredTasks]);
 
-    /* ── summary bar (shared) ─────────────────────────────────────────────── */
-    const SummaryBar = () => (
-        <div style={{
-            padding: isMobile ? '8px 12px' : '8px 16px',
-            borderBottom: '1px solid var(--t-border)',
-            background: 'var(--t-surface)',
-            display: 'flex', gap: isMobile ? 12 : 20,
-            flexWrap: 'wrap',
-        }}>
-            {[
-                ['Total',       counts.total,             'var(--t-text)'],
-                ['Done',        counts.done,              '#10b981'],
-                ['In Progress', counts.inProgress,        '#3b82f6'],
-                ['Blocked',     counts.blocked,           '#f59e0b'],
-                ['Critical',    criticalPathIds.length,   '#ef4444'],
-            ].map(([label, val, color]) => (
-                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span style={{ fontSize: isMobile ? 14 : 16, fontWeight: 900, color }}>{val}</span>
-                    <span style={{ fontSize: 10, color: 'var(--t-text3)', fontWeight: 600 }}>{label}</span>
-                </div>
-            ))}
-        </div>
-    );
-
     /* ── empty state ─────────────────────────────────────────────────────── */
     if (sorted.length === 0) {
         return (
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                <SummaryBar />
+                <SummaryBar counts={counts} isMobile={isMobile} criticalPathIds={criticalPathIds} />
                 <div style={{ padding: 48, textAlign: 'center', color: 'var(--t-text3)', fontSize: 14 }}>
                     <p style={{ fontSize: 36, marginBottom: 8 }}>📋</p>
                     No tasks match the current filters.
@@ -263,7 +265,7 @@ export default function ListView({ onTaskClick }) {
 
         return (
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                <SummaryBar />
+                <SummaryBar counts={counts} isMobile={isMobile} criticalPathIds={criticalPathIds} />
 
                 {/* Sort row */}
                 <div style={{

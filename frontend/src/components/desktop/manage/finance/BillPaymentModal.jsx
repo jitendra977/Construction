@@ -17,7 +17,11 @@ const BillPaymentModal = ({ isOpen, onClose, bill, accounts = [] }) => {
 
     // Filter for Asset accounts (Bank/Cash)
     const assetAccounts = accounts.filter(a => a.account_type === 'ASSET' && a.is_active);
-    const balanceDue = parseFloat(bill?.balance_due ?? (bill?.total_amount - (bill?.amount_paid || 0)) ?? 0);
+    const balanceDue = parseFloat(
+        bill?.balance_due != null
+            ? bill.balance_due
+            : (bill?.total_amount ?? 0) - (bill?.amount_paid || 0)
+    );
 
     useEffect(() => {
         if (bill) {

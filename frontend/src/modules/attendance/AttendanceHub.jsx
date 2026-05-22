@@ -317,6 +317,7 @@ export default function AttendanceHub() {
 
     const { activeProjectId, projects } = useConstruction();
     const activeProject = projects?.find(p => p.id === activeProjectId);
+    const { settings } = useMqtt();
 
     // Unlock Web Audio + SpeechSynthesis on first user gesture (required on mobile)
     useEffect(() => { unlockAudioOnGesture(); }, []);

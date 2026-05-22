@@ -54,7 +54,7 @@ async function tx(mode, fn) {
         if (raw && raw !== "undefined") {
             try {
                 list = JSON.parse(raw);
-            } catch (e) {
+            } catch (_e) {
                 list = [];
             }
         }

@@ -130,7 +130,7 @@ const AccountCard = ({ account, cfg, onEdit, t }) => {
 /* -------------------------------------------------------------------------- */
 /* AccountsTab                                                                 */
 /* -------------------------------------------------------------------------- */
-const AccountsTab = ({ searchQuery }) => {
+const AccountsTab = ({ searchQuery: searchQueryProp }) => {
     const { formatCurrency } = useConstruction();
     const [accounts, setAccounts] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -138,6 +138,7 @@ const AccountsTab = ({ searchQuery }) => {
     const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
     const [editingAccount, setEditingAccount] = useState(null);
     const [lang, setLang] = useState('en'); // 'en' or 'np'
+    const [searchQuery, setSearchQuery] = useState(searchQueryProp || '');
 
     const t = {
         en: {

@@ -253,6 +253,17 @@ export default function CalendarView({ onTaskClick }) {
     const year  = current.getFullYear();
     const month = current.getMonth();
 
+    /* ── Compute calendar cells (must be before any early returns) ───────── */
+    const cells = useMemo(() => {
+        const firstDay = new Date(year, month, 1);
+        const lastDay  = new Date(year, month + 1, 0);
+        const result = [];
+        for (let i = 0; i < firstDay.getDay(); i++) result.push(null);
+        for (let d = 1; d <= lastDay.getDate(); d++) result.push(new Date(year, month, d));
+        while (result.length % 7 !== 0) result.push(null);
+        return result;
+    }, [year, month]);
+
     /* ── mobile path ─────────────────────────────────────────────────────── */
     if (isMobile) {
         return (
@@ -267,17 +278,7 @@ export default function CalendarView({ onTaskClick }) {
         );
     }
 
-    /* ── desktop path (unchanged) ────────────────────────────────────────── */
-    const firstDay = new Date(year, month, 1);
-    const lastDay  = new Date(year, month + 1, 0);
-
-    const cells = useMemo(() => {
-        const result = [];
-        for (let i = 0; i < firstDay.getDay(); i++) result.push(null);
-        for (let d = 1; d <= lastDay.getDate(); d++) result.push(new Date(year, month, d));
-        while (result.length % 7 !== 0) result.push(null);
-        return result;
-    }, [year, month, firstDay, lastDay]);
+    /* ── desktop path ────────────────────────────────────────────────────── */
 
     const today = new Date();
 
