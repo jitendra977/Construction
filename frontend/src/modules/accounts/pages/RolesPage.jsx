@@ -50,6 +50,85 @@ const PERMISSIONS_BY_GROUP = PERMISSIONS.reduce((acc, perm) => {
     return acc;
 }, {});
 
+const PAGE_CSS = `
+  .roles-page-shell {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0 clamp(12px, 2vw, 24px);
+  }
+  .roles-toolbar-row,
+  .roles-editor-grid,
+  .roles-legend-grid {
+    width: 100%;
+  }
+  .roles-search {
+    min-width: 220px;
+    flex: 1;
+  }
+  .roles-search input {
+    min-width: 0;
+  }
+  .roles-card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
+  .roles-legend-grid {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  }
+  .roles-editor-grid {
+    grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+  }
+  .roles-toolbar-actions {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .roles-page-shell .roles-mobile-full {
+    width: auto;
+  }
+  @media (max-width: 1180px) {
+    .roles-editor-grid {
+      grid-template-columns: 1fr;
+    }
+    .roles-toolbar-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .roles-toolbar-actions {
+      align-items: stretch;
+      width: 100%;
+      flex-wrap: wrap;
+    }
+    .roles-toolbar-actions > button {
+      flex: 1 1 140px;
+    }
+  }
+  @media (max-width: 720px) {
+    .roles-page-shell {
+      padding: 0 12px;
+    }
+    .roles-card-grid,
+    .roles-legend-grid {
+      grid-template-columns: 1fr;
+    }
+    .roles-search {
+      min-width: 0;
+      width: 100%;
+    }
+    .roles-search input {
+      width: 100%;
+    }
+    .roles-toolbar-actions > button,
+    .roles-mobile-full {
+      width: 100%;
+    }
+    .roles-toolbar-actions {
+      flex-direction: column;
+      align-items: stretch;
+    }
+  }
+`;
+
 const inp = { width:'100%', padding:'8px 12px', fontSize:13, borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text)', outline:'none', fontFamily:'inherit', boxSizing:'border-box' };
 const lbl = { display:'block', fontSize:10, fontWeight:800, textTransform:'uppercase', letterSpacing:'0.07em', color:'var(--t-text3)', marginBottom:4 };
 
@@ -171,6 +250,7 @@ function RoleForm({ role, onDone }) {
 
     return (
         <form onSubmit={handleSubmit} style={{ padding:24 }} className="space-y-4">
+            <style>{PAGE_CSS}</style>
             {err && <div style={{ padding:'8px 12px', borderRadius:8, background:'#ef444412', color:'#ef4444', fontSize:12, fontWeight:600 }}>❌ {err}</div>}
 
             <div style={{
@@ -185,7 +265,7 @@ function RoleForm({ role, onDone }) {
                         {permissionCount} enabled of {totalPermissionCount} permissions across {groupCount} groups
                     </p>
                 </div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                <div className="roles-toolbar-actions">
                     <button type="button" onClick={() => quickSetAll(true)} style={summaryBtnStyle('#10b981')}>Enable all</button>
                     <button type="button" onClick={clearPermissions} style={summaryBtnStyle('#f59e0b')}>Reset</button>
                     <button type="button" onClick={() => quickSetAll(false)} style={summaryBtnStyle('#ef4444')}>Disable all</button>
@@ -210,7 +290,7 @@ function RoleForm({ role, onDone }) {
                 </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 12 }}>
+            <div className="roles-editor-grid" style={{ display: 'grid', gap: 12 }}>
                 <div style={{ padding: 16, borderRadius: 14, border: '1px solid var(--t-border)', background: 'var(--t-surface)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
                         <div>
@@ -221,7 +301,7 @@ function RoleForm({ role, onDone }) {
                                 Use the filters to jump to a category.
                             </p>
                         </div>
-                        <label style={{
+                        <label className="roles-search" style={{
                             display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px',
                             borderRadius: 10, border: '1px solid var(--t-border)', background: 'var(--t-bg)', minWidth: 220,
                         }}>
@@ -527,10 +607,10 @@ export default function RolesPage() {
     const roleGroups = useMemo(() => PERMISSION_GROUPS, []);
 
     return (
-        <div style={{ maxWidth: 1240, margin: '0 auto' }}>
+        <div className="roles-page-shell" style={{ width: '100%', margin: '0 auto' }}>
 
             {/* Toolbar */}
-            <div style={{
+            <div className="roles-toolbar-row" style={{
                 display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:16,
                 marginBottom:20, padding:18, borderRadius:16, border:'1px solid var(--t-border)', background:'var(--t-surface)',
             }}>
@@ -550,7 +630,7 @@ export default function RolesPage() {
                         ))}
                     </div>
                 </div>
-                <button onClick={() => setShowCreate(true)}
+                <button onClick={() => setShowCreate(true)} className="roles-mobile-full"
                     style={{ padding:'10px 18px', borderRadius:12, background:'#6366f1', color:'#fff', fontSize:12, fontWeight:900, border:'none', cursor:'pointer', flexShrink:0 }}>
                     ➕ New Role
                 </button>
@@ -559,7 +639,7 @@ export default function RolesPage() {
             {loading ? (
                 <div style={{ textAlign:'center', padding:60 }}><div className="animate-spin w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full mx-auto" /></div>
             ) : (
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(320px, 1fr))', gap:16 }}>
+                <div className="roles-card-grid" style={{ display:'grid', gap:16 }}>
                     {roles.map(role => (
                         <RoleCard key={role.id} role={role}
                             onEdit={r => setEditing(r)}
@@ -583,7 +663,7 @@ export default function RolesPage() {
                         <p style={{ margin:'4px 0 0', fontSize:12, color:'var(--t-text3)' }}>All permissions grouped by area.</p>
                     </div>
                 </div>
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:12 }}>
+                <div className="roles-legend-grid" style={{ display:'grid', gap:12 }}>
                     {PERMISSION_GROUPS.map(group => (
                         <div key={group.key} style={{ padding:14, borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-bg)' }}>
                             <p style={{ margin:0, fontSize:12, fontWeight:900, color:'var(--t-text)' }}>{group.icon} {group.label}</p>
@@ -605,12 +685,12 @@ export default function RolesPage() {
             </div>
 
             {/* Create modal */}
-            <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Create New Role" maxWidth="max-w-lg">
+            <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Create New Role" maxWidth="max-w-5xl">
                 <RoleForm onDone={() => { setShowCreate(false); refreshRoles(); }} />
             </Modal>
 
             {/* Edit modal */}
-            <Modal isOpen={!!editing} onClose={() => setEditing(null)} title={`Edit Role — ${editing?.name}`} maxWidth="max-w-lg">
+            <Modal isOpen={!!editing} onClose={() => setEditing(null)} title={`Edit Role — ${editing?.name}`} maxWidth="max-w-5xl">
                 {editing && <RoleForm role={editing} onDone={() => { setEditing(null); refreshRoles(); refreshUsers(); }} />}
             </Modal>
 
