@@ -151,3 +151,29 @@ class WorkforceAttendanceImportTestCase(TestCase):
             format="json",
         )
         self.assertEqual(login_response.status_code, 200)
+
+    def test_create_account_assigns_requested_project_to_member_and_user(self):
+        member = WorkforceMember(
+            worker_type="LABOUR",
+            status="ACTIVE",
+            join_date=date(2026, 1, 10),
+            created_by=self.user,
+        )
+        member.first_name = "Project"
+        member.last_name = "Worker"
+        member.phone = "+81-90-2222-3333"
+        member.email = "project-worker@example.com"
+        member.save()
+
+        response = self.client.post(
+            f"/api/v1/workforce/members/{member.id}/create_account/",
+            {"pin": "654321", "project_id": self.project.id},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["project"], self.project.id)
+        member.refresh_from_db()
+        self.assertEqual(member.current_project_id, self.project.id)
+        self.assertEqual(member.account.active_project_id, self.project.id)
+        self.assertTrue(member.account.assigned_projects.filter(pk=self.project.id).exists())

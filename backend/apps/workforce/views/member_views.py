@@ -432,6 +432,7 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
             phone  — overrides stored phone
             pin    — 4-6 digit PIN; auto-generated if omitted
             email  — optional email address
+            project_id/project — assigns the worker and account to this project
             admin_access — true to allow dashboard/admin panel login
             role_id — accounts.Role id used when admin_access is true
 
@@ -441,6 +442,7 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
         from django.contrib.auth import get_user_model
         from django.utils.crypto import get_random_string
         from apps.accounts.models import Role
+        from apps.core.models import HouseProject
 
         User   = get_user_model()
         member = self.get_object()
@@ -455,6 +457,13 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
         phone = (request.data.get('phone') or member.phone or '').strip()
         phone = re.sub(r'[^\d\+]', '', phone)
         admin_access = bool(request.data.get('admin_access', False))
+        project_id = request.data.get('project_id') or request.data.get('project')
+        project = None
+        if project_id:
+            try:
+                project = HouseProject.objects.get(pk=project_id)
+            except HouseProject.DoesNotExist:
+                return Response({'error': 'Project not found.'}, status=status.HTTP_404_NOT_FOUND)
         
         if not phone:
             return Response(
@@ -517,12 +526,22 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
         update_fields = ['password', 'phone_number'] if hasattr(user, 'phone_number') else ['password']
         if admin_access:
             update_fields.extend(['role', 'is_staff'])
+        if project:
+            user.active_project = project
+            update_fields.append('active_project')
         user.save(update_fields=update_fields)
+        if project:
+            user.assigned_projects.add(project)
 
         member.account = user
         member._phone  = phone
+        if project:
+            member.current_project = project
         member.set_portal_pin(raw_pin)
-        member.save(update_fields=['account', '_phone', 'portal_pin_hash', 'updated_at'])
+        member_update_fields = ['account', '_phone', 'portal_pin_hash', 'updated_at']
+        if project:
+            member_update_fields.append('current_project')
+        member.save(update_fields=member_update_fields)
 
         return Response({
             'message':     f'Account created for {member.full_name}.',
@@ -534,6 +553,8 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
             'admin_username': email if admin_access else None,
             'password': raw_password if admin_access else None,
             'role': role.name if role else None,
+            'project': project.id if project else member.current_project_id,
+            'project_name': project.name if project else (member.current_project.name if member.current_project_id else None),
         }, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['post'])

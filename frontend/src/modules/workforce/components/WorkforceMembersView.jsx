@@ -80,7 +80,7 @@ const TodayDot = ({ status, checkIn, checkOut }) => {
     );
 };
 
-function CreateAccountModal({ member, onClose }) {
+function CreateAccountModal({ member, projects = [], defaultProjectId = '', onClose }) {
     const [pin, setPin]                   = useState('');
     const [result, setResult]             = useState(null);
     const [loading, setLoading]           = useState(false);
@@ -88,6 +88,7 @@ function CreateAccountModal({ member, onClose }) {
     const [adminAccess, setAdminAccess]   = useState(false);
     const [systemRoles, setSystemRoles]   = useState([]);
     const [roleId, setRoleId]             = useState('');
+    const [accountProjectId, setAccountProjectId] = useState(member.current_project || defaultProjectId || '');
     // Email send step
     const [emailDest, setEmailDest]       = useState('member'); // 'member' | 'custom'
     const [customEmail, setCustomEmail]   = useState('');
@@ -99,6 +100,10 @@ function CreateAccountModal({ member, onClose }) {
 
     // Pre-fill member email when result arrives or from member object
     const memberEmail = member.email && !member.email.endsWith('@worker.local') ? member.email : '';
+
+    useEffect(() => {
+        setAccountProjectId(member.current_project || defaultProjectId || '');
+    }, [member.current_project, defaultProjectId]);
 
     useEffect(() => {
         accountsService.getRoles()
@@ -130,6 +135,7 @@ function CreateAccountModal({ member, onClose }) {
             const payload = pin ? { pin } : {};
             if (!member.account) {
                 payload.admin_access = adminAccess;
+                if (accountProjectId) payload.project_id = accountProjectId;
                 if (adminAccess) {
                     payload.role_id = roleId;
                     payload.email = memberEmail || customEmail.trim() || undefined;
@@ -236,6 +242,23 @@ function CreateAccountModal({ member, onClose }) {
         </div>
     );
 
+    const renderProjectConfig = () => (
+        <div style={{ marginBottom: 14 }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 6 }}>
+                Assign project
+            </label>
+            <select value={accountProjectId} onChange={e => setAccountProjectId(e.target.value)} style={fieldStyle}>
+                <option value="">No Project</option>
+                {projects.map(project => (
+                    <option key={project.id} value={project.id}>{project.name}</option>
+                ))}
+            </select>
+            <p style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--t-text-muted)' }}>
+                Defaults to this member's project, otherwise the active project.
+            </p>
+        </div>
+    );
+
     return (
         <div style={{ position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
             <div style={{ background: 'var(--t-bg)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 460, boxShadow: '0 20px 60px rgba(0,0,0,0.3)', maxHeight: '90vh', overflowY: 'auto' }}>
@@ -289,6 +312,7 @@ function CreateAccountModal({ member, onClose }) {
                             <p style={{ margin: '0 0 18px', fontSize: 11, color: 'var(--t-text-muted)' }}>
                                 Phone <strong>{member.phone || '(none set)'}</strong> will be the username. PIN is shown only once.
                             </p>
+                            {renderProjectConfig()}
                             {renderEmailConfig()}
                             {renderAdminAccessConfig()}
                             {error && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 12 }}>{error}</div>}
@@ -798,7 +822,12 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
             )}
 
             {portalTarget && (
-                <CreateAccountModal member={portalTarget} onClose={() => { setPortalTarget(null); load(); }} />
+                <CreateAccountModal
+                    member={portalTarget}
+                    projects={projects}
+                    defaultProjectId={effectiveProjectId}
+                    onClose={() => { setPortalTarget(null); load(); }}
+                />
             )}
         </div>
     );
