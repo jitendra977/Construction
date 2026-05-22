@@ -303,6 +303,8 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
     const [importing, setImporting] = useState(false);
     const [importResult, setImportResult] = useState(null);
     const [importPreview, setImportPreview] = useState(null);
+    const [syncAllResult, setSyncAllResult] = useState(null);
+    const [syncingAllAttendance, setSyncingAllAttendance] = useState(false);
     const [error, setError]         = useState('');
     const [showIDCard, setShowIDCard]       = useState(false);
     const [idCardMemberId, setIdCardMemberId] = useState(null);
@@ -370,6 +372,8 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
         stats?.unlinked ??
         0;
 
+    const unlinkedWorkforceCount = members.filter(m => !m.has_attendance_link && !m.attendance_worker_id).length;
+
     const handleQuickStatus = async (member, newStatus) => {
         try {
             await workforceService.updateMember(member.id, { status: newStatus });
@@ -385,6 +389,25 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
         } catch { /* ignore */ }
         finally {
             setSyncingAttendance(p => { const n = { ...p }; delete n[member.id]; return n; });
+        }
+    };
+
+    const handleSyncAllAttendance = async () => {
+        if (!effectiveProjectId) {
+            setError('Select a project before bulk linking attendance.');
+            return;
+        }
+        setSyncingAllAttendance(true);
+        setError('');
+        setSyncAllResult(null);
+        try {
+            const result = await workforceService.syncAllAttendance({ project: effectiveProjectId });
+            setSyncAllResult(result);
+            await load();
+        } catch (e) {
+            setError(e?.response?.data?.error || 'Bulk attendance link failed.');
+        } finally {
+            setSyncingAllAttendance(false);
         }
     };
 
@@ -436,6 +459,34 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
                         )}
                     </div>
                     <button onClick={() => setImportResult(null)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #86efac', background: 'transparent', cursor: 'pointer', fontSize: 12 }}>Dismiss</button>
+                </div>
+            )}
+
+            {syncAllResult && (
+                <div style={{ background: '#eff6ff', border: '1px solid #93c5fd', borderRadius: 10, padding: '12px 16px', marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: 13, color: '#1e40af' }}>
+                        <strong>Attendance linked:</strong> {syncAllResult.total_synced} member{syncAllResult.total_synced !== 1 ? 's' : ''} synced
+                        <span style={{ marginLeft: 6, color: '#64748b' }}>({syncAllResult.created} created, {syncAllResult.linked} linked)</span>
+                    </div>
+                    <button onClick={() => setSyncAllResult(null)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #93c5fd', background: 'transparent', cursor: 'pointer', fontSize: 12 }}>Dismiss</button>
+                </div>
+            )}
+
+            {unlinkedWorkforceCount > 0 && (
+                <div style={{ background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 10, padding: '12px 16px', marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                    <div>
+                        <strong style={{ fontSize: 13 }}>⚡ {unlinkedWorkforceCount} workforce member{unlinkedWorkforceCount !== 1 ? 's' : ''} not linked to attendance</strong>
+                        <div style={{ fontSize: 12, color: '#3730a3', marginTop: 2 }}>
+                            Bulk link them to the active project so attendance, payroll and QR records work.
+                        </div>
+                    </div>
+                    <button
+                        onClick={handleSyncAllAttendance}
+                        disabled={syncingAllAttendance || !effectiveProjectId}
+                        style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 12, fontWeight: 800, cursor: syncingAllAttendance || !effectiveProjectId ? 'not-allowed' : 'pointer', opacity: syncingAllAttendance || !effectiveProjectId ? 0.65 : 1 }}
+                    >
+                        {syncingAllAttendance ? 'Linking…' : `Bulk Link Attendance (${unlinkedWorkforceCount})`}
+                    </button>
                 </div>
             )}
 

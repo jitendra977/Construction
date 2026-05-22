@@ -233,6 +233,7 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
         Body: { "project": "<project_id>" }
         Sync ALL unlinked members in a project — creates AttendanceWorkers for each.
         """
+        from django.db.models import Q
         from apps.attendance.models import AttendanceWorker
 
         project_id = request.data.get('project') or request.query_params.get('project')
@@ -246,7 +247,7 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Project not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         unlinked = WorkforceMember.objects.filter(
-            current_project=project,
+            Q(current_project=project) | Q(current_project__isnull=True),
             attendance_worker__isnull=True,
         ).select_related('role', 'account')
 
@@ -287,7 +288,9 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
                 created += 1
 
             member.attendance_worker = aw
-            member.save(update_fields=['attendance_worker', 'updated_at'])
+            if member.current_project_id != project.id:
+                member.current_project = project
+            member.save(update_fields=['attendance_worker', 'current_project', 'updated_at'])
 
         return Response({
             'status': 'ok',

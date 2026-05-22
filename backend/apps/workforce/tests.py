@@ -83,3 +83,28 @@ class WorkforceAttendanceImportTestCase(TestCase):
         self.assertEqual(second_response.data["created"], 0)
         self.assertEqual(WorkforceMember.objects.count(), 2)
 
+    def test_sync_all_attendance_links_no_project_members_to_requested_project(self):
+        member = WorkforceMember(
+            worker_type="LABOUR",
+            status="ACTIVE",
+            join_date=date(2026, 1, 10),
+            created_by=self.user,
+        )
+        member.first_name = "No"
+        member.last_name = "Project"
+        member.phone = "9800000099"
+        member.save()
+
+        response = self.client.post(
+            "/api/v1/workforce/members/sync_all_attendance/",
+            {"project": self.project.id},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["status"], "ok")
+        self.assertEqual(response.data["total_synced"], 1)
+        member.refresh_from_db()
+        self.assertEqual(member.current_project_id, self.project.id)
+        self.assertIsNotNone(member.attendance_worker_id)
+        self.assertEqual(member.attendance_worker.project_id, self.project.id)
