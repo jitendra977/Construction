@@ -71,24 +71,33 @@ const PAGE_CSS = `
   .roles-card-grid {
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   }
-  .roles-list-wrap {
-    width: 100%;
+  .roles-manager {
+    display: grid;
+    grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+  .roles-panel {
     border-radius: 14px;
     border: 1px solid var(--t-border);
     background: var(--t-surface);
     overflow: hidden;
   }
-  .roles-list-head {
+  .roles-panel-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 14px 16px;
+    padding: 16px;
     border-bottom: 1px solid var(--t-border);
     background: var(--t-bg);
   }
-  .roles-list-count {
-    padding: 4px 10px;
+  .roles-count-pill,
+  .roles-type-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 9px;
     border-radius: 999px;
     border: 1px solid var(--t-border);
     background: var(--t-surface);
@@ -97,24 +106,64 @@ const PAGE_CSS = `
     font-weight: 900;
     white-space: nowrap;
   }
-  .roles-list {
+  .roles-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    padding: 14px;
+    border-bottom: 1px solid var(--t-border);
+  }
+  .roles-summary-card {
+    padding: 10px;
+    border-radius: 12px;
+    border: 1px solid var(--t-border);
+    background: var(--t-bg);
+  }
+  .roles-summary-label {
+    font-size: 10px;
+    font-weight: 900;
+    color: var(--t-text3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .roles-summary-value {
+    margin-top: 4px;
+    font-size: 18px;
+    font-weight: 900;
+    color: var(--t-text);
+  }
+  .roles-filter-box {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--t-border);
+  }
+  .roles-role-list {
     display: flex;
     flex-direction: column;
+    max-height: 560px;
+    overflow-y: auto;
   }
-  .roles-list-row {
-    display: grid;
-    grid-template-columns: minmax(220px, 1.1fr) minmax(180px, 0.75fr) minmax(260px, 1.2fr) minmax(130px, 0.55fr) auto;
-    gap: 16px;
+  .roles-role-item {
+    width: 100%;
+    display: flex;
     align-items: center;
-    padding: 16px;
+    gap: 12px;
+    padding: 13px 14px;
     border-bottom: 1px solid var(--t-border);
-    background: var(--t-surface);
+    border-left: 3px solid transparent;
+    background: transparent;
+    color: var(--t-text);
+    text-align: left;
+    cursor: pointer;
   }
-  .roles-list-row:last-child {
+  .roles-role-item:last-child {
     border-bottom: 0;
   }
-  .roles-list-row:hover {
-    background: color-mix(in srgb, var(--t-surface) 94%, #6366f1);
+  .roles-role-item:hover {
+    background: var(--t-bg);
+  }
+  .roles-role-item.active {
+    border-left-color: #2563eb;
+    background: color-mix(in srgb, #2563eb 8%, var(--t-surface));
   }
   .roles-role-name {
     display: flex;
@@ -142,15 +191,54 @@ const PAGE_CSS = `
     display: block;
     height: 100%;
     border-radius: 999px;
-    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    background: #2563eb;
   }
-  .roles-list-label {
+  .roles-section-label {
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     font-weight: 900;
     color: var(--t-text3);
     margin-bottom: 6px;
+  }
+  .roles-detail-body {
+    padding: 16px;
+  }
+  .roles-detail-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 220px;
+    gap: 14px;
+    align-items: start;
+  }
+  .roles-permission-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+  }
+  .roles-permission-group {
+    border: 1px solid var(--t-border);
+    border-radius: 12px;
+    background: var(--t-bg);
+    padding: 12px;
+  }
+  .roles-permission-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 0;
+    border-top: 1px solid var(--t-border);
+    font-size: 12px;
+    color: var(--t-text2);
+  }
+  .roles-permission-line:first-of-type {
+    border-top: 0;
+    margin-top: 6px;
+  }
+  .roles-empty-state {
+    padding: 36px 20px;
+    text-align: center;
+    color: var(--t-text3);
+    font-size: 13px;
   }
   .roles-legend-grid {
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -183,9 +271,9 @@ const PAGE_CSS = `
     .roles-toolbar-actions > button {
       flex: 1 1 140px;
     }
-    .roles-list-row {
-      grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr);
-      align-items: start;
+    .roles-manager,
+    .roles-detail-grid {
+      grid-template-columns: 1fr;
     }
   }
   @media (max-width: 720px) {
@@ -211,14 +299,18 @@ const PAGE_CSS = `
       flex-direction: column;
       align-items: stretch;
     }
-    .roles-list-head {
+    .roles-panel-head {
       align-items: flex-start;
       flex-direction: column;
     }
-    .roles-list-row {
+    .roles-summary-grid {
       grid-template-columns: 1fr;
-      gap: 12px;
-      padding: 14px;
+    }
+    .roles-role-list {
+      max-height: none;
+    }
+    .roles-permission-grid {
+      grid-template-columns: 1fr;
     }
   }
 `;
@@ -598,209 +690,189 @@ function FilterChip({ active, label, onClick }) {
     );
 }
 
-/* ── Role card ─────────────────────────────────────────────────────────── */
-function RoleCard({ role, onEdit, onDelete }) {
-    const color = ROLE_COLORS[role.code] || '#6366f1';
-    const grouped = PERMISSION_GROUPS.map(group => ({
-        ...group,
-        perms: (PERMISSIONS_BY_GROUP[group.key] || []).filter(p => role[p.key]),
-    })).filter(group => group.perms.length > 0);
+function RoleManager({ roles, onEdit, onDelete }) {
+    const [selectedId, setSelectedId] = useState(null);
+    const [query, setQuery] = useState('');
     const SYSTEM_CODES = ['SUPER_ADMIN','HOME_OWNER','LEAD_ENGINEER','CONTRACTOR','VIEWER'];
-    const isSystem = SYSTEM_CODES.includes(role.code);
+
+    const filteredRoles = useMemo(() => {
+        const term = query.trim().toLowerCase();
+        if (!term) return roles;
+        return roles.filter(role =>
+            [role.name, role.code].some(value => String(value || '').toLowerCase().includes(term))
+        );
+    }, [roles, query]);
+
+    const selectedRole = roles.find(role => role.id === selectedId) || filteredRoles[0] || roles[0] || null;
+    const enabledPerms = selectedRole ? PERMISSIONS.filter(p => selectedRole[p.key]) : [];
+    const enabledGroups = selectedRole ? PERMISSION_GROUPS.map(group => {
+        const perms = (PERMISSIONS_BY_GROUP[group.key] || []).filter(p => selectedRole[p.key]);
+        return { ...group, perms };
+    }).filter(group => group.perms.length > 0) : [];
+    const color = selectedRole ? (ROLE_COLORS[selectedRole.code] || '#2563eb') : '#2563eb';
+    const isSystem = selectedRole ? SYSTEM_CODES.includes(selectedRole.code) : false;
+    const accessPct = selectedRole ? Math.max(4, Math.round((enabledPerms.length / PERMISSIONS.length) * 100)) : 0;
 
     return (
-        <div style={{ borderRadius:14, border:'1px solid var(--t-border)', background:'var(--t-surface)', overflow:'hidden' }}>
-            {/* Header */}
-            <div style={{ padding:'16px 18px', borderBottom:'1px solid var(--t-border)', background:`${color}08`, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                    <div style={{ width:40, height:40, borderRadius:10, background:`${color}18`, border:`1px solid ${color}30`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:20 }}>🛡️</div>
+        <div className="roles-manager">
+            <div className="roles-panel">
+                <div className="roles-panel-head">
                     <div>
-                        <p style={{ margin:0, fontSize:14, fontWeight:900, color:'var(--t-text)' }}>{role.name}</p>
-                        <p style={{ margin:'2px 0 0', fontSize:10, fontWeight:700, color:'var(--t-text3)', fontFamily:'monospace' }}>{role.code}</p>
+                        <p style={{ margin:0, fontSize:15, fontWeight:900, color:'var(--t-text)' }}>Roles</p>
+                        <p style={{ margin:'4px 0 0', fontSize:12, color:'var(--t-text3)' }}>Select a role to review access.</p>
+                    </div>
+                    <span className="roles-count-pill">{roles.length}</span>
+                </div>
+
+                <div className="roles-summary-grid">
+                    <div className="roles-summary-card">
+                        <div className="roles-summary-label">System</div>
+                        <div className="roles-summary-value">{roles.filter(role => SYSTEM_CODES.includes(role.code)).length}</div>
+                    </div>
+                    <div className="roles-summary-card">
+                        <div className="roles-summary-label">Custom</div>
+                        <div className="roles-summary-value">{roles.filter(role => !SYSTEM_CODES.includes(role.code)).length}</div>
+                    </div>
+                    <div className="roles-summary-card">
+                        <div className="roles-summary-label">Users</div>
+                        <div className="roles-summary-value">{roles.reduce((sum, role) => sum + (role.user_count || 0), 0)}</div>
                     </div>
                 </div>
-                <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
-                    <div style={{ padding:'3px 10px', borderRadius:6, background:`${color}18`, color, fontSize:11, fontWeight:900 }}>
-                        {role.user_count ?? 0} user{(role.user_count ?? 0) !== 1 ? 's' : ''}
-                    </div>
-                    {isSystem && <Badge label="System" color="#6b7280" />}
+
+                <div className="roles-filter-box">
+                    <label className="roles-search" style={{
+                        display:'flex', alignItems:'center', gap:8, padding:'9px 10px',
+                        borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-bg)',
+                    }}>
+                        <SearchIcon />
+                        <input
+                            value={query}
+                            onChange={e => setQuery(e.target.value)}
+                            placeholder="Search roles"
+                            style={{ border:'none', outline:'none', background:'transparent', color:'var(--t-text)', width:'100%', fontSize:12 }}
+                        />
+                    </label>
+                </div>
+
+                <div className="roles-role-list">
+                    {filteredRoles.map(role => {
+                        const roleColor = ROLE_COLORS[role.code] || '#2563eb';
+                        const active = selectedRole?.id === role.id;
+                        const count = PERMISSIONS.filter(p => role[p.key]).length;
+                        return (
+                            <button
+                                key={role.id}
+                                type="button"
+                                className={`roles-role-item${active ? ' active' : ''}`}
+                                onClick={() => setSelectedId(role.id)}
+                            >
+                                <div style={{ width:36, height:36, borderRadius:10, background:`${roleColor}14`, border:`1px solid ${roleColor}30`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:17, flexShrink:0 }}>🛡️</div>
+                                <div style={{ minWidth:0, flex:1 }}>
+                                    <p style={{ margin:0, fontSize:13, fontWeight:900, color:'var(--t-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{role.name}</p>
+                                    <p style={{ margin:'2px 0 0', fontSize:10, fontWeight:700, color:'var(--t-text3)', fontFamily:'monospace', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{role.code}</p>
+                                </div>
+                                <div style={{ textAlign:'right', flexShrink:0 }}>
+                                    <p style={{ margin:0, fontSize:12, fontWeight:900, color:roleColor }}>{count}</p>
+                                    <p style={{ margin:'2px 0 0', fontSize:10, color:'var(--t-text3)' }}>perms</p>
+                                </div>
+                            </button>
+                        );
+                    })}
+                    {filteredRoles.length === 0 && <div className="roles-empty-state">No roles match this search.</div>}
                 </div>
             </div>
 
-            {/* Permissions */}
-            <div style={{ padding:'12px 18px' }}>
-                {grouped.length === 0 ? (
-                    <p style={{ fontSize:11, color:'var(--t-text3)', fontStyle:'italic' }}>No permissions granted</p>
+            <div className="roles-panel">
+                {!selectedRole ? (
+                    <div className="roles-empty-state">No roles yet.</div>
                 ) : (
-                    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                        {grouped.map(group => (
-                            <div key={group.key} style={{ padding:'10px 12px', borderRadius:10, background:'var(--t-bg)', border:'1px solid var(--t-border)' }}>
-                                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:6 }}>
-                                    <div style={{ fontSize:10, fontWeight:900, textTransform:'uppercase', letterSpacing:'0.08em', color:'var(--t-text3)' }}>
-                                        {group.icon} {group.label}
-                                    </div>
-                                    <div style={{ fontSize:10, fontWeight:900, color }}>
-                                        {group.perms.length}
-                                    </div>
-                                </div>
-                                <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-                                    {group.perms.slice(0, 3).map(p => (
-                                        <span key={p.key} style={{ padding:'2px 8px', borderRadius:6, background:`${color}12`, color, fontSize:10, fontWeight:700, border:`1px solid ${color}20` }}>
-                                            ✓ {p.label}
-                                        </span>
-                                    ))}
-                                    {group.perms.length > 3 && (
-                                        <span style={{ padding:'2px 8px', borderRadius:6, background:'var(--t-bg)', color:'var(--t-text3)', fontSize:10, fontWeight:700, border:'1px solid var(--t-border)' }}>
-                                            +{group.perms.length - 3} more
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
-
-            {/* Actions */}
-            <div style={{ padding:'10px 18px', borderTop:'1px solid var(--t-border)', display:'flex', gap:8 }}>
-                <button onClick={() => onEdit(role)}
-                    style={{ flex:1, padding:'7px 0', borderRadius:8, background:`${color}12`, color, fontSize:11, fontWeight:900, border:`1px solid ${color}25`, cursor:'pointer' }}>
-                    ✏️ Edit Permissions
-                </button>
-                {!isSystem && (
-                    <button onClick={() => onDelete(role)}
-                        style={{ padding:'7px 14px', borderRadius:8, background:'rgba(239,68,68,0.08)', color:'#ef4444', fontSize:11, fontWeight:900, border:'1px solid rgba(239,68,68,0.2)', cursor:'pointer' }}>
-                        🗑️
-                    </button>
-                )}
-            </div>
-        </div>
-    );
-}
-
-function RoleList({ roles, onEdit, onDelete }) {
-    const getEnabledGroups = (role) =>
-        PERMISSION_GROUPS.map(group => ({
-            ...group,
-            count: (PERMISSIONS_BY_GROUP[group.key] || []).filter(p => role[p.key]).length,
-        })).filter(group => group.count > 0);
-
-    return (
-        <div className="roles-list-wrap">
-            <div className="roles-list-head">
-                <div>
-                    <p style={{ margin: 0, fontSize: 14, fontWeight: 900, color: 'var(--t-text)' }}>
-                        Role list
-                    </p>
-                    <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--t-text3)' }}>
-                        Review access by role without the wide table layout.
-                    </p>
-                </div>
-                <div className="roles-list-count">{roles.length} role{roles.length !== 1 ? 's' : ''}</div>
-            </div>
-            <div className="roles-list">
-                {roles.map(role => {
-                    const color = ROLE_COLORS[role.code] || '#6366f1';
-                    const groups = getEnabledGroups(role);
-                    const enabledPerms = PERMISSIONS.filter(p => role[p.key]);
-                    const totalPerms = PERMISSIONS.length;
-                    const pct = Math.max(4, Math.round((enabledPerms.length / totalPerms) * 100));
-                    const SYSTEM_CODES = ['SUPER_ADMIN','HOME_OWNER','LEAD_ENGINEER','CONTRACTOR','VIEWER'];
-                    const isSystem = SYSTEM_CODES.includes(role.code);
-
-                    return (
-                        <div key={role.id} className="roles-list-row">
+                    <>
+                        <div className="roles-panel-head">
                             <div className="roles-role-name">
-                                <div style={{ width:38, height:38, borderRadius:10, background:`${color}18`, border:`1px solid ${color}30`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, flexShrink:0 }}>🛡️</div>
+                                <div style={{ width:44, height:44, borderRadius:12, background:`${color}14`, border:`1px solid ${color}30`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:21, flexShrink:0 }}>🛡️</div>
                                 <div className="roles-role-meta">
-                                    <p style={{ margin:0, fontSize:13, fontWeight:900, color:'var(--t-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                                        {role.name}
-                                    </p>
-                                    <p style={{ margin:'2px 0 0', fontSize:10, fontWeight:700, color:'var(--t-text3)', fontFamily:'monospace', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                                        {role.code}
-                                    </p>
+                                    <p style={{ margin:0, fontSize:18, fontWeight:900, color:'var(--t-text)' }}>{selectedRole.name}</p>
+                                    <p style={{ margin:'3px 0 0', fontSize:11, fontWeight:800, color:'var(--t-text3)', fontFamily:'monospace' }}>{selectedRole.code}</p>
                                 </div>
                             </div>
-
-                            <div>
-                                <div className="roles-list-label">Access</div>
-                                <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', gap:8 }}>
-                                    <div style={{ fontSize: 13, fontWeight: 900, color:'var(--t-text)' }}>
-                                        {enabledPerms.length} permissions
-                                    </div>
-                                    <div style={{ fontSize: 10, color:'var(--t-text3)' }}>
-                                        of {totalPerms}
-                                    </div>
-                                </div>
-                                <div className="roles-mini-bar" aria-hidden="true">
-                                    <span style={{ width: `${pct}%` }} />
-                                </div>
-                            </div>
-
-                            <div>
-                                <div className="roles-list-label">Groups</div>
-                                <div className="roles-chip-list">
-                                    {groups.slice(0, 5).map(group => (
-                                        <span key={group.key} style={{
-                                            padding:'4px 8px', borderRadius:999, background:`${color}12`, color,
-                                            fontSize:10, fontWeight:800, border:`1px solid ${color}20`, whiteSpace:'nowrap',
-                                        }}>
-                                            {group.icon} {group.label}
-                                        </span>
-                                    ))}
-                                    {groups.length > 5 && (
-                                        <span style={{
-                                            padding:'4px 8px', borderRadius:999, background:'var(--t-bg)', color:'var(--t-text3)',
-                                            fontSize:10, fontWeight:800, border:'1px solid var(--t-border)', whiteSpace:'nowrap',
-                                        }}>
-                                            +{groups.length - 5} more
-                                        </span>
-                                    )}
-                                    {groups.length === 0 && (
-                                        <span style={{ fontSize: 11, color:'var(--t-text3)' }}>No groups enabled</span>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div>
-                                <div className="roles-list-label">Status</div>
-                                <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
-                                    <span style={{ fontSize: 12, fontWeight: 900, color }}>
-                                        {role.user_count ?? 0} user{(role.user_count ?? 0) !== 1 ? 's' : ''}
-                                    </span>
-                                    {isSystem && <Badge label="System" color="#6b7280" />}
-                                    {!isSystem && (
-                                        <span style={{
-                                            padding:'3px 8px', borderRadius:999, fontSize:10, fontWeight:800,
-                                            color:'#10b981', background:'rgba(16,185,129,0.08)', border:'1px solid rgba(16,185,129,0.15)',
-                                        }}>
-                                            Custom
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div style={{ display:'flex', gap:8, alignItems:'center', justifyContent:'flex-end' }}>
-                                <button onClick={() => onEdit(role)}
-                                    title="Edit role"
-                                    style={{ width:34, height:34, display:'inline-flex', alignItems:'center', justifyContent:'center', borderRadius:10, background:`${color}12`, color, fontSize:14, fontWeight:900, border:`1px solid ${color}25`, cursor:'pointer' }}>
+                            <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap', justifyContent:'flex-end' }}>
+                                <span className="roles-type-pill">{selectedRole.user_count ?? 0} user{(selectedRole.user_count ?? 0) !== 1 ? 's' : ''}</span>
+                                {isSystem ? <Badge label="System" color="#6b7280" /> : <span className="roles-type-pill" style={{ color:'#10b981', borderColor:'rgba(16,185,129,0.25)', background:'rgba(16,185,129,0.08)' }}>Custom</span>}
+                                <button onClick={() => onEdit(selectedRole)}
+                                    style={{ width:36, height:36, display:'inline-flex', alignItems:'center', justifyContent:'center', borderRadius:10, background:`${color}12`, color, fontSize:14, fontWeight:900, border:`1px solid ${color}25`, cursor:'pointer' }}
+                                    title="Edit role">
                                     ✏️
                                 </button>
                                 {!isSystem && (
-                                    <button onClick={() => onDelete(role)}
-                                        title="Delete role"
-                                        style={{ width:34, height:34, display:'inline-flex', alignItems:'center', justifyContent:'center', borderRadius:10, background:'rgba(239,68,68,0.08)', color:'#ef4444', fontSize:14, fontWeight:900, border:'1px solid rgba(239,68,68,0.2)', cursor:'pointer' }}>
+                                    <button onClick={() => onDelete(selectedRole)}
+                                        style={{ width:36, height:36, display:'inline-flex', alignItems:'center', justifyContent:'center', borderRadius:10, background:'rgba(239,68,68,0.08)', color:'#ef4444', fontSize:14, fontWeight:900, border:'1px solid rgba(239,68,68,0.2)', cursor:'pointer' }}
+                                        title="Delete role">
                                         🗑️
                                     </button>
                                 )}
                             </div>
                         </div>
-                    );
-                })}
-                {roles.length === 0 && (
-                    <div style={{ padding: 24, color: 'var(--t-text3)', textAlign: 'center' }}>
-                        No roles yet
-                    </div>
+
+                        <div className="roles-detail-body">
+                            <div className="roles-detail-grid">
+                                <div>
+                                    <div className="roles-section-label">Permission coverage</div>
+                                    <div style={{ padding:14, borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-bg)', marginBottom:14 }}>
+                                        <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', gap:10 }}>
+                                            <p style={{ margin:0, fontSize:18, fontWeight:900, color:'var(--t-text)' }}>{enabledPerms.length} of {PERMISSIONS.length}</p>
+                                            <p style={{ margin:0, fontSize:11, color:'var(--t-text3)' }}>{enabledGroups.length} active group{enabledGroups.length !== 1 ? 's' : ''}</p>
+                                        </div>
+                                        <div className="roles-mini-bar" aria-hidden="true">
+                                            <span style={{ width:`${accessPct}%`, background:color }} />
+                                        </div>
+                                    </div>
+
+                                    <div className="roles-section-label">Enabled permissions</div>
+                                    <div className="roles-permission-grid">
+                                        {PERMISSION_GROUPS.map(group => {
+                                            const groupPerms = PERMISSIONS_BY_GROUP[group.key] || [];
+                                            const activePerms = groupPerms.filter(p => selectedRole[p.key]);
+                                            return (
+                                                <div key={group.key} className="roles-permission-group" style={{ opacity: activePerms.length ? 1 : 0.58 }}>
+                                                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
+                                                        <p style={{ margin:0, fontSize:13, fontWeight:900, color:'var(--t-text)' }}>{group.icon} {group.label}</p>
+                                                        <span style={{ fontSize:11, fontWeight:900, color:activePerms.length ? color : 'var(--t-text3)' }}>{activePerms.length}/{groupPerms.length}</span>
+                                                    </div>
+                                                    {groupPerms.map(p => (
+                                                        <div key={p.key} className="roles-permission-line">
+                                                            <span style={{ width:8, height:8, borderRadius:999, background:selectedRole[p.key] ? '#10b981' : 'var(--t-border)', flexShrink:0 }} />
+                                                            <span style={{ color:selectedRole[p.key] ? 'var(--t-text)' : 'var(--t-text3)', fontWeight:selectedRole[p.key] ? 800 : 500 }}>{p.label}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                                    <div style={{ padding:14, borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-bg)' }}>
+                                        <div className="roles-section-label">Active groups</div>
+                                        <div className="roles-chip-list">
+                                            {enabledGroups.map(group => (
+                                                <span key={group.key} style={{ padding:'5px 9px', borderRadius:999, background:`${color}12`, color, fontSize:10, fontWeight:900, border:`1px solid ${color}22` }}>
+                                                    {group.icon} {group.label}
+                                                </span>
+                                            ))}
+                                            {enabledGroups.length === 0 && <span style={{ fontSize:12, color:'var(--t-text3)' }}>No access enabled</span>}
+                                        </div>
+                                    </div>
+                                    <div style={{ padding:14, borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-bg)' }}>
+                                        <div className="roles-section-label">Role actions</div>
+                                        <button onClick={() => onEdit(selectedRole)}
+                                            style={{ width:'100%', padding:'10px 0', borderRadius:10, background:color, color:'#fff', fontSize:12, fontWeight:900, border:'none', cursor:'pointer' }}>
+                                            Edit permissions
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </>
                 )}
             </div>
         </div>
@@ -831,6 +903,7 @@ export default function RolesPage() {
 
     return (
         <div className="roles-page-shell" style={{ width: '100%', margin: '0 auto' }}>
+            <style>{PAGE_CSS}</style>
 
             {/* Toolbar */}
             <div className="roles-toolbar-row" style={{
@@ -862,7 +935,7 @@ export default function RolesPage() {
             {loading ? (
                 <div style={{ textAlign:'center', padding:60 }}><div className="animate-spin w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full mx-auto" /></div>
             ) : (
-                <RoleList
+                <RoleManager
                     roles={roles}
                     onEdit={r => setEditing(r)}
                     onDelete={r => setConfirmDel(r)}
