@@ -429,6 +429,8 @@ class UserViewSet(viewsets.ModelViewSet):
                     'can_manage_phases':    m.can_manage_phases    if m else False,
                     'can_manage_structure': m.can_manage_structure if m else False,
                     'can_manage_resources': m.can_manage_resources if m else False,
+                    'can_manage_workforce': m.can_manage_workforce if m else False,
+                    'can_approve_purchases': m.can_approve_purchases if m else False,
                     'can_upload_media':     m.can_upload_media     if m else False,
                 } if m else None,
             })
@@ -475,7 +477,8 @@ class UserViewSet(viewsets.ModelViewSet):
         perm_fields = [
             'can_manage_members', 'can_manage_finances', 'can_view_finances',
             'can_manage_phases',  'can_manage_structure',
-            'can_manage_resources', 'can_upload_media',
+            'can_manage_resources', 'can_manage_workforce',
+            'can_approve_purchases', 'can_upload_media',
         ]
         for field in perm_fields:
             if field in request.data:

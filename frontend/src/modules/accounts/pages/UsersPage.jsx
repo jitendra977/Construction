@@ -56,8 +56,32 @@ const PERM_LABELS = {
     can_manage_phases:    'Manage Phases',
     can_manage_structure: 'Manage Structure',
     can_manage_resources: 'Manage Resources',
+    can_manage_workforce: 'Manage Workforce',
+    can_approve_purchases:'Approve Purchases',
     can_upload_media:     'Upload Media',
 };
+
+const SYSTEM_PERM_LABELS = {
+    can_view_projects:        'View Projects',
+    can_manage_projects:      'Manage Projects',
+    can_view_dashboard:       'View Dashboard',
+    can_view_phases:          'View Phases',
+    can_manage_phases:        'Manage Phases',
+    can_view_finances:        'View Finance',
+    can_manage_finances:      'Manage Finance',
+    can_view_structure:       'View Structure',
+    can_manage_structure:     'Manage Structure',
+    can_view_resources:       'View Resources',
+    can_manage_resources:     'Manage Resources',
+    can_view_workforce:       'View Workforce',
+    can_manage_workforce:     'Manage Workforce',
+    can_manage_users:         'Manage Users',
+    can_manage_settings:      'Manage Settings',
+    can_manage_data_transfer: 'Data Transfer',
+};
+
+const getEnabledSystemPermissions = (user) =>
+    Object.entries(SYSTEM_PERM_LABELS).filter(([key]) => user?.[key]);
 
 // ── Create / Invite form ──────────────────────────────────────────────────────
 function InviteForm({ roles, onDone }) {
@@ -295,6 +319,12 @@ function UserDrawer({ user, roles, onClose, onRefresh }) {
     const [err,     setErr]     = useState('');
     const [msg,     setMsg]     = useState('');
     const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+    const selectedRole = roles.find(r => String(r.id) === String(form.role_id));
+    const displayedPermissions = selectedRole
+        ? Object.entries(SYSTEM_PERM_LABELS).filter(([key]) =>
+            selectedRole.can_manage_all_systems || selectedRole[key]
+        )
+        : getEnabledSystemPermissions(user);
 
     const save = async (e) => {
         e.preventDefault();
@@ -407,6 +437,20 @@ function UserDrawer({ user, roles, onClose, onRefresh }) {
                                     {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                                 </select>
                                 <p style={{ margin:'4px 0 0', fontSize:10, color:'var(--t-text3)' }}>System role controls global access. Project role is set per-project in the Projects tab.</p>
+                            </div>
+                            <div style={{ padding:12, borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-bg)' }}>
+                                <p style={{ margin:'0 0 8px', fontSize:10, fontWeight:800, color:'var(--t-text3)', textTransform:'uppercase', letterSpacing:'0.07em' }}>System Role Permissions</p>
+                                {displayedPermissions.length === 0 ? (
+                                    <p style={{ margin:0, fontSize:11, color:'var(--t-text3)' }}>No system permissions enabled.</p>
+                                ) : (
+                                    <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                                        {displayedPermissions.map(([key, label]) => (
+                                            <span key={key} style={{ padding:'2px 7px', borderRadius:6, fontSize:10, fontWeight:800, background:'#6366f112', color:'#6366f1', border:'1px solid #6366f125' }}>
+                                                {label}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                             <div><label style={lbl}>Bio / Note</label>
                                 <textarea style={{ ...inp(), resize:'vertical', minHeight:64 }} value={form.bio} onChange={e => set('bio', e.target.value)} placeholder="Short note about this user" /></div>
@@ -604,14 +648,14 @@ export default function UsersPage() {
                     <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
                         <thead>
                             <tr style={{ background:'var(--t-bg)', borderBottom:'1px solid var(--t-border)' }}>
-                                {['User', 'Email', 'System Role', 'Projects', 'Status', 'Last Login', 'Actions'].map(h => (
+                                {['User', 'Email', 'System Role', 'Permissions', 'Projects', 'Status', 'Last Login', 'Actions'].map(h => (
                                     <th key={h} style={{ padding:'10px 14px', textAlign:'left', fontSize:10, fontWeight:900, color:'var(--t-text3)', textTransform:'uppercase', letterSpacing:'0.06em', whiteSpace:'nowrap' }}>{h}</th>
                                 ))}
                             </tr>
                         </thead>
                         <tbody>
                             {filtered.length === 0 ? (
-                                <tr><td colSpan={7} style={{ textAlign:'center', padding:40, color:'var(--t-text3)', fontSize:13 }}>No users found</td></tr>
+                                <tr><td colSpan={8} style={{ textAlign:'center', padding:40, color:'var(--t-text3)', fontSize:13 }}>No users found</td></tr>
                             ) : filtered.map((user, i) => (
                                 <tr key={user.id}
                                     style={{ borderBottom:'1px solid var(--t-border)', background: i%2===0 ? 'transparent' : 'rgba(0,0,0,0.01)', cursor:'pointer' }}
@@ -641,6 +685,24 @@ export default function UsersPage() {
                                         {user.role
                                             ? <Badge label={user.role.name} color={ROLE_COLORS[user.role.code] || '#6b7280'} />
                                             : <span style={{ color:'var(--t-text3)', fontSize:11 }}>—</span>}
+                                    </td>
+
+                                    {/* Permissions */}
+                                    <td style={{ padding:'10px 14px' }}>
+                                        <div style={{ display:'flex', flexWrap:'wrap', gap:4, maxWidth:220 }}>
+                                            {getEnabledSystemPermissions(user).length === 0 ? (
+                                                <span style={{ fontSize:11, color:'var(--t-text3)' }}>None</span>
+                                            ) : (
+                                                <>
+                                                    {getEnabledSystemPermissions(user).slice(0, 3).map(([key, label]) => (
+                                                        <span key={key} style={{ padding:'1px 6px', borderRadius:5, fontSize:9, fontWeight:800, background:'#6366f112', color:'#6366f1', border:'1px solid #6366f125' }}>{label}</span>
+                                                    ))}
+                                                    {getEnabledSystemPermissions(user).length > 3 && (
+                                                        <span style={{ fontSize:10, color:'var(--t-text3)', padding:'1px 4px' }}>+{getEnabledSystemPermissions(user).length - 3}</span>
+                                                    )}
+                                                </>
+                                            )}
+                                        </div>
                                     </td>
 
                                     {/* Projects */}
