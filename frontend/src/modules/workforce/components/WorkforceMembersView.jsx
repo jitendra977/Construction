@@ -212,6 +212,30 @@ function CreateAccountModal({ member, onClose }) {
         </div>
     );
 
+    const renderAdminAccessConfig = () => (
+        <div style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
+                <input type="checkbox" checked={adminAccess} onChange={e => setAdminAccess(e.target.checked)} style={{ width: 16, height: 16, cursor: 'pointer' }} />
+                Allow admin panel access
+            </label>
+            {adminAccess && (
+                <div style={{ marginTop: 12 }}>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 6 }}>
+                        System role
+                    </label>
+                    <select value={roleId} onChange={e => setRoleId(e.target.value)} style={fieldStyle}>
+                        {systemRoles.map(role => (
+                            <option key={role.id} value={role.id}>{role.name}</option>
+                        ))}
+                    </select>
+                    <p style={{ margin: '8px 0 0', fontSize: 11, color: 'var(--t-text-muted)' }}>
+                        A random dashboard password will be generated. Sidebar and routes use this role's permissions.
+                    </p>
+                </div>
+            )}
+        </div>
+    );
+
     return (
         <div style={{ position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
             <div style={{ background: 'var(--t-bg)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 460, boxShadow: '0 20px 60px rgba(0,0,0,0.3)', maxHeight: '90vh', overflowY: 'auto' }}>
@@ -240,29 +264,6 @@ function CreateAccountModal({ member, onClose }) {
                                 />
                             </div>
                             {renderEmailConfig()}
-                            {!member.account && (
-                                <div style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)', borderRadius: 12, padding: 16, marginBottom: 16 }}>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-                                        <input type="checkbox" checked={adminAccess} onChange={e => setAdminAccess(e.target.checked)} style={{ width: 16, height: 16, cursor: 'pointer' }} />
-                                        Allow admin panel access
-                                    </label>
-                                    {adminAccess && (
-                                        <div style={{ marginTop: 12 }}>
-                                            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 6 }}>
-                                                System role
-                                            </label>
-                                            <select value={roleId} onChange={e => setRoleId(e.target.value)} style={fieldStyle}>
-                                                {systemRoles.map(role => (
-                                                    <option key={role.id} value={role.id}>{role.name}</option>
-                                                ))}
-                                            </select>
-                                            <p style={{ margin: '8px 0 0', fontSize: 11, color: 'var(--t-text-muted)' }}>
-                                                A random dashboard password will be generated. Sidebar and routes use this role's permissions.
-                                            </p>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
                             {error && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 12 }}>{error}</div>}
                             <div style={{ display: 'flex', gap: 10 }}>
                                 <button onClick={handleReset} disabled={loading || sending} style={{
@@ -289,6 +290,7 @@ function CreateAccountModal({ member, onClose }) {
                                 Phone <strong>{member.phone || '(none set)'}</strong> will be the username. PIN is shown only once.
                             </p>
                             {renderEmailConfig()}
+                            {renderAdminAccessConfig()}
                             {error && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 12 }}>{error}</div>}
                             <div style={{ display: 'flex', gap: 10 }}>
                                 <button onClick={handleCreate} disabled={loading || sending || !member.phone} style={{
