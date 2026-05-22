@@ -138,11 +138,14 @@ jobs:
             make ps
 
       - name: Verify deployment health
+        env:
+          HEALTHCHECK_URL: ${{ secrets.HEALTHCHECK_URL || 'https://api.construction.nishanaweb.cloud/api/v1/health/' }}
         run: |
           sleep 15
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            https://${{ secrets.VPS_HOST_PUBLIC }}/api/v1/health/ \
-            --max-time 30 || echo "000")
+          STATUS=$(curl -sS -o /dev/null -w "%{http_code}" \
+            "$HEALTHCHECK_URL" \
+            --max-time 30) || STATUS="000"
+          echo "Health check URL: $HEALTHCHECK_URL"
           echo "Health check HTTP status: $STATUS"
           if [ "$STATUS" != "200" ]; then
             echo "❌ Health check failed (HTTP $STATUS) — deployment may be broken"
