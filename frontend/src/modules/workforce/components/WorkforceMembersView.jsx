@@ -302,6 +302,7 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
     const [drawer, setDrawer]       = useState(null); // null | 'new' | <member obj>
     const [importing, setImporting] = useState(false);
     const [importResult, setImportResult] = useState(null);
+    const [importPreview, setImportPreview] = useState(null);
     const [error, setError]         = useState('');
     const [showIDCard, setShowIDCard]       = useState(false);
     const [idCardMemberId, setIdCardMemberId] = useState(null);
@@ -316,27 +317,36 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
         if (projectId) setSelectedProject(projectId);
     }, [projectId]);
 
+    const effectiveProjectId = hideProjectFilter
+        ? projectId
+        : (selectedProject || projectId || activeProjectId || '');
+
     const load = useCallback(async () => {
         setLoading(true); setError('');
         try {
             const params = { page_size: 1000 };
-            const finalProjectId = hideProjectFilter ? projectId : selectedProject;
+            const finalProjectId = effectiveProjectId;
             
             if (finalProjectId) params.current_project = finalProjectId;
             if (statusFilter)    params.status          = statusFilter;
             if (typeFilter)      params.worker_type     = typeFilter;
             if (search)          params.search          = search;
 
-            const [m, s] = await Promise.all([
+            const importBody = { dry_run: true };
+            if (finalProjectId) importBody.project = finalProjectId;
+
+            const [m, s, preview] = await Promise.all([
                 workforceService.getMembers(params),
                 workforceService.getSummaryStats(finalProjectId),
+                workforceService.seedFromAttendance(importBody).catch(() => null),
             ]);
             setMembers(Array.isArray(m) ? m : (m.results || []));
             setStats(s);
+            setImportPreview(preview);
         } catch {
             setError('Failed to load workforce members.');
         } finally { setLoading(false); }
-    }, [projectId, selectedProject, statusFilter, typeFilter, search, hideProjectFilter]);
+    }, [effectiveProjectId, statusFilter, typeFilter, search]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -344,7 +354,7 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
         setImporting(true); setError(''); setImportResult(null);
         try {
             const body = { dry_run: dryRun };
-            const finalProjectId = hideProjectFilter ? projectId : selectedProject;
+            const finalProjectId = effectiveProjectId;
             if (finalProjectId) body.project = finalProjectId;
             const result = await workforceService.seedFromAttendance(body);
             setImportResult(result);
@@ -353,6 +363,12 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
             setError(e?.response?.data?.detail || 'Import failed.');
         } finally { setImporting(false); }
     };
+
+    const pendingAttendanceImports =
+        importPreview?.would_create ??
+        importPreview?.total_eligible ??
+        stats?.unlinked ??
+        0;
 
     const handleQuickStatus = async (member, newStatus) => {
         try {
@@ -392,10 +408,10 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
             <StatsBar stats={stats} />
 
             {/* Import from Attendance banner */}
-            {stats && stats.unlinked > 0 && !importResult && (
+            {pendingAttendanceImports > 0 && !(importResult && !importResult.dry_run) && (
                 <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 10, padding: '12px 16px', marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                     <div>
-                        <strong style={{ fontSize: 13 }}>👷 {stats.unlinked} attendance worker{stats.unlinked !== 1 ? 's' : ''} not yet in Workforce</strong>
+                        <strong style={{ fontSize: 13 }}>👷 {pendingAttendanceImports} attendance worker{pendingAttendanceImports !== 1 ? 's' : ''} not yet in Workforce</strong>
                         <div style={{ fontSize: 12, color: '#92400e', marginTop: 2 }}>Import them to create full profiles with payroll, skills and documents.</div>
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
