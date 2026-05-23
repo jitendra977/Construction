@@ -1,5 +1,7 @@
 from datetime import timedelta
 from django.utils import timezone
+from django.contrib.auth import get_user_model
+from django.db.models import Q
 from rest_framework import viewsets, views, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -26,6 +28,39 @@ def _user_avatar_url(request, user):
         return url
     except (ValueError, AttributeError):
         return None
+
+
+def _allowed_project_ids_for_user(user):
+    """
+    Scope location tracking to the projects the current user actually belongs to.
+    This prevents pings and live views from leaking across unrelated projects.
+    """
+    if not user or not user.is_authenticated:
+        return set()
+
+    project_ids = set()
+
+    if getattr(user, 'active_project_id', None):
+        project_ids.add(user.active_project_id)
+
+    try:
+        project_ids.update(user.assigned_projects.values_list('id', flat=True))
+    except Exception:
+        pass
+
+    try:
+        project_ids.update(user.project_memberships.values_list('project_id', flat=True))
+    except Exception:
+        pass
+
+    try:
+        member = getattr(user, 'workforce_profile', None)
+        if member and member.current_project_id:
+            project_ids.add(member.current_project_id)
+    except Exception:
+        pass
+
+    return {pid for pid in project_ids if pid}
 
 
 class GeofenceViewSet(viewsets.ModelViewSet):
@@ -108,7 +143,10 @@ class LocationPingView(views.APIView):
             pass
 
         # 3. Find if ping is inside any active geofence
+        allowed_project_ids = _allowed_project_ids_for_user(user)
         active_geofences = ProjectGeofence.objects.filter(is_active=True).select_related('project')
+        if allowed_project_ids:
+            active_geofences = active_geofences.filter(project_id__in=allowed_project_ids)
         matched_project = None
         matched_geofence = None
 
@@ -210,11 +248,21 @@ class LivePositionsView(views.APIView):
         if not project_id:
             return Response({"error": "project query param required."}, status=400)
 
-        # 1. Fetch the absolute latest GPS logs for ALL users in the last 12 hours
+        allowed_user_ids = set()
+        User = get_user_model()
+        project_users = User.objects.filter(
+            Q(active_project_id=project_id) |
+            Q(assigned_projects__id=project_id) |
+            Q(project_memberships__project_id=project_id) |
+            Q(workforce_profile__current_project_id=project_id)
+        ).distinct()
+        allowed_user_ids.update(project_users.values_list('id', flat=True))
+
+        # 1. Fetch the absolute latest GPS logs for users related to this project in the last 12 hours
         time_limit = timezone.now() - timedelta(hours=12)
         recent_logs = (
             StaffLocationLog.objects
-            .filter(timestamp__gte=time_limit)
+            .filter(timestamp__gte=time_limit, user_id__in=allowed_user_ids)
             .select_related('user')
             .order_by('-timestamp')
         )

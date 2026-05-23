@@ -295,6 +295,18 @@ export default function LiveSiteMap({ projectId }) {
     );
     const hasGeofence = projectGeofences.length > 0;
     const isMobile    = !!mobileMatch;
+    const onSiteWorkers = useMemo(
+        () => livePositions.filter(w => !w.is_off_site),
+        [livePositions],
+    );
+    const offSiteWorkers = useMemo(
+        () => livePositions.filter(w => w.is_off_site),
+        [livePositions],
+    );
+    const noGpsWorkers = useMemo(
+        () => onSiteWorkers.filter(w => w.latitude == null),
+        [onSiteWorkers],
+    );
 
     const mapCenter = useMemo(() => {
         if (projectGeofences.length > 0)
@@ -532,10 +544,10 @@ export default function LiveSiteMap({ projectId }) {
             {/* Summary footer */}
             <div className="border-t border-gray-100 p-3 grid grid-cols-4 gap-2 shrink-0 bg-gray-50">
                 {[
-                    { label: 'On-Site', value: livePositions.length,                                  color: 'text-emerald-600' },
-                    { label: 'No GPS',  value: livePositions.filter(w => w.latitude == null).length,  color: 'text-yellow-500'  },
-                    { label: 'Zones',   value: projectGeofences.length,                               color: 'text-indigo-600'  },
-                    { label: 'Pins',    value: projectPins.length,                                    color: 'text-amber-600'   },
+                    { label: 'On-Site',  value: onSiteWorkers.length,  color: 'text-emerald-600' },
+                    { label: 'Off-Site', value: offSiteWorkers.length, color: 'text-rose-500' },
+                    { label: 'No GPS',   value: noGpsWorkers.length,   color: 'text-yellow-500' },
+                    { label: 'Pins',     value: projectPins.length,    color: 'text-amber-600' },
                 ].map(s => (
                     <div key={s.label} className="text-center">
                         <div className={`text-lg font-black ${s.color}`}>{s.value}</div>
@@ -728,9 +740,9 @@ export default function LiveSiteMap({ projectId }) {
                     onClick={() => setMobilePanelOpen(true)}
                     className="absolute bottom-3 right-3 z-[400] flex items-center gap-2 bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200 px-4 py-2.5 active:scale-95 transition-transform"
                 >
-                    <span className="text-[11px] font-black text-indigo-600">{livePositions.length} On-Site</span>
+                    <span className="text-[11px] font-black text-indigo-600">{onSiteWorkers.length} On-Site</span>
                     <span className="text-gray-300">·</span>
-                    <span className="text-[11px] font-bold text-gray-500">{projectPins.length} Pins</span>
+                    <span className="text-[11px] font-bold text-gray-500">{offSiteWorkers.length} Off-Site</span>
                     <span className="text-gray-400 text-sm ml-1">▲</span>
                 </button>
             )}
@@ -785,7 +797,7 @@ export default function LiveSiteMap({ projectId }) {
                     {/* On-site count — desktop only (mobile uses bottom pill) */}
                     {!isMobile && (
                         <div className="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-lg border border-emerald-200 font-black text-xs">
-                            {livePositions.length} On-Site
+                            {onSiteWorkers.length} On-Site
                         </div>
                     )}
                 </div>

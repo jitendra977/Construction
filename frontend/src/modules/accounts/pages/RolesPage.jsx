@@ -50,6 +50,42 @@ const PERMISSIONS_BY_GROUP = PERMISSIONS.reduce((acc, perm) => {
     return acc;
 }, {});
 
+const PERMISSION_GROUP_NEPALI = {
+    System: { label: 'प्रणाली', hint: 'सम्पूर्ण सिस्टम नियन्त्रण र मुख्य पहुँच' },
+    Projects: { label: 'परियोजना', hint: 'परियोजना पहुँच र परियोजना सञ्चालन' },
+    Dashboard: { label: 'ड्यासबोर्ड', hint: 'होम, विश्लेषण, अनुमान, गाइड र मिडिया' },
+    Profile: { label: 'प्रोफाइल', hint: 'व्यक्तिगत प्रोफाइल सम्बन्धित पृष्ठहरू' },
+    'Admin Config': { label: 'एडमिन कन्फिग', hint: 'युजर, रोल, एक्टिभिटी र एडमिन टुल्स' },
+    Construction: { label: 'निर्माण', hint: 'फेज, टास्क र टाइमलाइन नियन्त्रण' },
+    Finance: { label: 'वित्त', hint: 'बजेट, खर्च र भुक्तानी' },
+    Structure: { label: 'संरचना', hint: 'तल्ला र कोठा सम्बन्धित पहुँच' },
+    Resources: { label: 'स्रोतसाधन', hint: 'सामग्री, सप्लायर र खरिद' },
+    Workforce: { label: 'कार्यबल', hint: 'कामदार, हाजिरी, पेरोल र टिम' },
+    Admin: { label: 'एडमिन टुल्स', hint: 'सेटिङ्स र डाटा ट्रान्सफर' },
+};
+
+const PERMISSION_NEPALI = {
+    can_manage_all_systems: { label: 'सबै सिस्टम व्यवस्थापन', desc: 'पूरा सिस्टममा पूर्ण पहुँच' },
+    can_view_projects: { label: 'परियोजना हेर्न', desc: 'आवंटित परियोजनाहरू खोल्न मिल्ने' },
+    can_manage_projects: { label: 'परियोजना व्यवस्थापन', desc: 'परियोजना सिर्जना, सम्पादन र हटाउन मिल्ने' },
+    can_view_dashboard: { label: 'ड्यासबोर्ड हेर्न', desc: 'ड्यासबोर्ड, एनालिटिक्स, इस्टिमेटर, ग्यालरी र गाइड हेर्न' },
+    can_view_profile: { label: 'प्रोफाइल हेर्न', desc: 'व्यक्तिगत प्रोफाइल पृष्ठहरू खोल्न' },
+    can_manage_admin_config: { label: 'एडमिन कन्फिग व्यवस्थापन', desc: 'युजर, रोल, एक्टिभिटी र एडमिन टुल्स चलाउन' },
+    can_view_phases: { label: 'फेज हेर्न', desc: 'फेज र टाइमलाइन हेर्न मात्र' },
+    can_manage_phases: { label: 'फेज र टास्क व्यवस्थापन', desc: 'निर्माण कार्य सिर्जना र सम्पादन गर्न' },
+    can_view_finances: { label: 'वित्त हेर्न', desc: 'वित्तीय डाटा हेर्न मात्र' },
+    can_manage_finances: { label: 'वित्त व्यवस्थापन', desc: 'खर्च, बजेट र भुक्तानी सम्पादन गर्न' },
+    can_view_structure: { label: 'संरचना हेर्न', desc: 'तल्ला र कोठा हेर्न मात्र' },
+    can_manage_structure: { label: 'संरचना व्यवस्थापन', desc: 'तल्ला र कोठा सिर्जना वा सम्पादन गर्न' },
+    can_view_resources: { label: 'स्रोतसाधन हेर्न', desc: 'सामग्री र सप्लायर हेर्न मात्र' },
+    can_manage_resources: { label: 'स्रोतसाधन व्यवस्थापन', desc: 'सामग्री, सप्लायर र खरिद चलाउन' },
+    can_view_workforce: { label: 'कार्यबल हेर्न', desc: 'कामदार र हाजिरी हेर्न मात्र' },
+    can_manage_workforce: { label: 'कार्यबल व्यवस्थापन', desc: 'कामदार, हाजिरी र पेरोल सञ्चालन गर्न' },
+    can_manage_users: { label: 'युजर र रोल व्यवस्थापन', desc: 'युजर आमन्त्रण, सम्पादन र निष्क्रिय गर्न' },
+    can_manage_settings: { label: 'सेटिङ्स व्यवस्थापन', desc: 'एप्लिकेशन सेटिङ्स परिवर्तन गर्न' },
+    can_manage_data_transfer: { label: 'डाटा ट्रान्सफर व्यवस्थापन', desc: 'इम्पोर्ट, एक्सपोर्ट र रिस्टोर चलाउन' },
+};
+
 const PAGE_CSS = `
   .roles-page-shell {
     width: 100%;
@@ -947,21 +983,29 @@ export default function RolesPage() {
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, marginBottom:12 }}>
                     <div>
                         <p style={{ margin:0, fontSize:11, fontWeight:900, color:'var(--t-text3)', textTransform:'uppercase', letterSpacing:'0.07em' }}>📖 Permission reference</p>
-                        <p style={{ margin:'4px 0 0', fontSize:12, color:'var(--t-text3)' }}>All permissions grouped by area.</p>
+                        <p style={{ margin:'4px 0 0', fontSize:12, color:'var(--t-text3)' }}>All permissions grouped by area | सबै अनुमति क्षेत्र अनुसार समूहबद्ध</p>
                     </div>
                 </div>
                 <div className="roles-legend-grid" style={{ display:'grid', gap:12 }}>
                     {PERMISSION_GROUPS.map(group => (
                         <div key={group.key} style={{ padding:14, borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-bg)' }}>
-                            <p style={{ margin:0, fontSize:12, fontWeight:900, color:'var(--t-text)' }}>{group.icon} {group.label}</p>
-                            <p style={{ margin:'4px 0 10px', fontSize:10, color:'var(--t-text3)' }}>{group.hint}</p>
+                            <p style={{ margin:0, fontSize:12, fontWeight:900, color:'var(--t-text)' }}>
+                                {group.icon} {group.label} / {PERMISSION_GROUP_NEPALI[group.key]?.label || group.label}
+                            </p>
+                            <p style={{ margin:'4px 0 10px', fontSize:10, color:'var(--t-text3)' }}>
+                                {group.hint} | {PERMISSION_GROUP_NEPALI[group.key]?.hint || group.hint}
+                            </p>
                             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                                 {(PERMISSIONS_BY_GROUP[group.key] || []).map(p => (
                                     <div key={p.key} style={{ display:'flex', gap:8, alignItems:'flex-start' }}>
                                         <span style={{ width:8, height:8, borderRadius:2, background:'#6366f1', marginTop:4, flexShrink:0 }} />
                                         <div>
-                                            <p style={{ margin:0, fontSize:11, fontWeight:700, color:'var(--t-text)' }}>{p.label}</p>
-                                            <p style={{ margin:'1px 0 0', fontSize:10, color:'var(--t-text3)' }}>{p.desc}</p>
+                                            <p style={{ margin:0, fontSize:11, fontWeight:700, color:'var(--t-text)' }}>
+                                                {p.label} / {PERMISSION_NEPALI[p.key]?.label || p.label}
+                                            </p>
+                                            <p style={{ margin:'1px 0 0', fontSize:10, color:'var(--t-text3)' }}>
+                                                {p.desc} | {PERMISSION_NEPALI[p.key]?.desc || p.desc}
+                                            </p>
                                         </div>
                                     </div>
                                 ))}
