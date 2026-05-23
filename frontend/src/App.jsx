@@ -82,7 +82,17 @@ const DashboardRouter = () => {
 };
 
 function App() {
-  const isAuthenticated = authService.isAuthenticated();
+  const [isAuthenticated, setIsAuthenticated] = useState(() => authService.isAuthenticated());
+
+  useEffect(() => {
+    const syncAuth = () => setIsAuthenticated(authService.isAuthenticated());
+    window.addEventListener('auth-changed', syncAuth);
+    window.addEventListener('storage', syncAuth);
+    return () => {
+      window.removeEventListener('auth-changed', syncAuth);
+      window.removeEventListener('storage', syncAuth);
+    };
+  }, []);
 
   return (
     <ThemeProvider>

@@ -376,11 +376,14 @@ def send_worker_portal_credentials(
     recipient_email,
     worker_name,
     employee_id,
-    username,
+    portal_username,
     pin,
     password='',
+    admin_username='',
     admin_url='',
     project_name='Construction Site',
+    project_address='',
+    role_name='',
     portal_url='',
     user=None,
 ):
@@ -398,15 +401,18 @@ def send_worker_portal_credentials(
     subject = f"Your Worker Portal Access — {project_name}"
 
     context = {
-        'worker_name':  worker_name,
-        'employee_id':  employee_id,
-        'username':     username,
-        'pin':          pin,
-        'password':     password,
-        'admin_url':    admin_url or '',
-        'has_admin_access': bool(password),
-        'project_name': project_name,
-        'portal_url':   portal_url or '#',
+        'worker_name':      worker_name,
+        'employee_id':      employee_id,
+        'portal_username':  portal_username,
+        'pin':              pin,
+        'password':         password,
+        'admin_username':   admin_username or '',
+        'admin_url':        admin_url or '',
+        'has_admin_access': bool(password and admin_username),
+        'project_name':     project_name,
+        'project_address':  project_address or '',
+        'role_name':        role_name or '',
+        'portal_url':       portal_url or '#',
     }
 
     html_content = render_to_string('emails/worker_portal_credentials.html', context)

@@ -178,6 +178,58 @@ class WorkforceAttendanceImportTestCase(TestCase):
         self.assertEqual(member.account.active_project_id, self.project.id)
         self.assertTrue(member.account.assigned_projects.filter(pk=self.project.id).exists())
 
+    def test_update_account_can_enable_admin_access_for_existing_portal(self):
+        role = Role.objects.create(
+            code="SITE_MANAGER",
+            name="Site Manager",
+            can_manage_workforce=True,
+            can_manage_users=True,
+        )
+        member = WorkforceMember(
+            worker_type="LABOUR",
+            status="ACTIVE",
+            join_date=date(2026, 1, 10),
+            current_project=self.project,
+            created_by=self.user,
+        )
+        member.first_name = "Existing"
+        member.last_name = "Portal"
+        member.phone = "+81-90-4444-5555"
+        member.email = "existing-portal@example.com"
+        member.save()
+
+        create_response = self.client.post(
+            f"/api/v1/workforce/members/{member.id}/create_account/",
+            {"pin": "123456"},
+            format="json",
+        )
+        self.assertEqual(create_response.status_code, 201)
+
+        update_response = self.client.post(
+            f"/api/v1/workforce/members/{member.id}/update_account/",
+            {
+                "admin_access": True,
+                "role_id": role.id,
+                "email": "existing-admin@example.com",
+                "reset_admin_password": True,
+                "reset_pin": False,
+                "project_id": self.project.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(update_response.status_code, 200)
+        self.assertTrue(update_response.data["admin_access"])
+        self.assertTrue(update_response.data["password"])
+        self.assertIsNone(update_response.data["pin"])
+
+        member.refresh_from_db()
+        self.assertTrue(member.check_portal_pin("123456"))
+        self.assertTrue(member.account.is_staff)
+        self.assertEqual(member.account.role_id, role.id)
+        self.assertEqual(member.account.email, "existing-admin@example.com")
+        self.assertTrue(member.account.check_password(update_response.data["password"]))
+
     def test_worker_portal_launch_mints_tokens_without_pin(self):
         member = WorkforceMember(
             worker_type="LABOUR",

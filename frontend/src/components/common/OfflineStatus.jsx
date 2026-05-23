@@ -2,6 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Wifi, WifiOff, RefreshCw, Inbox, CheckCircle } from 'lucide-react';
 import offlineQueue from '../../services/offlineQueue';
 
+const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
+const HEALTHCHECK_URL = `${API_URL}/health/`;
+
 /**
  * OfflineStatus — connectivity + offline-queue feedback.
  *
@@ -19,6 +22,7 @@ const OfflineStatus = () => {
     const [syncing, setSyncing] = useState(false);
     const [justSynced, setJustSynced] = useState(false);
     const syncTimer = useRef(null);
+    const probeTimer = useRef(null);
 
     const refreshCount = async () => {
         try {
@@ -29,12 +33,40 @@ const OfflineStatus = () => {
         }
     };
 
+    const probeConnectivity = async () => {
+        try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 5000);
+            const res = await fetch(HEALTHCHECK_URL, {
+                method: 'GET',
+                cache: 'no-store',
+                signal: controller.signal,
+                credentials: 'same-origin',
+            });
+            clearTimeout(timeout);
+            return res.ok;
+        } catch {
+            return false;
+        }
+    };
+
     useEffect(() => {
-        const handleOnline = () => {
+        const verifyAndSetOnline = async () => {
+            const ok = await probeConnectivity();
+            setOnline(ok);
+            return ok;
+        };
+
+        const handleOnline = async () => {
             setOnline(true);
             setSyncing(true);
             // Give the flush handler in api.js a moment to run, then refresh
             syncTimer.current = setTimeout(async () => {
+                const ok = await verifyAndSetOnline();
+                if (!ok) {
+                    setSyncing(false);
+                    return;
+                }
                 await refreshCount();
                 setSyncing(false);
                 setJustSynced(true);
@@ -42,8 +74,9 @@ const OfflineStatus = () => {
             }, 2500);
         };
 
-        const handleOffline = () => {
-            setOnline(false);
+        const handleOffline = async () => {
+            const ok = await probeConnectivity();
+            setOnline(ok);
             setSyncing(false);
         };
 
@@ -51,15 +84,20 @@ const OfflineStatus = () => {
         window.addEventListener('offline', handleOffline);
         window.addEventListener('offline-queue-changed', refreshCount);
 
-        // Poll queue count every 15s so the badge stays accurate
+        // Initial sync and queue count
         refreshCount();
+        verifyAndSetOnline();
+
+        // Poll queue count every 15s so the badge stays accurate
         const poll = setInterval(refreshCount, 15000);
+        probeTimer.current = setInterval(verifyAndSetOnline, 30000);
 
         return () => {
             window.removeEventListener('online', handleOnline);
             window.removeEventListener('offline', handleOffline);
             window.removeEventListener('offline-queue-changed', refreshCount);
             clearInterval(poll);
+            clearInterval(probeTimer.current);
             clearTimeout(syncTimer.current);
         };
     }, []);

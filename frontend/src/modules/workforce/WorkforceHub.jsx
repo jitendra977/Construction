@@ -102,7 +102,6 @@ function CreateAccountModal({ member, onClose }) {
                         recipient_email: resolvedEmail,
                         pin:             data.pin,
                         portal_url:      `${window.location.origin}/worker`,
-                        project_name:    member.project_name || 'Construction Site',
                     });
                     setEmailStatus('sent');
                 } catch (e) {

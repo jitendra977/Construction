@@ -1,5 +1,11 @@
 import api from './api';
 
+const emitAuthChanged = () => {
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('auth-changed'));
+    }
+};
+
 export const authService = {
     // Login user
     login: async (username, password) => {
@@ -15,6 +21,7 @@ export const authService = {
             localStorage.setItem('access_token', access);
             localStorage.setItem('refresh_token', refresh);
             localStorage.setItem('user', JSON.stringify(user));
+            emitAuthChanged();
 
             return { success: true, user };
         } catch (error) {
@@ -41,6 +48,7 @@ export const authService = {
             localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
             localStorage.removeItem('user');
+            emitAuthChanged();
         }
     },
 
@@ -96,6 +104,7 @@ export const authService = {
 
             // Update stored user info
             localStorage.setItem('user', JSON.stringify(response.data));
+            emitAuthChanged();
 
             return { success: true, user: response.data };
         } catch (error) {

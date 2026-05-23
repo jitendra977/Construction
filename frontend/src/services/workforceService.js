@@ -95,6 +95,9 @@ const workforceService = {
     createAccount: (id, data = {}) =>
         api.post(`members/${id}/create_account/`, data).then(r => r.data),
 
+    updateAccount: (id, data = {}) =>
+        api.post(`members/${id}/update_account/`, data).then(r => r.data),
+
     resetPin: (id, data = {}) =>
         api.post(`members/${id}/reset_pin/`, data).then(r => r.data),
 

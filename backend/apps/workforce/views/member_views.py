@@ -599,6 +599,137 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
         })
 
     @action(detail=True, methods=['post'])
+    def update_account(self, request, pk=None):
+        """
+        POST /api/v1/workforce/members/{id}/update_account/
+
+        Updates an existing worker portal account. Supports:
+        - enabling/disabling admin panel access
+        - changing the system role
+        - updating assigned/current project
+        - optionally resetting the worker PIN
+        - optionally generating a new admin password
+        """
+        import random, string
+        from django.utils.crypto import get_random_string
+        from apps.accounts.models import Role
+        from apps.core.models import HouseProject
+
+        def as_bool(value):
+            if isinstance(value, bool):
+                return value
+            if value is None:
+                return None
+            return str(value).strip().lower() in {'1', 'true', 'yes', 'on'}
+
+        member = self.get_object()
+        user = member.account
+        if not user:
+            return Response(
+                {'error': 'This member does not have a portal account yet.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        admin_access = as_bool(request.data.get('admin_access'))
+        if admin_access is None:
+            admin_access = bool(user.is_staff or user.role_id)
+
+        role = user.role
+        raw_password = None
+        email = str((request.data.get('email') or user.email or member.email or '')).strip().lower()
+        reset_admin_password = as_bool(request.data.get('reset_admin_password')) or False
+
+        if admin_access:
+            role_id = request.data.get('role_id')
+            if not role_id:
+                return Response(
+                    {'error': 'role_id is required when admin_access is enabled.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            try:
+                role = Role.objects.get(pk=role_id)
+            except Role.DoesNotExist:
+                return Response({'error': 'Role not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+            if not email:
+                return Response(
+                    {'error': 'A valid admin login email is required when admin access is enabled.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if email != user.email and user.__class__.objects.filter(email=email).exclude(pk=user.pk).exists():
+                return Response(
+                    {'error': f'An account already exists for email {email}.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if not bool(user.is_staff or user.role_id) or reset_admin_password or not user.has_usable_password():
+                raw_password = request.data.get('password') or get_random_string(14)
+                user.set_password(raw_password)
+        else:
+            role = None
+            user.set_unusable_password()
+
+        project = None
+        project_param_present = 'project_id' in request.data or 'project' in request.data
+        project_id = request.data.get('project_id') if 'project_id' in request.data else request.data.get('project')
+        if project_param_present and project_id:
+            try:
+                project = HouseProject.objects.get(pk=project_id)
+            except HouseProject.DoesNotExist:
+                return Response({'error': 'Project not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        raw_pin = None
+        reset_pin = as_bool(request.data.get('reset_pin')) or False
+        provided_pin = str(request.data.get('pin') or '').strip()
+        if provided_pin and (not provided_pin.isdigit() or len(provided_pin) < 4 or len(provided_pin) > 6):
+            return Response(
+                {'error': 'PIN must be 4-6 digits.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if reset_pin:
+            raw_pin = provided_pin or ''.join(random.choices(string.digits, k=6))
+            member.set_portal_pin(raw_pin)
+
+        user.role = role
+        user.is_staff = admin_access
+        if admin_access and email:
+            user.email = email
+        if project_param_present:
+            user.active_project = project
+
+        user_update_fields = ['password', 'role', 'is_staff']
+        if admin_access and email:
+            user_update_fields.append('email')
+        if project_param_present:
+            user_update_fields.append('active_project')
+        user.save(update_fields=user_update_fields)
+
+        if project_param_present:
+            if project:
+                user.assigned_projects.add(project)
+            member.current_project = project
+
+        member_update_fields = ['updated_at']
+        if reset_pin:
+            member_update_fields.append('portal_pin_hash')
+        if project_param_present:
+            member_update_fields.append('current_project')
+        member.save(update_fields=member_update_fields)
+
+        return Response({
+            'message': f'Account updated for {member.full_name}.',
+            'employee_id': member.employee_id,
+            'username': user.username,
+            'pin': raw_pin,
+            'admin_access': admin_access,
+            'admin_username': user.email if admin_access else None,
+            'password': raw_password if admin_access else None,
+            'role': role.name if role else None,
+            'project': project.id if project else member.current_project_id,
+            'project_name': project.name if project else (member.current_project.name if member.current_project_id else None),
+        })
+
+    @action(detail=True, methods=['post'])
     def send_credentials(self, request, pk=None):
         """
         POST /api/v1/workforce/members/{id}/send_credentials/
@@ -612,6 +743,7 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
             pin              — plaintext PIN (required — only known at creation time)
             portal_url       — full URL of the worker portal (optional)
             project_name     — display name for the email header (optional)
+            project_address  — display address for the project (optional)
         """
         from apps.core.email_utils import send_worker_portal_credentials
 
@@ -621,28 +753,30 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
         password        = request.data.get('password', '').strip()
         admin_url       = request.data.get('admin_url', '')
         portal_url      = request.data.get('portal_url', '')
-        project_name    = request.data.get('project_name', 'Construction Site')
+        project         = member.current_project
+        project_name    = request.data.get('project_name') or (project.name if project else 'Construction Site')
+        project_address = request.data.get('project_address') or (project.address if project else '')
+        portal_username = member.phone or (member.account.username if member.account else '')
+        admin_username  = member.account.email if password and member.account else ''
+        role_name       = member.account.role.name if member.account and member.account.role_id else ''
 
         if not recipient_email:
             return Response({'error': 'recipient_email is required.'}, status=status.HTTP_400_BAD_REQUEST)
         if not pin:
             return Response({'error': 'pin is required (PIN is only available immediately after account creation).'}, status=status.HTTP_400_BAD_REQUEST)
 
-        username = (
-            member.account.email
-            if password and member.account
-            else member.phone or (member.account.username if member.account else '')
-        )
-
         ok = send_worker_portal_credentials(
             recipient_email = recipient_email,
             worker_name     = member.full_name,
             employee_id     = member.employee_id,
-            username        = username,
+            portal_username = portal_username,
             pin             = pin,
             password        = password,
+            admin_username  = admin_username,
             admin_url       = admin_url,
             project_name    = project_name,
+            project_address = project_address,
+            role_name       = role_name,
             portal_url      = portal_url,
             user            = request.user,
         )

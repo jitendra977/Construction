@@ -22,6 +22,10 @@ class WorkforceMemberSerializer(serializers.ModelSerializer):
     worker_type_display = serializers.CharField(source='get_worker_type_display', read_only=True)
     role_name = serializers.ReadOnlyField(source='role.title')
     project_name = serializers.ReadOnlyField(source='current_project.name')
+    account_email = serializers.SerializerMethodField()
+    has_admin_access = serializers.SerializerMethodField()
+    account_role_id = serializers.SerializerMethodField()
+    account_role_name = serializers.SerializerMethodField()
 
     # Nested Relations (Detailed View)
     skills = WorkerSkillSerializer(many=True, read_only=True)
@@ -42,6 +46,7 @@ class WorkforceMemberSerializer(serializers.ModelSerializer):
             'phone', 'phone_alt', 'email', 'address', 'worker_type', 
             'worker_type_display', 'role', 'role_name', 'status', 'status_display', 
             'join_date', 'end_date', 'current_project', 'project_name',
+            'account_email', 'has_admin_access', 'account_role_id', 'account_role_name',
             'is_active', 'has_attendance_link', 'attendance_worker',
             'skills', 'documents', 'contracts', 'emergency_contacts',
             'wage_structures', 'evaluations', 'last_evaluation_rating',
@@ -51,6 +56,18 @@ class WorkforceMemberSerializer(serializers.ModelSerializer):
     def get_last_evaluation_rating(self, obj):
         last_eval = obj.evaluations.order_by('-eval_date').first()
         return last_eval.overall_score if last_eval else None
+
+    def get_account_email(self, obj):
+        return obj.account.email if obj.account_id else ''
+
+    def get_has_admin_access(self, obj):
+        return bool(obj.account_id and (obj.account.is_staff or obj.account.role_id))
+
+    def get_account_role_id(self, obj):
+        return obj.account.role_id if obj.account_id else None
+
+    def get_account_role_name(self, obj):
+        return obj.account.role.name if obj.account_id and obj.account.role_id else ''
 
     def create(self, validated_data):
         # Explicitly map properties to underscore fields for the model constructor
@@ -126,6 +143,10 @@ class WorkforceMemberListSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     project_name   = serializers.ReadOnlyField(source='current_project.name')
     photo          = serializers.ImageField(read_only=True)
+    account_email = serializers.SerializerMethodField()
+    has_admin_access = serializers.SerializerMethodField()
+    account_role_id = serializers.SerializerMethodField()
+    account_role_name = serializers.SerializerMethodField()
 
     # Attendance bridge — populated via SerializerMethodField so we can
     # include live today-data without hitting N+1 queries (caller should
@@ -144,6 +165,7 @@ class WorkforceMemberListSerializer(serializers.ModelSerializer):
             'id', 'account', 'employee_id', 'full_name', 'name', 'photo', 'phone',
             'worker_type', 'role', 'role_name', 'status', 'status_display',
             'current_project', 'project_name',
+            'account_email', 'has_admin_access', 'account_role_id', 'account_role_name',
             # Attendance live data
             'has_attendance_link', 'attendance_worker_id',
             'daily_rate', 'qr_token',
@@ -201,3 +223,15 @@ class WorkforceMemberListSerializer(serializers.ModelSerializer):
 
     def get_attendance_worker_id(self, obj):
         return obj.attendance_worker_id  # raw FK int, no extra query
+
+    def get_account_email(self, obj):
+        return obj.account.email if obj.account_id else ''
+
+    def get_has_admin_access(self, obj):
+        return bool(obj.account_id and (obj.account.is_staff or obj.account.role_id))
+
+    def get_account_role_id(self, obj):
+        return obj.account.role_id if obj.account_id else None
+
+    def get_account_role_name(self, obj):
+        return obj.account.role.name if obj.account_id and obj.account.role_id else ''
