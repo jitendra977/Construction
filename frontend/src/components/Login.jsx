@@ -141,7 +141,7 @@ const STRENGTH_COLOR = ['', '#ef4444', '#f59e0b', '#3b82f6', '#10b981'];
 
 // ── GPS permission hook (login page) ─────────────────────────────────────────
 function useGeoPermission() {
-    // 'checking' | 'prompting' | 'granted' | 'denied' | 'unavailable'
+    // 'checking' | 'prompt' | 'prompting' | 'granted' | 'denied' | 'unavailable'
     const [geoStatus, setGeoStatus] = useState('checking');
 
     useEffect(() => {
@@ -150,18 +150,9 @@ function useGeoPermission() {
             return;
         }
 
-        const tryAutoPrompt = () => {
-            setGeoStatus('prompting');
-            navigator.geolocation.getCurrentPosition(
-                () => setGeoStatus('granted'),
-                (err) => setGeoStatus(err.code === 1 ? 'denied' : 'granted'), // non-permission errors → still let them proceed
-                { enableHighAccuracy: true, timeout: 12_000, maximumAge: 0 },
-            );
-        };
-
         if (!navigator?.permissions) {
-            // Permissions API not available — trigger prompt directly
-            tryAutoPrompt();
+            // Permissions API not available — require an explicit user click
+            setGeoStatus('prompt');
             return;
         }
 
@@ -171,16 +162,17 @@ function useGeoPermission() {
             } else if (result.state === 'denied') {
                 setGeoStatus('denied');
             } else {
-                // 'prompt' — auto-show browser dialog immediately
-                tryAutoPrompt();
+                // Many browsers suppress auto-prompts on page load.
+                // Keep this as an explicit user action.
+                setGeoStatus('prompt');
             }
 
             result.onchange = () => {
                 if (result.state === 'granted')      setGeoStatus('granted');
                 else if (result.state === 'denied')  setGeoStatus('denied');
-                else                                  tryAutoPrompt();
+                else                                 setGeoStatus('prompt');
             };
-        }).catch(tryAutoPrompt);
+        }).catch(() => setGeoStatus('prompt'));
     }, []);
 
     const retry = useCallback(() => {
@@ -188,7 +180,7 @@ function useGeoPermission() {
         setGeoStatus('prompting');
         navigator.geolocation.getCurrentPosition(
             () => setGeoStatus('granted'),
-            (err) => setGeoStatus(err.code === 1 ? 'denied' : 'granted'),
+            (err) => setGeoStatus(err.code === 1 ? 'denied' : 'prompt'),
             { enableHighAccuracy: true, timeout: 12_000, maximumAge: 0 },
         );
     }, []);
@@ -235,6 +227,33 @@ function GeoGate({ geoStatus, onRetry }) {
                 <span style={{ fontSize: 12, color: '#fdba74', fontWeight: 600 }}>
                     {geoStatus === 'checking' ? 'Checking location access…' : 'Waiting for location permission…'}
                 </span>
+            </div>
+        );
+    }
+
+    if (geoStatus === 'prompt') {
+        return (
+            <div style={{
+                padding: '14px', borderRadius: 12, marginBottom: 20,
+                background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)',
+            }}>
+                <p style={{ fontSize: 12, fontWeight: 700, color: '#fdba74', marginBottom: 6 }}>
+                    Location permission required to sign in
+                </p>
+                <p style={{ fontSize: 11, color: '#fed7aa', marginBottom: 12, lineHeight: 1.5, opacity: 0.9 }}>
+                    Tap the button below and allow GPS access when your browser asks. Login stays blocked until location is granted.
+                </p>
+                <button
+                    type="button"
+                    onClick={onRetry}
+                    style={{
+                        width: '100%', padding: '10px', borderRadius: 8,
+                        background: 'rgba(249,115,22,0.16)', border: '1px solid rgba(249,115,22,0.3)',
+                        color: '#fdba74', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                    }}
+                >
+                    Allow Location
+                </button>
             </div>
         );
     }
@@ -308,7 +327,8 @@ export default function Login() {
 
     const { geoStatus, retry } = useGeoPermission();
     const geoBlocked = geoStatus === 'denied';             // hard block
-    const geoPending = geoStatus === 'checking' || geoStatus === 'prompting'; // soft pending
+    const geoPending = geoStatus === 'checking' || geoStatus === 'prompting';
+    const geoNeedsAction = geoStatus === 'prompt';
 
     const pwStrength = strengthOf(password);
     const lockTimer  = useRef(null);
@@ -350,6 +370,11 @@ export default function Login() {
         setExpired(false);
 
         // Block submission if GPS not granted
+        if (geoNeedsAction) {
+            retry();
+            return;
+        }
+
         if (geoBlocked || geoPending) return;
 
         if (isRateLimited()) {
