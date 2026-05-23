@@ -18,6 +18,7 @@ const MobileRoutes = lazyWithRetry(() => import('./routes/mobile/MobileRoutes'))
 const AboutDeveloper = lazyWithRetry(() => import('./pages/desktop/AboutDeveloper'));
 const WorkerPortal      = lazyWithRetry(() => import('./modules/worker/WorkerPortal'));
 const AttendanceKiosk   = lazyWithRetry(() => import('./modules/attendance/AttendanceKiosk'));
+const AttendanceQrKiosk = lazyWithRetry(() => import('./modules/attendance/AttendanceQrKiosk'));
 
 const LoadingFallback = () => (
   <div className="flex justify-center items-center h-screen bg-[var(--t-bg)]">
@@ -79,6 +80,27 @@ const ResponsiveRedirector = ({ children }) => {
 const DashboardRouter = () => {
   const isMobile = window.innerWidth < 1024;
   return isMobile ? <Navigate to="/dashboard/mobile" replace /> : <Navigate to="/dashboard/desktop" replace />;
+};
+
+const AppOverlays = () => {
+  const location = useLocation();
+  const isKioskRoute =
+    location.pathname.startsWith('/kiosk/') ||
+    location.pathname.startsWith('/qr-kiosk/');
+
+  if (isKioskRoute) return null;
+
+  return (
+    <>
+      <OfflineStatus />
+      <Toaster
+        position="top-right"
+        richColors
+        closeButton
+        toastOptions={{ style: { fontFamily: 'var(--body-font, sans-serif)' } }}
+      />
+    </>
+  );
 };
 
 function App() {
@@ -164,17 +186,18 @@ function App() {
                   </Suspense>
                 }
               />
+              <Route
+                path="/qr-kiosk/:projectId"
+                element={
+                  <Suspense fallback={<LoadingFallback />}>
+                    <AttendanceQrKiosk />
+                  </Suspense>
+                }
+              />
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
-            <OfflineStatus />
-            {/* Global toast notifications */}
-            <Toaster
-              position="top-right"
-              richColors
-              closeButton
-              toastOptions={{ style: { fontFamily: 'var(--body-font, sans-serif)' } }}
-            />
+            <AppOverlays />
           </ResponsiveRedirector>
         </Router>
       </ConstructionProvider>

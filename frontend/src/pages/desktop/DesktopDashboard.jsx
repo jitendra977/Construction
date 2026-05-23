@@ -3,11 +3,27 @@ import { authService } from '../../services/auth';
 import { useConstruction } from '../../context/ConstructionContext';
 import DesktopSidebar from '../../components/desktop/DesktopSidebar';
 import UnifiedButton from '../../components/unified/UnifiedButton';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { Camera, MonitorSmartphone, ScanLine, Users } from 'lucide-react';
 
 // Sidebar widths kept in sync with DesktopSidebar.jsx
 const SIDEBAR_EXPANDED  = 256;
 const SIDEBAR_COLLAPSED = 56;
+
+function openKioskWindow(path) {
+    const features = [
+        'popup=yes',
+        'width=1440',
+        'height=900',
+        'menubar=no',
+        'toolbar=no',
+        'location=no',
+        'status=no',
+        'resizable=yes',
+        'scrollbars=yes',
+    ].join(',');
+    window.open(path, 'constructpro-kiosk', features);
+}
 
 // Derive a readable page title from the current route segment
 function usePageTitle(navItems) {
@@ -23,7 +39,7 @@ function usePageTitle(navItems) {
 
 function DesktopDashboard() {
     const navigate = useNavigate();
-    const { user, loading } = useConstruction();
+    const { user, loading, activeProjectId } = useConstruction();
 
     const [collapsed, setCollapsed] = useState(() =>
         localStorage.getItem('sb_collapsed') === 'true'
@@ -111,7 +127,7 @@ function DesktopDashboard() {
                 }}
             >
                 {/* Slim top bar */}
-                <TopBar navItems={navItems} user={user} />
+                <TopBar navItems={navItems} user={user} activeProjectId={activeProjectId} />
 
                 {/* Page content */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
@@ -126,7 +142,7 @@ function DesktopDashboard() {
 }
 
 // ── Slim top bar ──────────────────────────────────────────────────────────────
-function TopBar({ navItems, user }) {
+function TopBar({ navItems, user, activeProjectId }) {
     const title = usePageTitle(navItems);
     const location = useLocation();
 
@@ -171,6 +187,7 @@ function TopBar({ navItems, user }) {
 
             {/* Right side: time + user */}
             <div className="flex items-center gap-3">
+                <AttendanceShortcutIcons activeProjectId={activeProjectId} />
                 <Clock />
                 <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg"
                     style={{ background: 'var(--t-surface2)', border: '1px solid var(--t-border)' }}>
@@ -181,6 +198,82 @@ function TopBar({ navItems, user }) {
                 </div>
             </div>
         </header>
+    );
+}
+
+function AttendanceShortcutIcons({ activeProjectId }) {
+    const navigate = useNavigate();
+    const shortcuts = [
+        {
+            key: 'attendance',
+            icon: ScanLine,
+            title: 'Attendance',
+            action: () => navigate('/dashboard/desktop/attendance'),
+            color: '#f97316',
+            bg: '#f9731615',
+            border: '#f9731640',
+        },
+        {
+            key: 'workforce',
+            icon: Users,
+            title: 'Workforce',
+            action: () => navigate('/dashboard/desktop/workforce'),
+            color: '#6366f1',
+            bg: '#6366f115',
+            border: '#6366f140',
+        },
+        {
+            key: 'nfc-kiosk',
+            icon: MonitorSmartphone,
+            title: 'NFC Kiosk',
+            action: () => activeProjectId && openKioskWindow(`/kiosk/${activeProjectId}`),
+            disabled: !activeProjectId,
+            color: '#10b981',
+            bg: '#10b98115',
+            border: '#10b98140',
+        },
+        {
+            key: 'qr-kiosk',
+            icon: Camera,
+            title: 'QR Kiosk',
+            action: () => activeProjectId && openKioskWindow(`/qr-kiosk/${activeProjectId}`),
+            disabled: !activeProjectId,
+            color: '#3b82f6',
+            bg: '#3b82f615',
+            border: '#3b82f640',
+        },
+    ];
+
+    return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {shortcuts.map(item => (
+                <button
+                    key={item.key}
+                    type="button"
+                    title={item.title}
+                    aria-label={item.title}
+                    disabled={item.disabled}
+                    onClick={item.action}
+                    style={{
+                        width: 30,
+                        height: 30,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 0,
+                        borderRadius: 9,
+                        border: `1px solid ${item.border}`,
+                        background: item.disabled ? 'var(--t-surface2)' : item.bg,
+                        color: item.disabled ? 'var(--t-text3)' : item.color,
+                        cursor: item.disabled ? 'not-allowed' : 'pointer',
+                        flexShrink: 0,
+                        boxShadow: item.disabled ? 'none' : '0 1px 2px rgba(15, 23, 42, 0.08)',
+                    }}
+                >
+                    <item.icon size={15} strokeWidth={2.1} />
+                </button>
+            ))}
+        </div>
     );
 }
 

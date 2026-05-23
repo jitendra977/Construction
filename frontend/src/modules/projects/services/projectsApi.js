@@ -26,6 +26,7 @@ const projectsApi = {
 
     /** Reset a member's permissions to their role's defaults */
     applyRoleDefaults: (memberId)  => http.post(`project-members/${memberId}/apply-role-defaults/`),
+    listProjectRoles:  ()          => http.get('project-roles/'),
 
     // ── Users (for member picker) ─────────────────────────────────────────────
     listUsers: ()                  => http.get('users/'),

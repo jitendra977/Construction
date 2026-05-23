@@ -311,6 +311,8 @@ class Command(BaseCommand):
                 self.stdout.write("  Subscribed to: nfc/+/users/request")
                 client.subscribe("nfc/+/error_state")
                 self.stdout.write("  Subscribed to: nfc/+/error_state")
+                client.subscribe("nfc/+/status")
+                self.stdout.write("  Subscribed to: nfc/+/status")
 
             # Re-subscribe on every connect (Paho requires this even on resuming sessions)
             if is_reconnect:
@@ -318,6 +320,7 @@ class Command(BaseCommand):
                 client.subscribe(ANNOUNCE_TOPIC)
                 client.subscribe("nfc/+/users/request")
                 client.subscribe("nfc/+/error_state")
+                client.subscribe("nfc/+/status")
 
             cfg.mark_connected()
         else:
@@ -364,6 +367,12 @@ class Command(BaseCommand):
         if msg.topic.endswith("/error_state"):
             mac = self._mac_from_topic(msg.topic)
             self._process_error_state(mac, payload_str)
+            return
+
+        # ── nfc/<mac>/status → online heartbeat ───────────────────────────────
+        if msg.topic.endswith("/status"):
+            mac = self._mac_from_topic(msg.topic)
+            self._process_device_status(mac, payload_str)
             return
 
         # ── nfc/<mac>/state → attendance scan ─────────────────────────────────
@@ -642,6 +651,40 @@ class Command(BaseCommand):
                     ))
         except Exception as exc:
             logger.warning("Failed to upsert NFCDevice: %s", exc)
+
+    def _process_device_status(self, mac: str, status_str: str):
+        """
+        Handle nfc/<mac>/status heartbeat messages.
+
+        The device sends a lightweight status payload, typically every 30 s.
+        We treat "online" as a heartbeat and refresh last_seen so the UI can
+        mark the device offline shortly after heartbeats stop.
+        """
+        from django.utils import timezone
+        from apps.attendance.mqtt_models import NFCDevice
+
+        if not mac:
+            return
+
+        status_value = (status_str or "").strip().lower()
+
+        try:
+            device = NFCDevice.objects.filter(mac__iexact=mac).first()
+            if not device:
+                return
+
+            if status_value == "online":
+                device.last_seen = timezone.now()
+                update_fields = ["last_seen"]
+                if device.error_state and device.error_state.upper() != "OK":
+                    device.error_state = ""
+                    device.error_since = None
+                    update_fields.extend(["error_state", "error_since"])
+                device.save(update_fields=update_fields)
+            else:
+                self.stdout.write(f"  Device {mac} status: {status_value or 'unknown'}")
+        except Exception as exc:
+            logger.warning("_process_device_status failed for %s: %s", mac, exc)
 
     # ── Scan processing ───────────────────────────────────────────────────────
 

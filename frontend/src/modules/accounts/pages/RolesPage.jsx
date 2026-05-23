@@ -1,11 +1,18 @@
 /**
  * RolesPage — view, create, edit roles and their permission flags.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAccounts } from '../context/AccountsContext';
 import accountsApi from '../services/accountsApi';
 import Modal from '../components/shared/Modal';
 import Badge from '../components/shared/Badge';
+import {
+    PROJECT_PERMISSION_META,
+    normalizeProjectRoles,
+    getProjectRoleByCode,
+    buildProjectRoleDefaults,
+} from '../utils/projectRoles';
 
 const ROLE_COLORS = { SUPER_ADMIN:'#ef4444', HOME_OWNER:'#f97316', LEAD_ENGINEER:'#3b82f6', CONTRACTOR:'#8b5cf6', VIEWER:'#6b7280' };
 
@@ -85,6 +92,42 @@ const PERMISSION_NEPALI = {
     can_manage_settings: { label: 'सेटिङ्स व्यवस्थापन', desc: 'एप्लिकेशन सेटिङ्स परिवर्तन गर्न' },
     can_manage_data_transfer: { label: 'डाटा ट्रान्सफर व्यवस्थापन', desc: 'इम्पोर्ट, एक्सपोर्ट र रिस्टोर चलाउन' },
 };
+
+const ROLE_CONCEPTS = [
+    {
+        icon: '🛡️',
+        title: 'System Role / सिस्टम रोल',
+        body: 'This page controls global app access like Users, Finance, Workforce, Settings, and Dashboard. यो पृष्ठले app-भरिको global access नियन्त्रण गर्छ।',
+    },
+    {
+        icon: '🗂️',
+        title: 'Project Role / प्रोजेक्ट रोल',
+        body: 'This page defines project-role templates like Manager, Engineer, or custom roles. User assignment still happens from Users & Access → Projects tab. यहाँ template बनाइन्छ, assign भने Users & Access → Projects tab बाट हुन्छ।',
+    },
+    {
+        icon: '🧭',
+        title: 'Simple Rule / सजिलो नियम',
+        body: 'Whole app access = system role here. Access inside one project = assign one project role from the user’s Projects tab. app-भरिको access = system role, project-भित्रको access = Projects tab बाट project role assign।',
+    },
+];
+
+const GUIDE_TIPS = [
+    {
+        icon: '1',
+        title: 'Start With System Role / सिस्टम रोलबाट सुरु गर्नुहोस्',
+        body: 'First decide what modules the user can open in the whole app: dashboard, finance, workforce, users, settings. पहिले user ले app-भरि कुन module खोल्न पाउने हो तय गर्नुहोस्।',
+    },
+    {
+        icon: '2',
+        title: 'Then Assign Project Role / त्यसपछि प्रोजेक्ट रोल दिनुहोस्',
+        body: 'After that, open the user and assign one project role inside the Projects tab for each project. त्यसपछि Users page को Projects tab बाट project अनुसार role assign गर्नुहोस्।',
+    },
+    {
+        icon: '3',
+        title: 'Use Overrides Only When Needed / Override आवश्यक भए मात्र',
+        body: 'If the template is almost correct, keep it. Override only the few permissions that really differ for that one user. Template ठीक छ भने त्यसैलाई प्रयोग गर्नुहोस्, धेरै फरक परे मात्र override गर्नुहोस्।',
+    },
+];
 
 const PAGE_CSS = `
   .roles-page-shell {
@@ -383,6 +426,44 @@ function SearchIcon() {
     );
 }
 
+function InfoCard({ icon, title, body }) {
+    return (
+        <div style={{
+            padding: '14px 16px',
+            borderRadius: 14,
+            border: '1px solid rgba(59,130,246,0.15)',
+            background: 'linear-gradient(135deg, rgba(239,246,255,0.96) 0%, rgba(248,250,252,0.96) 100%)',
+        }}>
+            <div style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
+                <div style={{
+                    width: 36, height: 36, borderRadius: 12, flexShrink: 0,
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                    background:'#dbeafe', border:'1px solid #bfdbfe', color:'#2563eb', fontSize:18,
+                }}>
+                    {icon}
+                </div>
+                <div>
+                    <p style={{ margin:0, fontSize:13, fontWeight:900, color:'var(--t-text)' }}>{title}</p>
+                    <p style={{ margin:'5px 0 0', fontSize:11, lineHeight:1.65, color:'var(--t-text3)' }}>{body}</p>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function RoleConceptGuide() {
+    return (
+        <div style={{
+            display:'grid',
+            gridTemplateColumns:'repeat(auto-fit, minmax(240px, 1fr))',
+            gap:12,
+            marginBottom:20,
+        }}>
+            {ROLE_CONCEPTS.map(card => <InfoCard key={card.title} {...card} />)}
+        </div>
+    );
+}
+
 /* ── Role form ─────────────────────────────────────────────────────────── */
 function RoleForm({ role, onDone }) {
     const isEdit = !!role;
@@ -474,6 +555,16 @@ function RoleForm({ role, onDone }) {
         <form onSubmit={handleSubmit} style={{ padding:24 }} className="space-y-4">
             <style>{PAGE_CSS}</style>
             {err && <div style={{ padding:'8px 12px', borderRadius:8, background:'#ef444412', color:'#ef4444', fontSize:12, fontWeight:600 }}>❌ {err}</div>}
+
+            <div style={{ padding:'14px 16px', borderRadius:14, border:'1px solid rgba(59,130,246,0.16)', background:'rgba(239,246,255,0.88)' }}>
+                <p style={{ margin:0, fontSize:12, fontWeight:900, color:'var(--t-text)' }}>System role only / केवल सिस्टम रोल</p>
+                <p style={{ margin:'5px 0 0', fontSize:11, color:'var(--t-text3)', lineHeight:1.65 }}>
+                    This form controls global app access. It does not set project member roles like Manager or Engineer. यो form ले app-भरिको access सेट गर्छ। Project role जस्तै Manager वा Engineer यहाँबाट सेट हुँदैन।
+                </p>
+                <p style={{ margin:'8px 0 0', fontSize:11, color:'#2563eb', fontWeight:700 }}>
+                    Project role path / Project role बाटो: Users & Access → open user → Projects tab
+                </p>
+            </div>
 
             <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
@@ -726,6 +817,30 @@ function FilterChip({ active, label, onClick }) {
     );
 }
 
+function SectionTab({ active, label, detail, onClick, color }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            style={{
+                flex: 1,
+                minWidth: 220,
+                textAlign: 'left',
+                padding: '14px 16px',
+                borderRadius: 14,
+                border: active ? `1px solid ${color}` : '1px solid var(--t-border)',
+                background: active ? `color-mix(in srgb, ${color} 10%, var(--t-surface))` : 'var(--t-surface)',
+                color: 'var(--t-text)',
+                cursor: 'pointer',
+                boxShadow: active ? `inset 0 0 0 1px color-mix(in srgb, ${color} 16%, transparent)` : 'none',
+            }}
+        >
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 900, color: active ? color : 'var(--t-text)' }}>{label}</p>
+            <p style={{ margin: '4px 0 0', fontSize: 11, lineHeight: 1.55, color: 'var(--t-text3)' }}>{detail}</p>
+        </button>
+    );
+}
+
 function RoleManager({ roles, onEdit, onDelete }) {
     const [selectedId, setSelectedId] = useState(null);
     const [query, setQuery] = useState('');
@@ -754,8 +869,8 @@ function RoleManager({ roles, onEdit, onDelete }) {
             <div className="roles-panel">
                 <div className="roles-panel-head">
                     <div>
-                        <p style={{ margin:0, fontSize:15, fontWeight:900, color:'var(--t-text)' }}>Roles</p>
-                        <p style={{ margin:'4px 0 0', fontSize:12, color:'var(--t-text3)' }}>Select a role to review access.</p>
+                        <p style={{ margin:0, fontSize:15, fontWeight:900, color:'var(--t-text)' }}>System roles</p>
+                        <p style={{ margin:'4px 0 0', fontSize:12, color:'var(--t-text3)' }}>Select a global role to review app access.</p>
                     </div>
                     <span className="roles-count-pill">{roles.length}</span>
                 </div>
@@ -861,6 +976,9 @@ function RoleManager({ roles, onEdit, onDelete }) {
                                         <div className="roles-mini-bar" aria-hidden="true">
                                             <span style={{ width:`${accessPct}%`, background:color }} />
                                         </div>
+                                        <p style={{ margin:'10px 0 0', fontSize:11, color:'var(--t-text3)', lineHeight:1.6 }}>
+                                            This role affects app-wide access only. Project team role is managed from the user’s Projects tab.
+                                        </p>
                                     </div>
 
                                     <div className="roles-section-label">Enabled permissions</div>
@@ -915,14 +1033,326 @@ function RoleManager({ roles, onEdit, onDelete }) {
     );
 }
 
+const PROJECT_ROLE_FIELDS = ['code', 'name', 'name_ne', 'description', 'description_ne', 'icon', 'color', 'sort_order'];
+
+export function ProjectRoleForm({ role, onDone }) {
+    const isEdit = !!role;
+    const [form, setForm] = useState(() => {
+        const current = getProjectRoleByCode(role ? [role] : [], role?.code || 'VIEWER');
+        return {
+            code: current.code || '',
+            name: role?.name || current.name || '',
+            name_ne: role?.name_ne || current.name_ne || '',
+            description: role?.description || current.description || '',
+            description_ne: role?.description_ne || '',
+            icon: role?.icon || current.icon || '🧭',
+            color: role?.color || current.color || '#2563eb',
+            sort_order: role?.sort_order ?? 100,
+            ...buildProjectRoleDefaults(current),
+        };
+    });
+    const [busy, setBusy] = useState(false);
+    const [err, setErr] = useState('');
+
+    const setField = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
+
+    const applyFromTemplate = (code) => {
+        const template = getProjectRoleByCode([], code);
+        setForm(prev => ({
+            ...prev,
+            icon: prev.icon || template.icon,
+            color: prev.color || template.color,
+            description: prev.description || template.description,
+            name_ne: prev.name_ne || template.name_ne || '',
+            ...buildProjectRoleDefaults(template),
+        }));
+    };
+
+    const enabledCount = PROJECT_PERMISSION_META.filter(perm => form[perm.key]).length;
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setBusy(true);
+        setErr('');
+        try {
+            const payload = {
+                ...PROJECT_ROLE_FIELDS.reduce((acc, key) => ({ ...acc, [key]: form[key] }), {}),
+                ...PROJECT_PERMISSION_META.reduce((acc, perm) => ({ ...acc, [perm.key]: !!form[perm.key] }), {}),
+            };
+            if (isEdit) await accountsApi.updateProjectRole(role.id, payload);
+            else await accountsApi.createProjectRole(payload);
+            onDone();
+        } catch (ex) {
+            setErr(ex?.response?.data?.error || ex?.response?.data?.detail || 'Failed to save project role.');
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <form onSubmit={handleSubmit} style={{ padding: 24 }}>
+            {err && <div style={{ padding:'8px 12px', borderRadius:8, background:'#ef444412', color:'#ef4444', fontSize:12, fontWeight:600, marginBottom:12 }}>❌ {err}</div>}
+
+            <div style={{ padding:'14px 16px', borderRadius:14, border:'1px solid rgba(16,185,129,0.16)', background:'rgba(236,253,245,0.88)', marginBottom:16 }}>
+                <p style={{ margin:0, fontSize:12, fontWeight:900, color:'var(--t-text)' }}>Project role template / प्रोजेक्ट रोल टेम्प्लेट</p>
+                <p style={{ margin:'5px 0 0', fontSize:11, color:'var(--t-text3)', lineHeight:1.65 }}>
+                    This form defines reusable project roles. Assign them from Users & Access → Projects tab or Project Team page. यो form ले reusable project roles बनाउँछ। Assign भने Users & Access → Projects tab वा Project Team page बाट हुन्छ।
+                </p>
+            </div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:12 }}>
+                <div>
+                    <label style={lbl}>Role Code *</label>
+                    <input
+                        style={inp}
+                        required
+                        value={form.code}
+                        onChange={e => setField('code', e.target.value.toUpperCase().replace(/\s/g, '_'))}
+                        onBlur={() => applyFromTemplate(form.code)}
+                        disabled={isEdit}
+                        placeholder="e.g. SITE_COORDINATOR"
+                    />
+                </div>
+                <div>
+                    <label style={lbl}>Display Name *</label>
+                    <input style={inp} required value={form.name} onChange={e => setField('name', e.target.value)} placeholder="e.g. Site Coordinator" />
+                </div>
+            </div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:12 }}>
+                <div>
+                    <label style={lbl}>Nepali Name</label>
+                    <input style={inp} value={form.name_ne} onChange={e => setField('name_ne', e.target.value)} placeholder="e.g. साइट कोअर्डिनेटर" />
+                </div>
+                <div>
+                    <label style={lbl}>Sort Order</label>
+                    <input type="number" style={inp} value={form.sort_order} onChange={e => setField('sort_order', Number(e.target.value || 0))} />
+                </div>
+            </div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:12 }}>
+                <div>
+                    <label style={lbl}>Icon</label>
+                    <input style={inp} value={form.icon} onChange={e => setField('icon', e.target.value)} placeholder="🧭" />
+                </div>
+                <div>
+                    <label style={lbl}>Color</label>
+                    <input style={inp} value={form.color} onChange={e => setField('color', e.target.value)} placeholder="#2563eb" />
+                </div>
+            </div>
+
+            <div style={{ marginBottom:12 }}>
+                <label style={lbl}>Description</label>
+                <input style={inp} value={form.description} onChange={e => setField('description', e.target.value)} placeholder="Short English summary" />
+            </div>
+            <div style={{ marginBottom:16 }}>
+                <label style={lbl}>Description (Nepali)</label>
+                <input style={inp} value={form.description_ne} onChange={e => setField('description_ne', e.target.value)} placeholder="छोटो नेपाली विवरण" />
+            </div>
+
+            <div style={{ padding:14, borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-surface)', marginBottom:16 }}>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, marginBottom:10 }}>
+                    <div>
+                        <p style={{ margin:0, fontSize:11, fontWeight:900, color:'var(--t-text3)', textTransform:'uppercase', letterSpacing:'0.08em' }}>Project permissions</p>
+                        <p style={{ margin:'4px 0 0', fontSize:12, color:'var(--t-text3)' }}>{enabledCount} enabled of {PROJECT_PERMISSION_META.length}</p>
+                    </div>
+                </div>
+                {PROJECT_PERMISSION_META.map(perm => (
+                    <PermToggle
+                        key={perm.key}
+                        permKey={perm.key}
+                        label={perm.label}
+                        desc={perm.detail}
+                        value={!!form[perm.key]}
+                        onChange={(key, value) => setField(key, value)}
+                    />
+                ))}
+            </div>
+
+            <button type="submit" disabled={busy}
+                style={{ width:'100%', padding:'10px 0', borderRadius:10, background:'#10b981', color:'#fff', fontSize:13, fontWeight:900, border:'none', cursor:'pointer', opacity: busy ? 0.6 : 1 }}>
+                {busy ? 'Saving…' : isEdit ? '💾 Update Project Role' : '➕ Create Project Role'}
+            </button>
+        </form>
+    );
+}
+
+export function ProjectRoleManager({
+    roles,
+    onEdit,
+    onDelete,
+    embedded = false,
+    title = 'Project roles',
+    subtitle = 'Manage reusable project-role templates here.',
+}) {
+    const [selectedId, setSelectedId] = useState(null);
+    const [query, setQuery] = useState('');
+
+    const normalizedRoles = useMemo(() => normalizeProjectRoles(roles), [roles]);
+    const filteredRoles = useMemo(() => {
+        const term = query.trim().toLowerCase();
+        if (!term) return normalizedRoles;
+        return normalizedRoles.filter(role =>
+            [role.name, role.code, role.name_ne, role.description].some(value => String(value || '').toLowerCase().includes(term))
+        );
+    }, [normalizedRoles, query]);
+
+    const selectedRole = normalizedRoles.find(role => role.id === selectedId) || filteredRoles[0] || normalizedRoles[0] || null;
+    const activePerms = selectedRole ? PROJECT_PERMISSION_META.filter(perm => selectedRole.permissions?.[perm.key] || selectedRole[perm.key]) : [];
+
+    return (
+        <div className="roles-manager" style={{ marginTop: embedded ? 0 : 24 }}>
+            <div className="roles-panel">
+                <div className="roles-panel-head">
+                    <div>
+                        <p style={{ margin:0, fontSize:15, fontWeight:900, color:'var(--t-text)' }}>{title}</p>
+                        <p style={{ margin:'4px 0 0', fontSize:12, color:'var(--t-text3)' }}>{subtitle}</p>
+                    </div>
+                    <span className="roles-count-pill">{normalizedRoles.length}</span>
+                </div>
+                <div className="roles-filter-box">
+                    <label className="roles-search" style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 10px', borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-bg)' }}>
+                        <SearchIcon />
+                        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search project roles" style={{ border:'none', outline:'none', background:'transparent', color:'var(--t-text)', width:'100%', fontSize:12 }} />
+                    </label>
+                </div>
+                <div className="roles-role-list">
+                    {filteredRoles.map(role => (
+                        (() => {
+                            const rolePermCount = PROJECT_PERMISSION_META.filter(perm => role.permissions?.[perm.key] || role[perm.key]).length;
+                            return (
+                                <button
+                                    key={role.code}
+                                    type="button"
+                                    className={`roles-role-item${selectedRole?.code === role.code ? ' active' : ''}`}
+                                    onClick={() => setSelectedId(role.id)}
+                                >
+                                    <div style={{ width:36, height:36, borderRadius:10, background:`${role.color}14`, border:`1px solid ${role.color}30`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:17, flexShrink:0 }}>{role.icon}</div>
+                                    <div style={{ minWidth:0, flex:1 }}>
+                                        <p style={{ margin:0, fontSize:13, fontWeight:900, color:'var(--t-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{role.name}</p>
+                                        <p style={{ margin:'2px 0 0', fontSize:10, fontWeight:700, color:'var(--t-text3)', fontFamily:'monospace', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{role.code}</p>
+                                    </div>
+                                    <div style={{ textAlign:'right', flexShrink:0 }}>
+                                        <p style={{ margin:0, fontSize:12, fontWeight:900, color:role.color }}>{rolePermCount}</p>
+                                        <p style={{ margin:'2px 0 0', fontSize:10, color:'var(--t-text3)' }}>perms</p>
+                                    </div>
+                                </button>
+                            );
+                        })()
+                    ))}
+                    {filteredRoles.length === 0 && <div className="roles-empty-state">No project roles match this search.</div>}
+                </div>
+            </div>
+
+            <div className="roles-panel">
+                {!selectedRole ? (
+                    <div className="roles-empty-state">No project roles yet.</div>
+                ) : (
+                    <>
+                        <div className="roles-panel-head">
+                            <div className="roles-role-name">
+                                <div style={{ width:44, height:44, borderRadius:12, background:`${selectedRole.color}14`, border:`1px solid ${selectedRole.color}30`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:21, flexShrink:0 }}>{selectedRole.icon}</div>
+                                <div className="roles-role-meta">
+                                    <p style={{ margin:0, fontSize:18, fontWeight:900, color:'var(--t-text)' }}>{selectedRole.name}</p>
+                                    <p style={{ margin:'3px 0 0', fontSize:11, fontWeight:800, color:'var(--t-text3)', fontFamily:'monospace' }}>{selectedRole.code}</p>
+                                </div>
+                            </div>
+                            <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap', justifyContent:'flex-end' }}>
+                                {selectedRole.is_system ? <Badge label="Default" color="#6b7280" /> : <span className="roles-type-pill" style={{ color:'#10b981', borderColor:'rgba(16,185,129,0.25)', background:'rgba(16,185,129,0.08)' }}>Custom</span>}
+                                <button onClick={() => onEdit(selectedRole)}
+                                    disabled={!selectedRole.id}
+                                    style={{ width:36, height:36, display:'inline-flex', alignItems:'center', justifyContent:'center', borderRadius:10, background:`${selectedRole.color}12`, color:selectedRole.color, fontSize:14, fontWeight:900, border:`1px solid ${selectedRole.color}25`, cursor:'pointer' }}
+                                    title="Edit project role">
+                                    ✏️
+                                </button>
+                                {!selectedRole.is_system && selectedRole.id && (
+                                    <button onClick={() => onDelete(selectedRole)}
+                                        style={{ width:36, height:36, display:'inline-flex', alignItems:'center', justifyContent:'center', borderRadius:10, background:'rgba(239,68,68,0.08)', color:'#ef4444', fontSize:14, fontWeight:900, border:'1px solid rgba(239,68,68,0.2)', cursor:'pointer' }}
+                                        title="Delete project role">
+                                        🗑️
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                        <div className="roles-detail-body">
+                            <div style={{ padding:14, borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-bg)', marginBottom:14 }}>
+                                <p style={{ margin:0, fontSize:12, fontWeight:800, color:'var(--t-text)' }}>{selectedRole.description || 'No description yet.'}</p>
+                                {selectedRole.description_ne && (
+                                    <p style={{ margin:'5px 0 0', fontSize:11, color:'var(--t-text3)' }}>{selectedRole.description_ne}</p>
+                                )}
+                            </div>
+                            <div className="roles-permission-grid">
+                                {PROJECT_PERMISSION_META.map(perm => {
+                                    const on = !!(selectedRole.permissions?.[perm.key] || selectedRole[perm.key]);
+                                    return (
+                                        <div key={perm.key} className="roles-permission-group" style={{ opacity: on ? 1 : 0.58 }}>
+                                            <p style={{ margin:0, fontSize:12, fontWeight:900, color:'var(--t-text)' }}>{perm.icon} {perm.label}</p>
+                                            <p style={{ margin:'4px 0 0', fontSize:11, color:'var(--t-text3)' }}>{perm.detail}</p>
+                                            <div style={{ marginTop:10, fontSize:11, fontWeight:900, color:on ? '#10b981' : 'var(--t-text3)' }}>{on ? 'Enabled' : 'Disabled'}</div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+}
+
 /* ── Main page ─────────────────────────────────────────────────────────── */
 export default function RolesPage() {
     const { roles, loading, refreshRoles, refreshUsers } = useAccounts();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const requestedTab = searchParams.get('tab');
+    const normalizedInitialTab = requestedTab === 'system' || requestedTab === 'project' ? requestedTab : 'guide';
+    const [activeSection, setActiveSection] = useState(normalizedInitialTab);
     const [showCreate, setShowCreate] = useState(false);
     const [editing,    setEditing]    = useState(null);
     const [confirmDel, setConfirmDel] = useState(null);
     const [delBusy,    setDelBusy]    = useState(false);
     const [delErr,     setDelErr]     = useState('');
+    const [showReference, setShowReference] = useState(false);
+    const [projectRoles, setProjectRoles] = useState([]);
+    const [projectRolesLoading, setProjectRolesLoading] = useState(true);
+    const [showProjectCreate, setShowProjectCreate] = useState(false);
+    const [editingProjectRole, setEditingProjectRole] = useState(null);
+    const [confirmProjectDelete, setConfirmProjectDelete] = useState(null);
+    const [projectDeleteBusy, setProjectDeleteBusy] = useState(false);
+    const [projectDeleteErr, setProjectDeleteErr] = useState('');
+
+    const loadProjectRoles = async () => {
+        setProjectRolesLoading(true);
+        try {
+            const res = await accountsApi.getProjectRoles();
+            setProjectRoles(normalizeProjectRoles(res.data));
+        } catch {
+            setProjectRoles(normalizeProjectRoles([]));
+        } finally {
+            setProjectRolesLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadProjectRoles();
+    }, []);
+
+    useEffect(() => {
+        const nextTab = searchParams.get('tab');
+        const normalized = nextTab === 'system' || nextTab === 'project' ? nextTab : 'guide';
+        if (normalized !== activeSection) {
+            setActiveSection(normalized);
+        }
+    }, [activeSection, searchParams]);
+
+    const activateSection = (section) => {
+        setActiveSection(section);
+        const nextParams = new URLSearchParams(searchParams);
+        if (section === 'guide') nextParams.delete('tab');
+        else nextParams.set('tab', section);
+        setSearchParams(nextParams, { replace: true });
+    };
 
     const handleDelete = async (role) => {
         setDelBusy(true); setDelErr('');
@@ -935,11 +1365,47 @@ export default function RolesPage() {
         } finally { setDelBusy(false); }
     };
 
-    const roleGroups = useMemo(() => PERMISSION_GROUPS, []);
+    const handleProjectRoleDelete = async (role) => {
+        setProjectDeleteBusy(true);
+        setProjectDeleteErr('');
+        try {
+            await accountsApi.deleteProjectRole(role.id);
+            await loadProjectRoles();
+            setConfirmProjectDelete(null);
+        } catch (ex) {
+            setProjectDeleteErr(ex?.response?.data?.error || ex?.response?.data?.detail || 'Cannot delete this project role.');
+        } finally {
+            setProjectDeleteBusy(false);
+        }
+    };
 
     return (
         <div className="roles-page-shell" style={{ width: '100%', margin: '0 auto' }}>
             <style>{PAGE_CSS}</style>
+
+            <div style={{ display:'flex', gap:12, flexWrap:'wrap', marginBottom:20 }}>
+                <SectionTab
+                    active={activeSection === 'guide'}
+                    onClick={() => activateSection('guide')}
+                    color="#0ea5e9"
+                    label="📘 Guide / गाइड"
+                    detail="Read the role model first: what is global, what is per project, and when to override."
+                />
+                <SectionTab
+                    active={activeSection === 'system'}
+                    onClick={() => activateSection('system')}
+                    color="#6366f1"
+                    label="🛡️ System Roles / सिस्टम रोल"
+                    detail="Global app/module access like dashboard, users, finance, workforce, settings."
+                />
+                <SectionTab
+                    active={activeSection === 'project'}
+                    onClick={() => activateSection('project')}
+                    color="#10b981"
+                    label="🗂️ Project Roles / प्रोजेक्ट रोल"
+                    detail="Reusable templates like Manager, Engineer, Supervisor, or your own custom project role."
+                />
+            </div>
 
             {/* Toolbar */}
             <div className="roles-toolbar-row" style={{
@@ -947,72 +1413,217 @@ export default function RolesPage() {
                 marginBottom:20, padding:18, borderRadius:16, border:'1px solid var(--t-border)', background:'var(--t-surface)',
             }}>
                 <div style={{ minWidth:0 }}>
-                    <p style={{ margin:0, fontSize:22, fontWeight:900, color:'var(--t-text)' }}>Roles & Permissions</p>
+                    <p style={{ margin:0, fontSize:22, fontWeight:900, color:'var(--t-text)' }}>
+                        {activeSection === 'guide'
+                            ? 'Role Guide / रोल गाइड'
+                            : activeSection === 'system'
+                                ? 'System Roles / सिस्टम रोल'
+                                : 'Project Roles / प्रोजेक्ट रोल'}
+                    </p>
                     <p style={{ margin:'6px 0 0', fontSize:12, color:'var(--t-text3)', maxWidth:720 }}>
-                        Permissions are grouped by module so admins can find the right control quickly.
+                        {activeSection === 'guide'
+                            ? 'Read this first if the role system feels confusing. It explains global access, project templates, and where assignment happens. Role system confusing छ भने पहिले यही पढ्नुहोस्।'
+                            : activeSection === 'system'
+                            ? 'Manage global app access here. This affects which modules and admin pages a user can open. यहाँ global app access manage हुन्छ। यसले कुन module र admin page खोल्न मिल्छ भन्ने नियन्त्रण गर्छ।'
+                            : 'Manage reusable project-role templates here. Assignment still happens from Users & Access → Projects tab or Project Team. यहाँ reusable project-role templates manage हुन्छन्। Assign भने Users & Access → Projects tab वा Project Team बाट हुन्छ।'}
                     </p>
                     <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginTop:12 }}>
-                        {roleGroups.map(group => (
-                            <span key={group.key} style={{
-                                padding:'5px 10px', borderRadius:999, border:'1px solid var(--t-border)',
-                                background:'var(--t-bg)', color:'var(--t-text3)', fontSize:11, fontWeight:800,
-                            }}>
-                                {group.icon} {group.label}
-                            </span>
-                        ))}
+                        {activeSection === 'guide' ? (
+                            <>
+                                <span style={{ padding:'5px 10px', borderRadius:999, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text3)', fontSize:11, fontWeight:800 }}>
+                                    📘 Read first / पहिले पढ्नुहोस्
+                                </span>
+                                <span style={{ padding:'5px 10px', borderRadius:999, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text3)', fontSize:11, fontWeight:800 }}>
+                                    🧭 Global vs project access
+                                </span>
+                            </>
+                        ) : activeSection === 'system' ? (
+                            <>
+                                <span style={{ padding:'5px 10px', borderRadius:999, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text3)', fontSize:11, fontWeight:800 }}>
+                                    🛡️ Global modules / global module access
+                                </span>
+                                <span style={{ padding:'5px 10px', borderRadius:999, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text3)', fontSize:11, fontWeight:800 }}>
+                                    👤 Assigned to user account
+                                </span>
+                            </>
+                        ) : (
+                            <>
+                                <span style={{ padding:'5px 10px', borderRadius:999, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text3)', fontSize:11, fontWeight:800 }}>
+                                    🗂️ Template only / template मात्र
+                                </span>
+                                <span style={{ padding:'5px 10px', borderRadius:999, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text3)', fontSize:11, fontWeight:800 }}>
+                                    👥 Assigned per project member
+                                </span>
+                            </>
+                        )}
                     </div>
                 </div>
-                <button onClick={() => setShowCreate(true)} className="roles-mobile-full"
-                    style={{ padding:'10px 18px', borderRadius:12, background:'#6366f1', color:'#fff', fontSize:12, fontWeight:900, border:'none', cursor:'pointer', flexShrink:0 }}>
-                    ➕ New Role
-                </button>
+                {activeSection !== 'guide' && (
+                    <button
+                        onClick={() => activeSection === 'system' ? setShowCreate(true) : setShowProjectCreate(true)}
+                        className="roles-mobile-full"
+                        style={{
+                            padding:'10px 18px',
+                            borderRadius:12,
+                            background: activeSection === 'system' ? '#6366f1' : '#10b981',
+                            color:'#fff',
+                            fontSize:12,
+                            fontWeight:900,
+                            border:'none',
+                            cursor:'pointer',
+                            flexShrink:0,
+                        }}>
+                        {activeSection === 'system' ? '➕ New System Role' : '➕ New Project Role'}
+                    </button>
+                )}
             </div>
 
-            {loading ? (
-                <div style={{ textAlign:'center', padding:60 }}><div className="animate-spin w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full mx-auto" /></div>
+            {activeSection === 'guide' ? (
+                <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+                    <RoleConceptGuide />
+
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:12 }}>
+                        {GUIDE_TIPS.map((tip) => (
+                            <div key={tip.title} style={{ padding:'16px 18px', borderRadius:16, border:'1px solid var(--t-border)', background:'var(--t-surface)' }}>
+                                <div style={{ display:'flex', alignItems:'flex-start', gap:12 }}>
+                                    <div style={{ width:34, height:34, borderRadius:12, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(14,165,233,0.12)', color:'#0284c7', border:'1px solid rgba(14,165,233,0.2)', fontSize:14, fontWeight:900, flexShrink:0 }}>
+                                        {tip.icon}
+                                    </div>
+                                    <div>
+                                        <p style={{ margin:0, fontSize:13, fontWeight:900, color:'var(--t-text)' }}>{tip.title}</p>
+                                        <p style={{ margin:'6px 0 0', fontSize:11, lineHeight:1.7, color:'var(--t-text3)' }}>{tip.body}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div style={{ padding:'18px 20px', borderRadius:16, border:'1px solid var(--t-border)', background:'var(--t-surface)' }}>
+                        <p style={{ margin:0, fontSize:12, fontWeight:900, color:'var(--t-text3)', textTransform:'uppercase', letterSpacing:'0.08em' }}>
+                            Quick Path / छिटो बाटो
+                        </p>
+                        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:10, marginTop:12 }}>
+                            {[
+                                '1. Create or edit a System Role / सिस्टम रोल बनाउनुहोस्',
+                                '2. Create project templates in Project Roles / Project Roles मा template बनाउनुहोस्',
+                                '3. Open Users & Access → user → Projects tab / Users & Access → user → Projects tab खोल्नुहोस्',
+                                '4. Assign project + project role / project र project role assign गर्नुहोस्',
+                            ].map((item) => (
+                                <div key={item} style={{ padding:'10px 12px', borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-bg)', fontSize:11, color:'var(--t-text)' }}>
+                                    {item}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            ) : activeSection === 'system' ? (
+                loading ? (
+                    <div style={{ textAlign:'center', padding:60 }}><div className="animate-spin w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full mx-auto" /></div>
+                ) : (
+                    <RoleManager
+                        roles={roles}
+                        onEdit={r => setEditing(r)}
+                        onDelete={r => setConfirmDel(r)}
+                    />
+                )
             ) : (
-                <RoleManager
-                    roles={roles}
-                    onEdit={r => setEditing(r)}
-                    onDelete={r => setConfirmDel(r)}
-                />
+                projectRolesLoading ? (
+                    <div style={{ textAlign:'center', padding:40, color:'var(--t-text3)' }}>Loading project roles…</div>
+                ) : (
+                    <ProjectRoleManager
+                        roles={projectRoles}
+                        onEdit={role => setEditingProjectRole(role)}
+                        onDelete={role => setConfirmProjectDelete(role)}
+                    />
+                )
             )}
 
             {/* Permissions legend */}
             <div style={{ marginTop:24, padding:20, borderRadius:16, border:'1px solid var(--t-border)', background:'var(--t-surface)' }}>
-                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, marginBottom:12 }}>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, marginBottom:showReference ? 12 : 0 }}>
                     <div>
-                        <p style={{ margin:0, fontSize:11, fontWeight:900, color:'var(--t-text3)', textTransform:'uppercase', letterSpacing:'0.07em' }}>📖 Permission reference</p>
-                        <p style={{ margin:'4px 0 0', fontSize:12, color:'var(--t-text3)' }}>All permissions grouped by area | सबै अनुमति क्षेत्र अनुसार समूहबद्ध</p>
+                        <p style={{ margin:0, fontSize:11, fontWeight:900, color:'var(--t-text3)', textTransform:'uppercase', letterSpacing:'0.07em' }}>
+                            {activeSection === 'guide'
+                                ? '📖 Guide reference'
+                                : activeSection === 'system'
+                                    ? '📖 Permission reference'
+                                    : '📖 Project role reference'}
+                        </p>
+                        <p style={{ margin:'4px 0 0', fontSize:12, color:'var(--t-text3)' }}>
+                            {activeSection === 'guide'
+                                ? 'Open this for detailed field reference after reading the guide above. माथिको guide पढेपछि detailed field reference हेर्न यहाँ खोल्नुहोस्।'
+                                : activeSection === 'system'
+                                ? 'Open this only when you need detailed reference. चाहिएको बेला मात्र खोल्नुहोस्।'
+                                : 'Open this to review what each project-role permission means. Project-role permission को अर्थ हेर्न चाहिएको बेला खोल्नुहोस्।'}
+                        </p>
                     </div>
+                    <button
+                        type="button"
+                        onClick={() => setShowReference(v => !v)}
+                        style={{ padding:'8px 12px', borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text)', fontSize:11, fontWeight:900, cursor:'pointer' }}
+                    >
+                        {showReference ? 'Hide Reference / सन्दर्भ लुकाउनुहोस्' : 'Show Reference / सन्दर्भ खोल्नुहोस्'}
+                    </button>
                 </div>
-                <div className="roles-legend-grid" style={{ display:'grid', gap:12 }}>
-                    {PERMISSION_GROUPS.map(group => (
-                        <div key={group.key} style={{ padding:14, borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-bg)' }}>
-                            <p style={{ margin:0, fontSize:12, fontWeight:900, color:'var(--t-text)' }}>
-                                {group.icon} {group.label} / {PERMISSION_GROUP_NEPALI[group.key]?.label || group.label}
-                            </p>
-                            <p style={{ margin:'4px 0 10px', fontSize:10, color:'var(--t-text3)' }}>
-                                {group.hint} | {PERMISSION_GROUP_NEPALI[group.key]?.hint || group.hint}
-                            </p>
-                            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                                {(PERMISSIONS_BY_GROUP[group.key] || []).map(p => (
-                                    <div key={p.key} style={{ display:'flex', gap:8, alignItems:'flex-start' }}>
-                                        <span style={{ width:8, height:8, borderRadius:2, background:'#6366f1', marginTop:4, flexShrink:0 }} />
-                                        <div>
-                                            <p style={{ margin:0, fontSize:11, fontWeight:700, color:'var(--t-text)' }}>
-                                                {p.label} / {PERMISSION_NEPALI[p.key]?.label || p.label}
-                                            </p>
-                                            <p style={{ margin:'1px 0 0', fontSize:10, color:'var(--t-text3)' }}>
-                                                {p.desc} | {PERMISSION_NEPALI[p.key]?.desc || p.desc}
-                                            </p>
-                                        </div>
-                                    </div>
-                                ))}
+                {showReference && (
+                    activeSection === 'guide' ? (
+                        <div style={{ display:'grid', gap:12 }}>
+                            <div style={{ padding:16, borderRadius:14, border:'1px solid var(--t-border)', background:'var(--t-bg)' }}>
+                                <p style={{ margin:0, fontSize:12, fontWeight:900, color:'var(--t-text)' }}>System Role vs Project Role</p>
+                                <p style={{ margin:'6px 0 0', fontSize:11, lineHeight:1.7, color:'var(--t-text3)' }}>
+                                    System Role decides app-wide access. Project Role decides what that user can do inside one assigned project. System Role ले app-wide access तय गर्छ। Project Role ले एउटा project भित्र के गर्न मिल्छ तय गर्छ।
+                                </p>
+                            </div>
+                            <div style={{ padding:16, borderRadius:14, border:'1px solid var(--t-border)', background:'var(--t-bg)' }}>
+                                <p style={{ margin:0, fontSize:12, fontWeight:900, color:'var(--t-text)' }}>Where to Assign</p>
+                                <p style={{ margin:'6px 0 0', fontSize:11, lineHeight:1.7, color:'var(--t-text3)' }}>
+                                    Use this page to define templates. Use Users & Access → Projects tab or Project Team to actually assign the project role to a user. यहाँ template define हुन्छ, assign भने Users & Access → Projects tab वा Project Team बाट हुन्छ।
+                                </p>
                             </div>
                         </div>
-                    ))}
-                </div>
+                    ) : activeSection === 'system' ? (
+                        <div className="roles-legend-grid" style={{ display:'grid', gap:12 }}>
+                            {PERMISSION_GROUPS.map(group => (
+                                <div key={group.key} style={{ padding:14, borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-bg)' }}>
+                                    <p style={{ margin:0, fontSize:12, fontWeight:900, color:'var(--t-text)' }}>
+                                        {group.icon} {group.label} / {PERMISSION_GROUP_NEPALI[group.key]?.label || group.label}
+                                    </p>
+                                    <p style={{ margin:'4px 0 10px', fontSize:10, color:'var(--t-text3)' }}>
+                                        {group.hint} | {PERMISSION_GROUP_NEPALI[group.key]?.hint || group.hint}
+                                    </p>
+                                    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                                        {(PERMISSIONS_BY_GROUP[group.key] || []).map(p => (
+                                            <div key={p.key} style={{ display:'flex', gap:8, alignItems:'flex-start' }}>
+                                                <span style={{ width:8, height:8, borderRadius:2, background:'#6366f1', marginTop:4, flexShrink:0 }} />
+                                                <div>
+                                                    <p style={{ margin:0, fontSize:11, fontWeight:700, color:'var(--t-text)' }}>
+                                                        {p.label} / {PERMISSION_NEPALI[p.key]?.label || p.label}
+                                                    </p>
+                                                    <p style={{ margin:'1px 0 0', fontSize:10, color:'var(--t-text3)' }}>
+                                                        {p.desc} | {PERMISSION_NEPALI[p.key]?.desc || p.desc}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="roles-legend-grid" style={{ display:'grid', gap:12 }}>
+                            {PROJECT_PERMISSION_META.map(perm => (
+                                <div key={perm.key} style={{ padding:14, borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-bg)' }}>
+                                    <p style={{ margin:0, fontSize:12, fontWeight:900, color:'var(--t-text)' }}>
+                                        {perm.icon} {perm.label}
+                                    </p>
+                                    <p style={{ margin:'4px 0 0', fontSize:10, color:'var(--t-text3)', lineHeight:1.6 }}>
+                                        {perm.detail}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    )
+                )}
             </div>
 
             {/* Create modal */}
@@ -1023,6 +1634,14 @@ export default function RolesPage() {
             {/* Edit modal */}
             <Modal isOpen={!!editing} onClose={() => setEditing(null)} title={`Edit Role — ${editing?.name}`} maxWidth="max-w-5xl">
                 {editing && <RoleForm role={editing} onDone={() => { setEditing(null); refreshRoles(); refreshUsers(); }} />}
+            </Modal>
+
+            <Modal isOpen={showProjectCreate} onClose={() => setShowProjectCreate(false)} title="Create Project Role" maxWidth="max-w-4xl">
+                <ProjectRoleForm onDone={() => { setShowProjectCreate(false); loadProjectRoles(); }} />
+            </Modal>
+
+            <Modal isOpen={!!editingProjectRole} onClose={() => setEditingProjectRole(null)} title={`Edit Project Role — ${editingProjectRole?.name}`} maxWidth="max-w-4xl">
+                {editingProjectRole && <ProjectRoleForm role={editingProjectRole} onDone={() => { setEditingProjectRole(null); loadProjectRoles(); }} />}
             </Modal>
 
             {/* Confirm delete */}
@@ -1037,6 +1656,23 @@ export default function RolesPage() {
                             <button onClick={() => handleDelete(confirmDel)} disabled={delBusy}
                                 style={{ flex:1, padding:'9px 0', borderRadius:10, background:'#ef4444', color:'#fff', fontSize:12, fontWeight:900, border:'none', cursor:'pointer' }}>
                                 {delBusy ? 'Deleting…' : '🗑️ Delete'}
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </Modal>
+
+            <Modal isOpen={!!confirmProjectDelete} onClose={() => { setConfirmProjectDelete(null); setProjectDeleteErr(''); }} title="Delete Project Role?" maxWidth="max-w-sm">
+                {confirmProjectDelete && (
+                    <div style={{ padding:24 }}>
+                        {projectDeleteErr && <div style={{ marginBottom:12, padding:'8px 12px', borderRadius:8, background:'#ef444412', color:'#ef4444', fontSize:12 }}>❌ {projectDeleteErr}</div>}
+                        <p style={{ margin:'0 0 6px', fontSize:14, fontWeight:700, color:'var(--t-text)' }}>Delete <strong>{confirmProjectDelete.name}</strong>?</p>
+                        <p style={{ margin:'0 0 20px', fontSize:12, color:'var(--t-text3)' }}>Assigned project members should be moved to another role first.</p>
+                        <div style={{ display:'flex', gap:8 }}>
+                            <button onClick={() => { setConfirmProjectDelete(null); setProjectDeleteErr(''); }} style={{ flex:1, padding:'9px 0', borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text)', fontSize:12, fontWeight:700, cursor:'pointer' }}>Cancel</button>
+                            <button onClick={() => handleProjectRoleDelete(confirmProjectDelete)} disabled={projectDeleteBusy}
+                                style={{ flex:1, padding:'9px 0', borderRadius:10, background:'#ef4444', color:'#fff', fontSize:12, fontWeight:900, border:'none', cursor:'pointer' }}>
+                                {projectDeleteBusy ? 'Deleting…' : '🗑️ Delete'}
                             </button>
                         </div>
                     </div>

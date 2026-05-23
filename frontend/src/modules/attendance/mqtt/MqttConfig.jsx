@@ -239,6 +239,9 @@ export default function MqttConfig({ projectId }) {
             setDirty(false);
             setNewPassword('');
             setError('');
+            window.dispatchEvent(new CustomEvent('mqtt-config-updated', {
+                detail: { projectId, config: updated },
+            }));
         } catch (e) {
             setError(e?.response?.data?.error || 'Save failed — check console.');
         } finally {

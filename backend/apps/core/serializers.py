@@ -1,28 +1,41 @@
 from rest_framework import serializers
-from .models import HouseProject, ConstructionPhase, PhaseDocument, Room, Floor, UserGuide, UserGuideStep, UserGuideFAQ, UserGuideSection, UserGuideProgress, EmailLog, ProjectMember
+from .models import HouseProject, ConstructionPhase, PhaseDocument, Room, Floor, UserGuide, UserGuideStep, UserGuideFAQ, UserGuideSection, UserGuideProgress, EmailLog, ProjectMember, ProjectRole
+
+
+class ProjectRoleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProjectRole
+        fields = '__all__'
 
 # ── Project Member ─────────────────────────────────────────────────────────────
 class ProjectMemberSerializer(serializers.ModelSerializer):
     username     = serializers.ReadOnlyField(source='user.username')
     email        = serializers.ReadOnlyField(source='user.email')
     full_name    = serializers.SerializerMethodField()
-    role_display = serializers.ReadOnlyField(source='get_role_display')
+    role_display = serializers.SerializerMethodField()
     profile_image = serializers.SerializerMethodField()
     workforce_id  = serializers.SerializerMethodField()
+    official_role_name = serializers.SerializerMethodField()
+    official_role_code = serializers.SerializerMethodField()
+    role_definition = serializers.SerializerMethodField()
 
     class Meta:
         model  = ProjectMember
         fields = [
             'id', 'project', 'user', 'username', 'email', 'full_name', 'profile_image',
-            'workforce_id',
-            'role', 'role_display', 'note', 'joined_at',
+            'workforce_id', 'official_role_name', 'official_role_code',
+            'role', 'role_display', 'role_definition', 'note', 'joined_at',
             # Granular permission flags
-            'can_manage_members', 'can_manage_finances', 'can_view_finances',
-            'can_manage_phases',  'can_manage_structure',
-            'can_manage_resources', 'can_upload_media',
-            'can_manage_workforce', 'can_approve_purchases',
+            'can_manage_members', 'can_view_members',
+            'can_manage_finances', 'can_view_finances',
+            'can_manage_phases',  'can_view_phases',
+            'can_manage_structure', 'can_view_structure',
+            'can_manage_resources', 'can_view_resources',
+            'can_upload_media',
+            'can_manage_workforce', 'can_view_workforce',
+            'can_approve_purchases',
         ]
-        read_only_fields = ['id', 'joined_at', 'username', 'email', 'full_name', 'profile_image', 'role_display', 'workforce_id']
+        read_only_fields = ['id', 'joined_at', 'username', 'email', 'full_name', 'profile_image', 'role_display', 'role_definition', 'workforce_id', 'official_role_name', 'official_role_code']
 
     def get_workforce_id(self, obj):
         if hasattr(obj.user, 'workforce_profile') and obj.user.workforce_profile:
@@ -32,6 +45,27 @@ class ProjectMemberSerializer(serializers.ModelSerializer):
     def get_full_name(self, obj):
         u = obj.user
         return f"{u.first_name} {u.last_name}".strip() or u.username
+
+    def get_official_role_name(self, obj):
+        profile = getattr(obj.user, 'workforce_profile', None)
+        if profile and profile.role_id:
+            return profile.role.title
+        return None
+
+    def get_official_role_code(self, obj):
+        profile = getattr(obj.user, 'workforce_profile', None)
+        if profile and profile.role_id:
+            return profile.role.code
+        return None
+
+    def get_role_display(self, obj):
+        return obj.get_role_display()
+
+    def get_role_definition(self, obj):
+        role_def = obj.get_role_definition()
+        if not role_def:
+            return None
+        return ProjectRoleSerializer(role_def).data
 
     def get_profile_image(self, obj):
         try:

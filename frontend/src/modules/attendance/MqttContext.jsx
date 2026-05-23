@@ -23,6 +23,14 @@ import mqtt from 'mqtt';
 import mqttService         from '../../services/mqttService';
 import attendanceService   from '../../services/attendanceService';
 
+const DEVICE_HEARTBEAT_GRACE_MS = 45 * 1000;
+const MQTT_RECONNECT_PERIOD_MS = 5 * 1000;
+
+function _isDeviceOnline(lastSeen, graceMs = DEVICE_HEARTBEAT_GRACE_MS) {
+    if (!lastSeen) return false;
+    return (Date.now() - new Date(lastSeen).getTime()) < graceMs;
+}
+
 /**
  * If the stored broker host is 'localhost' or '127.0.0.1', substitute the
  * current page's hostname so that devices on the LAN (phones, tablets, etc.)
@@ -42,7 +50,42 @@ export function MqttProvider({ projectId, children }) {
     const [lastScan, setLastScan] = useState(null);   // { uid, data, timestamp, topic }
     const [settings, setSettings] = useState(null);   // ProjectAttendanceSettings (sound/voice)
     const [config,   setConfig]   = useState(null);   // MQTTConfig (new model)
+    const [listenerStatus, setListenerStatus] = useState('unknown');
+    const [deviceStatus, setDeviceStatus] = useState('No Device');
+    const [deviceCount, setDeviceCount] = useState(0);
+    const [onlineDeviceCount, setOnlineDeviceCount] = useState(0);
+    const [lastDeviceSeenAt, setLastDeviceSeenAt] = useState(null);
+    const [testingConnection, setTestingConnection] = useState(false);
+    const [lastTestResult, setLastTestResult] = useState(null);
+    const [reconnectCountdown, setReconnectCountdown] = useState(null);
     const clientRef = useRef(null);
+    const runtimeTimerRef = useRef(null);
+    const reconnectTimerRef = useRef(null);
+
+    const clearReconnectCountdown = useCallback(() => {
+        if (reconnectTimerRef.current) {
+            clearInterval(reconnectTimerRef.current);
+            reconnectTimerRef.current = null;
+        }
+        setReconnectCountdown(null);
+    }, []);
+
+    const startReconnectCountdown = useCallback((ms = MQTT_RECONNECT_PERIOD_MS) => {
+        const endAt = Date.now() + ms;
+        clearReconnectCountdown();
+
+        const update = () => {
+            const remainingMs = Math.max(0, endAt - Date.now());
+            const remainingSeconds = Math.ceil(remainingMs / 1000);
+            setReconnectCountdown(remainingSeconds);
+            if (remainingMs <= 0) {
+                clearReconnectCountdown();
+            }
+        };
+
+        update();
+        reconnectTimerRef.current = setInterval(update, 1000);
+    }, [clearReconnectCountdown]);
 
     // ─────────────────────────────────────────────────────────────────────────
     // _loadBrokerConfig
@@ -146,6 +189,7 @@ export function MqttProvider({ projectId, children }) {
         const wsUrl    = `${protocol}://${brokerCfg.broker_host}:${brokerCfg.ws_port}`;
 
         setStatus('Connecting...');
+        startReconnectCountdown();
         console.info(`[MqttContext] Connecting to ${wsUrl}  topic: ${brokerCfg.topic}`);
 
         try {
@@ -160,6 +204,7 @@ export function MqttProvider({ projectId, children }) {
             // ── mqtt.js event handlers ────────────────────────────────────────
             client.on('connect', () => {
                 setStatus('Connected');
+                clearReconnectCountdown();
                 client.subscribe(brokerCfg.topic);
                 console.info(`[MqttContext] Connected ✓  subscribed to: ${brokerCfg.topic}`);
             });
@@ -184,10 +229,23 @@ export function MqttProvider({ projectId, children }) {
                 }
             });
 
-            client.on('error',      (err) => { setStatus('Error');        console.error('[MqttContext] Error:', err); });
-            client.on('close',      ()    => setStatus('Disconnected'));
-            client.on('reconnect',  ()    => setStatus('Connecting...'));
-            client.on('offline',    ()    => setStatus('Disconnected'));
+            client.on('error',      (err) => {
+                setStatus('Error');
+                startReconnectCountdown();
+                console.error('[MqttContext] Error:', err);
+            });
+            client.on('close',      ()    => {
+                setStatus('Disconnected');
+                startReconnectCountdown();
+            });
+            client.on('reconnect',  ()    => {
+                setStatus('Connecting...');
+                startReconnectCountdown();
+            });
+            client.on('offline',    ()    => {
+                setStatus('Disconnected');
+                startReconnectCountdown();
+            });
 
             clientRef.current = client;
 
@@ -197,6 +255,73 @@ export function MqttProvider({ projectId, children }) {
         }
     }, [projectId, _loadBrokerConfig]);
 
+    const refreshRuntimeStatus = useCallback(async () => {
+        if (!projectId) return;
+
+        try {
+            const [statusData, deviceData] = await Promise.all([
+                mqttService.getStatus(projectId).catch(() => null),
+                attendanceService.getNfcDevices(projectId).catch(() => null),
+            ]);
+
+            if (statusData?.config) {
+                setConfig((prev) => ({ ...(prev || {}), ...statusData.config }));
+                setListenerStatus(statusData.config.connection_status || 'unknown');
+            } else {
+                setListenerStatus('unknown');
+            }
+
+            const devices = Array.isArray(deviceData?.devices) ? deviceData.devices : [];
+            const onlineDevices = devices.filter((device) => _isDeviceOnline(device.last_seen));
+            const latestSeen = devices
+                .map((device) => device.last_seen)
+                .filter(Boolean)
+                .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] || null;
+
+            setDeviceCount(devices.length);
+            setOnlineDeviceCount(onlineDevices.length);
+            setLastDeviceSeenAt(latestSeen);
+
+            if (onlineDevices.length > 0) {
+                setDeviceStatus('Connected');
+            } else if (devices.length > 0) {
+                setDeviceStatus('Disconnected');
+            } else {
+                setDeviceStatus('No Device');
+            }
+        } catch (err) {
+            console.warn('[MqttContext] Failed to refresh runtime status', err);
+            setListenerStatus('unknown');
+            setDeviceStatus('No Device');
+            setDeviceCount(0);
+            setOnlineDeviceCount(0);
+            setLastDeviceSeenAt(null);
+        }
+    }, [projectId]);
+
+    const testConnection = useCallback(async () => {
+        if (!projectId) {
+            return { success: false, message: 'No project selected.' };
+        }
+
+        setTestingConnection(true);
+        setLastTestResult(null);
+        try {
+            const result = await mqttService.testConnection(projectId);
+            setLastTestResult(result);
+            return result;
+        } catch (err) {
+            const result = {
+                success: false,
+                message: err?.response?.data?.message || 'Connection test failed',
+            };
+            setLastTestResult(result);
+            return result;
+        } finally {
+            setTestingConnection(false);
+        }
+    }, [projectId]);
+
     // ── Connect on mount / when projectId changes ─────────────────────────────
     useEffect(() => {
         if (projectId) connect();
@@ -205,8 +330,31 @@ export function MqttProvider({ projectId, children }) {
                 clientRef.current.end(true);
                 clientRef.current = null;
             }
+            clearReconnectCountdown();
         };
-    }, [projectId, connect]);
+    }, [projectId, connect, clearReconnectCountdown]);
+
+    useEffect(() => {
+        if (!projectId) return undefined;
+
+        refreshRuntimeStatus();
+        runtimeTimerRef.current = setInterval(refreshRuntimeStatus, 10000);
+
+        return () => {
+            if (runtimeTimerRef.current) clearInterval(runtimeTimerRef.current);
+        };
+    }, [projectId, refreshRuntimeStatus]);
+
+    useEffect(() => {
+        const handleConfigUpdated = (event) => {
+            if (String(event?.detail?.projectId) !== String(projectId)) return;
+            connect();
+            refreshRuntimeStatus();
+        };
+
+        window.addEventListener('mqtt-config-updated', handleConfigUpdated);
+        return () => window.removeEventListener('mqtt-config-updated', handleConfigUpdated);
+    }, [projectId, connect, refreshRuntimeStatus]);
 
     // ── Context value ─────────────────────────────────────────────────────────
     // `settings` kept for backward compat — AttendanceHub reads sound/voice fields from it.
@@ -217,8 +365,18 @@ export function MqttProvider({ projectId, children }) {
         setLastScan,
         settings,          // ← ProjectAttendanceSettings (sound_enabled, voice_rate, etc.)
         config,            // ← MQTTConfig (broker settings)
+        listenerStatus,
+        deviceStatus,
+        deviceCount,
+        onlineDeviceCount,
+        lastDeviceSeenAt,
+        testingConnection,
+        lastTestResult,
+        reconnectCountdown,
         clearScan:  () => setLastScan(null),
         reconnect:  connect,
+        refreshRuntimeStatus,
+        testConnection,
     };
 
     return (

@@ -238,19 +238,47 @@ class CanManageWorkforce(permissions.BasePermission):
         if getattr(request.user, 'is_system_admin', False):
             return True
         if request.method in permissions.SAFE_METHODS:
-            return True
+            project_id = _project_id_from_request(request, view)
+            member = _get_member(request.user, project_id)
+            return member is not None and (getattr(member, 'can_view_workforce', False) or member.can_manage_workforce)
         project_id = _project_id_from_request(request, view)
         member = _get_member(request.user, project_id)
         return member is not None and member.can_manage_workforce
 
     def has_object_permission(self, request, view, obj):
         if request.method in permissions.SAFE_METHODS:
-            return True
+            project_id = getattr(obj, 'project_id', None) or getattr(getattr(obj, 'project', None), 'pk', None)
+            member = _get_member(request.user, project_id)
+            return member is not None and (getattr(member, 'can_view_workforce', False) or member.can_manage_workforce)
         if getattr(request.user, 'is_system_admin', False):
             return True
         project_id = getattr(obj, 'project_id', None) or getattr(getattr(obj, 'project', None), 'pk', None)
         member = _get_member(request.user, project_id)
         return member is not None and member.can_manage_workforce
+
+
+class CanManageResources(permissions.BasePermission):
+    message = 'You do not have permission to manage resources for this project.'
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if getattr(request.user, 'is_system_admin', False):
+            return True
+        project_id = _project_id_from_request(request, view)
+        member = _get_member(request.user, project_id)
+        if request.method in permissions.SAFE_METHODS:
+            return member is not None and (getattr(member, 'can_view_resources', False) or member.can_manage_resources)
+        return member is not None and member.can_manage_resources
+
+    def has_object_permission(self, request, view, obj):
+        if getattr(request.user, 'is_system_admin', False):
+            return True
+        project_id = getattr(obj, 'project_id', None) or getattr(getattr(obj, 'project', None), 'pk', None)
+        member = _get_member(request.user, project_id)
+        if request.method in permissions.SAFE_METHODS:
+            return member is not None and (getattr(member, 'can_view_resources', False) or member.can_manage_resources)
+        return member is not None and member.can_manage_resources
 
 
 class CanApprovePurchases(permissions.BasePermission):

@@ -437,20 +437,38 @@ class UserViewSet(viewsets.ModelViewSet):
         data = []
         for p in all_projects:
             m = memberships.get(p.id)
+            role_def = m.get_role_definition() if m else None
             data.append({
                 'project_id':   p.id,
                 'project_name': p.name,
                 'is_assigned':  p.id in assigned_ids,
                 'member_id':    m.id   if m else None,
                 'member_role':  m.role if m else None,
+                'member_role_display': m.get_role_display() if m else None,
+                'role_definition': {
+                    'code': role_def.code,
+                    'name': role_def.name,
+                    'name_ne': role_def.name_ne,
+                    'description': role_def.description,
+                    'description_ne': role_def.description_ne,
+                    'icon': role_def.icon,
+                    'color': role_def.color,
+                    'sort_order': role_def.sort_order,
+                    'is_system': role_def.is_system,
+                } if role_def else None,
                 'permissions': {
                     'can_manage_members':   m.can_manage_members   if m else False,
+                    'can_view_members':     m.can_view_members     if m else False,
                     'can_manage_finances':  m.can_manage_finances  if m else False,
                     'can_view_finances':    m.can_view_finances    if m else False,
                     'can_manage_phases':    m.can_manage_phases    if m else False,
+                    'can_view_phases':      m.can_view_phases      if m else False,
                     'can_manage_structure': m.can_manage_structure if m else False,
+                    'can_view_structure':   m.can_view_structure   if m else False,
                     'can_manage_resources': m.can_manage_resources if m else False,
+                    'can_view_resources':   m.can_view_resources   if m else False,
                     'can_manage_workforce': m.can_manage_workforce if m else False,
+                    'can_view_workforce':   m.can_view_workforce   if m else False,
                     'can_approve_purchases': m.can_approve_purchases if m else False,
                     'can_upload_media':     m.can_upload_media     if m else False,
                 } if m else None,
@@ -464,7 +482,7 @@ class UserViewSet(viewsets.ModelViewSet):
         Body: { project_id, action: 'add'|'remove', role, ...permission flags }
         Adds/removes project access and manages the ProjectMember record.
         """
-        from apps.core.models import HouseProject, ProjectMember
+        from apps.core.models import HouseProject, ProjectMember, ProjectRole
         user       = self.get_object()
         project_id = request.data.get('project_id')
         op         = request.data.get('action', 'add')
@@ -484,6 +502,11 @@ class UserViewSet(viewsets.ModelViewSet):
 
         # ── add / update ──────────────────────────────────────────────────────
         role = request.data.get('role', 'VIEWER')
+        if not (
+            ProjectRole.objects.filter(code=role).exists() or
+            role in ProjectMember.role_choice_map()
+        ):
+            return Response({'error': 'Invalid project role.'}, status=400)
         user.assigned_projects.add(project)
 
         member, created = ProjectMember.objects.get_or_create(
@@ -496,9 +519,12 @@ class UserViewSet(viewsets.ModelViewSet):
         # Seed defaults from role, then override with any explicit flags sent
         member.apply_role_defaults()
         perm_fields = [
-            'can_manage_members', 'can_manage_finances', 'can_view_finances',
-            'can_manage_phases',  'can_manage_structure',
-            'can_manage_resources', 'can_manage_workforce',
+            'can_manage_members', 'can_view_members',
+            'can_manage_finances', 'can_view_finances',
+            'can_manage_phases',  'can_view_phases',
+            'can_manage_structure', 'can_view_structure',
+            'can_manage_resources', 'can_view_resources',
+            'can_manage_workforce', 'can_view_workforce',
             'can_approve_purchases', 'can_upload_media',
         ]
         for field in perm_fields:

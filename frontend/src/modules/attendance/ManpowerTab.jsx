@@ -18,6 +18,8 @@ import NfcDevicesPanel from './NfcDevicesPanel';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+const DEVICE_HEARTBEAT_GRACE_MS = 45 * 1000;
+
 const TRADE_OPTIONS = [
   { value:'MASON',       label:'Mason (Dakarmi)' },
   { value:'HELPER',      label:'Helper (Jugi)' },
@@ -1121,7 +1123,7 @@ export default function ManpowerTab({ projectId }) {
   const nfcStatus = (() => {
     if (!nfcDevices.length) return null;
     const now = Date.now();
-    const online  = nfcDevices.filter(d => (now - new Date(d.last_seen)) < 10 * 60 * 1000);
+    const online  = nfcDevices.filter(d => (now - new Date(d.last_seen)) < DEVICE_HEARTBEAT_GRACE_MS);
     const inError = nfcDevices.filter(d => {
       const e = (d.error_state || '').trim();
       return e !== '' && e.toUpperCase() !== 'OK';

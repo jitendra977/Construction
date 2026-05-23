@@ -21,9 +21,11 @@ function timeSince(iso) {
     return `${Math.floor(diff / 86400)}d ago`;
 }
 
-function isOnline(last_seen, minutes = 10) {
+const DEVICE_HEARTBEAT_GRACE_MS = 45 * 1000;
+
+function isOnline(last_seen, graceMs = DEVICE_HEARTBEAT_GRACE_MS) {
     if (!last_seen) return false;
-    return (Date.now() - new Date(last_seen)) < minutes * 60 * 1000;
+    return (Date.now() - new Date(last_seen)) < graceMs;
 }
 
 function hasError(device) {

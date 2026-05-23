@@ -232,7 +232,8 @@ const ACTION_CFG = {
 // onClose       — optional; when provided a ✕ close button is shown (overlay mode)
 // onScanSuccess — optional; called with the scan result entry after CHECK_IN / CHECK_OUT
 export default function QRScannerTab({ projectId, onClose, onScanSuccess }) {
-    const { settings } = useMqtt();
+    const mqtt = useMqtt();
+    const settings = mqtt?.settings || {};
     const isMobile = useIsMobile();
     const now      = useClock();
 
@@ -332,7 +333,10 @@ export default function QRScannerTab({ projectId, onClose, onScanSuccess }) {
             speakText(`Error: ${errMsg}`, settings);
             const entry = {
                 id: Date.now(), action: 'ERROR',
-                worker: '—', message: errMsg,
+                workerId: e?.response?.data?.worker?.id,
+                worker: e?.response?.data?.worker?.name || 'Unknown',
+                trade: e?.response?.data?.worker?.trade || '',
+                message: errMsg,
                 time: fmtHMS(new Date()),
             };
             setResult(entry); setResultAnim(true);
@@ -741,6 +745,11 @@ export default function QRScannerTab({ projectId, onClose, onScanSuccess }) {
                                         <div style={{ fontSize:10, color:'rgba(255,255,255,0.3)', marginTop:2 }}>
                                             {log.time}{log.trade ? `  ·  ${log.trade}` : ''}
                                         </div>
+                                        {log.message && (
+                                            <div style={{ fontSize:11, color:'rgba(255,255,255,0.55)', marginTop:3, lineHeight:1.35 }}>
+                                                {log.message}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             );
@@ -929,6 +938,9 @@ export default function QRScannerTab({ projectId, onClose, onScanSuccess }) {
                                         <div style={{ flex:1, minWidth:0 }}>
                                             <p style={{ margin:0, fontWeight:700, fontSize:13, color:'var(--t-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{log.worker}</p>
                                             <p style={{ margin:0, fontSize:9, color:s.text, fontWeight:800, letterSpacing:'0.1em', textTransform:'uppercase' }}>{s.label}  ·  {log.time}</p>
+                                            {log.message && (
+                                                <p style={{ margin:'3px 0 0', fontSize:11, color:'var(--t-text3)', lineHeight:1.35 }}>{log.message}</p>
+                                            )}
                                         </div>
                                     </div>
                                 );

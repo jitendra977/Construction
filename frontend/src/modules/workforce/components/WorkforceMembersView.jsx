@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useConstruction } from '../../../context/ConstructionContext';
 import workforceService from '../../../services/workforceService';
 import { accountsService } from '../../../services/accountsService';
@@ -458,6 +459,7 @@ function CreateAccountModal({ member, projects = [], defaultProjectId = '', onCl
 // ── MAIN VIEW COMPONENT ───────────────────────────────────────────────────────
 export default function WorkforceMembersView({ projectId, hideProjectFilter = false }) {
     const { projects, activeProjectId } = useConstruction();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [selectedProject, setSelectedProject] = useState(projectId || '');
     const [members, setMembers]     = useState([]);
     const [stats, setStats]         = useState(null);
@@ -479,6 +481,7 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
     const [assigningProject, setAssigningProject] = useState({}); // { [memberId]: bool }
     // Per-member attendance sync state
     const [syncingAttendance, setSyncingAttendance] = useState({}); // { [memberId]: bool }
+    const openedFromQueryRef = useRef(false);
 
     // Sync selectedProject when prop changes (e.g. navigation)
     useEffect(() => {
@@ -517,6 +520,18 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
     }, [effectiveProjectId, statusFilter, typeFilter, search]);
 
     useEffect(() => { load(); }, [load]);
+
+    useEffect(() => {
+        const requestedMemberId = searchParams.get('member');
+        if (!requestedMemberId || openedFromQueryRef.current || members.length === 0) return;
+        const match = members.find((member) => String(member.id) === String(requestedMemberId));
+        if (!match) return;
+        setDrawer(match);
+        openedFromQueryRef.current = true;
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.delete('member');
+        setSearchParams(nextParams, { replace: true });
+    }, [members, searchParams, setSearchParams]);
 
     const handleImport = async (dryRun = false) => {
         setImporting(true); setError(''); setImportResult(null);

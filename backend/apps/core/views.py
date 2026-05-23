@@ -3,8 +3,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from .models import HouseProject, ConstructionPhase, PhaseDocument, Room, Floor, UserGuide, UserGuideStep, UserGuideFAQ, UserGuideSection, UserGuideProgress, EmailLog, ProjectMember
-from .serializers import HouseProjectSerializer, ConstructionPhaseSerializer, PhaseDocumentSerializer, RoomSerializer, FloorSerializer, UserGuideSerializer, UserGuideStepSerializer, UserGuideFAQSerializer, UserGuideSectionSerializer, UserGuideProgressSerializer, EmailLogSerializer, ProjectMemberSerializer
+from .models import HouseProject, ConstructionPhase, PhaseDocument, Room, Floor, UserGuide, UserGuideStep, UserGuideFAQ, UserGuideSection, UserGuideProgress, EmailLog, ProjectMember, ProjectRole
+from .serializers import HouseProjectSerializer, ConstructionPhaseSerializer, PhaseDocumentSerializer, RoomSerializer, FloorSerializer, UserGuideSerializer, UserGuideStepSerializer, UserGuideFAQSerializer, UserGuideSectionSerializer, UserGuideProgressSerializer, EmailLogSerializer, ProjectMemberSerializer, ProjectRoleSerializer
 from apps.accounts.permissions import IsSystemAdmin, CanManagePhases, CanManageStructure
 from apps.core.mixins import ProjectScopedMixin
 
@@ -179,6 +179,16 @@ class ProjectMemberViewSet(viewsets.ModelViewSet):
         except ProjectMember.DoesNotExist:
             return False
 
+    def _can_view(self, project_id):
+        user = self.request.user
+        if getattr(user, 'is_system_admin', False):
+            return True
+        try:
+            m = ProjectMember.objects.get(project_id=project_id, user=user)
+            return getattr(m, 'can_view_members', False) or m.can_manage_members
+        except ProjectMember.DoesNotExist:
+            return False
+
     def _deny(self, msg='You do not have permission to manage members for this project.'):
         from rest_framework.response import Response
         return Response({'detail': msg}, status=status.HTTP_403_FORBIDDEN)
@@ -188,8 +198,16 @@ class ProjectMemberViewSet(viewsets.ModelViewSet):
         qs = ProjectMember.objects.select_related('user', 'project').all()
         pid = self.request.query_params.get('project')
         if pid:
+            if not self._can_view(pid):
+                return ProjectMember.objects.none()
             qs = qs.filter(project_id=pid)
         return qs
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if not self._can_view(instance.project_id):
+            return self._deny('You do not have permission to view members for this project.')
+        return super().retrieve(request, *args, **kwargs)
 
     # ── write operations ─────────────────────────────────────────────────────
     def create(self, request, *args, **kwargs):
@@ -202,6 +220,9 @@ class ProjectMemberViewSet(viewsets.ModelViewSet):
         member = serializer.save()
         # Seed permissions from role defaults
         member.apply_role_defaults()
+        for field in member.permission_fields:
+            if field in self.request.data:
+                setattr(member, field, bool(self.request.data.get(field)))
         member.save(update_fields=member.permission_fields)
         # Keep User.assigned_projects M2M in sync
         member.user.assigned_projects.add(member.project)
@@ -241,10 +262,14 @@ class ProjectMemberViewSet(viewsets.ModelViewSet):
         if getattr(request.user, 'is_system_admin', False):
             return Response({
                 'id': None, 'role': 'SUPER_ADMIN', 'role_display': 'Super Admin',
-                'can_manage_members': True, 'can_manage_finances': True,
-                'can_view_finances': True, 'can_manage_phases': True,
-                'can_manage_structure': True, 'can_manage_resources': True,
+                'can_manage_members': True, 'can_view_members': True,
+                'can_manage_finances': True, 'can_view_finances': True,
+                'can_manage_phases': True, 'can_view_phases': True,
+                'can_manage_structure': True, 'can_view_structure': True,
+                'can_manage_resources': True, 'can_view_resources': True,
                 'can_upload_media': True,
+                'can_manage_workforce': True, 'can_view_workforce': True,
+                'can_approve_purchases': True,
             })
 
         try:
@@ -267,6 +292,26 @@ class ProjectMemberViewSet(viewsets.ModelViewSet):
         instance.apply_role_defaults()
         instance.save(update_fields=instance.permission_fields)
         return Response(ProjectMemberSerializer(instance, context={'request': request}).data)
+
+
+class ProjectRoleViewSet(viewsets.ModelViewSet):
+    queryset = ProjectRole.objects.all().order_by('sort_order', 'name', 'code')
+    serializer_class = ProjectRoleSerializer
+    permission_classes = [IsAuthenticated, IsSystemAdmin]
+
+    def destroy(self, request, *args, **kwargs):
+        role = self.get_object()
+        if role.is_system:
+            return Response(
+                {'error': 'Default project roles cannot be deleted. You can edit them.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if ProjectMember.objects.filter(role=role.code).exists():
+            return Response(
+                {'error': 'This project role is already assigned to project members.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().destroy(request, *args, **kwargs)
 
 class ConstructionPhaseViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = ConstructionPhase.objects.all()

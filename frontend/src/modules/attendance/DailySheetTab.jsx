@@ -20,6 +20,7 @@ import attendanceService from '../../services/attendanceService';
 import workforceService from '../../services/workforceService';
 import QRScannerTab from './QRScannerTab';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import { useMqtt } from './MqttContext';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -206,6 +207,72 @@ function CountRing({ counts, total }) {
     );
 }
 
+function DailyMqttNotice({ status, reconnectCountdown, onReconnect }) {
+    if (status === 'Connected') return null;
+
+    const isConnecting = status === 'Connecting...';
+    const tone = isConnecting
+        ? {
+            border: '#f59e0b40',
+            bg: 'rgba(245,158,11,0.10)',
+            badge: '#f59e0b',
+            title: 'Connecting scanner...',
+            detail: 'Waiting for the attendance device to reconnect.',
+            buttonLabel: 'Connecting...',
+        }
+        : {
+            border: '#f9731640',
+            bg: 'rgba(249,115,22,0.08)',
+            badge: '#f97316',
+            title: 'MQTT scanner offline',
+            detail: 'Daily attendance scan is not connected. Reconnect the scanner to receive live check-ins.',
+            buttonLabel: 'Connect',
+        };
+
+    return (
+        <div style={{
+            marginTop: 10,
+            padding: '10px 12px',
+            borderRadius: 12,
+            border: `1px solid ${tone.border}`,
+            background: tone.bg,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            flexWrap: 'wrap',
+        }}>
+            <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 800, color: tone.badge }}>
+                    {tone.title}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--t-text3)', marginTop: 2 }}>
+                    {tone.detail}
+                    {reconnectCountdown && status !== 'Connected' ? ` Retrying in ${reconnectCountdown}s.` : ''}
+                </div>
+            </div>
+            <button
+                type="button"
+                onClick={onReconnect}
+                disabled={isConnecting}
+                style={{
+                    padding: '8px 12px',
+                    borderRadius: 9,
+                    border: `1px solid ${tone.border}`,
+                    background: isConnecting ? 'rgba(255,255,255,0.45)' : '#fff',
+                    color: tone.badge,
+                    fontSize: 12,
+                    fontWeight: 800,
+                    cursor: isConnecting ? 'not-allowed' : 'pointer',
+                    whiteSpace: 'nowrap',
+                }}
+            >
+                {tone.buttonLabel}
+            </button>
+        </div>
+    );
+}
+
 // ─── Worker row (mobile compact swipeable card) ──────────────────────────────
 
 function WorkerCard({ worker, rec, onChange, lateScans, projSettings }) {
@@ -378,6 +445,10 @@ function WorkerCard({ worker, rec, onChange, lateScans, projSettings }) {
 // ─── Mobile daily sheet ────────────────────────────────────────────────────────
 
 function MobileDailySheet({ projectId, onAlertCount }) {
+    const mqtt = useMqtt();
+    const mqttStatus = mqtt?.status || 'Disconnected';
+    const mqttReconnectCountdown = mqtt?.reconnectCountdown || null;
+    const reconnectMqtt = mqtt?.reconnect || (() => {});
     const [date,       setDate]       = useState(todayStr());
     const [workers,    setWorkers]    = useState([]);
     const [sheet,      setSheet]      = useState({});   // workerId → { status, overtime_hours, notes }
@@ -794,6 +865,8 @@ function MobileDailySheet({ projectId, onAlertCount }) {
                     {saved  && <span>✅ Saved</span>}
                     {!saving && !saved && dirty && <span style={{ color: '#f59e0b' }}>● Unsaved changes</span>}
                 </div>
+
+                <DailyMqttNotice status={mqttStatus} reconnectCountdown={mqttReconnectCountdown} onReconnect={reconnectMqtt} />
             </div>
 
             {/* ── Live count ring + actions ── */}
@@ -967,6 +1040,10 @@ function MobileDailySheet({ projectId, onAlertCount }) {
 // ─── Desktop layout (unchanged structure, upgraded internals) ─────────────────
 
 function DesktopDailySheet({ projectId, onAlertCount }) {
+    const mqtt = useMqtt();
+    const mqttStatus = mqtt?.status || 'Disconnected';
+    const mqttReconnectCountdown = mqtt?.reconnectCountdown || null;
+    const reconnectMqtt = mqtt?.reconnect || (() => {});
     const [date,   setDate]   = useState(todayStr());
     const [workers, setWorkers] = useState([]);
     const [sheet,   setSheet]   = useState({});
@@ -1290,6 +1367,8 @@ function DesktopDailySheet({ projectId, onAlertCount }) {
                         border: 'none', cursor: (saving || !dirty) ? 'not-allowed' : 'pointer',
                     }}>{saving ? '⏳' : saved ? '✅ Saved' : '💾 Save'}</button>
                 </div>
+
+                <DailyMqttNotice status={mqttStatus} reconnectCountdown={mqttReconnectCountdown} onReconnect={reconnectMqtt} />
             </div>
 
             {/* Summary pills */}

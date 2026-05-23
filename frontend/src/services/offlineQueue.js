@@ -16,6 +16,81 @@ const DB_NAME = 'hcms-offline';
 const STORE = 'outbox';
 const DB_VERSION = 1;
 const LS_KEY = 'hcms-offline-outbox';
+const API_ROOT = (import.meta.env.VITE_API_URL || '/api/v1').replace(/\/$/, '');
+
+const LEGACY_PREFIX_MAP = [
+    {
+        base: `${API_ROOT}/workforce`,
+        prefixes: [
+            'members/',
+            'categories/',
+            'roles/',
+            'documents/',
+            'contracts/',
+            'skills/',
+            'worker-skills/',
+            'wages/',
+            'payroll-records/',
+            'assignments/',
+            'evaluations/',
+            'safety-records/',
+            'performance-logs/',
+            'emergency-contacts/',
+            'teams/',
+        ],
+    },
+    {
+        base: `${API_ROOT}/worker`,
+        prefixes: [
+            'me/',
+            'qr/',
+            'checkin/',
+            'qr-checkin/',
+            'my-team/',
+            'phases/',
+            'tasks/',
+            'project-tasks/',
+            'photos/',
+            'resources/',
+            'material-requests/',
+        ],
+    },
+    {
+        base: `${API_ROOT}/attendance/mqtt`,
+        prefixes: [
+            'config/',
+            'test/',
+            'status/',
+            'logs/',
+            'nfc-scan/',
+            'devices/',
+        ],
+    },
+    {
+        base: `${API_ROOT}/location`,
+        prefixes: [
+            'ping/',
+            'live/',
+            'history/',
+            'geofences/',
+            'analytics/',
+            'pins/',
+        ],
+    },
+];
+
+function normalizeQueuedUrl(url) {
+    if (!url) return url;
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/')) {
+        return url;
+    }
+    for (const group of LEGACY_PREFIX_MAP) {
+        if (group.prefixes.some((prefix) => url.startsWith(prefix))) {
+            return `${group.base}/${url}`;
+        }
+    }
+    return `${API_ROOT}/${url}`;
+}
 
 // ── Native IndexedDB wrapper (no external dep) ──────────────────────
 function openDB() {
@@ -126,7 +201,7 @@ export async function flush(axiosInstance) {
     for (const e of entries) {
         try {
             await axiosInstance.request({
-                url: e.url,
+                url: normalizeQueuedUrl(e.url),
                 method: e.method,
                 data: e.body,
                 headers: e.headers,

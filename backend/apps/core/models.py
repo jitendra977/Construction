@@ -539,6 +539,81 @@ class EmailLog(models.Model):
         return f"[{self.email_type}] {self.subject} → {self.recipient_email} ({self.status})"
 
 
+class ProjectRole(models.Model):
+    """
+    Manageable project-level role template used by ProjectMember.
+    """
+
+    code = models.CharField(max_length=50, unique=True)
+    name = models.CharField(max_length=80)
+    name_ne = models.CharField(max_length=80, blank=True, default="")
+    description = models.CharField(max_length=220, blank=True, default="")
+    description_ne = models.CharField(max_length=220, blank=True, default="")
+    icon = models.CharField(max_length=8, blank=True, default="")
+    color = models.CharField(max_length=20, blank=True, default="")
+    sort_order = models.PositiveIntegerField(default=0)
+    is_system = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+
+    can_manage_members = models.BooleanField(default=False)
+    can_view_members = models.BooleanField(default=False)
+    can_manage_finances = models.BooleanField(default=False)
+    can_view_finances = models.BooleanField(default=False)
+    can_manage_phases = models.BooleanField(default=False)
+    can_view_phases = models.BooleanField(default=False)
+    can_manage_structure = models.BooleanField(default=False)
+    can_view_structure = models.BooleanField(default=False)
+    can_manage_resources = models.BooleanField(default=False)
+    can_view_resources = models.BooleanField(default=False)
+    can_upload_media = models.BooleanField(default=False)
+    can_manage_workforce = models.BooleanField(default=False)
+    can_view_workforce = models.BooleanField(default=False)
+    can_approve_purchases = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["sort_order", "name", "code"]
+        verbose_name = "Project Role"
+        verbose_name_plural = "Project Roles"
+
+    @property
+    def permission_fields(self):
+        return [
+            "can_manage_members",
+            "can_view_members",
+            "can_manage_finances",
+            "can_view_finances",
+            "can_manage_phases",
+            "can_view_phases",
+            "can_manage_structure",
+            "can_view_structure",
+            "can_manage_resources",
+            "can_view_resources",
+            "can_upload_media",
+            "can_manage_workforce",
+            "can_view_workforce",
+            "can_approve_purchases",
+        ]
+
+    def clean(self):
+        super().clean()
+        self.code = (self.code or "").strip().upper().replace(" ", "_")
+
+    def save(self, *args, **kwargs):
+        self.code = (self.code or "").strip().upper().replace(" ", "_")
+        return super().save(*args, **kwargs)
+
+    def permission_defaults(self):
+        return {field: getattr(self, field) for field in self.permission_fields}
+
+    def display_name(self):
+        if self.name_ne:
+            return f"{self.name} / {self.name_ne}"
+        return self.name
+
+    def __str__(self):
+        return f"{self.name} ({self.code})"
+
+
 class ProjectMember(models.Model):
     """
     Team member with a project-specific role and granular permission flags.
@@ -561,68 +636,98 @@ class ProjectMember(models.Model):
     ROLE_DEFAULT_PERMISSIONS = {
         'OWNER': {
             'can_manage_members':    True,
+            'can_view_members':      True,
             'can_manage_finances':   True,
             'can_view_finances':     True,
             'can_manage_phases':     True,
+            'can_view_phases':       True,
             'can_manage_structure':  True,
+            'can_view_structure':    True,
             'can_manage_resources':  True,
+            'can_view_resources':    True,
             'can_upload_media':      True,
             'can_manage_workforce':  True,
+            'can_view_workforce':    True,
             'can_approve_purchases': True,
         },
         'MANAGER': {
             'can_manage_members':    True,
+            'can_view_members':      True,
             'can_manage_finances':   True,
             'can_view_finances':     True,
             'can_manage_phases':     True,
+            'can_view_phases':       True,
             'can_manage_structure':  True,
+            'can_view_structure':    True,
             'can_manage_resources':  True,
+            'can_view_resources':    True,
             'can_upload_media':      True,
             'can_manage_workforce':  True,
+            'can_view_workforce':    True,
             'can_approve_purchases': True,
         },
         'ENGINEER': {
             'can_manage_members':    False,
+            'can_view_members':      True,
             'can_manage_finances':   False,
             'can_view_finances':     True,
             'can_manage_phases':     True,
+            'can_view_phases':       True,
             'can_manage_structure':  True,
+            'can_view_structure':    True,
             'can_manage_resources':  True,   # can raise purchase requests
+            'can_view_resources':    True,
             'can_upload_media':      True,
             'can_manage_workforce':  False,
+            'can_view_workforce':    True,
             'can_approve_purchases': False,  # requests only — manager approves
         },
         'SUPERVISOR': {
             'can_manage_members':    False,
+            'can_view_members':      True,
             'can_manage_finances':   False,
             'can_view_finances':     True,
             'can_manage_phases':     True,
+            'can_view_phases':       True,
             'can_manage_structure':  False,
+            'can_view_structure':    True,
             'can_manage_resources':  False,
+            'can_view_resources':    True,
             'can_upload_media':      True,
             'can_manage_workforce':  True,   # attendance, teams, payroll view
+            'can_view_workforce':    True,
             'can_approve_purchases': False,
         },
         'CONTRACTOR': {
             'can_manage_members':    False,
+            'can_view_members':      True,
             'can_manage_finances':   False,
             'can_view_finances':     False,
             'can_manage_phases':     False,
+            'can_view_phases':       True,
             'can_manage_structure':  False,
+            'can_view_structure':    True,
             'can_manage_resources':  True,
+            'can_view_resources':    True,
             'can_upload_media':      True,
             'can_manage_workforce':  False,
+            'can_view_workforce':    False,
             'can_approve_purchases': False,
         },
         'VIEWER': {
             'can_manage_members':    False,
+            'can_view_members':      True,
             'can_manage_finances':   False,
             'can_view_finances':     True,
             'can_manage_phases':     False,
+            'can_view_phases':       True,
             'can_manage_structure':  False,
+            'can_view_structure':    True,
             'can_manage_resources':  False,
+            'can_view_resources':    True,
             'can_upload_media':      False,
             'can_manage_workforce':  False,
+            'can_view_workforce':    True,
             'can_approve_purchases': False,
         },
     }
@@ -635,7 +740,7 @@ class ProjectMember(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
         related_name='project_memberships',
     )
-    role     = models.CharField(max_length=20, choices=ROLE_CHOICES, default='VIEWER')
+    role     = models.CharField(max_length=50, default='VIEWER')
     note     = models.CharField(max_length=200, blank=True, default='',
                                 help_text="Short note e.g. 'Lead civil engineer'")
     joined_at = models.DateTimeField(auto_now_add=True)
@@ -643,20 +748,30 @@ class ProjectMember(models.Model):
     # ── Granular permission flags ─────────────────────────────────────────────
     can_manage_members   = models.BooleanField(default=False,
         help_text='Add / remove / edit team members')
+    can_view_members     = models.BooleanField(default=True,
+        help_text='Read-only access to project members')
     can_manage_finances  = models.BooleanField(default=False,
         help_text='Create / edit expenses, budgets, payments')
     can_view_finances    = models.BooleanField(default=False,
         help_text='Read-only access to financial data')
     can_manage_phases    = models.BooleanField(default=False,
         help_text='Create / edit phases and tasks')
+    can_view_phases      = models.BooleanField(default=True,
+        help_text='Read-only access to phases and tasks')
     can_manage_structure = models.BooleanField(default=False,
         help_text='Create / edit floors and rooms')
+    can_view_structure   = models.BooleanField(default=True,
+        help_text='Read-only access to floors and rooms')
     can_manage_resources = models.BooleanField(default=False,
         help_text='Create / edit materials, contractors, suppliers')
+    can_view_resources   = models.BooleanField(default=True,
+        help_text='Read-only access to materials, suppliers, and purchases')
     can_upload_media     = models.BooleanField(default=False,
         help_text='Upload photos and documents')
     can_manage_workforce = models.BooleanField(default=False,
         help_text='Mark attendance, manage teams, view payroll for assigned workers')
+    can_view_workforce   = models.BooleanField(default=True,
+        help_text='Read-only access to attendance, teams, and payroll summaries')
     can_approve_purchases = models.BooleanField(default=False,
         help_text='Approve purchase requests raised by engineers / contractors')
 
@@ -670,17 +785,35 @@ class ProjectMember(models.Model):
         return f"{self.user.username} → {self.project.name} ({self.role})"
 
     # ── Helpers ───────────────────────────────────────────────────────────────
+    @classmethod
+    def role_choice_map(cls):
+        return dict(cls.ROLE_CHOICES)
+
+    def get_role_definition(self):
+        return ProjectRole.objects.filter(code=self.role).first()
+
+    def get_role_display(self):
+        role_def = self.get_role_definition()
+        if role_def:
+            return role_def.display_name()
+        return self.role_choice_map().get(self.role, self.role.replace("_", " ").title())
+
     def apply_role_defaults(self):
         """Seed all permission flags from this member's role defaults."""
-        defaults = self.ROLE_DEFAULT_PERMISSIONS.get(self.role, {})
+        role_def = self.get_role_definition()
+        defaults = role_def.permission_defaults() if role_def else self.ROLE_DEFAULT_PERMISSIONS.get(self.role, {})
         for field, value in defaults.items():
             setattr(self, field, value)
 
     @property
     def permission_fields(self):
         return [
-            'can_manage_members',   'can_manage_finances',  'can_view_finances',
-            'can_manage_phases',    'can_manage_structure',
-            'can_manage_resources', 'can_upload_media',
-            'can_manage_workforce', 'can_approve_purchases',
+            'can_manage_members',   'can_view_members',
+            'can_manage_finances',  'can_view_finances',
+            'can_manage_phases',    'can_view_phases',
+            'can_manage_structure', 'can_view_structure',
+            'can_manage_resources', 'can_view_resources',
+            'can_upload_media',
+            'can_manage_workforce', 'can_view_workforce',
+            'can_approve_purchases',
         ]

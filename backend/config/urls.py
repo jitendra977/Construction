@@ -26,7 +26,7 @@ def health_check(request):
 from apps.accounts.views import UserViewSet, RoleViewSet, ActivityLogViewSet
 from apps.attendance.views import nfc_attendance_scan  # backward-compat alias
 from apps.accounts.urls import accounts_urlpatterns, worker_urlpatterns
-from apps.core.views import HouseProjectViewSet, ConstructionPhaseViewSet, PhaseDocumentViewSet, RoomViewSet, FloorViewSet, UserGuideViewSet, UserGuideStepViewSet, UserGuideFAQViewSet, UserGuideSectionViewSet, EmailLogViewSet, DashboardDataView, ProjectMemberViewSet
+from apps.core.views import HouseProjectViewSet, ConstructionPhaseViewSet, PhaseDocumentViewSet, RoomViewSet, FloorViewSet, UserGuideViewSet, UserGuideStepViewSet, UserGuideFAQViewSet, UserGuideSectionViewSet, EmailLogViewSet, DashboardDataView, ProjectMemberViewSet, ProjectRoleViewSet
 from apps.core.gallery_views import GalleryViewSet
 from apps.tasks.views import TaskViewSet, TaskUpdateViewSet, TaskMediaViewSet
 
@@ -63,6 +63,7 @@ router.register(r'user-guide-faqs', UserGuideFAQViewSet)
 router.register(r'user-guide-sections', UserGuideSectionViewSet)
 router.register(r'email-logs', EmailLogViewSet)
 router.register(r'project-members', ProjectMemberViewSet, basename='project-member')
+router.register(r'project-roles', ProjectRoleViewSet, basename='project-role')
 
 urlpatterns = [
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

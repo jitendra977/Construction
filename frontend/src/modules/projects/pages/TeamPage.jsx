@@ -7,51 +7,33 @@
  *   WORKERS     — individual attendance workers on this project
  */
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams, useOutletContext } from 'react-router-dom';
+import { Link, useParams, useOutletContext } from 'react-router-dom';
 import api from '../services/projectsApi';
 import attendanceService from '../../../services/attendanceService';
 import workforceService from '../../../services/workforceService';
 import TeamsTab from '../../attendance/TeamsTab';
 import WorkforceMembersView from '../../workforce/components/WorkforceMembersView';
+import accountsApi from '../../accounts/services/accountsApi';
+import Modal from '../../accounts/components/shared/Modal';
+import { ProjectRoleManager, ProjectRoleForm } from '../../accounts/pages/RolesPage';
+import {
+    PROJECT_PERMISSION_META,
+    normalizeProjectRoles,
+    getProjectRoleByCode,
+    buildProjectRoleDefaults,
+} from '../../accounts/utils/projectRoles';
 
-// ── Role config ───────────────────────────────────────────────────────────────
-export const ROLE_CONFIG = {
-    OWNER:      { emoji: '👑', color: '#f97316', bg: '#fff7ed', label: 'Owner' },
-    MANAGER:    { emoji: '🧑‍💼', color: '#3b82f6', bg: '#eff6ff', label: 'Manager' },
-    ENGINEER:   { emoji: '🔧', color: '#8b5cf6', bg: '#f5f3ff', label: 'Engineer' },
-    SUPERVISOR: { emoji: '🦺', color: '#f59e0b', bg: '#fffbeb', label: 'Supervisor' },
-    CONTRACTOR: { emoji: '🏗️', color: '#6b7280', bg: '#f9fafb', label: 'Contractor' },
-    VIEWER:     { emoji: '👁️', color: '#9ca3af', bg: '#f9fafb', label: 'Viewer' },
-};
+const ALL_PERMS = PROJECT_PERMISSION_META.map(({ key, icon, label }) => ({ key, icon, label }));
 
-export const ROLES = [
-    ['OWNER',      '👑 Owner'],
-    ['MANAGER',    '🧑‍💼 Manager'],
-    ['ENGINEER',   '🔧 Engineer'],
-    ['SUPERVISOR', '🦺 Supervisor'],
-    ['CONTRACTOR', '🏗️ Contractor'],
-    ['VIEWER',     '👁️ Viewer'],
-];
-
-const ALL_PERMS = [
-    { key: 'can_manage_members',    icon: '👥', label: 'Manage Team'  },
-    { key: 'can_manage_phases',     icon: '📋', label: 'Phases'       },
-    { key: 'can_manage_finances',   icon: '💰', label: 'Finances'     },
-    { key: 'can_view_finances',     icon: '👁️', label: 'View Finance' },
-    { key: 'can_manage_structure',  icon: '🏛️', label: 'Structure'    },
-    { key: 'can_manage_resources',  icon: '🧱', label: 'Resources'    },
-    { key: 'can_manage_workforce',  icon: '🦺', label: 'Workforce'    },
-    { key: 'can_approve_purchases', icon: '✅', label: 'Approvals'    },
-    { key: 'can_upload_media',      icon: '📸', label: 'Media'        },
-];
-
-const ROLE_DEFAULTS = {
-    OWNER:      { can_manage_members:true,  can_manage_finances:true,  can_view_finances:true,  can_manage_phases:true,  can_manage_structure:true,  can_manage_resources:true,  can_upload_media:true,  can_manage_workforce:true,  can_approve_purchases:true  },
-    MANAGER:    { can_manage_members:true,  can_manage_finances:true,  can_view_finances:true,  can_manage_phases:true,  can_manage_structure:true,  can_manage_resources:true,  can_upload_media:true,  can_manage_workforce:true,  can_approve_purchases:true  },
-    ENGINEER:   { can_manage_members:false, can_manage_finances:false, can_view_finances:true,  can_manage_phases:true,  can_manage_structure:true,  can_manage_resources:false, can_upload_media:true,  can_manage_workforce:false, can_approve_purchases:false },
-    SUPERVISOR: { can_manage_members:false, can_manage_finances:false, can_view_finances:true,  can_manage_phases:true,  can_manage_structure:false, can_manage_resources:false, can_upload_media:true,  can_manage_workforce:true,  can_approve_purchases:false },
-    CONTRACTOR: { can_manage_members:false, can_manage_finances:false, can_view_finances:false, can_manage_phases:false, can_manage_structure:false, can_manage_resources:true,  can_upload_media:true,  can_manage_workforce:false, can_approve_purchases:false },
-    VIEWER:     { can_manage_members:false, can_manage_finances:false, can_view_finances:true,  can_manage_phases:false, can_manage_structure:false, can_manage_resources:false, can_upload_media:false, can_manage_workforce:false, can_approve_purchases:false },
+const getRoleConfig = (projectRoles, code) => {
+    const role = getProjectRoleByCode(projectRoles, code);
+    return {
+        emoji: role.icon || '🧭',
+        color: role.color || '#2563eb',
+        bg: `${role.color || '#2563eb'}12`,
+        label: role.name || code || 'Role',
+        description: role.description || '',
+    };
 };
 
 // ── Shared tiny UI helpers ────────────────────────────────────────────────────
@@ -116,7 +98,7 @@ function RemoveModal({ member, onConfirm, onCancel }) {
 }
 
 // ── Member card ───────────────────────────────────────────────────────────────
-function MemberCard({ member, canManage, onUpdated, onRemoved, isLinked }) {
+function MemberCard({ member, canManage, onUpdated, onRemoved, isLinked, projectRoles }) {
     const [expanded, setExpanded] = useState(false);
     const [editing, setEditing]   = useState(false);
     const [perms, setPerms]       = useState({});
@@ -125,7 +107,7 @@ function MemberCard({ member, canManage, onUpdated, onRemoved, isLinked }) {
     const [saving, setSaving]     = useState(false);
     const [confirmRemove, setConfirmRemove] = useState(false);
 
-    const cfg = ROLE_CONFIG[member.role] || ROLE_CONFIG.VIEWER;
+    const cfg = getRoleConfig(projectRoles, member.role);
 
     const openEdit = () => {
         const p = {};
@@ -139,7 +121,7 @@ function MemberCard({ member, canManage, onUpdated, onRemoved, isLinked }) {
 
     const applyRoleDefaults = (r) => {
         setRole(r);
-        setPerms({ ...ROLE_DEFAULTS[r] });
+        setPerms(buildProjectRoleDefaults(getProjectRoleByCode(projectRoles, r)));
     };
 
     const save = async () => {
@@ -159,6 +141,7 @@ function MemberCard({ member, canManage, onUpdated, onRemoved, isLinked }) {
 
     const displayPerms = editing ? perms : member;
     const permCount = ALL_PERMS.filter(p => displayPerms[p.key]).length;
+    const workforceLink = member.workforce_id ? `/dashboard/desktop/workforce?member=${member.workforce_id}` : null;
 
     return (
         <>
@@ -174,6 +157,37 @@ function MemberCard({ member, canManage, onUpdated, onRemoved, isLinked }) {
                             {isLinked && <span title="Linked to attendance" style={{ fontSize:11 }}>✅</span>}
                         </div>
                         <div style={{ fontSize:11, color:'var(--t-text3)' }}>{member.email}</div>
+                        {member.official_role_name && (
+                            <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--t-text3)' }}>
+                                    Official Role
+                                </span>
+                                <span style={{
+                                    padding: '3px 8px',
+                                    borderRadius: 999,
+                                    background: 'rgba(249,115,22,0.12)',
+                                    color: '#c2410c',
+                                    fontSize: 11,
+                                    fontWeight: 800,
+                                    border: '1px solid rgba(249,115,22,0.2)',
+                                }}>
+                                    🏗️ {member.official_role_name}
+                                </span>
+                                {workforceLink && (
+                                    <Link
+                                        to={workforceLink}
+                                        style={{
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            color: '#2563eb',
+                                            textDecoration: 'none',
+                                        }}
+                                    >
+                                        Open workforce profile
+                                    </Link>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Role badge */}
@@ -209,7 +223,11 @@ function MemberCard({ member, canManage, onUpdated, onRemoved, isLinked }) {
                                     <div>
                                         <label style={s.label}>Role</label>
                                         <select value={role} onChange={e => applyRoleDefaults(e.target.value)} style={{ ...s.input }}>
-                                            {ROLES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                                            {projectRoles.map((projectRole) => (
+                                                <option key={projectRole.code} value={projectRole.code}>
+                                                    {`${projectRole.icon} ${projectRole.name}`}
+                                                </option>
+                                            ))}
                                         </select>
                                         <div style={{ fontSize:10, color:'var(--t-text3)', marginTop:4 }}>Changing role auto-applies default permissions</div>
                                     </div>
@@ -243,6 +261,21 @@ function MemberCard({ member, canManage, onUpdated, onRemoved, isLinked }) {
                                         <PermChip key={p.key} perm={p} value={!!member[p.key]} editable={false} />
                                     ))}
                                 </div>
+                                {member.official_role_name && (
+                                    <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 8, background: 'var(--t-bg)', border: '1px solid var(--t-border)', fontSize: 12, color: 'var(--t-text3)' }}>
+                                        <strong style={{ color: 'var(--t-text)', marginRight: 6 }}>Official workforce role:</strong>
+                                        {member.official_role_name}
+                                        {member.official_role_code ? ` (${member.official_role_code})` : ''}
+                                        {workforceLink && (
+                                            <Link
+                                                to={workforceLink}
+                                                style={{ marginLeft: 10, color: '#2563eb', fontWeight: 700, textDecoration: 'none' }}
+                                            >
+                                                Manage in workforce
+                                            </Link>
+                                        )}
+                                    </div>
+                                )}
                                 {member.note && (
                                     <div style={{ marginTop:10, padding:'8px 12px', borderRadius:8, background:'var(--t-bg)', border:'1px solid var(--t-border)', fontSize:12, color:'var(--t-text3)', fontStyle:'italic' }}>
                                         📝 {member.note}
@@ -269,15 +302,29 @@ function MemberCard({ member, canManage, onUpdated, onRemoved, isLinked }) {
 }
 
 // ── Add Member Form ───────────────────────────────────────────────────────────
-function AddMemberForm({ availableUsers, projectId, onAdded, onCancel }) {
-    const [form, setForm]   = useState({ user: '', role: 'ENGINEER', note: '' });
-    const [perms, setPerms] = useState({ ...ROLE_DEFAULTS.ENGINEER });
+function AddMemberForm({ availableUsers, projectId, onAdded, onCancel, projectRoles }) {
+    const defaultRoleCode = projectRoles.find(role => role.code === 'ENGINEER')?.code || projectRoles[0]?.code || 'VIEWER';
+    const [form, setForm]   = useState({ user: '', role: defaultRoleCode, note: '' });
+    const [perms, setPerms] = useState(buildProjectRoleDefaults(getProjectRoleByCode(projectRoles, defaultRoleCode)));
     const [adding, setAdding] = useState(false);
     const [err, setErr]     = useState('');
 
+    useEffect(() => {
+        if (!projectRoles.length) return;
+        setForm(prev => {
+            if (projectRoles.some(role => role.code === prev.role)) return prev;
+            return { ...prev, role: defaultRoleCode };
+        });
+        setPerms(prev => (
+            projectRoles.some(role => role.code === form.role)
+                ? prev
+                : buildProjectRoleDefaults(getProjectRoleByCode(projectRoles, defaultRoleCode))
+        ));
+    }, [defaultRoleCode, form.role, projectRoles]);
+
     const applyRole = (role) => {
         setForm(f => ({ ...f, role }));
-        setPerms({ ...ROLE_DEFAULTS[role] });
+        setPerms(buildProjectRoleDefaults(getProjectRoleByCode(projectRoles, role)));
     };
 
     const submit = async (e) => {
@@ -315,7 +362,11 @@ function AddMemberForm({ availableUsers, projectId, onAdded, onCancel }) {
                     <div>
                         <label style={s.label}>Role *</label>
                         <select value={form.role} onChange={e => applyRole(e.target.value)} style={s.input}>
-                            {ROLES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                            {projectRoles.map(projectRole => (
+                                <option key={projectRole.code} value={projectRole.code}>
+                                    {`${projectRole.icon} ${projectRole.name}`}
+                                </option>
+                            ))}
                         </select>
                     </div>
                 </div>
@@ -328,7 +379,7 @@ function AddMemberForm({ availableUsers, projectId, onAdded, onCancel }) {
                 {/* Permission preview */}
                 <div style={{ marginBottom:16 }}>
                     <div style={{ fontSize:11, fontWeight:700, color:'var(--t-text3)', textTransform:'uppercase', marginBottom:8 }}>
-                        Permissions for {ROLE_CONFIG[form.role]?.label} <span style={{ fontWeight:400 }}>(click to override)</span>
+                        Permissions for {getRoleConfig(projectRoles, form.role).label} <span style={{ fontWeight:400 }}>(click to override)</span>
                     </div>
                     <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
                         {ALL_PERMS.map(p => (
@@ -352,6 +403,7 @@ function ManagementTab({ projectId }) {
     const [members,  setMembers]  = useState([]);
     const [workers,  setWorkers]  = useState([]);
     const [allUsers, setAllUsers] = useState([]);
+    const [projectRoles, setProjectRoles] = useState([]);
     const [myRole,   setMyRole]   = useState(null);
     const [loading,  setLoading]  = useState(true);
     const [showAdd,  setShowAdd]  = useState(false);
@@ -364,17 +416,19 @@ function ManagementTab({ projectId }) {
         if (!projectId) return;
         setLoading(true);
         try {
-            const [mRes, uRes, rRes, wRes] = await Promise.all([
+            const [mRes, uRes, rRes, wRes, prRes] = await Promise.all([
                 api.listMembers(projectId),
                 api.listUsers(),
                 api.getMyRole(projectId).catch(() => null),
                 attendanceService.getWorkers({ project: projectId }).catch(() => []),
+                api.listProjectRoles().catch(() => ({ data: [] })),
             ]);
             setMembers(Array.isArray(mRes.data) ? mRes.data : (mRes.data.results || []));
             setAllUsers(Array.isArray(uRes.data) ? uRes.data : (uRes.data.results || []));
             setMyRole(rRes?.data || null);
             const w = Array.isArray(wRes) ? wRes : (wRes.results || []);
             setWorkers(w);
+            setProjectRoles(normalizeProjectRoles(prRes.data || []));
         } catch (e) { console.error(e); }
         finally { setLoading(false); }
     }, [projectId]);
@@ -392,10 +446,10 @@ function ManagementTab({ projectId }) {
         return matchSearch && matchRole;
     });
 
-    // Group by role
-    const grouped = ROLES.reduce((acc, [role]) => {
-        const grp = filtered.filter(m => m.role === role);
-        if (grp.length) acc.push({ role, members: grp });
+    const roleOptions = normalizeProjectRoles(projectRoles);
+    const grouped = roleOptions.reduce((acc, roleOption) => {
+        const grp = filtered.filter(m => m.role === roleOption.code);
+        if (grp.length) acc.push({ role: roleOption.code, roleOption, members: grp });
         return acc;
     }, []);
 
@@ -432,7 +486,7 @@ function ManagementTab({ projectId }) {
                 />
                 <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} style={{ ...s.input, width:'auto', flex:'0 0 140px' }}>
                     <option value="">All Roles</option>
-                    {ROLES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    {roleOptions.map(roleOption => <option key={roleOption.code} value={roleOption.code}>{`${roleOption.icon} ${roleOption.name}`}</option>)}
                 </select>
                 {canManage && (
                     <button onClick={() => setShowAdd(s => !s)} style={s.btn(showAdd ? '#6b7280' : '#f97316')}>
@@ -447,6 +501,7 @@ function ManagementTab({ projectId }) {
                     projectId={projectId}
                     onAdded={handleAdded}
                     onCancel={() => setShowAdd(false)}
+                    projectRoles={roleOptions}
                 />
             )}
 
@@ -456,14 +511,14 @@ function ManagementTab({ projectId }) {
                     {search || roleFilter ? 'No members match your filter.' : 'No team members yet. Add the first one.'}
                 </div>
             ) : (
-                grouped.map(({ role, members: grp }) => {
-                    const cfg = ROLE_CONFIG[role] || ROLE_CONFIG.VIEWER;
+                grouped.map(({ role, roleOption, members: grp }) => {
+                    const cfg = getRoleConfig(roleOptions, role);
                     return (
                         <div key={role} style={{ marginBottom:24 }}>
                             <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
                                 <span style={{ fontSize:16 }}>{cfg.emoji}</span>
                                 <h3 style={{ margin:0, fontSize:11, fontWeight:900, textTransform:'uppercase', letterSpacing:'0.1em', color:cfg.color }}>
-                                    {cfg.label}s
+                                    {roleOption?.name || cfg.label}
                                 </h3>
                                 <span style={{ fontSize:10, fontWeight:800, padding:'2px 8px', borderRadius:6, background:`${cfg.color}15`, color:cfg.color }}>{grp.length}</span>
                             </div>
@@ -476,6 +531,7 @@ function ManagementTab({ projectId }) {
                                         onUpdated={handleUpdated}
                                         onRemoved={handleRemoved}
                                         isLinked={workers.some(w => w.linked_user === m.user)}
+                                        projectRoles={roleOptions}
                                     />
                                 ))}
                             </div>
@@ -484,6 +540,200 @@ function ManagementTab({ projectId }) {
                 })
             )}
 
+        </div>
+    );
+}
+
+function ProjectRolesTab() {
+    const [roles, setRoles] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [showCreate, setShowCreate] = useState(false);
+    const [editingRole, setEditingRole] = useState(null);
+    const [deleteRole, setDeleteRole] = useState(null);
+    const [deleteBusy, setDeleteBusy] = useState(false);
+    const [deleteErr, setDeleteErr] = useState('');
+
+    const loadRoles = useCallback(async () => {
+        setLoading(true);
+        try {
+            const res = await accountsApi.getProjectRoles();
+            setRoles(normalizeProjectRoles(res.data || []));
+        } catch {
+            setRoles(normalizeProjectRoles([]));
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        loadRoles();
+    }, [loadRoles]);
+
+    const handleDelete = async () => {
+        if (!deleteRole?.id) return;
+        setDeleteBusy(true);
+        setDeleteErr('');
+        try {
+            await accountsApi.deleteProjectRole(deleteRole.id);
+            setDeleteRole(null);
+            await loadRoles();
+        } catch (ex) {
+            setDeleteErr(ex?.response?.data?.error || ex?.response?.data?.detail || 'Cannot delete this project role.');
+        } finally {
+            setDeleteBusy(false);
+        }
+    };
+
+    return (
+        <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+            <div style={{
+                padding:18,
+                borderRadius:14,
+                border:'1px solid var(--t-border)',
+                background:'var(--t-surface)',
+            }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:16, flexWrap:'wrap' }}>
+                    <div style={{ maxWidth: 760, minWidth: 0 }}>
+                        <p style={{ margin:0, fontSize:17, fontWeight:900, color:'var(--t-text)' }}>
+                            Project Roles / प्रोजेक्ट रोल
+                        </p>
+                        <p style={{ margin:'6px 0 0', fontSize:12, lineHeight:1.65, color:'var(--t-text3)' }}>
+                            Reusable templates for project members. Create the role here, then assign it from the
+                            <strong> Management </strong>
+                            tab.
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setShowCreate(true)}
+                        style={{
+                            padding:'10px 16px',
+                            borderRadius:12,
+                            background:'#10b981',
+                            color:'#fff',
+                            fontSize:12,
+                            fontWeight:900,
+                            border:'none',
+                            cursor:'pointer',
+                            whiteSpace:'nowrap',
+                        }}
+                    >
+                        ➕ New Project Role
+                    </button>
+                </div>
+            </div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:12 }}>
+                {[
+                    {
+                        label: 'Total Roles',
+                        value: roles.length,
+                        color: '#10b981',
+                    },
+                    {
+                        label: 'Custom Roles',
+                        value: roles.filter(role => !role.is_system).length,
+                        color: '#f97316',
+                    },
+                    {
+                        label: 'Default Roles',
+                        value: roles.filter(role => role.is_system).length,
+                        color: '#3b82f6',
+                    },
+                ].map((card) => (
+                    <div key={card.label} style={{ padding:14, borderRadius:14, border:'1px solid var(--t-border)', background:'var(--t-surface)' }}>
+                        <div style={{ fontSize:10, fontWeight:900, color:'var(--t-text3)', textTransform:'uppercase', letterSpacing:'0.08em' }}>{card.label}</div>
+                        <div style={{ marginTop:6, fontSize:24, fontWeight:900, color:card.color }}>{card.value}</div>
+                    </div>
+                ))}
+            </div>
+
+            {loading ? (
+                <div style={{ textAlign:'center', padding:40, color:'var(--t-text3)' }}>Loading project roles…</div>
+            ) : (
+                <ProjectRoleManager
+                    roles={roles}
+                    onEdit={setEditingRole}
+                    onDelete={setDeleteRole}
+                    embedded
+                    title="Project Role Library"
+                    subtitle="Choose a template, review its permissions, and edit it in place."
+                />
+            )}
+
+            <Modal
+                isOpen={showCreate}
+                onClose={() => setShowCreate(false)}
+                title="Create Project Role"
+                size="lg"
+            >
+                {showCreate && (
+                    <ProjectRoleForm
+                        onDone={() => {
+                            setShowCreate(false);
+                            loadRoles();
+                        }}
+                    />
+                )}
+            </Modal>
+
+            <Modal
+                isOpen={!!editingRole}
+                onClose={() => setEditingRole(null)}
+                title="Edit Project Role"
+                size="lg"
+            >
+                {editingRole && (
+                    <ProjectRoleForm
+                        role={editingRole}
+                        onDone={() => {
+                            setEditingRole(null);
+                            loadRoles();
+                        }}
+                    />
+                )}
+            </Modal>
+
+            <Modal
+                isOpen={!!deleteRole}
+                onClose={() => { if (!deleteBusy) { setDeleteRole(null); setDeleteErr(''); } }}
+                title="Delete Project Role"
+                size="sm"
+            >
+                {deleteRole && (
+                    <div style={{ padding: 8 }}>
+                        <p style={{ margin:'0 0 10px', fontSize:13, color:'var(--t-text)' }}>
+                            Delete <strong>{deleteRole.name}</strong> ({deleteRole.code})?
+                        </p>
+                        <p style={{ margin:'0 0 14px', fontSize:12, color:'var(--t-text3)', lineHeight:1.6 }}>
+                            Members already using this template may need reassignment.
+                        </p>
+                        {deleteErr && (
+                            <div style={{ padding:'8px 12px', borderRadius:8, background:'#ef444412', color:'#ef4444', fontSize:12, fontWeight:600, marginBottom:12 }}>
+                                ❌ {deleteErr}
+                            </div>
+                        )}
+                        <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+                            <button
+                                type="button"
+                                onClick={() => { setDeleteRole(null); setDeleteErr(''); }}
+                                disabled={deleteBusy}
+                                style={{ ...s.btn('transparent', 'var(--t-text3)'), border:'1px solid var(--t-border)' }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleDelete}
+                                disabled={deleteBusy}
+                                style={s.btn('#ef4444')}
+                            >
+                                {deleteBusy ? 'Deleting…' : 'Delete Role'}
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </Modal>
         </div>
     );
 }
@@ -499,6 +749,7 @@ export default function TeamPage() {
         { id: 'MANAGEMENT', label: 'Office & Management', icon: '🏢' },
         { id: 'TEAMS',      label: 'Workforce Teams',     icon: '👥' },
         { id: 'WORKERS',    label: 'Individual Workers',  icon: '👷' },
+        { id: 'PROJECT_ROLES', label: 'Project Roles',    icon: '🗂️' },
     ];
 
     return (
@@ -522,7 +773,9 @@ export default function TeamPage() {
             {tab === 'MANAGEMENT' && <ManagementTab projectId={projectId} />}
             {tab === 'TEAMS'      && <TeamsTab      projectId={projectId} />}
             {tab === 'WORKERS'    && <WorkforceMembersView projectId={projectId} hideProjectFilter={true} />}
+            {tab === 'PROJECT_ROLES' && <ProjectRolesTab />}
             {/* ── Nepali Note Section (Project Management) ── */}
+            {tab === 'MANAGEMENT' && (
             <div style={{ marginTop: 60, padding: 30, background: 'linear-gradient(135deg, #fff 0%, #f9fafb 100%)', borderRadius: 24, border: '1px solid var(--t-border)', boxShadow: '0 10px 30px rgba(0,0,0,0.02)' }}>
                 <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
                     <div style={{ width: 48, height: 48, borderRadius: 16, background: '#f97316', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 24, flexShrink: 0 }}>📋</div>
@@ -574,6 +827,7 @@ export default function TeamPage() {
                     </div>
                 </div>
             </div>
+            )}
         </div>
     );
 }

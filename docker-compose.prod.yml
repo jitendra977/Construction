@@ -99,6 +99,39 @@ services:
         limits:
           memory: 768m
 
+  # ── MQTT Listener ─────────────────────────────────────────
+  mqtt-listener:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    image: constructpro-backend:${IMAGE_TAG:-latest}
+    container_name: construction_mqtt_listener
+    <<: [*restart, *logging]
+    command: >
+      sh -c "while true; do
+        python manage.py mqtt_listener;
+        echo 'mqtt_listener exited; retrying in 5s...';
+        sleep 5;
+      done"
+    env_file: ./backend/.env
+    environment:
+      DJANGO_ENV: production
+      DB_HOST:    db
+      DB_PORT:    5432
+      REDIS_URL:  redis://:${REDIS_PASSWORD}@redis:6379/0
+    volumes:
+      - media_data:/app/media
+    networks:
+      - internal
+    depends_on:
+      backend:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+
   # ── Celery Worker ───────────────────────────────────────────
   celery:
     build:

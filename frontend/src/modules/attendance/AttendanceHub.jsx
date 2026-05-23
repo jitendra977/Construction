@@ -4,8 +4,8 @@
  * Mobile  : full-screen content, bottom pill tab bar, My QR FAB
  * Desktop : header + horizontal tab bar + card wrapper (unchanged)
  */
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useConstruction } from '../../context/ConstructionContext';
 import attendanceService from '../../services/attendanceService';
 import DailySheetTab    from './DailySheetTab';
@@ -296,14 +296,105 @@ function LiveScanNotifier() {
 }
 
 function MqttStatusBadge() {
-    const { status } = useMqtt();
-    const dot = { 'Connected': '#22c55e', 'Connecting...': '#f59e0b', 'Error': '#ef4444', 'Offline': '#f59e0b' }[status] || '#64748b';
-    const label = status === 'Connected' ? 'Scanner Live' : status;
+    const {
+        status,
+        reconnect,
+        listenerStatus,
+        deviceStatus,
+        deviceCount,
+        onlineDeviceCount,
+        lastDeviceSeenAt,
+        testingConnection,
+        lastTestResult,
+        reconnectCountdown,
+        testConnection,
+    } = useMqtt();
+
+    const browserReady = status === 'Connected';
+    const listenerReady = listenerStatus === 'connected';
+    const deviceReady = deviceStatus === 'Connected';
+    const canReconnect = !browserReady && status !== 'Connecting...';
+    const canTest = !testingConnection && !deviceReady;
+
+    const dot = deviceReady
+        ? '#22c55e'
+        : browserReady || listenerReady
+            ? '#f59e0b'
+            : '#ef4444';
+
+    const label = deviceReady
+        ? 'Scanner Live'
+        : deviceStatus === 'Disconnected'
+            ? 'Scanner Device Offline'
+            : 'No Scanner Device';
+
+    const deviceMeta = deviceCount > 0
+        ? `${onlineDeviceCount}/${deviceCount} online`
+        : '0 devices';
+
+    const brokerMeta = `Listener ${listenerStatus || 'unknown'} · Browser ${status}`;
+    const lastSeenMeta = lastDeviceSeenAt
+        ? `Last seen ${new Date(lastDeviceSeenAt).toLocaleTimeString()}`
+        : 'No heartbeat yet';
+    const reconnectMeta = reconnectCountdown && !browserReady
+        ? `Retrying in ${reconnectCountdown}s`
+        : null;
 
     return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 8, background: 'var(--t-surface2)', border: '1px solid var(--t-border)' }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: dot, boxShadow: status === 'Connected' ? `0 0 6px ${dot}` : 'none' }} />
-            <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--t-text3)', textTransform: 'uppercase', letterSpacing: '.03em' }}>{label}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 10, background: 'var(--t-surface2)', border: '1px solid var(--t-border)' }}>
+            <div style={{ width: 7, height: 7, borderRadius: '50%', background: dot, boxShadow: deviceReady ? `0 0 6px ${dot}` : 'none', flexShrink: 0 }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
+                <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--t-text2)', textTransform: 'uppercase', letterSpacing: '.03em', whiteSpace: 'nowrap' }}>{label}</span>
+                <span style={{ fontSize: 10, color: 'var(--t-text3)', whiteSpace: 'nowrap' }}>{deviceMeta}</span>
+                <span style={{ fontSize: 9, color: 'var(--t-text3)', whiteSpace: 'nowrap' }}>{brokerMeta}</span>
+                {!deviceReady && (
+                    <span style={{ fontSize: 9, color: 'var(--t-text3)', whiteSpace: 'nowrap' }}>{lastSeenMeta}</span>
+                )}
+                {reconnectMeta && (
+                    <span style={{ fontSize: 9, color: '#f97316', whiteSpace: 'nowrap', fontWeight: 700 }}>{reconnectMeta}</span>
+                )}
+                {lastTestResult && !deviceReady && (
+                    <span style={{ fontSize: 9, color: lastTestResult.success ? '#16a34a' : '#dc2626', whiteSpace: 'nowrap' }}>
+                        {lastTestResult.success ? `Broker OK (${lastTestResult.latency_ms} ms)` : lastTestResult.message}
+                    </span>
+                )}
+            </div>
+            {canReconnect && (
+                <button
+                    type="button"
+                    onClick={reconnect}
+                    style={{
+                        padding: '3px 8px',
+                        borderRadius: 6,
+                        border: '1px solid #f9731640',
+                        background: '#f9731615',
+                        color: '#f97316',
+                        fontSize: 10,
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                    }}
+                >
+                    Connect
+                </button>
+            )}
+            {canTest && (
+                <button
+                    type="button"
+                    onClick={testConnection}
+                    style={{
+                        padding: '3px 8px',
+                        borderRadius: 6,
+                        border: '1px solid #2563eb30',
+                        background: '#2563eb12',
+                        color: '#2563eb',
+                        fontSize: 10,
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                    }}
+                >
+                    {testingConnection ? 'Testing...' : 'Test'}
+                </button>
+            )}
         </div>
     );
 }
@@ -412,14 +503,6 @@ function AttendanceHubContent() {
                     </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <button 
-                        onClick={() => effectiveProjectId && window.open(`/kiosk/${effectiveProjectId}`, '_blank')}
-                        style={{ background: 'none', border: '1px solid #10b98140', borderRadius: 8, padding: '4px 8px', fontSize: 10, color: '#10b981', fontWeight: 800, cursor: 'pointer' }}
-                    >🖥️ Kiosk</button>
-                    <button 
-                        onClick={() => { forceUnlockAudio(); playScanSound('CHECK_IN', settings); speakText('Feedback system active', settings); }}
-                        style={{ background: 'none', border: '1px solid #f9731640', borderRadius: 8, padding: '4px 8px', fontSize: 10, color: '#f97316', fontWeight: 800, cursor: 'pointer' }}
-                    >🔊 Test</button>
                     <MqttStatusBadge />
                     <div style={{
                         padding: '4px 12px', borderRadius: 8,
@@ -466,21 +549,6 @@ function AttendanceHubContent() {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <MqttStatusBadge />
-                        <Link to="/dashboard/desktop/workforce" style={{
-                            display: 'flex', alignItems: 'center', gap: 6,
-                            padding: '8px 14px', borderRadius: 10, fontSize: 12, fontWeight: 700,
-                            background: 'rgba(99,102,241,.08)', border: '1px solid rgba(99,102,241,.2)',
-                            color: '#6366f1', textDecoration: 'none', whiteSpace: 'nowrap',
-                        }}>👷 Workforce →</Link>
-                        <button onClick={() => effectiveProjectId && window.open(`/kiosk/${effectiveProjectId}`, '_blank')} title="Open Kiosk" style={{
-                            display: 'flex', alignItems: 'center', gap: 6,
-                            padding: '8px 14px', borderRadius: 10, cursor: 'pointer',
-                            background: '#10b98115', border: '1px solid #10b98140',
-                            color: '#10b981', fontWeight: 800, fontSize: 13,
-                            whiteSpace: 'nowrap', flexShrink: 0,
-                        }}>
-                            🖥️ Kiosk
-                        </button>
                         <button onClick={() => setMyQROpen(true)} title="View my QR attendance badge" style={{
                             display: 'flex', alignItems: 'center', gap: 6,
                             padding: '8px 14px', borderRadius: 10, cursor: 'pointer',

@@ -3,6 +3,7 @@ import calendar
 import io
 import json
 import logging
+import uuid
 from datetime import date as date_type, datetime
 from decimal import Decimal
 
@@ -46,6 +47,58 @@ def _make_qr_payload(worker):
         "project_id": worker.project_id,
         "token": str(worker.qr_token),
     }, separators=(",", ":"))
+
+
+def _resolve_worker_from_qr_data(raw_data):
+    """
+    Accept both the modern signed JSON attendance badge and older badge formats.
+
+    Supported inputs:
+    - JSON string payload: {"type":"hcms_attendance","worker_id":...,"token":"..."}
+    - Parsed object with the same fields
+    - Legacy raw UUID string containing only qr_token
+    """
+    if raw_data in (None, ""):
+        raise ValueError("qr_data is required.")
+
+    payload = raw_data
+    if isinstance(raw_data, str):
+        raw_data = raw_data.strip()
+        try:
+            payload = json.loads(raw_data)
+        except Exception:
+            payload = raw_data
+
+    if isinstance(payload, dict):
+        worker_id = payload.get("worker_id") or payload.get("id")
+        token = payload.get("token") or payload.get("qr_token")
+        if not worker_id or not token:
+            raise ValueError("Invalid QR format.")
+
+        try:
+            return AttendanceWorker.objects.select_related("project").get(
+                pk=worker_id,
+                qr_token=token,
+                is_active=True,
+            )
+        except AttendanceWorker.DoesNotExist as exc:
+            raise LookupError("Invalid QR code.") from exc
+
+    if isinstance(payload, str):
+        try:
+            uuid.UUID(payload)
+        except ValueError as exc:
+            raise ValueError("Invalid QR format.") from exc
+
+        try:
+            return AttendanceWorker.objects.select_related("project").get(
+                qr_token=payload,
+                is_active=True,
+            )
+        except AttendanceWorker.DoesNotExist as exc:
+            raise LookupError("Invalid QR code.") from exc
+
+    raise ValueError("Invalid QR format.")
 
 
 def _generate_qr_png_b64(data_str):
@@ -278,6 +331,7 @@ def _process_attendance_scan(worker, request=None, scan_source="QR", scan_time=N
             return {
                 "success": False, "action": "IGNORED",
                 "message": f"Scan too fast. Already scanned {time_str}. Please wait {wait}s.",
+                "worker":  {"id": worker.id, "name": worker.name, "trade": worker.get_trade_display()},
                 "cooldown_remaining": wait,
             }
 
@@ -287,6 +341,7 @@ def _process_attendance_scan(worker, request=None, scan_source="QR", scan_time=N
         return {
             "success": False, "action": "BLOCKED",
             "message": "Already checked in and out today.",
+            "worker":  {"id": worker.id, "name": worker.name, "trade": worker.get_trade_display()},
             "attendance": _attendance_dict(today_record),
         }
 
@@ -306,6 +361,7 @@ def _process_attendance_scan(worker, request=None, scan_source="QR", scan_time=N
                 return {
                     "success": False, "action": "OUT_OF_TIME",
                     "message": f"Check-in window is {window.checkin_start:%H:%M}–{window.checkin_end:%H:%M}.",
+                    "worker":  {"id": worker.id, "name": worker.name, "trade": worker.get_trade_display()},
                     "window": { "checkin_start": str(window.checkin_start), "checkin_end": str(window.checkin_end) }
                 }
             late_threshold = (datetime.combine(today, window.checkin_start) + timedelta(minutes=window.late_threshold_minutes)).time()
@@ -318,6 +374,7 @@ def _process_attendance_scan(worker, request=None, scan_source="QR", scan_time=N
                 return {
                     "success": False, "action": "OUT_OF_TIME",
                     "message": f"Check-out window is {window.checkout_start:%H:%M}–{window.checkout_end:%H:%M}.",
+                    "worker":  {"id": worker.id, "name": worker.name, "trade": worker.get_trade_display()},
                     "window": { "checkout_start": str(window.checkout_start), "checkout_end": str(window.checkout_end) }
                 }
             early_threshold = (datetime.combine(today, window.checkout_start) - timedelta(minutes=window.early_checkout_minutes)).time()
@@ -356,19 +413,12 @@ def _process_attendance_scan(worker, request=None, scan_source="QR", scan_time=N
                                    # security is the signed QR token (worker_id + qr_token pair)
 def qr_scan(request):
     """POST /api/v1/attendance/qr-scan/"""
-    raw = request.data.get("qr_data", "")
-    if not raw: return Response({"error": "qr_data is required."}, status=400)
     try:
-        payload = json.loads(raw)
-    except:
-        return Response({"error": "Invalid QR format."}, status=400)
-
-    try:
-        worker = AttendanceWorker.objects.select_related("project").get(
-            pk=payload.get("worker_id"), qr_token=payload.get("token"), is_active=True
-        )
-    except:
-        return Response({"error": "Invalid QR code."}, status=404)
+        worker = _resolve_worker_from_qr_data(request.data.get("qr_data"))
+    except ValueError as exc:
+        return Response({"error": str(exc)}, status=400)
+    except LookupError as exc:
+        return Response({"error": str(exc)}, status=404)
 
     res = _process_attendance_scan(worker, request, scan_source="QR")
     return Response(res)

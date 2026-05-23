@@ -15,6 +15,13 @@ import accountsApi from '../services/accountsApi';
 import Avatar from '../components/shared/Avatar';
 import Badge from '../components/shared/Badge';
 import Modal from '../components/shared/Modal';
+import {
+    PROJECT_PERMISSION_META,
+    PROJECT_ROLE_COLOR_MAP,
+    normalizeProjectRoles,
+    getProjectRoleByCode,
+    buildProjectRoleDefaults,
+} from '../utils/projectRoles';
 
 // ── Style helpers ─────────────────────────────────────────────────────────────
 const inp = (extra = {}) => ({
@@ -29,36 +36,21 @@ const lbl = {
 };
 const fmt  = (iso) => iso ? new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 const fmtT = (iso) => iso ? new Date(iso).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Never';
+const parseApiError = (ex, fallback) => {
+    const data = ex?.response?.data;
+    if (!data) return fallback;
+    if (typeof data === 'string') return data;
+    if (data.detail) return data.detail;
+    if (data.error) return data.error;
+    const entries = Object.entries(data)
+        .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`)
+        .join(' | ');
+    return entries || fallback;
+};
 
 const ROLE_COLORS = {
     SUPER_ADMIN: '#ef4444', HOME_OWNER: '#f97316',
     LEAD_ENGINEER: '#3b82f6', CONTRACTOR: '#8b5cf6', VIEWER: '#6b7280',
-};
-
-const PROJECT_ROLES = [
-    { value: 'OWNER',      label: 'Owner' },
-    { value: 'MANAGER',    label: 'Project Manager' },
-    { value: 'ENGINEER',   label: 'Engineer' },
-    { value: 'SUPERVISOR', label: 'Supervisor' },
-    { value: 'CONTRACTOR', label: 'Contractor' },
-    { value: 'VIEWER',     label: 'Viewer' },
-];
-
-const PROJECT_ROLE_COLORS = {
-    OWNER: '#f97316', MANAGER: '#f97316', ENGINEER: '#3b82f6',
-    SUPERVISOR: '#8b5cf6', CONTRACTOR: '#10b981', VIEWER: '#64748b',
-};
-
-const PERM_LABELS = {
-    can_manage_members:   'Manage Team',
-    can_manage_finances:  'Manage Finances',
-    can_view_finances:    'View Finances',
-    can_manage_phases:    'Manage Phases',
-    can_manage_structure: 'Manage Structure',
-    can_manage_resources: 'Manage Resources',
-    can_manage_workforce: 'Manage Workforce',
-    can_approve_purchases:'Approve Purchases',
-    can_upload_media:     'Upload Media',
 };
 
 const SYSTEM_PERM_LABELS = {
@@ -161,8 +153,9 @@ function InviteForm({ roles, onDone }) {
 }
 
 // ── Project Access Panel (inside edit drawer) ─────────────────────────────────
-function ProjectAccessPanel({ userId }) {
+function ProjectAccessPanel({ userId, activeProjectId, onUserRefresh }) {
     const [projects, setProjects] = useState([]);
+    const [projectRoles, setProjectRoles] = useState([]);
     const [loading,  setLoading]  = useState(true);
     const [saving,   setSaving]   = useState(null);  // project_id being saved
     const [expanded, setExpanded] = useState(null);  // project_id with perms open
@@ -171,13 +164,30 @@ function ProjectAccessPanel({ userId }) {
     const load = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await accountsApi.getUserProjects(userId);
-            setProjects(res.data);
+            const [projectRes, rolesRes] = await Promise.all([
+                accountsApi.getUserProjects(userId),
+                accountsApi.getProjectRoles().catch(() => ({ data: [] })),
+            ]);
+            setProjects(projectRes.data);
+            setProjectRoles(normalizeProjectRoles(rolesRes.data));
         } catch { setErr('Failed to load projects.'); }
         finally   { setLoading(false); }
     }, [userId]);
 
     useEffect(() => { load(); }, [load]);
+
+    const setActiveProject = async (projectId) => {
+        setSaving(projectId || 'active');
+        setErr('');
+        try {
+            await accountsApi.updateUser(userId, { active_project_id: projectId || null });
+            await Promise.all([load(), onUserRefresh?.()]);
+        } catch (e) {
+            setErr(parseApiError(e, 'Failed to update active project.'));
+        } finally {
+            setSaving(null);
+        }
+    };
 
     const toggle = async (p) => {
         setSaving(p.project_id);
@@ -187,9 +197,13 @@ function ProjectAccessPanel({ userId }) {
                 action: p.is_assigned ? 'remove' : 'add',
                 role: 'VIEWER',
             });
+            if (p.is_assigned && String(activeProjectId) === String(p.project_id)) {
+                await accountsApi.updateUser(userId, { active_project_id: null });
+                await onUserRefresh?.();
+            }
             await load();
         } catch (e) {
-            setErr(e?.response?.data?.error || 'Failed.');
+            setErr(parseApiError(e, 'Failed.'));
         } finally { setSaving(null); }
     };
 
@@ -202,7 +216,7 @@ function ProjectAccessPanel({ userId }) {
                 role,
             });
             await load();
-        } catch { setErr('Failed to update role.'); }
+        } catch (e) { setErr(parseApiError(e, 'Failed to update role.')); }
         finally  { setSaving(null); }
     };
 
@@ -217,7 +231,7 @@ function ProjectAccessPanel({ userId }) {
                 [field]: value,
             });
             await load();
-        } catch { setErr('Failed to update permission.'); }
+        } catch (e) { setErr(parseApiError(e, 'Failed to update permission.')); }
         finally  { setSaving(null); }
     };
 
@@ -227,13 +241,43 @@ function ProjectAccessPanel({ userId }) {
         <div>
             {err && <div style={{ padding:'8px 12px', borderRadius:8, background:'#ef444412', color:'#ef4444', fontSize:12, marginBottom:12 }}>{err}</div>}
             <p style={{ margin:'0 0 12px', fontSize:12, color:'var(--t-text3)' }}>
-                Toggle project access, set per-project role, and fine-tune individual permissions.
+                Toggle project access, set the project role, and fine-tune the current permission overrides.
             </p>
+            <div style={{ marginBottom:12, padding:'12px 14px', borderRadius:12, border:'1px solid rgba(59,130,246,0.16)', background:'rgba(239,246,255,0.88)' }}>
+                <p style={{ margin:0, fontSize:12, fontWeight:900, color:'var(--t-text)' }}>Project role only / केवल प्रोजेक्ट रोल</p>
+                <p style={{ margin:'4px 0 0', fontSize:11, lineHeight:1.6, color:'var(--t-text3)' }}>
+                    This tab assigns one project role and its overrides inside this user’s assigned projects. The project-role templates are managed from Roles & Templates page. यो tab ले project-भित्र assign गरिएको role र override access नियन्त्रण गर्छ। Template भने Roles & Templates page बाट manage हुन्छ।
+                </p>
+            </div>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, marginBottom:12, padding:'12px 14px', borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-bg)' }}>
+                <div>
+                    <p style={{ margin:0, fontSize:10, fontWeight:800, color:'var(--t-text3)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Active Project</p>
+                    <p style={{ margin:'3px 0 0', fontSize:13, fontWeight:700, color:'var(--t-text)' }}>
+                        {projects.find(p => String(p.project_id) === String(activeProjectId) && p.is_assigned)?.project_name || 'No active project'}
+                    </p>
+                </div>
+                <button
+                    onClick={() => setActiveProject(null)}
+                    disabled={!activeProjectId || saving === 'active'}
+                    style={{
+                        padding:'7px 12px', borderRadius:8, border:'1px solid var(--t-border)',
+                        background:'var(--t-surface)', color:'var(--t-text)', fontSize:11, fontWeight:800,
+                        cursor: (!activeProjectId || saving === 'active') ? 'not-allowed' : 'pointer',
+                        opacity: (!activeProjectId || saving === 'active') ? 0.5 : 1,
+                    }}>
+                    Clear Active
+                </button>
+            </div>
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                 {projects.map(p => {
                     const busy = saving === p.project_id;
-                    const roleColor = PROJECT_ROLE_COLORS[p.member_role] || '#64748b';
+                    const roleMeta = getProjectRoleByCode(projectRoles, p.member_role || 'VIEWER');
+                    const roleColor = roleMeta.color || PROJECT_ROLE_COLOR_MAP[p.member_role] || '#64748b';
                     const isExpanded = expanded === p.project_id && p.is_assigned;
+                    const isActive = String(activeProjectId) === String(p.project_id);
+                    const defaultPerms = buildProjectRoleDefaults(roleMeta);
+                    const defaultEnabled = PROJECT_PERMISSION_META.filter(perm => defaultPerms[perm.key]);
+                    const currentEnabled = PROJECT_PERMISSION_META.filter(perm => p.permissions?.[perm.key]);
 
                     return (
                         <div key={p.project_id} style={{
@@ -258,19 +302,37 @@ function ProjectAccessPanel({ userId }) {
 
                                 <div style={{ flex:1 }}>
                                     <p style={{ margin:0, fontWeight:800, fontSize:13, color:'var(--t-text)' }}>{p.project_name}</p>
-                                    {p.is_assigned && p.member_role && (
-                                        <span style={{ fontSize:10, fontWeight:700, color: roleColor }}>{p.member_role}</span>
-                                    )}
+                                    <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop:4 }}>
+                                        {p.is_assigned && p.member_role && (
+                                            <span style={{ fontSize:10, fontWeight:700, color: roleColor }}>{roleMeta.name}</span>
+                                        )}
+                                        {isActive && (
+                                            <span style={{ fontSize:10, fontWeight:800, color:'#2563eb', background:'#dbeafe', border:'1px solid #bfdbfe', borderRadius:999, padding:'1px 7px' }}>
+                                                Active Project
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
 
                                 {p.is_assigned && (
                                     <>
+                                        <button
+                                            onClick={() => setActiveProject(isActive ? null : p.project_id)}
+                                            disabled={busy}
+                                            style={{
+                                                padding:'4px 8px', borderRadius:7, fontSize:11, fontWeight:800,
+                                                border:`1px solid ${isActive ? '#2563eb40' : 'var(--t-border)'}`,
+                                                background:isActive ? '#dbeafe' : 'var(--t-surface)',
+                                                color:isActive ? '#2563eb' : 'var(--t-text3)', cursor:'pointer'
+                                            }}>
+                                            {isActive ? '✓ Active' : 'Set Active'}
+                                        </button>
                                         <select
                                             value={p.member_role || 'VIEWER'}
                                             onChange={e => setRole(p, e.target.value)}
                                             disabled={busy}
                                             style={{ padding:'4px 8px', borderRadius:7, fontSize:11, fontWeight:700, border:`1px solid ${roleColor}40`, background:`${roleColor}15`, color: roleColor, cursor:'pointer' }}>
-                                            {PROJECT_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                                            {projectRoles.map(r => <option key={r.code} value={r.code}>{`${r.icon} ${r.name}`}</option>)}
                                         </select>
                                         <button
                                             onClick={() => setExpanded(isExpanded ? null : p.project_id)}
@@ -284,17 +346,80 @@ function ProjectAccessPanel({ userId }) {
 
                             {/* Permission toggles */}
                             {isExpanded && p.permissions && (
-                                <div style={{ padding:'10px 14px 14px', borderTop:'1px solid var(--t-border)', display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-                                    {Object.entries(PERM_LABELS).map(([field, label]) => {
-                                        const on = p.permissions[field];
+                                <div style={{ padding:'12px 14px 14px', borderTop:'1px solid var(--t-border)' }}>
+                                    <div style={{ padding:'12px', borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-surface)', marginBottom:12 }}>
+                                        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, marginBottom:6, flexWrap:'wrap' }}>
+                                            <div>
+                                                <p style={{ margin:0, fontSize:12, fontWeight:900, color:'var(--t-text)' }}>
+                                                    {roleMeta?.icon} {roleMeta?.name} Default Preset
+                                                </p>
+                                                <p style={{ margin:'3px 0 0', fontSize:11, color:'var(--t-text3)' }}>
+                                                    {roleMeta?.description || 'Default permissions for this project role'}
+                                                </p>
+                                            </div>
+                                            <span style={{ fontSize:11, fontWeight:800, color:roleColor }}>
+                                                {defaultEnabled.length}/{PROJECT_PERMISSION_META.length} enabled by default
+                                            </span>
+                                        </div>
+                                    <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                                        {defaultEnabled.map(perm => (
+                                                <span key={perm.key} style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'3px 8px', borderRadius:6, fontSize:11, fontWeight:700, border:'1px solid #22c55e40', background:'#f0fdf4', color:'#15803d' }}>
+                                                    <span>{perm.icon}</span>{perm.label}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {currentEnabled.length > 0 && (
+                                        <div style={{ marginBottom:12, padding:'12px', borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-bg)' }}>
+                                            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, marginBottom:6, flexWrap:'wrap' }}>
+                                                <div>
+                                                    <p style={{ margin:0, fontSize:12, fontWeight:900, color:'var(--t-text)' }}>Current saved access</p>
+                                                    <p style={{ margin:'3px 0 0', fontSize:11, color:'var(--t-text3)' }}>
+                                                        These toggles are the actual saved permissions for this member.
+                                                    </p>
+                                                </div>
+                                                <span style={{ fontSize:11, fontWeight:800, color:roleColor }}>
+                                                    {currentEnabled.length}/{PROJECT_PERMISSION_META.length} currently enabled
+                                                </span>
+                                            </div>
+                                            <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                                                {currentEnabled.map(perm => (
+                                                    <span key={perm.key} style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'3px 8px', borderRadius:6, fontSize:11, fontWeight:700, border:'1px solid var(--t-border)', background:'var(--t-surface)', color:'var(--t-text)' }}>
+                                                        <span>{perm.icon}</span>{perm.label}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, marginBottom:8, flexWrap:'wrap' }}>
+                                        <div>
+                                            <p style={{ margin:0, fontSize:11, fontWeight:800, color:'var(--t-text3)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Permission Overrides</p>
+                                            <p style={{ margin:'3px 0 0', fontSize:11, color:'var(--t-text3)' }}>
+                                                Current saved permissions for this project membership.
+                                            </p>
+                                        </div>
+                                        <span style={{ fontSize:11, color:'var(--t-text3)' }}>
+                                            {currentEnabled.length}/{PROJECT_PERMISSION_META.length} currently enabled
+                                        </span>
+                                    </div>
+                                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                                    {PROJECT_PERMISSION_META.map((perm) => {
+                                        const on = p.permissions[perm.key];
                                         return (
-                                            <button key={field} onClick={() => setPerm(p, field, !on)} disabled={busy}
-                                                style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 10px', borderRadius:8, border:`1px solid ${on ? '#10b98140' : 'var(--t-border)'}`, background: on ? '#10b98112' : 'var(--t-surface)', cursor:'pointer', textAlign:'left' }}>
-                                                <span style={{ width:10, height:10, borderRadius:3, background: on ? '#10b981' : 'var(--t-border)', flexShrink:0 }} />
-                                                <span style={{ fontSize:11, fontWeight:700, color: on ? '#10b981' : 'var(--t-text3)' }}>{label}</span>
+                                            <button key={perm.key} onClick={() => setPerm(p, perm.key, !on)} disabled={busy}
+                                                title={perm.detail}
+                                                style={{ display:'flex', alignItems:'flex-start', gap:8, padding:'8px 10px', borderRadius:8, border:`1px solid ${on ? '#10b98140' : 'var(--t-border)'}`, background: on ? '#10b98112' : 'var(--t-surface)', cursor:'pointer', textAlign:'left' }}>
+                                                <span style={{ width:18, flexShrink:0, textAlign:'center', fontSize:12 }}>{perm.icon}</span>
+                                                <span style={{ flex:1 }}>
+                                                    <span style={{ display:'block', fontSize:11, fontWeight:800, color: on ? '#10b981' : 'var(--t-text)' }}>{perm.label}</span>
+                                                    <span style={{ display:'block', fontSize:10, color:'var(--t-text3)', marginTop:2 }}>{perm.detail}</span>
+                                                </span>
                                             </button>
                                         );
                                     })}
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -309,35 +434,59 @@ function ProjectAccessPanel({ userId }) {
 function UserDrawer({ user, roles, onClose, onRefresh }) {
     const [tab,     setTab]     = useState('info');
     const [form,    setForm]    = useState({
+        username:     user.username     || '',
         first_name:   user.first_name   || '',
         last_name:    user.last_name    || '',
         phone_number: user.phone_number || '',
         email:        user.email        || '',
         role_id:      user.role?.id     || '',
         bio:          user.bio          || '',
+        address:      user.address      || '',
+        preferred_language: user.preferred_language || 'en',
+        notifications_enabled: user.notifications_enabled ?? true,
     });
     const [resetPw, setResetPw] = useState('');
     const [busy,    setBusy]    = useState(false);
     const [err,     setErr]     = useState('');
     const [msg,     setMsg]     = useState('');
     const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+    useEffect(() => {
+        setForm({
+            username:     user.username     || '',
+            first_name:   user.first_name   || '',
+            last_name:    user.last_name    || '',
+            phone_number: user.phone_number || '',
+            email:        user.email        || '',
+            role_id:      user.role?.id     || '',
+            bio:          user.bio          || '',
+            address:      user.address      || '',
+            preferred_language: user.preferred_language || 'en',
+            notifications_enabled: user.notifications_enabled ?? true,
+        });
+    }, [user]);
+
     const selectedRole = roles.find(r => String(r.id) === String(form.role_id));
     const displayedPermissions = selectedRole
         ? Object.entries(SYSTEM_PERM_LABELS).filter(([key]) =>
             selectedRole.can_manage_all_systems || selectedRole[key]
         )
         : getEnabledSystemPermissions(user);
+    const activeProject = (user.assigned_projects_data || []).find(p => String(p.id) === String(user.active_project_id || ''));
 
     const save = async (e) => {
         e.preventDefault();
         setBusy(true); setErr(''); setMsg('');
         try {
-            await accountsApi.updateUser(user.id, { ...form, role_id: form.role_id || null });
+            await accountsApi.updateUser(user.id, {
+                ...form,
+                role_id: form.role_id || null,
+            });
             setMsg('Saved successfully.');
-            onRefresh();
+            await onRefresh();
             setTimeout(() => setMsg(''), 2500);
         } catch (ex) {
-            setErr(ex?.response?.data?.detail || JSON.stringify(ex?.response?.data) || 'Save failed.');
+            setErr(parseApiError(ex, 'Save failed.'));
         } finally { setBusy(false); }
     };
 
@@ -347,7 +496,7 @@ function UserDrawer({ user, roles, onClose, onRefresh }) {
         try {
             await accountsApi.resetUserPassword(user.id, { new_password: resetPw });
             setMsg('Password reset successfully.'); setResetPw('');
-        } catch (ex) { setErr(ex?.response?.data?.error || 'Reset failed.'); }
+        } catch (ex) { setErr(parseApiError(ex, 'Reset failed.')); }
         finally { setBusy(false); }
     };
 
@@ -384,6 +533,11 @@ function UserDrawer({ user, roles, onClose, onRefresh }) {
                                 {`${user.first_name} ${user.last_name}`.trim() || user.username}
                             </p>
                             <p style={{ margin:'2px 0 0', fontSize:12, color:'var(--t-text3)' }}>{user.email}</p>
+                            {activeProject && (
+                                <p style={{ margin:'4px 0 0', fontSize:11, color:'#3b82f6', fontWeight:700 }}>
+                                    Active project: {activeProject.name}
+                                </p>
+                            )}
                             <div style={{ display:'flex', gap:6, marginTop:4, flexWrap:'wrap' }}>
                                 {user.role && <Badge label={user.role.name} color={ROLE_COLORS[user.role.code] || '#6b7280'} />}
                                 <Badge label={user.is_active ? 'Active' : 'Inactive'} color={user.is_active ? '#10b981' : '#ef4444'} />
@@ -422,6 +576,8 @@ function UserDrawer({ user, roles, onClose, onRefresh }) {
                     {/* ── INFO ── */}
                     {tab === 'info' && (
                         <form onSubmit={save} style={{ display:'flex', flexDirection:'column', gap:14 }}>
+                            <div><label style={lbl}>Username</label>
+                                <input style={inp()} value={form.username} onChange={e => set('username', e.target.value)} /></div>
                             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                                 <div><label style={lbl}>First Name</label>
                                     <input style={inp()} value={form.first_name} onChange={e => set('first_name', e.target.value)} /></div>
@@ -432,6 +588,16 @@ function UserDrawer({ user, roles, onClose, onRefresh }) {
                                 <input type="email" style={inp()} value={form.email} onChange={e => set('email', e.target.value)} /></div>
                             <div><label style={lbl}>Phone</label>
                                 <input style={inp()} value={form.phone_number} onChange={e => set('phone_number', e.target.value)} placeholder="+977 98XXXXXXXX" /></div>
+                            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                                <div>
+                                    <label style={lbl}>Preferred Language</label>
+                                    <select style={inp()} value={form.preferred_language} onChange={e => set('preferred_language', e.target.value)}>
+                                        <option value="en">English</option>
+                                        <option value="ne">Nepali</option>
+                                        <option value="ja">Japanese</option>
+                                    </select>
+                                </div>
+                            </div>
                             <div>
                                 <label style={lbl}>System Role</label>
                                 <select style={inp()} value={form.role_id} onChange={e => set('role_id', e.target.value)}>
@@ -454,8 +620,22 @@ function UserDrawer({ user, roles, onClose, onRefresh }) {
                                     </div>
                                 )}
                             </div>
+                            <div><label style={lbl}>Address</label>
+                                <textarea style={{ ...inp(), resize:'vertical', minHeight:64 }} value={form.address} onChange={e => set('address', e.target.value)} placeholder="User address" /></div>
                             <div><label style={lbl}>Bio / Note</label>
                                 <textarea style={{ ...inp(), resize:'vertical', minHeight:64 }} value={form.bio} onChange={e => set('bio', e.target.value)} placeholder="Short note about this user" /></div>
+                            <label style={{ display:'flex', alignItems:'center', gap:10, padding:'12px 14px', borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-bg)', cursor:'pointer' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={!!form.notifications_enabled}
+                                    onChange={e => set('notifications_enabled', e.target.checked)}
+                                    style={{ width:16, height:16, cursor:'pointer' }}
+                                />
+                                <div>
+                                    <p style={{ margin:0, fontSize:12, fontWeight:800, color:'var(--t-text)' }}>Notifications Enabled</p>
+                                    <p style={{ margin:'2px 0 0', fontSize:11, color:'var(--t-text3)' }}>Allow this account to receive in-app notifications.</p>
+                                </div>
+                            </label>
 
                             <div style={{ paddingTop:4, borderTop:'1px solid var(--t-border)' }}>
                                 <p style={{ margin:'0 0 8px', fontSize:10, fontWeight:700, color:'var(--t-text3)', textTransform:'uppercase' }}>Account Info</p>
@@ -465,6 +645,7 @@ function UserDrawer({ user, roles, onClose, onRefresh }) {
                                         ['Joined',     fmt(user.date_joined)],
                                         ['Last Login', fmtT(user.frontend_last_login)],
                                         ['Superuser',  user.is_superuser ? 'Yes' : 'No'],
+                                        ['Verified',   user.is_verified ? 'Yes' : 'No'],
                                     ].map(([k, v]) => (
                                         <div key={k} style={{ padding:'8px 10px', borderRadius:8, background:'var(--t-bg)', border:'1px solid var(--t-border)' }}>
                                             <p style={{ margin:0, fontSize:9, fontWeight:700, color:'var(--t-text3)', textTransform:'uppercase' }}>{k}</p>
@@ -482,7 +663,7 @@ function UserDrawer({ user, roles, onClose, onRefresh }) {
                     )}
 
                     {/* ── PROJECTS ── */}
-                    {tab === 'projects' && <ProjectAccessPanel userId={user.id} />}
+                    {tab === 'projects' && <ProjectAccessPanel userId={user.id} activeProjectId={user.active_project_id} onUserRefresh={onRefresh} />}
 
                     {/* ── SECURITY ── */}
                     {tab === 'security' && (
@@ -578,8 +759,9 @@ export default function UsersPage() {
     };
 
     const refresh = useCallback(() => {
-        refreshUsers(); refreshStats();
+        return Promise.all([refreshUsers(), refreshStats()]);
     }, [refreshUsers, refreshStats]);
+    const editingUser = editing ? (users.find(u => u.id === editing.id) || editing) : null;
 
     return (
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
@@ -756,9 +938,9 @@ export default function UsersPage() {
             </Modal>
 
             {/* ── Edit drawer ── */}
-            {editing && (
+            {editingUser && (
                 <UserDrawer
-                    user={editing}
+                    user={editingUser}
                     roles={roles}
                     onClose={() => setEditing(null)}
                     onRefresh={refresh}

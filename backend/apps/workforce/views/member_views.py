@@ -8,6 +8,7 @@ from django.shortcuts import render
 from django.http import HttpResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.clickjacking import xframe_options_exempt
+from apps.attendance.views import _make_qr_payload
 from ..models import WorkforceMember
 from ..serializers import WorkforceMemberSerializer, WorkforceMemberListSerializer
 from ..utils.badge_utils import generate_qr_base64
@@ -78,12 +79,12 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
         """
         member = self.get_object()
         
-        # Determine what data to put in the QR code
-        # We prefer the AttendanceWorker's qr_token if it exists,
-        # otherwise we fallback to the employee_id.
+        # Attendance-ready workforce badges must use the same signed payload as
+        # the attendance My QR badge. Fall back to employee_id only when there
+        # is no linked AttendanceWorker yet.
         qr_data = member.employee_id
         if member.attendance_worker and member.attendance_worker.qr_token:
-            qr_data = member.attendance_worker.qr_token
+            qr_data = _make_qr_payload(member.attendance_worker)
             
         qr_code_base64 = generate_qr_base64(qr_data)
         

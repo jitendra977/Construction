@@ -3,6 +3,37 @@ import workforceService from '../../../services/workforceService';
 import { dashboardService } from '../../../services/dashboardService';
 import { getMediaUrl } from '../../../services/api';
 
+const CATEGORY_COLORS = ['#FF5733', '#3357FF', '#33C3FF', '#FF8C33', '#8C33FF'];
+const DEFAULT_ROLES_BY_CATEGORY = {
+    'Civil & Structural': [
+        { title: 'Lead Mason', code: 'MASON_L', trade_code: 'MASON', default_wage_type: 'daily', default_wage_amount: 900 },
+        { title: 'Mason', code: 'MASON', trade_code: 'MASON', default_wage_type: 'daily', default_wage_amount: 800 },
+        { title: 'Helper / Jugi', code: 'HELPER', trade_code: 'HELPER', default_wage_type: 'daily', default_wage_amount: 600 },
+        { title: 'Steel Fixer', code: 'LOHARI', trade_code: 'STEEL_FIXER', default_wage_type: 'daily', default_wage_amount: 750 },
+        { title: 'Carpenter', code: 'CARP', trade_code: 'CARPENTER', default_wage_type: 'daily', default_wage_amount: 800 },
+    ],
+    'MEP Services': [
+        { title: 'Electrician', code: 'ELEC', trade_code: 'ELECTRICIAN', default_wage_type: 'daily', default_wage_amount: 850 },
+        { title: 'Plumber', code: 'PLUMB', trade_code: 'PLUMBER', default_wage_type: 'daily', default_wage_amount: 800 },
+    ],
+    Finishing: [
+        { title: 'Painter', code: 'PAINT', trade_code: 'PAINTER', default_wage_type: 'daily', default_wage_amount: 700 },
+        { title: 'Tile Setter', code: 'TILE', trade_code: 'TILE_SETTER', default_wage_type: 'daily', default_wage_amount: 750 },
+        { title: 'Waterproofing Applicator', code: 'WATERP', trade_code: 'WATERPROOF', default_wage_type: 'daily', default_wage_amount: 750 },
+    ],
+    'Site Management': [
+        { title: 'Site Supervisor', code: 'SUPV', trade_code: 'SUPERVISOR', default_wage_type: 'daily', default_wage_amount: 1200 },
+        { title: 'Site Engineer', code: 'ENG', trade_code: 'ENGINEER', default_wage_type: 'monthly', default_wage_amount: 55000 },
+        { title: 'Project Manager', code: 'PM', trade_code: 'MANAGER', default_wage_type: 'monthly', default_wage_amount: 75000 },
+        { title: 'Safety Officer', code: 'SAFE', trade_code: 'SUPERVISOR', default_wage_type: 'monthly', default_wage_amount: 45000 },
+    ],
+    Administration: [
+        { title: 'Accountant', code: 'ACCT', trade_code: 'ACCOUNTANT', default_wage_type: 'monthly', default_wage_amount: 40000 },
+        { title: 'Driver', code: 'DRVR', trade_code: 'DRIVER', default_wage_type: 'daily', default_wage_amount: 700 },
+        { title: 'Security Guard', code: 'SEC', trade_code: 'SECURITY', default_wage_type: 'daily', default_wage_amount: 650 },
+    ],
+};
+
 // ── Shared style helpers ─────────────────────────────────────────────────────
 const inputStyle = {
     width: '100%', padding: '11px 14px', borderRadius: 12,
@@ -111,7 +142,19 @@ function filterRolesByType(roles, workerType) {
     const hints = TYPE_CATEGORY_HINTS[workerType] || [];
     if (!hints.length) return roles;
     const matched = roles.filter(r =>
-        hints.some(h => (r.category_name || '').toLowerCase().includes(h))
+        hints.some(h => {
+            const haystack = [
+                r.category_name,
+                r.title,
+                r.code,
+                r.trade_code,
+                r.description,
+            ]
+                .filter(Boolean)
+                .join(' ')
+                .toLowerCase();
+            return haystack.includes(h);
+        })
     );
     // If no matches (category names don't match hints), return all roles
     return matched.length > 0 ? matched : roles;
@@ -152,6 +195,7 @@ export default function MemberDrawer({ member, onClose, onSaved, onDeleted, proj
     const [error, setError]       = useState('');
     const [fetching, setFetching] = useState(true);
     const [showAllRoles, setShowAllRoles] = useState(false);
+    const [seedingRoles, setSeedingRoles] = useState(false);
 
     // Photo upload state
     const [photoPreview, setPhotoPreview] = useState(null);   // local blob preview
@@ -181,22 +225,27 @@ export default function MemberDrawer({ member, onClose, onSaved, onDeleted, proj
 
     const [form, setForm] = useState(BLANK);
 
+    const loadRoleLibrary = async () => {
+        const [r, t, pRes] = await Promise.all([
+            workforceService.getRoles({ page_size: 200 }),
+            workforceService.getTeams({ page_size: 200 }),
+            dashboardService.getProjects(),
+        ]);
+        const roleList = Array.isArray(r) ? r : (r.results || []);
+        const teamList = Array.isArray(t) ? t : (t.results || []);
+        const projectList = Array.isArray(pRes?.data)
+            ? pRes.data
+            : (pRes?.data?.results || []);
+        setAllRoles(roleList.filter(role => role.is_active !== false));
+        setTeams(teamList);
+        setProjects(projectList);
+        return roleList;
+    };
+
     useEffect(() => {
         const loadInitial = async () => {
             try {
-                const [r, t, pRes] = await Promise.all([
-                    workforceService.getRoles({ page_size: 200 }),
-                    workforceService.getTeams({ page_size: 200 }),
-                    dashboardService.getProjects(),
-                ]);
-                const roleList    = Array.isArray(r) ? r : (r.results || []);
-                const teamList    = Array.isArray(t) ? t : (t.results || []);
-                const projectList = Array.isArray(pRes?.data)
-                    ? pRes.data
-                    : (pRes?.data?.results || []);
-                setAllRoles(roleList.filter(role => role.is_active !== false));
-                setTeams(teamList);
-                setProjects(projectList);
+                await loadRoleLibrary();
 
                 if (isEdit) {
                     const full = await workforceService.getMember(member.id);
@@ -243,6 +292,44 @@ export default function MemberDrawer({ member, onClose, onSaved, onDeleted, proj
 
     const groupedRoles = useMemo(() => groupRolesByCategory(filteredRoles), [filteredRoles]);
     const selectedRoleObj = allRoles.find(r => String(r.id) === String(form.role));
+
+    const seedDefaultRoleLibrary = async () => {
+        setSeedingRoles(true);
+        setError('');
+        try {
+            const categoryResponse = await workforceService.getCategories({ page_size: 200 });
+            const categories = Array.isArray(categoryResponse) ? categoryResponse : (categoryResponse.results || []);
+            const categoryByName = Object.fromEntries(categories.map((category) => [category.name, category]));
+
+            for (const [index, [categoryName, roleList]] of Object.entries(DEFAULT_ROLES_BY_CATEGORY).entries()) {
+                let category = categoryByName[categoryName];
+                if (!category) {
+                    category = await workforceService.createCategory({
+                        name: categoryName,
+                        color: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
+                    });
+                    categoryByName[categoryName] = category;
+                }
+                for (const role of roleList) {
+                    if (!allRoles.some((existing) => existing.code === role.code)) {
+                        await workforceService.createRole({ ...role, category: category.id });
+                    }
+                }
+            }
+
+            const seededRoles = await loadRoleLibrary();
+            if (!form.role && seededRoles.length > 0) {
+                const seededFiltered = filterRolesByType(seededRoles, form.worker_type);
+                if (seededFiltered[0]?.id) {
+                    set('role', seededFiltered[0].id);
+                }
+            }
+        } catch (e) {
+            setError('Failed to create the default role library. Please try again.');
+        } finally {
+            setSeedingRoles(false);
+        }
+    };
 
     // When worker_type changes, clear role if it no longer matches the filtered set
     const handleWorkerTypeChange = (newType) => {
@@ -597,8 +684,11 @@ export default function MemberDrawer({ member, onClose, onSaved, onDeleted, proj
                                             style={inputStyle}
                                             value={form.role || ''}
                                             onChange={e => set('role', e.target.value)}
+                                            disabled={allRoles.length === 0}
                                         >
-                                            <option value="">— Select role —</option>
+                                            <option value="">
+                                                {allRoles.length === 0 ? '— No roles available —' : '— Select role —'}
+                                            </option>
                                             {Object.entries(groupedRoles).map(([cat, catRoles]) => (
                                                 <optgroup key={cat} label={cat}>
                                                     {catRoles.map(r => (
@@ -609,6 +699,34 @@ export default function MemberDrawer({ member, onClose, onSaved, onDeleted, proj
                                                 </optgroup>
                                             ))}
                                         </select>
+
+                                        {allRoles.length === 0 && (
+                                            <div style={{ marginTop: 10, padding: '12px 14px', borderRadius: 10, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.22)', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                                                <div style={{ minWidth: 220 }}>
+                                                    <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--t-text)' }}>No workforce roles found</div>
+                                                    <div style={{ fontSize: 12, color: 'var(--t-text3)', marginTop: 4 }}>
+                                                        This project has no role library yet. Create the default labour, staff, and management roles first.
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={seedDefaultRoleLibrary}
+                                                    disabled={seedingRoles}
+                                                    style={{
+                                                        border: 'none',
+                                                        borderRadius: 10,
+                                                        padding: '10px 14px',
+                                                        background: 'var(--t-primary)',
+                                                        color: '#fff',
+                                                        fontWeight: 700,
+                                                        cursor: seedingRoles ? 'not-allowed' : 'pointer',
+                                                        opacity: seedingRoles ? 0.7 : 1,
+                                                    }}
+                                                >
+                                                    {seedingRoles ? 'Creating roles…' : 'Create default roles'}
+                                                </button>
+                                            </div>
+                                        )}
 
                                         {/* Role meta hint */}
                                         {selectedRoleObj && (

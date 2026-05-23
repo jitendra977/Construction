@@ -24,6 +24,7 @@ import React, {
     useState, useEffect, useRef, useCallback,
 } from 'react';
 import { useParams } from 'react-router-dom';
+import { Maximize2, Minimize2 } from 'lucide-react';
 import { MqttProvider, useMqtt } from './MqttContext';
 import attendanceService from '../../services/attendanceService';
 import { playScanSound, unlockAudioOnGesture, forceUnlockAudio } from './attendanceSounds';
@@ -57,6 +58,66 @@ function useNowStr() {
     const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const dateStr = now.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     return { timeStr, dateStr };
+}
+
+function KioskViewportShell({ title, children }) {
+    const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
+
+    useEffect(() => {
+        const previousTitle = document.title;
+        document.title = title;
+        const handleFullscreenChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        return () => {
+            document.title = previousTitle;
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
+        };
+    }, [title]);
+
+    const toggleFullscreen = useCallback(async () => {
+        try {
+            if (document.fullscreenElement) {
+                await document.exitFullscreen();
+                return;
+            }
+            await document.documentElement.requestFullscreen?.({ navigationUI: 'hide' });
+        } catch {
+            // Browser support varies. Keep the kiosk usable without failing the page.
+        }
+    }, []);
+
+    return (
+        <div style={{ minHeight: '100vh', background: '#050508' }}>
+            <button
+                type="button"
+                onClick={toggleFullscreen}
+                title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+                style={{
+                    position: 'fixed',
+                    top: 14,
+                    right: 14,
+                    zIndex: 1000,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '10px 14px',
+                    borderRadius: 12,
+                    border: '1px solid rgba(148, 163, 184, 0.25)',
+                    background: 'rgba(15, 23, 42, 0.88)',
+                    color: '#f8fafc',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    letterSpacing: 0,
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: '0 12px 32px rgba(15, 23, 42, 0.28)',
+                }}
+            >
+                {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                <span>{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</span>
+            </button>
+            {children}
+        </div>
+    );
 }
 
 // ─── Scan result card ──────────────────────────────────────────────────────────
@@ -737,7 +798,9 @@ export default function AttendanceKiosk() {
 
     return (
         <MqttProvider projectId={Number(projectId)}>
-            <KioskDisplay projectId={Number(projectId)} />
+            <KioskViewportShell title="ConstructPro NFC Kiosk">
+                <KioskDisplay projectId={Number(projectId)} />
+            </KioskViewportShell>
         </MqttProvider>
     );
 }

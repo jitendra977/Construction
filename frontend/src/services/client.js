@@ -14,6 +14,34 @@ const getAuthHeader = () => {
     return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
 };
 
+const toQueueUrl = (request = {}) => {
+    const rawUrl = request.url || '';
+    if (!rawUrl) return rawUrl;
+    if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+        try {
+            const parsed = new URL(rawUrl);
+            return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+        } catch {
+            return rawUrl;
+        }
+    }
+    if (rawUrl.startsWith('/')) return rawUrl;
+
+    const rawBase = request.baseURL || API_URL;
+    const normalizedBase = rawBase.endsWith('/') ? rawBase : `${rawBase}/`;
+
+    try {
+        const origin =
+            typeof window !== 'undefined' && window.location?.origin
+                ? window.location.origin
+                : 'http://localhost';
+        const resolved = new URL(rawUrl, new URL(normalizedBase, origin));
+        return `${resolved.pathname}${resolved.search}${resolved.hash}`;
+    } catch {
+        return rawUrl;
+    }
+};
+
 const api = axios.create({ baseURL: API_URL });
 
 // ── Request interceptor — attach Bearer token ─────────────────────────────
@@ -100,7 +128,7 @@ export const attachResponseInterceptor = (axiosInstance) => {
             if (isMutation && isNetworkError && originalRequest?.url) {
                 try {
                     await offlineQueue.enqueue({
-                        url: originalRequest.url,
+                        url: toQueueUrl(originalRequest),
                         method: originalRequest.method,
                         body: originalRequest.data,
                         headers: {
