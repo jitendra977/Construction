@@ -128,12 +128,14 @@ jobs:
             git pull origin main
             echo "── Building images ──"
             make build
-            echo "── Starting containers ──"
-            make up
+            echo "── Starting infrastructure ──"
+            make up-infra
             echo "── Running migrations ──"
-            make migrate
+            make migrate-run
             echo "── Collecting static files ──"
-            make collectstatic
+            make collectstatic-run
+            echo "── Starting app containers ──"
+            make up
             echo "── Deploy complete ──"
             make ps
 

@@ -167,6 +167,10 @@ server-admin-password: ## Maintenance — Change password for a production user
 up: ## Docker — start all containers (ENV=dev for dev stack)
 	$(DC) up -d $(SERVICE)
 
+.PHONY: up-infra
+up-infra: ## Docker — start infrastructure only (db + redis)
+	$(DC) up -d --no-recreate db redis
+
 .PHONY: down
 down: ## Docker — stop and remove containers
 	$(DC) down
@@ -339,6 +343,10 @@ dev-logs: ## Dev — tail Docker dev stack logs
 migrate: ## DB — run Django migrations
 	$(DC) exec backend python manage.py migrate --noinput
 
+.PHONY: migrate-run
+migrate-run: ## DB — run Django migrations in one-shot backend container (safe before app startup)
+	$(DC) run --rm --no-deps --entrypoint /bin/sh backend -c 'python manage.py migrate --noinput'
+
 .PHONY: makemigrations
 makemigrations: ## DB — create new migrations
 	$(DC) exec backend python manage.py makemigrations
@@ -478,6 +486,10 @@ bash: ## Maintenance — open bash in backend container
 .PHONY: collectstatic
 collectstatic: ## Maintenance — collect static files
 	$(DC) exec backend python manage.py collectstatic --noinput --clear
+
+.PHONY: collectstatic-run
+collectstatic-run: ## Maintenance — collect static in one-shot backend container (safe before app startup)
+	$(DC) run --rm --no-deps --entrypoint /bin/sh backend -c 'python manage.py collectstatic --noinput --clear'
 
 .PHONY: health
 health: ## Maintenance — check /api/v1/health/ endpoint

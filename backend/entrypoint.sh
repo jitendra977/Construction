@@ -57,7 +57,7 @@ ok "Database is reachable"
 FIRST_CMD="${1:-}"
 if [[ "$FIRST_CMD" == "gunicorn" || "$FIRST_CMD" == "python" || -z "$FIRST_CMD" ]]; then
     log "Seeding admin user and roles..."
-    python manage.py shell <<'PYEOF'
+    if ! python manage.py shell <<'PYEOF'
 from apps.accounts.models import User, Role
 import os
 
@@ -93,20 +93,21 @@ if user:
     print(f"  Updated admin user: {admin_email}")
 else:
     if not admin_pass:
-        import sys
-        print("ERROR: DJANGO_SUPERUSER_PASSWORD env var is not set. "
-              "Cannot create admin user with a blank/default password. "
-              "Set DJANGO_SUPERUSER_PASSWORD in your .env file and restart.")
-        sys.exit(1)
-    User.objects.create_superuser(
-        username=admin_username,
-        email=admin_email,
-        password=admin_pass,
-        role=super_admin_role,
-    )
-    print(f"  Created admin user: {admin_email}")
+        print("SKIP: DJANGO_SUPERUSER_PASSWORD not set. Admin user not created during startup.")
+    else:
+        User.objects.create_superuser(
+            username=admin_username,
+            email=admin_email,
+            password=admin_pass,
+            role=super_admin_role,
+        )
+        print(f"  Created admin user: {admin_email}")
 PYEOF
-    ok "Admin user ready"
+    then
+        ok "Admin user ready"
+    else
+        warn "Admin/role seeding skipped. App startup will continue."
+    fi
 fi
 
 # ── 3. Media directory permissions ────────────────────────────
