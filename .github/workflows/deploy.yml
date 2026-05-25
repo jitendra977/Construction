@@ -1,0 +1,69 @@
+name: Deploy
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main') ||
+      github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          REMOTE_PROJECT_DIR: ${{ secrets.REMOTE_PROJECT_DIR || '/home/nishanaweb/project/Construction' }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: REMOTE_PROJECT_DIR
+          script: |
+            set -e
+            : "${REMOTE_PROJECT_DIR:?REMOTE_PROJECT_DIR is required}"
+            cd "$REMOTE_PROJECT_DIR"
+            echo "── Pulling latest code ──"
+            git pull origin main
+            echo "── Building images ──"
+            make build
+            echo "── Starting infrastructure ──"
+            make up-infra
+            echo "── Running migrations ──"
+            make migrate-run
+            echo "── Collecting static files ──"
+            make collectstatic-run
+            echo "── Starting app containers ──"
+            make up
+            echo "── Deploy complete ──"
+            make ps
+
+      - name: Verify deployment health
+        env:
+          HEALTHCHECK_URL: ${{ secrets.HEALTHCHECK_URL || 'https://api.construction.nishanaweb.cloud/api/v1/health/' }}
+        run: |
+          sleep 15
+          STATUS=$(curl -sS -o /dev/null -w "%{http_code}" \
+            "$HEALTHCHECK_URL" \
+            --max-time 30) || STATUS="000"
+          echo "Health check URL: $HEALTHCHECK_URL"
+          echo "Health check HTTP status: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "❌ Health check failed (HTTP $STATUS) — deployment may be broken"
+            exit 1
+          fi
+          echo "✅ Deployment healthy"
