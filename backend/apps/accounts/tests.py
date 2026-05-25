@@ -1,7 +1,10 @@
 from django.test import TestCase
 from django.contrib.auth import get_user_model
+from django.core import mail
+from datetime import date
 from rest_framework.test import APIClient
 from rest_framework import status
+from unittest.mock import patch
 from apps.accounts.models import Role
 from apps.core.models import HouseProject, ProjectMember, ProjectRole
 
@@ -29,6 +32,46 @@ class AuthenticationTestCase(TestCase):
         self.assertIn('access', response.data)
         self.assertIn('refresh', response.data)
         self.assertIn('user', response.data)
+
+    def test_login_sends_alert_email_with_login_details(self):
+        response = self.client.post('/api/v1/auth/login/', {
+            'email': 'test@example.com',
+            'password': 'testpass123',
+            'login_context': {
+                'browser': 'Google Chrome',
+                'os': 'macOS',
+                'deviceType': 'Desktop',
+                'deviceName': 'MacBook Pro',
+                'platform': 'MacIntel',
+                'language': 'en-US',
+                'timezone': 'Asia/Tokyo',
+                'screenWidth': 1512,
+                'screenHeight': 982,
+                'viewportWidth': 1280,
+                'viewportHeight': 720,
+                'latitude': 27.7172,
+                'longitude': 85.3240,
+                'accuracy': 22.4,
+            },
+        }, format='json', HTTP_USER_AGENT='Mozilla/5.0 Test Browser')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('New login to your ConstructPro account', mail.outbox[0].subject)
+        self.assertIn('27.7172, 85.324', mail.outbox[0].alternatives[0][0])
+        self.assertIn('MacBook Pro', mail.outbox[0].alternatives[0][0])
+
+    @patch('apps.accounts.views.send_login_alert_email')
+    def test_login_succeeds_if_login_alert_fails(self, mocked_send_login_alert_email):
+        mocked_send_login_alert_email.side_effect = RuntimeError('SMTP failure')
+
+        response = self.client.post('/api/v1/auth/login/', {
+            'email': 'test@example.com',
+            'password': 'testpass123',
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('access', response.data)
     
     def test_login_invalid_credentials(self):
         """Test login with invalid credentials"""
@@ -162,7 +205,11 @@ class AuthenticationTestCase(TestCase):
         project = HouseProject.objects.create(
             name='Dynamic Role Project',
             owner_name='Owner',
+            address='Tokyo Site',
             total_budget='100000.00',
+            start_date=date(2026, 5, 1),
+            expected_completion_date=date(2026, 12, 31),
+            area_sqft=1200,
         )
         target = User.objects.create_user(
             username='memberuser',

@@ -6,13 +6,60 @@ const emitAuthChanged = () => {
     }
 };
 
+const getBrowserDetails = () => {
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+        return {};
+    }
+
+    const ua = navigator.userAgent || '';
+    const lowerUa = ua.toLowerCase();
+
+    let browser = 'Unknown';
+    if (lowerUa.includes('edg/')) browser = 'Microsoft Edge';
+    else if (lowerUa.includes('chrome/') && !lowerUa.includes('edg/')) browser = 'Google Chrome';
+    else if (lowerUa.includes('firefox/')) browser = 'Mozilla Firefox';
+    else if (lowerUa.includes('safari/') && !lowerUa.includes('chrome/')) browser = 'Safari';
+
+    let os = 'Unknown';
+    if (lowerUa.includes('windows')) os = 'Windows';
+    else if (lowerUa.includes('iphone') || lowerUa.includes('ipad') || lowerUa.includes('ios')) os = 'iOS';
+    else if (lowerUa.includes('mac os x') || lowerUa.includes('macintosh')) os = 'macOS';
+    else if (lowerUa.includes('android')) os = 'Android';
+    else if (lowerUa.includes('linux')) os = 'Linux';
+
+    let deviceType = 'Desktop';
+    if (lowerUa.includes('ipad') || lowerUa.includes('tablet')) deviceType = 'Tablet';
+    else if (lowerUa.includes('iphone') || (lowerUa.includes('android') && lowerUa.includes('mobile'))) deviceType = 'Mobile';
+
+    const tz = Intl.DateTimeFormat?.().resolvedOptions?.().timeZone || 'Unknown';
+    const uaData = navigator.userAgentData;
+
+    return {
+        browser,
+        os,
+        deviceType,
+        deviceName: uaData?.platform || navigator.platform || 'Unknown',
+        platform: navigator.platform || uaData?.platform || 'Unknown',
+        language: navigator.language || 'Unknown',
+        timezone: tz,
+        screenWidth: window.screen?.width ?? null,
+        screenHeight: window.screen?.height ?? null,
+        viewportWidth: window.innerWidth ?? null,
+        viewportHeight: window.innerHeight ?? null,
+    };
+};
+
 export const authService = {
     // Login user
-    login: async (username, password) => {
+    login: async (username, password, loginContext = {}) => {
         try {
             const response = await api.post('auth/login/', {
                 username,
                 password,
+                login_context: {
+                    ...getBrowserDetails(),
+                    ...loginContext,
+                },
             });
 
             const { access, refresh, user } = response.data;

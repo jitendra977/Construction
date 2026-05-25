@@ -2,6 +2,7 @@
 Email utility functions for sending notifications to contractors and suppliers.
 """
 import logging
+from urllib.parse import quote_plus
 
 logger = logging.getLogger(__name__)
 
@@ -9,6 +10,7 @@ from django.core.mail import EmailMultiAlternatives, send_mail
 from django.utils.html import strip_tags
 from django.template.loader import render_to_string
 from django.conf import settings
+from django.utils import timezone
 from datetime import datetime
 
 from .pdf_utils import generate_purchase_order_pdf, generate_full_purchase_order_pdf
@@ -447,4 +449,85 @@ def send_worker_portal_credentials(
         log_entry.status        = 'FAILED'
         log_entry.error_message = error_msg
         log_entry.save()
+        return False
+
+
+def send_login_alert_email(user, login_details, user_agent=''):
+    """
+    Send a login alert email with device and location details.
+    This should never interrupt the login flow if email delivery fails.
+    """
+    if not getattr(user, 'email', None):
+        return False
+
+    from .models import EmailLog
+
+    subject = "New login to your ConstructPro account"
+
+    latitude = login_details.get('latitude')
+    longitude = login_details.get('longitude')
+    coordinates = None
+    map_url = ''
+    if latitude is not None and longitude is not None:
+        coordinates = f"{latitude}, {longitude}"
+        map_url = f"https://maps.google.com/?q={quote_plus(coordinates)}"
+
+    login_time = login_details.get('login_time')
+    if not login_time:
+        login_time = timezone.localtime().strftime('%Y-%m-%d %H:%M:%S %Z')
+
+    context = {
+        'user_name': (
+            f"{getattr(user, 'first_name', '')} {getattr(user, 'last_name', '')}".strip()
+            or getattr(user, 'username', '')
+            or getattr(user, 'email', '')
+        ),
+        'user_email': user.email,
+        'login_time': login_time,
+        'ip_address': login_details.get('ip_address') or 'Unknown',
+        'browser': login_details.get('browser') or 'Unknown',
+        'os': login_details.get('os') or 'Unknown',
+        'device_type': login_details.get('device_type') or 'Unknown',
+        'device_name': login_details.get('device_name') or 'Unknown',
+        'platform': login_details.get('platform') or 'Unknown',
+        'language': login_details.get('language') or 'Unknown',
+        'timezone_name': login_details.get('timezone') or 'Unknown',
+        'viewport': login_details.get('viewport') or '',
+        'screen_size': login_details.get('screen_size') or '',
+        'coordinates': coordinates,
+        'accuracy_meters': login_details.get('accuracy_meters'),
+        'map_url': map_url,
+        'location_label': login_details.get('location_label') or '',
+        'user_agent': user_agent or login_details.get('user_agent') or '',
+    }
+
+    html_content = render_to_string('emails/login_alert.html', context)
+    text_content = strip_tags(html_content)
+
+    log_entry = EmailLog.objects.create(
+        email_type='OTHER',
+        recipient_name=context['user_name'],
+        recipient_email=user.email,
+        subject=subject,
+        sent_by=user if getattr(user, 'is_authenticated', False) else None,
+    )
+
+    try:
+        email = EmailMultiAlternatives(
+            subject=subject,
+            body=text_content,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[user.email],
+        )
+        email.attach_alternative(html_content, 'text/html')
+        email.send()
+
+        log_entry.status = 'SENT'
+        log_entry.save(update_fields=['status'])
+        return True
+    except Exception as exc:
+        logger.error("Failed to send login alert to %s: %s", user.email, exc)
+        log_entry.status = 'FAILED'
+        log_entry.error_message = str(exc)
+        log_entry.save(update_fields=['status', 'error_message'])
         return False

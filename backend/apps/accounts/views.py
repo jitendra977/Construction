@@ -13,6 +13,8 @@ from django.contrib.auth import authenticate, get_user_model
 from django.utils import timezone
 from django.db.models import Count, Q
 
+from apps.core.email_utils import send_login_alert_email
+
 
 class LoginRateThrottle(BaseThrottle):
     """
@@ -65,6 +67,105 @@ def get_client_ip(request):
     if x_forwarded_for:
         return x_forwarded_for.split(',')[0].strip()
     return request.META.get('REMOTE_ADDR')
+
+
+def parse_user_agent_details(user_agent):
+    ua = (user_agent or '').lower()
+
+    browser = 'Unknown'
+    if 'edg/' in ua:
+        browser = 'Microsoft Edge'
+    elif 'chrome/' in ua and 'edg/' not in ua:
+        browser = 'Google Chrome'
+    elif 'firefox/' in ua:
+        browser = 'Mozilla Firefox'
+    elif 'safari/' in ua and 'chrome/' not in ua:
+        browser = 'Safari'
+
+    os_name = 'Unknown'
+    if 'windows' in ua:
+        os_name = 'Windows'
+    elif 'iphone' in ua or 'ipad' in ua or 'ios' in ua:
+        os_name = 'iOS'
+    elif 'mac os x' in ua or 'macintosh' in ua:
+        os_name = 'macOS'
+    elif 'android' in ua:
+        os_name = 'Android'
+    elif 'linux' in ua:
+        os_name = 'Linux'
+
+    device_type = 'Desktop'
+    if 'ipad' in ua or 'tablet' in ua:
+        device_type = 'Tablet'
+    elif 'iphone' in ua or 'android' in ua and 'mobile' in ua:
+        device_type = 'Mobile'
+
+    return {
+        'browser': browser,
+        'os': os_name,
+        'device_type': device_type,
+    }
+
+
+def build_login_alert_details(request, login_context=None):
+    login_context = login_context or {}
+    user_agent = request.META.get('HTTP_USER_AGENT', '')
+    parsed = parse_user_agent_details(user_agent)
+
+    latitude = login_context.get('latitude')
+    longitude = login_context.get('longitude')
+    accuracy = login_context.get('accuracy')
+
+    try:
+        latitude = round(float(latitude), 6) if latitude is not None else None
+    except (TypeError, ValueError):
+        latitude = None
+
+    try:
+        longitude = round(float(longitude), 6) if longitude is not None else None
+    except (TypeError, ValueError):
+        longitude = None
+
+    try:
+        accuracy = int(round(float(accuracy))) if accuracy is not None else None
+    except (TypeError, ValueError):
+        accuracy = None
+
+    device_name = (
+        login_context.get('deviceName')
+        or login_context.get('model')
+        or login_context.get('platform')
+        or 'Unknown'
+    )
+    viewport_width = login_context.get('viewportWidth')
+    viewport_height = login_context.get('viewportHeight')
+    screen_width = login_context.get('screenWidth')
+    screen_height = login_context.get('screenHeight')
+
+    return {
+        'ip_address': get_client_ip(request),
+        'browser': login_context.get('browser') or parsed['browser'],
+        'os': login_context.get('os') or parsed['os'],
+        'device_type': login_context.get('deviceType') or parsed['device_type'],
+        'device_name': device_name,
+        'platform': login_context.get('platform') or 'Unknown',
+        'language': login_context.get('language') or 'Unknown',
+        'timezone': login_context.get('timezone') or 'Unknown',
+        'screen_size': (
+            f"{screen_width} x {screen_height}"
+            if screen_width and screen_height else ''
+        ),
+        'viewport': (
+            f"{viewport_width} x {viewport_height}"
+            if viewport_width and viewport_height else ''
+        ),
+        'latitude': latitude,
+        'longitude': longitude,
+        'accuracy_meters': accuracy,
+        'location_label': login_context.get('locationLabel') or '',
+        'user_agent': user_agent,
+        'login_time': timezone.localtime().strftime('%Y-%m-%d %H:%M:%S %Z'),
+    }
 
 
 def log_activity(request, user, action, model_name,
@@ -124,6 +225,7 @@ def login_view(request):
     serializer.is_valid(raise_exception=True)
 
     password = serializer.validated_data['password']
+    login_context = serializer.validated_data.get('login_context') or {}
     email = (
         serializer.validated_data.get('email')
         or serializer.validated_data.get('username')
@@ -173,6 +275,11 @@ def login_view(request):
         log_activity(request, user, 'LOGIN', 'User',
                      object_id=user.id, object_repr=user.email,
                      description='User logged in')
+        try:
+            login_details = build_login_alert_details(request, login_context)
+            send_login_alert_email(user, login_details, user_agent=login_details.get('user_agent', ''))
+        except Exception as exc:
+            logger.warning("Failed to process login alert email for %s: %s", user.email, exc)
         return Response({
             'user': user_data,
             'access': str(refresh.access_token),

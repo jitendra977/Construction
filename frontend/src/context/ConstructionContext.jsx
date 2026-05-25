@@ -146,8 +146,8 @@ export const ConstructionProvider = ({ children }) => {
     }, [fetchData]);
 
     // Auth actions
-    const login = useCallback(async (username, password) => {
-        const result = await authService.login(username, password);
+    const login = useCallback(async (username, password, loginContext = {}) => {
+        const result = await authService.login(username, password, loginContext);
         if (result.success) {
             setUser(result.user);
             fetchData();

@@ -129,6 +129,7 @@ class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField(required=False)
     username = serializers.CharField(required=False)  # Kept for backwards compat
     password = serializers.CharField(required=True, write_only=True)
+    login_context = serializers.DictField(required=False)
 
     def validate(self, data):
         if not data.get('email') and not data.get('username'):

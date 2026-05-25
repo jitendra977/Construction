@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { authService } from '../services/auth';
 import { useConstruction } from '../context/ConstructionContext';
 
 // ── Rate-limit: max 5 attempts per 15 min window (client-side gate) ──────────
@@ -143,6 +142,26 @@ const STRENGTH_COLOR = ['', '#ef4444', '#f59e0b', '#3b82f6', '#10b981'];
 function useGeoPermission() {
     // 'checking' | 'prompt' | 'prompting' | 'granted' | 'denied' | 'unavailable'
     const [geoStatus, setGeoStatus] = useState('checking');
+    const [geoDetails, setGeoDetails] = useState(null);
+
+    const capturePosition = useCallback(() => {
+        if (!navigator?.geolocation) return;
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                setGeoDetails({
+                    latitude: position.coords?.latitude ?? null,
+                    longitude: position.coords?.longitude ?? null,
+                    accuracy: position.coords?.accuracy ?? null,
+                    capturedAt: new Date().toISOString(),
+                });
+                setGeoStatus('granted');
+            },
+            (err) => {
+                if (err.code === 1) setGeoStatus('denied');
+            },
+            { enableHighAccuracy: true, timeout: 12_000, maximumAge: 60_000 },
+        );
+    }, []);
 
     useEffect(() => {
         if (!navigator?.geolocation) {
@@ -159,6 +178,7 @@ function useGeoPermission() {
         navigator.permissions.query({ name: 'geolocation' }).then(result => {
             if (result.state === 'granted') {
                 setGeoStatus('granted');
+                capturePosition();
             } else if (result.state === 'denied') {
                 setGeoStatus('denied');
             } else {
@@ -168,24 +188,37 @@ function useGeoPermission() {
             }
 
             result.onchange = () => {
-                if (result.state === 'granted')      setGeoStatus('granted');
-                else if (result.state === 'denied')  setGeoStatus('denied');
-                else                                 setGeoStatus('prompt');
+                if (result.state === 'granted') {
+                    setGeoStatus('granted');
+                    capturePosition();
+                } else if (result.state === 'denied') {
+                    setGeoStatus('denied');
+                } else {
+                    setGeoStatus('prompt');
+                }
             };
         }).catch(() => setGeoStatus('prompt'));
-    }, []);
+    }, [capturePosition]);
 
     const retry = useCallback(() => {
         if (!navigator?.geolocation) return;
         setGeoStatus('prompting');
         navigator.geolocation.getCurrentPosition(
-            () => setGeoStatus('granted'),
+            (position) => {
+                setGeoDetails({
+                    latitude: position.coords?.latitude ?? null,
+                    longitude: position.coords?.longitude ?? null,
+                    accuracy: position.coords?.accuracy ?? null,
+                    capturedAt: new Date().toISOString(),
+                });
+                setGeoStatus('granted');
+            },
             (err) => setGeoStatus(err.code === 1 ? 'denied' : 'prompt'),
             { enableHighAccuracy: true, timeout: 12_000, maximumAge: 0 },
         );
     }, []);
 
-    return { geoStatus, retry };
+    return { geoStatus, geoDetails, retry };
 }
 
 // ── GPS status widget ─────────────────────────────────────────────────────────
@@ -325,7 +358,7 @@ export default function Login() {
     const [success,   setSuccess]     = useState(false);
     const [capsLock,  setCapsLock]    = useState(false);
 
-    const { geoStatus, retry } = useGeoPermission();
+    const { geoStatus, geoDetails, retry } = useGeoPermission();
     const geoBlocked = geoStatus === 'denied';             // hard block
     const geoPending = geoStatus === 'checking' || geoStatus === 'prompting';
     const geoNeedsAction = geoStatus === 'prompt';
@@ -385,7 +418,7 @@ export default function Login() {
         }
 
         setLoading(true);
-        const result = await login(username, password);
+        const result = await login(username, password, geoDetails || {});
         recordAttempt();
 
         if (result.success) {
