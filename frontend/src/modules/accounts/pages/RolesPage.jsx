@@ -1302,11 +1302,11 @@ export function ProjectRoleManager({
 }
 
 /* ── Main page ─────────────────────────────────────────────────────────── */
-export default function RolesPage() {
+export default function RolesPage({ forcedSection = null, hideSectionTabs = false }) {
     const { roles, loading, refreshRoles, refreshUsers } = useAccounts();
     const [searchParams, setSearchParams] = useSearchParams();
     const requestedTab = searchParams.get('tab');
-    const normalizedInitialTab = requestedTab === 'system' || requestedTab === 'project' ? requestedTab : 'guide';
+    const normalizedInitialTab = forcedSection || (requestedTab === 'system' || requestedTab === 'project' ? requestedTab : 'guide');
     const [activeSection, setActiveSection] = useState(normalizedInitialTab);
     const [showCreate, setShowCreate] = useState(false);
     const [editing,    setEditing]    = useState(null);
@@ -1339,14 +1339,19 @@ export default function RolesPage() {
     }, []);
 
     useEffect(() => {
+        if (forcedSection) {
+            if (forcedSection !== activeSection) setActiveSection(forcedSection);
+            return;
+        }
         const nextTab = searchParams.get('tab');
         const normalized = nextTab === 'system' || nextTab === 'project' ? nextTab : 'guide';
         if (normalized !== activeSection) {
             setActiveSection(normalized);
         }
-    }, [activeSection, searchParams]);
+    }, [activeSection, forcedSection, searchParams]);
 
     const activateSection = (section) => {
+        if (forcedSection) return;
         setActiveSection(section);
         const nextParams = new URLSearchParams(searchParams);
         if (section === 'guide') nextParams.delete('tab');
@@ -1383,6 +1388,7 @@ export default function RolesPage() {
         <div className="roles-page-shell" style={{ width: '100%', margin: '0 auto' }}>
             <style>{PAGE_CSS}</style>
 
+            {!hideSectionTabs && (
             <div style={{ display:'flex', gap:12, flexWrap:'wrap', marginBottom:20 }}>
                 <SectionTab
                     active={activeSection === 'guide'}
@@ -1406,6 +1412,7 @@ export default function RolesPage() {
                     detail="Reusable templates like Manager, Engineer, Supervisor, or your own custom project role."
                 />
             </div>
+            )}
 
             {/* Toolbar */}
             <div className="roles-toolbar-row" style={{

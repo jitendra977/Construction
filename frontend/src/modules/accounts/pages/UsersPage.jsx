@@ -77,6 +77,16 @@ const SYSTEM_PERM_LABELS = {
 const getEnabledSystemPermissions = (user) =>
     Object.entries(SYSTEM_PERM_LABELS).filter(([key]) => user?.[key]);
 
+function useIsMobileAccounts() {
+    const [mobile, setMobile] = useState(() => window.innerWidth < 1024);
+    useEffect(() => {
+        const fn = () => setMobile(window.innerWidth < 1024);
+        window.addEventListener('resize', fn);
+        return () => window.removeEventListener('resize', fn);
+    }, []);
+    return mobile;
+}
+
 // ── Create / Invite form ──────────────────────────────────────────────────────
 function InviteForm({ roles, onDone }) {
     const [form, setForm] = useState({
@@ -432,6 +442,7 @@ function ProjectAccessPanel({ userId, activeProjectId, onUserRefresh }) {
 
 // ── Full user edit drawer ─────────────────────────────────────────────────────
 function UserDrawer({ user, roles, onClose, onRefresh }) {
+    const isMobile = useIsMobileAccounts();
     const [tab,     setTab]     = useState('info');
     const [form,    setForm]    = useState({
         username:     user.username     || '',
@@ -522,10 +533,10 @@ function UserDrawer({ user, roles, onClose, onRefresh }) {
             <div style={{ flex:1, background:'rgba(0,0,0,0.45)', backdropFilter:'blur(3px)' }} onClick={onClose} />
 
             {/* Panel */}
-            <div style={{ width:480, maxWidth:'95vw', background:'var(--t-surface)', display:'flex', flexDirection:'column', boxShadow:'-8px 0 40px rgba(0,0,0,0.25)', borderLeft:'1px solid var(--t-border)' }}>
+            <div style={{ width:isMobile ? '100vw' : 480, maxWidth:isMobile ? '100vw' : '95vw', background:'var(--t-surface)', display:'flex', flexDirection:'column', boxShadow:'-8px 0 40px rgba(0,0,0,0.25)', borderLeft:'1px solid var(--t-border)' }}>
 
                 {/* Header */}
-                <div style={{ padding:'20px 24px 0', borderBottom:'1px solid var(--t-border)', flexShrink:0 }}>
+                <div style={{ padding:isMobile ? '16px 14px 0' : '20px 24px 0', borderBottom:'1px solid var(--t-border)', flexShrink:0 }}>
                     <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:16 }}>
                         <Avatar user={user} size="md" />
                         <div style={{ flex:1, minWidth:0 }}>
@@ -550,7 +561,7 @@ function UserDrawer({ user, roles, onClose, onRefresh }) {
                     </div>
 
                     {/* Tabs */}
-                    <div style={{ display:'flex', gap:0 }}>
+                    <div style={{ display:'flex', gap:0, overflowX:'auto' }}>
                         {TABS.map(t => (
                             <button key={t.id} onClick={() => setTab(t.id)} style={{
                                 padding:'8px 18px', fontSize:12, fontWeight:700, cursor:'pointer',
@@ -721,6 +732,7 @@ function UserDrawer({ user, roles, onClose, onRefresh }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function UsersPage() {
+    const isMobile = useIsMobileAccounts();
     const { users, roles, loading, error, load, refreshUsers, refreshStats } = useAccounts();
     const [search,       setSearch]      = useState('');
     const [roleFilter,   setRoleFilter]  = useState('ALL');
@@ -764,7 +776,7 @@ export default function UsersPage() {
     const editingUser = editing ? (users.find(u => u.id === editing.id) || editing) : null;
 
     return (
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+        <div style={{ maxWidth: isMobile ? '100%' : 1200, margin: '0 auto' }}>
 
             {/* ── Error banner ── */}
             {error && (
@@ -786,25 +798,25 @@ export default function UsersPage() {
                     { label:'Inactive', value: users.filter(u => !u.is_active).length,  color:'#ef4444' },
                     { label:'Shown',    value: filtered.length,                          color:'#f59e0b' },
                 ].map(({ label, value, color }) => (
-                    <div key={label} style={{ padding:'8px 18px', borderRadius:10, background:`${color}12`, border:`1px solid ${color}25`, textAlign:'center' }}>
-                        <p style={{ margin:0, fontSize:20, fontWeight:900, color }}>{value}</p>
+                    <div key={label} style={{ padding:isMobile ? '8px 12px' : '8px 18px', borderRadius:10, background:`${color}12`, border:`1px solid ${color}25`, textAlign:'center', minWidth:isMobile ? 'calc(50% - 5px)' : undefined, flex:isMobile ? '1 1 calc(50% - 5px)' : undefined }}>
+                        <p style={{ margin:0, fontSize:isMobile ? 18 : 20, fontWeight:900, color }}>{value}</p>
                         <p style={{ margin:0, fontSize:9, fontWeight:700, color:'var(--t-text3)', textTransform:'uppercase' }}>{label}</p>
                     </div>
                 ))}
-                <div style={{ marginLeft:'auto' }}>
+                <div style={{ marginLeft:isMobile ? 0 : 'auto', width:isMobile ? '100%' : 'auto' }}>
                     <button onClick={() => setShowInvite(true)}
-                        style={{ padding:'10px 20px', borderRadius:10, background:'#6366f1', color:'#fff', fontSize:13, fontWeight:900, border:'none', cursor:'pointer', display:'flex', alignItems:'center', gap:6, height:'100%' }}>
+                        style={{ padding:'10px 20px', borderRadius:10, background:'#6366f1', color:'#fff', fontSize:13, fontWeight:900, border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6, height:'100%', width:isMobile ? '100%' : 'auto' }}>
                         ✉️ Create User
                     </button>
                 </div>
             </div>
 
             {/* ── Filters ── */}
-            <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
+            <div style={{ display:'grid', gridTemplateColumns:isMobile ? '1fr' : 'minmax(200px,1fr) auto auto auto', gap:8, marginBottom:16 }}>
                 <input
                     placeholder="🔍 Search name, email, username…"
                     value={search} onChange={e => setSearch(e.target.value)}
-                    style={{ flex:1, minWidth:200, padding:'8px 14px', fontSize:13, borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text)', outline:'none' }}
+                    style={{ minWidth:0, padding:'8px 14px', fontSize:13, borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text)', outline:'none' }}
                 />
                 <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)}
                     style={{ padding:'8px 12px', fontSize:12, borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text)', cursor:'pointer' }}>
@@ -827,6 +839,80 @@ export default function UsersPage() {
             {/* ── Table ── */}
             {loading ? (
                 <div style={{ textAlign:'center', padding:60, color:'var(--t-text3)' }}>Loading users…</div>
+            ) : isMobile ? (
+                <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                    {filtered.length === 0 ? (
+                        <div style={{ textAlign:'center', padding:40, color:'var(--t-text3)', fontSize:13, borderRadius:14, border:'1px solid var(--t-border)', background:'var(--t-surface)' }}>
+                            No users found
+                        </div>
+                    ) : filtered.map((user) => {
+                        const permissions = getEnabledSystemPermissions(user);
+                        const projectCount = (user.assigned_projects_data || []).length;
+                        return (
+                            <div
+                                key={user.id}
+                                onClick={() => setEditing(user)}
+                                style={{
+                                    borderRadius:12,
+                                    border:'1px solid var(--t-border)',
+                                    background:'var(--t-surface)',
+                                    padding:'12px',
+                                    cursor:'pointer',
+                                }}
+                            >
+                                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                                    <Avatar user={user} size="sm" />
+                                    <div style={{ flex:1, minWidth:0 }}>
+                                        <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap', minWidth:0 }}>
+                                            <p style={{ margin:0, fontWeight:800, color:'var(--t-text)', fontSize:12, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', minWidth:0 }}>
+                                                {`${user.first_name} ${user.last_name}`.trim() || user.username}
+                                            </p>
+                                            {user.is_superuser && <span style={{ fontSize:9, padding:'1px 5px', borderRadius:4, background:'#ef444420', color:'#ef4444', fontWeight:800 }}>SUPER</span>}
+                                            <Badge label={user.is_active ? 'Active' : 'Inactive'} color={user.is_active ? '#10b981' : '#ef4444'} />
+                                        </div>
+                                        <p style={{ margin:'3px 0 0', fontSize:10, color:'var(--t-text3)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{user.email}</p>
+                                        <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', marginTop:5 }}>
+                                            {user.role
+                                                ? <span style={{ fontSize:10, fontWeight:700, color:ROLE_COLORS[user.role.code] || '#6b7280' }}>{user.role.name}</span>
+                                                : <span style={{ fontSize:10, color:'var(--t-text3)' }}>No role</span>}
+                                            <span style={{ fontSize:10, color:'var(--t-text3)' }}>{projectCount} project{projectCount === 1 ? '' : 's'}</span>
+                                            <span style={{ fontSize:10, color:'var(--t-text3)' }}>{fmtT(user.frontend_last_login)}</span>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setEditing(user); }}
+                                        style={{ width:32, height:32, borderRadius:8, background:'rgba(99,102,241,0.1)', color:'#6366f1', fontSize:14, fontWeight:900, border:'1px solid rgba(99,102,241,0.2)', cursor:'pointer', flexShrink:0 }}
+                                    >
+                                        ›
+                                    </button>
+                                </div>
+                                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginTop:8, paddingTop:8, borderTop:'1px solid var(--t-border)' }}>
+                                    <div style={{ display:'flex', flexWrap:'wrap', gap:4, minWidth:0 }}>
+                                        {permissions.length === 0 ? (
+                                            <span style={{ fontSize:10, color:'var(--t-text3)' }}>No system access</span>
+                                        ) : (
+                                            <>
+                                                {permissions.slice(0, 2).map(([key, label]) => (
+                                                    <span key={key} style={{ padding:'2px 6px', borderRadius:6, fontSize:9, fontWeight:800, background:'#6366f112', color:'#6366f1', border:'1px solid #6366f125' }}>{label}</span>
+                                                ))}
+                                                {permissions.length > 2 && (
+                                                    <span style={{ fontSize:10, color:'var(--t-text3)', padding:'2px 4px' }}>+{permissions.length - 2}</span>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setConfirmDel(user); }}
+                                        disabled={busyId === user.id}
+                                        style={{ padding:'6px 8px', borderRadius:8, background:'rgba(239,68,68,0.08)', color:'#ef4444', fontSize:11, fontWeight:900, border:'1px solid rgba(239,68,68,0.2)', cursor:'pointer', flexShrink:0 }}
+                                    >
+                                        🗑️
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
             ) : (
                 <div style={{ borderRadius:14, border:'1px solid var(--t-border)', background:'var(--t-surface)', overflow:'hidden' }}>
                     <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>

@@ -6,6 +6,7 @@ import { usePlatformBase } from '../../../shared/utils/platformNav';
 import { useAccounts } from '../context/AccountsContext';
 import Avatar from '../components/shared/Avatar';
 import Badge from '../components/shared/Badge';
+import { useEffect, useState } from 'react';
 
 const ROLE_COLORS = {
     SUPER_ADMIN:    '#ef4444',
@@ -15,22 +16,33 @@ const ROLE_COLORS = {
     VIEWER:         '#6b7280',
 };
 
-const StatCard = ({ icon, label, value, sub, color = '#6366f1' }) => (
-    <div style={{ borderRadius: 14, border: '1px solid var(--t-border)', background: 'var(--t-surface)', padding: '18px 20px' }}>
-        <p style={{ fontSize: 24, margin: '0 0 6px' }}>{icon}</p>
-        <p style={{ margin: 0, fontSize: 26, fontWeight: 900, color }}>{value}</p>
-        <p style={{ margin: '2px 0 0', fontSize: 11, fontWeight: 700, color: 'var(--t-text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</p>
-        {sub && <p style={{ margin: '4px 0 0', fontSize: 10, color: 'var(--t-text3)' }}>{sub}</p>}
+function useIsMobileAccountsDashboard() {
+    const [mobile, setMobile] = useState(() => window.innerWidth < 1024);
+    useEffect(() => {
+        const fn = () => setMobile(window.innerWidth < 1024);
+        window.addEventListener('resize', fn);
+        return () => window.removeEventListener('resize', fn);
+    }, []);
+    return mobile;
+}
+
+const StatCard = ({ icon, label, value, sub, color = '#6366f1', compact = false }) => (
+    <div style={{ borderRadius: compact ? 10 : 14, border: '1px solid var(--t-border)', background: 'var(--t-surface)', padding: compact ? '10px 8px' : '18px 20px' }}>
+        <p style={{ fontSize: compact ? 15 : 24, margin: '0 0 3px' }}>{icon}</p>
+        <p style={{ margin: 0, fontSize: compact ? 16 : 26, fontWeight: 900, color, lineHeight: 1.05 }}>{value}</p>
+        <p style={{ margin: '3px 0 0', fontSize: compact ? 8 : 11, fontWeight: 800, color: 'var(--t-text)', textTransform: 'uppercase', letterSpacing: compact ? '0.02em' : '0.06em', lineHeight: 1.15 }}>{label}</p>
+        {sub && <p style={{ margin: '2px 0 0', fontSize: compact ? 8 : 10, color: 'var(--t-text3)', lineHeight: 1.2 }}>{sub}</p>}
     </div>
 );
 
 const fmt = (iso) => iso ? new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
 export default function AccountsDashboard() {
-    const { stats, users, roles, loading } = useAccounts();
+    const { stats, loading } = useAccounts();
     const navigate = useNavigate();
     const base    = usePlatformBase();
     const AB      = `${base}/accounts`;
+    const isMobile = useIsMobileAccountsDashboard();
 
     if (loading) return (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200 }}>
@@ -39,27 +51,26 @@ export default function AccountsDashboard() {
     );
 
     const s = stats || {};
-
     return (
-        <div style={{ maxWidth: 1100, margin: '0 auto' }} className="space-y-6">
+        <div style={{ maxWidth: isMobile ? '100%' : 1100, margin: '0 auto' }} className="space-y-6">
 
             {/* ── KPI cards ──────────────────────────────────────────── */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 14 }}>
-                <StatCard icon="👥" label="Total Users"    value={s.total_users   ?? '—'} color="#6366f1" sub="all accounts" />
-                <StatCard icon="✅" label="Active"         value={s.active_users  ?? '—'} color="#10b981" sub="can log in" />
-                <StatCard icon="🔒" label="Inactive"       value={s.inactive_users ?? '—'} color="#ef4444" sub="deactivated" />
-                <StatCard icon="🛡️" label="Roles"         value={s.total_roles   ?? '—'} color="#f59e0b" sub="permission sets" />
-                <StatCard icon="🆕" label="New Today"      value={s.new_today     ?? 0}   color="#8b5cf6" sub="registered today" />
-                <StatCard icon="📋" label="Activity (30d)" value={s.activity_30d  ?? '—'} color="#3b82f6" sub="actions logged" />
-                <StatCard icon="🔑" label="Logins (30d)"   value={s.logins_30d   ?? '—'} color="#06b6d4" sub="login events" />
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(4, minmax(0, 1fr))' : 'repeat(auto-fill, minmax(160px, 1fr))', gap: isMobile ? 6 : 14 }}>
+                <StatCard icon="👥" label="Total Users"    value={s.total_users   ?? '—'} color="#6366f1" sub="all accounts" compact={isMobile} />
+                <StatCard icon="✅" label="Active"         value={s.active_users  ?? '—'} color="#10b981" sub="can log in" compact={isMobile} />
+                <StatCard icon="🔒" label="Inactive"       value={s.inactive_users ?? '—'} color="#ef4444" sub="deactivated" compact={isMobile} />
+                <StatCard icon="🛡️" label="Roles"         value={s.total_roles   ?? '—'} color="#f59e0b" sub="permission sets" compact={isMobile} />
+                <StatCard icon="🆕" label="New Today"      value={s.new_today     ?? 0}   color="#8b5cf6" sub="registered today" compact={isMobile} />
+                <StatCard icon="📋" label="Activity (30d)" value={s.activity_30d  ?? '—'} color="#3b82f6" sub="actions logged" compact={isMobile} />
+                <StatCard icon="🔑" label="Logins (30d)"   value={s.logins_30d   ?? '—'} color="#06b6d4" sub="login events" compact={isMobile} />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 14 : 20 }}>
 
                 {/* ── Role breakdown ────────────────────────────────── */}
-                <div style={{ borderRadius: 14, border: '1px solid var(--t-border)', background: 'var(--t-surface)', padding: 20 }}>
+                <div style={{ borderRadius: isMobile ? 12 : 14, border: '1px solid var(--t-border)', background: 'var(--t-surface)', padding: isMobile ? 14 : 20 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                        <p style={{ margin: 0, fontSize: 12, fontWeight: 900, color: 'var(--t-text)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>🛡️ Users by Role</p>
+                        <p style={{ margin: 0, fontSize: isMobile ? 11 : 12, fontWeight: 900, color: 'var(--t-text)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>🛡️ Users by Role</p>
                         <button onClick={() => navigate(`${AB}/roles`)}
                             style={{ fontSize: 11, color: '#6366f1', fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer' }}>
                             Manage →
@@ -89,9 +100,9 @@ export default function AccountsDashboard() {
                 </div>
 
                 {/* ── Recent registrations ──────────────────────────── */}
-                <div style={{ borderRadius: 14, border: '1px solid var(--t-border)', background: 'var(--t-surface)', padding: 20 }}>
+                <div style={{ borderRadius: isMobile ? 12 : 14, border: '1px solid var(--t-border)', background: 'var(--t-surface)', padding: isMobile ? 14 : 20 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                        <p style={{ margin: 0, fontSize: 12, fontWeight: 900, color: 'var(--t-text)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>🆕 Recent Users</p>
+                        <p style={{ margin: 0, fontSize: isMobile ? 11 : 12, fontWeight: 900, color: 'var(--t-text)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>🆕 Recent Users</p>
                         <button onClick={() => navigate(`${AB}/users`)}
                             style={{ fontSize: 11, color: '#6366f1', fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer' }}>
                             All users →
@@ -102,7 +113,7 @@ export default function AccountsDashboard() {
                     )}
                     <div className="space-y-3">
                         {(s.recent_users || []).map(u => (
-                            <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 8, borderBottom: isMobile ? '1px solid var(--t-border)' : 'none' }}>
                                 <Avatar user={u} size="sm" />
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                     <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: 'var(--t-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -121,6 +132,7 @@ export default function AccountsDashboard() {
             </div>
 
             {/* ── Quick actions ─────────────────────────────────────── */}
+            {!isMobile && (
             <div style={{ borderRadius: 14, border: '1px solid var(--t-border)', background: 'var(--t-surface)', padding: 20 }}>
                 <p style={{ margin: '0 0 14px', fontSize: 12, fontWeight: 900, color: 'var(--t-text)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>⚡ Quick Actions</p>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -149,17 +161,18 @@ export default function AccountsDashboard() {
                     ))}
                 </div>
             </div>
+            )}
 
             {/* ── Nepali Note Section (Office Management) ── */}
-            <div style={{ marginTop: 40, padding: 30, background: 'linear-gradient(135deg, #fff 0%, #f8fafc 100%)', borderRadius: 24, border: '1px solid var(--t-border)', boxShadow: '0 10px 30px rgba(0,0,0,0.02)' }}>
-                <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
-                    <div style={{ width: 48, height: 48, borderRadius: 16, background: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 24, flexShrink: 0 }}>🏢</div>
+            <div style={{ marginTop: isMobile ? 0 : 40, padding: isMobile ? 16 : 30, background: 'linear-gradient(135deg, #fff 0%, #f8fafc 100%)', borderRadius: isMobile ? 16 : 24, border: '1px solid var(--t-border)', boxShadow: '0 10px 30px rgba(0,0,0,0.02)' }}>
+                <div style={{ display: 'flex', gap: isMobile ? 12 : 20, alignItems: 'flex-start' }}>
+                    <div style={{ width: isMobile ? 36 : 48, height: isMobile ? 36 : 48, borderRadius: isMobile ? 12 : 16, background: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: isMobile ? 18 : 24, flexShrink: 0 }}>🏢</div>
                     <div>
-                        <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 900, color: 'var(--t-text)' }}>कार्यालय व्यवस्थापन निर्देशिका (Office Guide)</h3>
-                        <p style={{ margin: 0, fontSize: 13, color: 'var(--t-text3)', lineHeight: 1.6, fontWeight: 600 }}>
+                        <h3 style={{ margin: '0 0 8px', fontSize: isMobile ? 14 : 18, fontWeight: 900, color: 'var(--t-text)' }}>कार्यालय व्यवस्थापन निर्देशिका (Office Guide)</h3>
+                        <p style={{ margin: 0, fontSize: isMobile ? 11 : 13, color: 'var(--t-text3)', lineHeight: 1.6, fontWeight: 600 }}>
                             यो सेक्सनबाट तपाइँ आफ्नो मुख्य कार्यालयका कर्मचारी (इन्जिनियर, एकाउन्टेन्ट, म्यानेजर) हरूको खाता र अनुमति व्यवस्थापन गर्न सक्नुहुन्छ:
                         </p>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20, marginTop: 24 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: isMobile ? 12 : 20, marginTop: isMobile ? 14 : 24 }}>
                             <div>
                                 <div style={{ fontSize: 12, fontWeight: 900, color: '#6366f1', marginBottom: 6 }}>👤 प्रयोगकर्ता (Users)</div>
                                 <p style={{ margin: 0, fontSize: 11, color: 'var(--t-text3)', lineHeight: 1.5 }}>नयाँ इन्जिनियर वा एकाउन्टेन्टलाई प्रणालीमा निम्तो दिनुहोस्। उनीहरूको प्रोफाइल र इमेल यहाँबाट अपडेट गर्न सकिन्छ।</p>

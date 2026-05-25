@@ -506,7 +506,7 @@ function ActivityTab({ user }) {
 }
 
 // ── Main ProfilePage ───────────────────────────────────────────────────────────
-export default function ProfilePage() {
+export default function ProfilePage({ forcedTab = null, hideTabBar = false }) {
     const { user, updateProfile, setUser } = useConstruction();
     const { refreshStats }                  = useAccounts();
     const [params]                          = useSearchParams();
@@ -527,10 +527,11 @@ export default function ProfilePage() {
         setAvatarPreview(URL.createObjectURL(file));
     };
 
-    const defaultTab = params.get('tab') === 'security' ? 'security'
-                     : params.get('tab') === 'activity'  ? 'activity'
-                     : 'profile';
-    const [tab, setTab] = useState(defaultTab);
+    const queryTab = params.get('tab') === 'security' ? 'security'
+        : params.get('tab') === 'activity' ? 'activity'
+        : 'profile';
+    const [tab, setTab] = useState(queryTab);
+    const activeTab = forcedTab || tab;
 
     if (!user) return null;
 
@@ -587,20 +588,22 @@ export default function ProfilePage() {
             </div>
 
             {/* ── Tab bar ──────────────────────────────────────────────── */}
+            {!hideTabBar && (
             <div style={{ display: 'flex', gap: 4, marginBottom: 20, padding: '4px', borderRadius: 12, background: 'var(--t-surface)', border: '1px solid var(--t-border)', width: 'fit-content' }}>
                 {TABS.map(({ key, label }) => (
                     <button key={key} onClick={() => setTab(key)}
                         style={{ padding: '6px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, transition: 'all 0.15s',
-                            background: tab === key ? '#6366f1' : 'transparent',
-                            color:      tab === key ? '#fff'    : 'var(--t-text3)',
+                            background: activeTab === key ? '#6366f1' : 'transparent',
+                            color:      activeTab === key ? '#fff'    : 'var(--t-text3)',
                         }}>
                         {label}
                     </button>
                 ))}
             </div>
+            )}
 
             {/* ── Tab content ──────────────────────────────────────────── */}
-            {tab === 'profile'  && (
+            {activeTab === 'profile'  && (
                 <ProfileTab 
                     user={user} 
                     updateProfile={updateProfile} 
@@ -611,8 +614,8 @@ export default function ProfilePage() {
                     setAvatarPreview={setAvatarPreview}
                 />
             )}
-            {tab === 'security' && <SecurityTab user={user} setUser={setUser} />}
-            {tab === 'activity' && <ActivityTab user={user} />}
+            {activeTab === 'security' && <SecurityTab user={user} setUser={setUser} />}
+            {activeTab === 'activity' && <ActivityTab user={user} />}
         </div>
     );
 }

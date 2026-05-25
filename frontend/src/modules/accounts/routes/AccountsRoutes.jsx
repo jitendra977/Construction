@@ -21,6 +21,7 @@ import ProfilePage         from '../pages/ProfilePage';
 import UsersPage           from '../pages/UsersPage';
 import RolesPage           from '../pages/RolesPage';
 import ActivityPage        from '../pages/ActivityPage';
+import { usePlatformBase } from '../../../shared/utils/platformNav';
 
 function AccessDenied() {
     return (
@@ -52,14 +53,22 @@ function RequireAccountAccess({ permissions, children }) {
 }
 
 export default function AccountsRoutes() {
+    const base = usePlatformBase();
+    const isMobile = base.includes('/dashboard/mobile');
+
     return (
         <AccountsProvider>
             <AccountsLayout>
                 <Routes>
                     <Route index            element={<AccountsHome />} />
-                    <Route path="profile"   element={<RequireAccountAccess permissions={['can_view_profile', 'can_manage_admin_config', 'can_manage_users']}><ProfilePage /></RequireAccountAccess>} />
+                    <Route path="profile"   element={<RequireAccountAccess permissions={['can_view_profile', 'can_manage_admin_config', 'can_manage_users']}>{isMobile ? <ProfilePage forcedTab="profile" hideTabBar /> : <ProfilePage />}</RequireAccountAccess>} />
+                    <Route path="profile/security" element={<RequireAccountAccess permissions={['can_view_profile', 'can_manage_admin_config', 'can_manage_users']}><ProfilePage forcedTab="security" hideTabBar /></RequireAccountAccess>} />
+                    <Route path="profile/activity" element={<RequireAccountAccess permissions={['can_view_profile', 'can_manage_admin_config', 'can_manage_users']}><ProfilePage forcedTab="activity" hideTabBar /></RequireAccountAccess>} />
                     <Route path="users"     element={<RequireAccountAccess permissions={['can_manage_admin_config', 'can_manage_users']}><UsersPage /></RequireAccountAccess>} />
-                    <Route path="roles"     element={<RequireAccountAccess permissions={['can_manage_admin_config', 'can_manage_users']}><RolesPage /></RequireAccountAccess>} />
+                    <Route path="roles"     element={<RequireAccountAccess permissions={['can_manage_admin_config', 'can_manage_users']}>{isMobile ? <Navigate to="guide" replace /> : <RolesPage />}</RequireAccountAccess>} />
+                    <Route path="roles/guide" element={<RequireAccountAccess permissions={['can_manage_admin_config', 'can_manage_users']}><RolesPage forcedSection="guide" hideSectionTabs /></RequireAccountAccess>} />
+                    <Route path="roles/system" element={<RequireAccountAccess permissions={['can_manage_admin_config', 'can_manage_users']}><RolesPage forcedSection="system" hideSectionTabs /></RequireAccountAccess>} />
+                    <Route path="roles/project" element={<RequireAccountAccess permissions={['can_manage_admin_config', 'can_manage_users']}><RolesPage forcedSection="project" hideSectionTabs /></RequireAccountAccess>} />
                     <Route path="activity"  element={<RequireAccountAccess permissions={['can_manage_admin_config', 'can_manage_users']}><ActivityPage /></RequireAccountAccess>} />
                     <Route path="*"         element={<Navigate to="" replace />} />
                 </Routes>
