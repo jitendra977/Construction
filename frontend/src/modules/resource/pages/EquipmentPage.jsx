@@ -5,6 +5,7 @@
  */
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useResource } from '../context/ResourceContext';
+import { usePlatformBase } from '../../../shared/utils/platformNav';
 import {
   getEquipment, createEquipment, updateEquipment, deleteEquipment,
 } from '../services/resourceApi';
@@ -56,8 +57,8 @@ function CreateEquipmentRow({ projectId, onSaved, onCancel }) {
   return (
     <div className="bg-blue-50/60 border border-blue-200 rounded-2xl p-4 space-y-3">
       <p className="text-[10px] font-black text-blue-600 uppercase tracking-wider">New Equipment</p>
-      <div className="grid grid-cols-6 gap-2">
-        <div className="col-span-2">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-2">
+        <div className="md:col-span-2">
           <label className="text-[9px] font-bold text-gray-400 uppercase block mb-0.5">Name *</label>
           <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
             placeholder="e.g. JCB Excavator 3DX" className={inp} autoFocus />
@@ -212,8 +213,8 @@ function EquipmentTableRow({ eq, onRefresh, showConfirm }) {
         <tr className="bg-blue-50/40 border-b border-blue-100">
           <td colSpan={5} className="px-6 py-3">
             <p className="text-[10px] font-black text-blue-600 uppercase tracking-wider mb-2">Editing: {eq.name}</p>
-            <div className="grid grid-cols-6 gap-2 max-w-3xl">
-              <div className="col-span-2">
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-2 max-w-3xl">
+              <div className="md:col-span-2">
                 <label className="text-[9px] font-bold text-gray-400 uppercase block mb-0.5">Name *</label>
                 <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
                   className={inp} autoFocus />
@@ -264,6 +265,8 @@ function EquipmentTableRow({ eq, onRefresh, showConfirm }) {
 // ── EquipmentPage ─────────────────────────────────────────────────────────────
 export default function EquipmentPage() {
   const { projectId } = useResource();
+  const base = usePlatformBase();
+  const isMobile = base.includes('/mobile');
 
   const [equipment,    setEquipment]    = useState([]);
   const [loading,      setLoading]      = useState(true);
@@ -315,14 +318,14 @@ export default function EquipmentPage() {
     <div className="space-y-4 pb-16">
 
       {/* ── Header ────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
+      <div className={`flex ${isMobile ? 'flex-col items-start gap-3' : 'items-center justify-between'}`}>
         <div>
           <h1 className="text-xl font-black text-gray-900">Equipment</h1>
           <p className="text-xs text-gray-400 mt-0.5">मेशिनरी र उपकरण व्यवस्थापन</p>
         </div>
         {!showCreate && (
           <button onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1.5 px-4 py-2.5 bg-black text-white rounded-xl text-xs font-black hover:bg-gray-800 transition-colors shadow-sm">
+            className={`flex items-center gap-1.5 ${isMobile ? 'w-full justify-center px-4 py-3' : 'px-4 py-2.5'} bg-black text-white rounded-xl text-xs font-black hover:bg-gray-800 transition-colors shadow-sm`}>
             + Add Equipment
           </button>
         )}
@@ -330,7 +333,7 @@ export default function EquipmentPage() {
 
       {/* ── Summary strip ─────────────────────────────────────────────────── */}
       {equipment.length > 0 && (
-        <div className="grid grid-cols-4 gap-3">
+        <div className={`grid ${isMobile ? 'grid-cols-2' : 'grid-cols-4'} gap-3`}>
           {[
             { label: 'Total',       value: equipment.length,                    cls: 'text-gray-900'  },
             { label: 'Available',   value: statusCounts['AVAILABLE']   || 0,    cls: 'text-green-600' },
@@ -403,7 +406,8 @@ export default function EquipmentPage() {
         </div>
       ) : (
         <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
-          <table className="w-full">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px]">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
                 <th className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-wider">Equipment</th>
@@ -436,6 +440,7 @@ export default function EquipmentPage() {
               </tfoot>
             )}
           </table>
+          </div>
         </div>
       )}
 

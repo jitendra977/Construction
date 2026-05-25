@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useResource } from '../context/ResourceContext';
 import resourceApi from '../services/resourceApi';
 import StatusBadge from '../components/shared/StatusBadge';
+import { usePlatformBase } from '../../../shared/utils/platformNav';
 
 const fmt = (v) => Number(v || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
 const fmtCurr = (v) => Number(v || 0).toLocaleString('en-IN', { style: 'currency', currency: 'NPR', maximumFractionDigits: 0 });
@@ -55,6 +56,8 @@ function PremiumKpi({ icon, label, value, sub, color, onClick }) {
 
 export default function ResourceDashboard() {
   const navigate = useNavigate();
+  const base = usePlatformBase();
+  const isMobile = base.includes('/mobile');
   const { dashboard, loading, projectId } = useResource();
   const [movements, setMovements] = useState([]);
 
@@ -86,20 +89,20 @@ export default function ResourceDashboard() {
     : 100;
 
   return (
-    <div className="relative space-y-8 pb-20">
+    <div className={`relative ${isMobile ? 'space-y-4 pb-20' : 'space-y-8 pb-20'}`}>
       <div className="ambient-glow" />
       
       {/* ── Page Header ───────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div className={`flex flex-col ${isMobile ? 'gap-3' : 'md:flex-row md:items-end gap-4'}`}>
         <div className="animate-in fade-in slide-in-from-left duration-700">
-          <h1 className="dynamic-header text-gray-900">Resource Command</h1>
-          <div className="flex items-center gap-3 mt-1">
-            <p className="dynamic-subtitle text-emerald-600">Logistic Intelligence</p>
+          <h1 className={`${isMobile ? 'text-2xl leading-tight' : 'dynamic-header'} font-black text-gray-900`}>Resource Command</h1>
+          <div className={`flex items-center ${isMobile ? 'gap-2 mt-1 flex-wrap' : 'gap-3 mt-1'}`}>
+            <p className={`${isMobile ? 'text-[11px] font-black uppercase tracking-[0.18em]' : 'dynamic-subtitle'} text-emerald-600`}>Logistic Intelligence</p>
             <span className="text-gray-300">/</span>
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Project #{projectId || '—'}</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 px-4 py-2 bg-white border border-gray-100 rounded-2xl shadow-sm animate-in fade-in slide-in-from-right duration-700">
+        <div className={`flex items-center gap-3 ${isMobile ? 'px-3 py-2 rounded-xl' : 'px-4 py-2 rounded-2xl'} bg-white border border-gray-100 shadow-sm animate-in fade-in slide-in-from-right duration-700`}>
           <div className="flex -space-x-2">
             {[1,2,3].map(i => (
               <div key={i} className="w-7 h-7 rounded-full border-2 border-white bg-gray-100 overflow-hidden shadow-sm">
@@ -107,7 +110,7 @@ export default function ResourceDashboard() {
               </div>
             ))}
           </div>
-          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+          <p className={`${isMobile ? 'text-[9px]' : 'text-[10px]'} font-bold text-gray-500 uppercase tracking-wider`}>
             {lab.active_workers || 0} Team Members Active
           </p>
           <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-1" />
@@ -115,7 +118,7 @@ export default function ResourceDashboard() {
       </div>
 
       {/* ── High-Level Analytics ─────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in slide-in-from-bottom duration-500 delay-100">
+      <div className={`grid ${isMobile ? 'grid-cols-2 gap-3' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4'} animate-in fade-in slide-in-from-bottom duration-500 delay-100`}>
         <PremiumKpi
           icon="🏦"
           label="Inventory Valuation"
@@ -151,13 +154,13 @@ export default function ResourceDashboard() {
       </div>
 
       {/* ── Main Content Grid ────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className={`grid ${isMobile ? 'grid-cols-1 gap-4' : 'grid-cols-1 lg:grid-cols-3 gap-6'}`}>
         
         {/* Left: Resource Mix & Directory */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="lg:col-span-2 space-y-4 md:space-y-6">
+          <div className={`grid ${isMobile ? 'grid-cols-1 gap-3' : 'grid-cols-1 md:grid-cols-2 gap-4'}`}>
             {/* Materials Summary */}
-            <div className="card-glass p-6 hover:border-emerald-200 transition-all cursor-pointer group" onClick={() => navigate('materials')}>
+            <div className={`${isMobile ? 'p-4' : 'p-6'} card-glass hover:border-emerald-200 transition-all cursor-pointer group`} onClick={() => navigate('materials')}>
               <div className="flex items-center justify-between mb-6">
                 <p className="text-[11px] font-black text-gray-500 uppercase tracking-widest">Inventory Ledger</p>
                 <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full group-hover:bg-emerald-600 group-hover:text-white transition-all">View List →</span>
@@ -187,7 +190,7 @@ export default function ResourceDashboard() {
             </div>
 
             {/* Labor Summary */}
-            <div className="card-glass p-6 hover:border-blue-200 transition-all cursor-pointer group" onClick={() => navigate('labor')}>
+            <div className={`${isMobile ? 'p-4' : 'p-6'} card-glass hover:border-blue-200 transition-all cursor-pointer group`} onClick={() => navigate('labor')}>
               <div className="flex items-center justify-between mb-6">
                 <p className="text-[11px] font-black text-gray-500 uppercase tracking-widest">Workforce Status</p>
                 <span className="text-xs font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full group-hover:bg-blue-600 group-hover:text-white transition-all">Attendance →</span>
@@ -228,11 +231,11 @@ export default function ResourceDashboard() {
                 Full Audit Trail →
               </button>
             </div>
-            <div className="p-6 relative">
+            <div className={`${isMobile ? 'p-4' : 'p-6'} relative`}>
               {/* Vertical line for timeline */}
               <div className="absolute left-10 top-8 bottom-8 w-px bg-gray-100" />
               
-              <div className="space-y-8 relative">
+              <div className={`${isMobile ? 'space-y-5' : 'space-y-8'} relative`}>
                 {movements.length > 0 ? movements.map((mv, i) => (
                   <div key={mv.id || i} className="flex items-start gap-4 group">
                     <div className="w-8 h-8 rounded-full bg-white border border-gray-100 shadow-sm flex items-center justify-center z-10 shrink-0 group-hover:border-emerald-200 group-hover:scale-110 transition-all">
@@ -291,7 +294,7 @@ export default function ResourceDashboard() {
         {/* Right Column: Alerts & Quick Stats */}
         <div className="space-y-6">
           {/* Critical Alerts */}
-          <div className="card-glass border-rose-100 p-6 bg-gradient-to-br from-white to-rose-50/30 hud-border">
+          <div className={`card-glass border-rose-100 ${isMobile ? 'p-4' : 'p-6'} bg-gradient-to-br from-white to-rose-50/30 hud-border`}>
             <div className="flex items-center gap-2 mb-5 text-rose-600">
               <span className="text-xl">⚠️</span>
               <p className="text-[11px] font-black uppercase tracking-widest">Inventory Alerts</p>
@@ -321,7 +324,7 @@ export default function ResourceDashboard() {
           </div>
 
           {/* Equipment Fleet HUD */}
-          <div className="card-glass p-6">
+          <div className={`card-glass ${isMobile ? 'p-4' : 'p-6'}`}>
             <div className="flex items-center justify-between mb-6">
               <p className="text-[11px] font-black text-gray-500 uppercase tracking-widest">Equipment Fleet</p>
               <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
@@ -348,7 +351,7 @@ export default function ResourceDashboard() {
           </div>
 
           {/* Mini Order Tracking */}
-          <div className="card-glass p-6 bg-gradient-to-br from-amber-50/20 to-white">
+          <div className={`card-glass ${isMobile ? 'p-4' : 'p-6'} bg-gradient-to-br from-amber-50/20 to-white`}>
             <p className="text-[11px] font-black text-amber-600 uppercase tracking-widest mb-4 flex items-center gap-2">
                🚚 Order Tracking
             </p>

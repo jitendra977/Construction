@@ -5,6 +5,7 @@
  */
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useResource } from '../context/ResourceContext';
+import { usePlatformBase } from '../../../shared/utils/platformNav';
 import {
   getMaterials, createMaterial, updateMaterial, deleteMaterial,
   stockIn, stockOut, getPhases, getSuppliers, getPurchaseOrders,
@@ -51,8 +52,8 @@ function CreateMaterialRow({ projectId, onSaved, onCancel }) {
   return (
     <div className="bg-blue-50/60 border border-blue-200 rounded-2xl p-4 space-y-3">
       <p className="text-[10px] font-black text-blue-600 uppercase tracking-wider">New Material</p>
-      <div className="grid grid-cols-6 gap-2">
-        <div className="col-span-2">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-2">
+        <div className="md:col-span-2">
           <label className="text-[9px] font-bold text-gray-400 uppercase block mb-0.5">Name *</label>
           <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
             placeholder="e.g. OPC Cement 43" className={inp} autoFocus />
@@ -405,8 +406,8 @@ function TableRow({ mat, phases, suppliers, purchaseOrders, onRefresh, showConfi
         <tr className="bg-blue-50/40 border-b border-blue-100">
           <td colSpan={5} className="px-6 py-3">
             <p className="text-[10px] font-black text-blue-600 uppercase tracking-wider mb-2">Editing: {mat.name}</p>
-            <div className="grid grid-cols-6 gap-2 max-w-3xl">
-              <div className="col-span-2">
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-2 max-w-3xl">
+              <div className="md:col-span-2">
                 <label className="text-[9px] font-bold text-gray-400 uppercase block mb-0.5">Name *</label>
                 <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
                   className={inp} autoFocus />
@@ -455,6 +456,8 @@ function TableRow({ mat, phases, suppliers, purchaseOrders, onRefresh, showConfi
 // ── MaterialsPage ─────────────────────────────────────────────────────────────
 export default function MaterialsPage() {
   const { projectId, refresh } = useResource();
+  const base = usePlatformBase();
+  const isMobile = base.includes('/mobile');
 
   const [materials,       setMaterials]       = useState([]);
   const [phases,          setPhases]          = useState([]);  // stock-out phase linking
@@ -520,14 +523,14 @@ export default function MaterialsPage() {
     <div className="space-y-4 pb-16">
 
       {/* ── Header ────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
+      <div className={`flex ${isMobile ? 'flex-col items-start gap-3' : 'items-center justify-between'}`}>
         <div>
           <h1 className="text-xl font-black text-gray-900">Materials</h1>
           <p className="text-xs text-gray-400 mt-0.5">सामग्री स्टक व्यवस्थापन</p>
         </div>
         {!showCreate && (
           <button onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1.5 px-4 py-2.5 bg-black text-white rounded-xl text-xs font-black hover:bg-gray-800 transition-colors shadow-sm">
+            className={`flex items-center gap-1.5 ${isMobile ? 'w-full justify-center px-4 py-3' : 'px-4 py-2.5'} bg-black text-white rounded-xl text-xs font-black hover:bg-gray-800 transition-colors shadow-sm`}>
             + Add Material
           </button>
         )}
@@ -535,7 +538,7 @@ export default function MaterialsPage() {
 
       {/* ── Summary strip ─────────────────────────────────────────────────── */}
       {materials.length > 0 && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className={`grid ${isMobile ? 'grid-cols-2' : 'grid-cols-3'} gap-3`}>
           <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3">
             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Total Items</p>
             <p className="text-2xl font-black text-gray-900 mt-0.5">{materials.length}</p>
@@ -544,7 +547,7 @@ export default function MaterialsPage() {
             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Stock Value</p>
             <p className="text-lg font-black text-gray-900 mt-0.5">NPR {fmt(totalValue)}</p>
           </div>
-          <div className={`border rounded-2xl px-4 py-3 ${lowCount > 0 ? 'bg-red-50 border-red-200' : 'bg-white border-gray-100'}`}>
+          <div className={`border rounded-2xl px-4 py-3 ${isMobile ? 'col-span-2' : ''} ${lowCount > 0 ? 'bg-red-50 border-red-200' : 'bg-white border-gray-100'}`}>
             <p className={`text-[9px] font-bold uppercase tracking-wider ${lowCount > 0 ? 'text-red-500' : 'text-gray-400'}`}>Low Stock</p>
             <p className={`text-2xl font-black mt-0.5 ${lowCount > 0 ? 'text-red-600' : 'text-gray-300'}`}>{lowCount}</p>
           </div>
@@ -611,7 +614,8 @@ export default function MaterialsPage() {
         </div>
       ) : (
         <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
-          <table className="w-full">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px]">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
                 <th className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-wider">Material</th>
@@ -650,6 +654,7 @@ export default function MaterialsPage() {
               </tfoot>
             )}
           </table>
+          </div>
         </div>
       )}
 
