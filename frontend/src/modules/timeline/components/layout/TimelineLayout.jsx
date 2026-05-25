@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTimeline } from '../../context/TimelineContext';
 import { useConstruction } from '../../../../context/ConstructionContext';
+import { usePlatformBase } from '../../../../shared/utils/platformNav';
 import ManagementTabs from '../../../../components/desktop/manage/ManagementTabs';
 import ExportButton from '../shared/ExportButton';
 
@@ -42,6 +43,7 @@ export default function TimelineLayout({ children }) {
     } = useTimeline();
     const { projects, activeProjectId, switchProject } = useConstruction();
     const navigate  = useNavigate();
+    const base = usePlatformBase();
     const isMobile  = useIsMobile();
     const [filtersOpen, setFiltersOpen] = useState(false);
 
@@ -75,6 +77,14 @@ export default function TimelineLayout({ children }) {
                     padding: '8px 12px',
                     display: 'flex', alignItems: 'center', gap: 8,
                 }}>
+                    <button onClick={() => navigate(`${base}/home`)} style={{
+                        padding: '5px 8px', borderRadius: 8, fontSize: 13,
+                        border: '1px solid var(--t-border)', background: 'transparent',
+                        color: 'var(--t-text)', cursor: 'pointer',
+                    }}>
+                        🏠
+                    </button>
+
                     {/* Title + project */}
                     <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 14, fontWeight: 900, color: 'var(--t-text)', lineHeight: 1 }}>
@@ -219,6 +229,13 @@ export default function TimelineLayout({ children }) {
                 borderBottom: '1px solid var(--t-border)',
                 display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
             }}>
+                <button onClick={() => navigate(`${base}/home`)} style={{
+                    padding: '5px 10px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                    border: '1px solid var(--t-border)', background: 'transparent',
+                    color: 'var(--t-text)', cursor: 'pointer',
+                }}>
+                    🏠 Home
+                </button>
                 <div style={{ marginRight: 4 }}>
                     <h1 style={{ margin: 0, fontSize: 16, fontWeight: 900, color: 'var(--t-text)' }}>📅 Timeline</h1>
                     {activeProject && (

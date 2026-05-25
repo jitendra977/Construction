@@ -10,10 +10,14 @@ function LocationLayout({ projectId }) {
     const base  = match
         ? match.pathnameBase
         : '/dashboard/desktop/location';   // safe fallback
+    const homeBase = match
+        ? match.pathnameBase.replace('/location', '')
+        : '/dashboard/desktop';
     const isMobile  = !!mobileMatch;
     const onLiveMap = !!useMatch({ path: `${base}/live`, end: true });
 
     const tabs = [
+        { path: `${homeBase}/home`,         label: '🏠 Home'      },
         { path: `${base}/live`,     label: '🗺 Live Map'   },
         { path: `${base}/reports`,  label: '📊 Reports'    },
         { path: `${base}/geofence`, label: '📐 Boundaries' },

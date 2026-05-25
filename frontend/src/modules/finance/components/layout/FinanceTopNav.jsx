@@ -11,6 +11,7 @@ export default function FinanceTopNav() {
     const base = usePlatformBase();
     const BASE = `${base}/finance`;
     const TABS = [
+        { to: `${base}/home`,              icon: '🏠', label: 'Home'       },
         { to: BASE,                      icon: '📊', label: 'Dashboard',  end: true },
         { to: `${base}/finance/banking`,   icon: '🏦', label: 'Banking'   },
         { to: `${base}/finance/loans`,     icon: '📋', label: 'Loans'     },

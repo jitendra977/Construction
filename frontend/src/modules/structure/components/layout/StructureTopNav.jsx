@@ -7,6 +7,7 @@ export default function StructureTopNav() {
     const base = usePlatformBase();
     const BASE = `${base}/structure`;
     const TABS = [
+        { to: `${base}/home`,                icon: '🏠', label: 'Home'       },
         { to: BASE,                          icon: '🏗️', label: 'Overview',   end: true },
         { to: `${base}/structure/floorplan`, icon: '🗺️', label: 'Floor Plan' },
         { to: `${base}/structure/rooms`,     icon: '🚪', label: 'Rooms'      },

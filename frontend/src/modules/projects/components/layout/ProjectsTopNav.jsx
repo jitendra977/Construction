@@ -6,6 +6,7 @@ export default function ProjectsTopNav({ projectId }) {
     const id  = projectId;
     const base = usePlatformBase();
     const tabs = [
+        { to: `${base}/home`,                  label: '🏠 Home' },
         { to: `${base}/projects/${id}/overview`,  label: '📊 Overview' },
         { to: `${base}/projects/${id}/settings`,  label: '⚙️ Settings' },
         { to: `${base}/projects/${id}/team`,      label: '👥 Team' },

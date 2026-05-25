@@ -4,7 +4,7 @@
  * Mobile  : full-screen content, bottom pill tab bar, My QR FAB
  * Desktop : header + horizontal tab bar + card wrapper (unchanged)
  */
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useConstruction } from '../../context/ConstructionContext';
 import attendanceService from '../../services/attendanceService';
@@ -124,7 +124,7 @@ const TABS = [
 ];
 
 // ── Mobile bottom scrollable tab bar ──────────────────────────────────────────
-function MobileTabBar({ active, onChange, onQR, alertCount = 0 }) {
+function MobileTabBar({ active, onChange, onQR, onHome, alertCount = 0 }) {
     const scrollRef = useRef(null);
 
     // Auto-scroll the active tab button into view whenever it changes
@@ -156,6 +156,22 @@ function MobileTabBar({ active, onChange, onQR, alertCount = 0 }) {
             >
                 {/* Hide scrollbar on webkit */}
                 <style>{`div::-webkit-scrollbar{display:none}`}</style>
+
+                <button
+                    onClick={onHome}
+                    style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                        padding: '10px 14px', borderRadius: 16, border: 'none', cursor: 'pointer',
+                        background: '#f9731614', color: '#f97316',
+                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', flexShrink: 0,
+                        position: 'relative', minWidth: 70,
+                    }}
+                >
+                    <span style={{ fontSize: 20, lineHeight: 1 }}>🏠</span>
+                    <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', lineHeight: 1 }}>Home</span>
+                </button>
+
+                <div style={{ width: 1, background: 'var(--t-border)', margin: '6px 4px', flexShrink: 0 }} />
 
                 {TABS.map(tab => (
                     <button
@@ -483,7 +499,7 @@ function AttendanceHubContent() {
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <button 
-                        onClick={() => navigate('/dashboard')}
+                        onClick={() => navigate('/dashboard/mobile/home')}
                         style={{ 
                             background: 'var(--t-surface2)', border: '1.5px solid var(--t-border)', 
                             borderRadius: 10, width: 40, height: 40, display: 'flex', 
@@ -518,7 +534,13 @@ function AttendanceHubContent() {
                 {tabContent}
             </div>
 
-            <MobileTabBar active={activeTab} onChange={setActiveTab} onQR={() => setMyQROpen(true)} alertCount={alertCount} />
+            <MobileTabBar
+                active={activeTab}
+                onChange={setActiveTab}
+                onQR={() => setMyQROpen(true)}
+                onHome={() => navigate('/dashboard/mobile/home')}
+                alertCount={alertCount}
+            />
             {myQROpen && <MyQRModal projectId={effectiveProjectId} onClose={() => setMyQROpen(false)} />}
         </div>
     ) : (
