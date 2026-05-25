@@ -1,8 +1,6 @@
 /**
- * WorkerPhotoPage.jsx  — Advanced Dark + Colorful Edition
- * ─────────────────────────────────────────────────────────
+ * WorkerPhotoPage.jsx
  * Camera / gallery photo upload page for field workers.
- * Dark theme matching WorkerPortal.jsx color palette.
  *
  * Features:
  *  • Camera capture with live preview area
@@ -13,26 +11,53 @@
  *  • Phase grouping in gallery
  *  • Success/error feedback with colored toasts
  */
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import { Camera, FolderOpen, RefreshCw, Search, UploadCloud } from 'lucide-react';
 import workerPortalApi from '../../../services/workerPortalApi';
+import VoiceNoteInput from '../../../components/common/VoiceNoteInput';
+import { useTheme } from '../../../context/ThemeContext';
 
 // ─── Design tokens ─────────────────────────────────────────────────────────────
-const C = {
-    bg:      '#020617',
-    surface: '#0f172a',
-    card:    '#0d1826',
-    border:  '#1e293b',
-    text:    '#f1f5f9',
-    muted:   '#64748b',
-    dim:     '#94a3b8',
-    blue:    '#38bdf8',
-    blueD:   '#0369a1',
-    green:   '#4ade80',
-    greenD:  '#15803d',
-    amber:   '#fbbf24',
-    red:     '#f87171',
-    purple:  '#a78bfa',
-};
+function getPalette(theme) {
+    if (theme === 'light') {
+        return {
+            bg: '#f8fafc',
+            surface: '#ffffff',
+            card: '#f8fafc',
+            border: '#dbe4ee',
+            text: '#0f172a',
+            muted: '#64748b',
+            dim: '#475569',
+            blue: '#2563eb',
+            blueD: '#1d4ed8',
+            green: '#16a34a',
+            greenD: '#15803d',
+            amber: '#d97706',
+            red: '#dc2626',
+            purple: '#7c3aed',
+            shadow: '0 20px 48px rgba(15,23,42,0.08)',
+            overlay: 'rgba(248,250,252,0.96)',
+        };
+    }
+    return {
+        bg: '#020617',
+        surface: '#0f172a',
+        card: '#0d1826',
+        border: '#1e293b',
+        text: '#f1f5f9',
+        muted: '#64748b',
+        dim: '#94a3b8',
+        blue: '#38bdf8',
+        blueD: '#0369a1',
+        green: '#4ade80',
+        greenD: '#15803d',
+        amber: '#fbbf24',
+        red: '#f87171',
+        purple: '#a78bfa',
+        shadow: '0 24px 60px rgba(2,6,23,0.32)',
+        overlay: 'rgba(2,6,23,0.96)',
+    };
+}
 
 // ─── CSS ───────────────────────────────────────────────────────────────────────
 const STYLES = `
@@ -66,10 +91,10 @@ function formatDate(iso) {
 }
 
 // ─── Upload queue item ─────────────────────────────────────────────────────────
-function UploadItem({ item, onRemove }) {
+function UploadItem({ item, onRemove, c }) {
     const preview = URL.createObjectURL(item.file);
-    const borderColor = item.error ? C.red : item.done ? C.green : C.border;
-    const bgColor = item.error ? 'rgba(248,113,113,.06)' : item.done ? 'rgba(74,222,128,.06)' : C.card;
+    const borderColor = item.error ? c.red : item.done ? c.green : c.border;
+    const bgColor = item.error ? 'rgba(248,113,113,.06)' : item.done ? 'rgba(74,222,128,.06)' : c.card;
 
     return (
         <div style={{
@@ -80,7 +105,7 @@ function UploadItem({ item, onRemove }) {
         }}>
             <div style={{ position: 'relative', flexShrink: 0 }}>
                 <img src={preview} alt=""
-                    style={{ width: 54, height: 54, objectFit: 'cover', borderRadius: 10, border: `1px solid ${C.border}` }} />
+                    style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 14, border: `1px solid ${c.border}` }} />
                 {item.done && (
                     <div style={{
                         position: 'absolute', inset: 0, borderRadius: 10,
@@ -91,33 +116,33 @@ function UploadItem({ item, onRemove }) {
                 )}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: 12, fontWeight: 700, margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: C.text }}>
+                <p style={{ fontSize: 13, fontWeight: 800, margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: c.text }}>
                     {item.file.name}
                 </p>
-                <p style={{ fontSize: 11, color: C.muted, margin: 0 }}>
+                <p style={{ fontSize: 11, color: c.muted, margin: 0 }}>
                     {(item.file.size / 1024).toFixed(0)} KB
                 </p>
                 {item.uploading && (
-                    <div style={{ marginTop: 6, height: 4, background: C.border, borderRadius: 2, overflow: 'hidden' }}>
+                    <div style={{ marginTop: 8, height: 5, background: c.border, borderRadius: 999, overflow: 'hidden' }}>
                         <div style={{
-                            height: '100%', borderRadius: 2, width: `${item.progress}%`,
-                            background: `linear-gradient(90deg, ${C.blueD}, ${C.blue})`,
+                            height: '100%', borderRadius: 999, width: `${item.progress}%`,
+                            background: `linear-gradient(90deg, ${c.blueD}, ${c.blue})`,
                             transition: 'width .2s',
-                            boxShadow: `0 0 6px ${C.blue}60`,
+                            boxShadow: `0 0 6px ${c.blue}60`,
                             animation: 'wpProgressPulse 1.2s infinite',
                         }} />
                     </div>
                 )}
                 {item.error && (
-                    <p style={{ fontSize: 11, color: C.red, margin: '4px 0 0', fontWeight: 600 }}>⚠️ {item.error}</p>
+                    <p style={{ fontSize: 11, color: c.red, margin: '6px 0 0', fontWeight: 700 }}>{item.error}</p>
                 )}
                 {item.done && (
-                    <p style={{ fontSize: 11, color: C.green, margin: '4px 0 0', fontWeight: 700 }}>✅ Uploaded</p>
+                    <p style={{ fontSize: 11, color: c.green, margin: '6px 0 0', fontWeight: 800 }}>Uploaded</p>
                 )}
             </div>
             {!item.uploading && !item.done && (
                 <button onClick={() => onRemove(item.id)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted, fontSize: 18, padding: 4, flexShrink: 0 }}>
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: c.muted, fontSize: 18, padding: 4, flexShrink: 0 }}>
                     ✕
                 </button>
             )}
@@ -126,28 +151,32 @@ function UploadItem({ item, onRemove }) {
 }
 
 // ─── Photo thumbnail ───────────────────────────────────────────────────────────
-function PhotoThumb({ photo, onClick }) {
+function PhotoThumb({ photo, onClick, c }) {
     return (
         <div className="wp-photo-card" onClick={() => onClick(photo)}
-            style={{ cursor: 'pointer', position: 'relative', borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }}>
+            style={{ cursor: 'pointer', position: 'relative', borderRadius: 18, overflow: 'hidden', border: `1px solid ${c.border}`, background: c.card, boxShadow: c.shadow }}>
             <img src={photo.url} alt={photo.task_name}
-                style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
+                style={{ width: '100%', aspectRatio: '1.1', objectFit: 'cover', display: 'block' }} />
             <div style={{
                 position: 'absolute', bottom: 0, left: 0, right: 0,
-                background: 'linear-gradient(transparent, rgba(2,6,23,.85))',
-                padding: '20px 6px 6px',
+                background: themeAwareGradient(c),
+                padding: '28px 10px 10px',
             }}>
-                <p style={{ fontSize: 10, color: '#fff', margin: 0, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <p style={{ fontSize: 11, color: '#fff', margin: 0, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {photo.task_name || 'Untagged'}
                 </p>
+                {photo.phase_name && (
+                    <p style={{ fontSize: 10, color: 'rgba(255,255,255,.78)', margin: '4px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {photo.phase_name}
+                    </p>
+                )}
             </div>
-            {/* AI badge */}
             {photo.quality_score && (
                 <div style={{
-                    position: 'absolute', top: 5, right: 5,
-                    background: photo.quality_score > 7 ? C.green : photo.quality_score > 4 ? C.amber : C.red,
+                    position: 'absolute', top: 10, right: 10,
+                    background: photo.quality_score > 7 ? c.green : photo.quality_score > 4 ? c.amber : c.red,
                     color: '#000', fontSize: 9, fontWeight: 800,
-                    padding: '2px 5px', borderRadius: 6,
+                    padding: '4px 7px', borderRadius: 999,
                 }}>
                     ★{photo.quality_score}
                 </div>
@@ -157,7 +186,13 @@ function PhotoThumb({ photo, onClick }) {
 }
 
 // ─── Lightbox viewer ──────────────────────────────────────────────────────────
-function Lightbox({ photo, onClose, onPrev, onNext }) {
+function themeAwareGradient(c) {
+    return c.bg === '#f8fafc'
+        ? 'linear-gradient(transparent, rgba(15,23,42,.76))'
+        : 'linear-gradient(transparent, rgba(2,6,23,.88))';
+}
+
+function Lightbox({ photo, onClose, onPrev, onNext, c }) {
     useEffect(() => {
         const handler = (e) => {
             if (e.key === 'Escape') onClose();
@@ -171,21 +206,21 @@ function Lightbox({ photo, onClose, onPrev, onNext }) {
     return (
         <div style={{
             position: 'fixed', inset: 0, zIndex: 1200,
-            background: 'rgba(2,6,23,.97)', backdropFilter: 'blur(10px)',
+            background: c.overlay, backdropFilter: 'blur(10px)',
             display: 'flex', flexDirection: 'column',
         }}>
             {/* Top bar */}
             <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 padding: '16px 20px',
-                background: 'rgba(15,23,42,.6)',
+                background: c.bg === '#f8fafc' ? 'rgba(255,255,255,.82)' : 'rgba(15,23,42,.6)',
             }}>
                 <div>
-                    <p style={{ fontSize: 13, fontWeight: 700, color: C.text, margin: 0 }}>{photo.task_name || 'Site Photo'}</p>
-                    <p style={{ fontSize: 11, color: C.muted, margin: '2px 0 0' }}>{formatDate(photo.created_at)}</p>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: c.text, margin: 0 }}>{photo.task_name || 'Site Photo'}</p>
+                    <p style={{ fontSize: 11, color: c.muted, margin: '2px 0 0' }}>{formatDate(photo.created_at)}</p>
                 </div>
                 <button onClick={onClose}
-                    style={{ background: 'rgba(255,255,255,.1)', border: 'none', color: C.text, width: 36, height: 36, borderRadius: 10, cursor: 'pointer', fontSize: 16 }}>
+                    style={{ background: c.bg === '#f8fafc' ? 'rgba(15,23,42,.08)' : 'rgba(255,255,255,.1)', border: 'none', color: c.text, width: 36, height: 36, borderRadius: 10, cursor: 'pointer', fontSize: 16 }}>
                     ✕
                 </button>
             </div>
@@ -203,7 +238,7 @@ function Lightbox({ photo, onClose, onPrev, onNext }) {
                     <button onClick={e => { e.stopPropagation(); onPrev(); }}
                         style={{
                             position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
-                            background: 'rgba(255,255,255,.1)', border: 'none', color: C.text,
+                            background: c.bg === '#f8fafc' ? 'rgba(15,23,42,.08)' : 'rgba(255,255,255,.1)', border: 'none', color: c.text,
                             width: 40, height: 40, borderRadius: 10, cursor: 'pointer', fontSize: 18,
                         }}>‹</button>
                 )}
@@ -211,33 +246,33 @@ function Lightbox({ photo, onClose, onPrev, onNext }) {
                     <button onClick={e => { e.stopPropagation(); onNext(); }}
                         style={{
                             position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
-                            background: 'rgba(255,255,255,.1)', border: 'none', color: C.text,
+                            background: c.bg === '#f8fafc' ? 'rgba(15,23,42,.08)' : 'rgba(255,255,255,.1)', border: 'none', color: c.text,
                             width: 40, height: 40, borderRadius: 10, cursor: 'pointer', fontSize: 18,
                         }}>›</button>
                 )}
             </div>
 
             {/* Bottom metadata */}
-            <div style={{ padding: '16px 20px', background: 'rgba(15,23,42,.6)' }}>
+            <div style={{ padding: '16px 20px', background: c.bg === '#f8fafc' ? 'rgba(255,255,255,.82)' : 'rgba(15,23,42,.6)' }}>
                 <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
                     {photo.phase_name && (
                         <div style={{ textAlign: 'center' }}>
-                            <p style={{ fontSize: 10, color: C.muted, margin: 0 }}>PHASE</p>
-                            <p style={{ fontSize: 12, color: C.blue, fontWeight: 700, margin: '2px 0 0' }}>{photo.phase_name}</p>
+                            <p style={{ fontSize: 10, color: c.muted, margin: 0 }}>PHASE</p>
+                            <p style={{ fontSize: 12, color: c.blue, fontWeight: 700, margin: '2px 0 0' }}>{photo.phase_name}</p>
                         </div>
                     )}
                     {photo.description && (
                         <div style={{ textAlign: 'center', maxWidth: 200 }}>
-                            <p style={{ fontSize: 10, color: C.muted, margin: 0 }}>NOTE</p>
-                            <p style={{ fontSize: 12, color: C.dim, fontWeight: 600, margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <p style={{ fontSize: 10, color: c.muted, margin: 0 }}>NOTE</p>
+                            <p style={{ fontSize: 12, color: c.dim, fontWeight: 600, margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {photo.description}
                             </p>
                         </div>
                     )}
                     {photo.quality_score && (
                         <div style={{ textAlign: 'center' }}>
-                            <p style={{ fontSize: 10, color: C.muted, margin: 0 }}>QUALITY</p>
-                            <p style={{ fontSize: 12, color: photo.quality_score > 7 ? C.green : C.amber, fontWeight: 700, margin: '2px 0 0' }}>
+                            <p style={{ fontSize: 10, color: c.muted, margin: 0 }}>QUALITY</p>
+                            <p style={{ fontSize: 12, color: photo.quality_score > 7 ? c.green : c.amber, fontWeight: 700, margin: '2px 0 0' }}>
                                 ★ {photo.quality_score}/10
                             </p>
                         </div>
@@ -249,14 +284,14 @@ function Lightbox({ photo, onClose, onPrev, onNext }) {
 }
 
 // ─── Toast ─────────────────────────────────────────────────────────────────────
-function Toast({ message, color, onDone }) {
+function Toast({ message, color, onDone, c }) {
     useEffect(() => { const t = setTimeout(onDone, 3000); return () => clearTimeout(t); }, [onDone]);
     return (
         <div className="wp-toast" style={{
             position: 'fixed', bottom: 110, left: '50%', transform: 'translateX(-50%)',
-            background: color || C.green, color: '#000',
+            background: color || c.green, color: '#fff',
             padding: '11px 22px', borderRadius: 14, fontSize: 13, fontWeight: 800,
-            zIndex: 2000, whiteSpace: 'nowrap', boxShadow: `0 4px 24px ${color || C.green}50`,
+            zIndex: 2000, whiteSpace: 'nowrap', boxShadow: `0 4px 24px ${color || c.green}50`,
         }}>
             {message}
         </div>
@@ -266,6 +301,8 @@ function Toast({ message, color, onDone }) {
 // ─── Main page ─────────────────────────────────────────────────────────────────
 export default function WorkerPhotoPage() {
     useEffect(() => { injectStyles(); }, []);
+    const { theme } = useTheme();
+    const c = useMemo(() => getPalette(theme), [theme]);
 
     const [tab, setTab]             = useState('upload');
     const [tasks, setTasks]         = useState([]);
@@ -321,7 +358,7 @@ export default function WorkerPhotoPage() {
 
     const removeFromQueue = (id) => setQueue(q => q.filter(i => i.id !== id));
 
-    const uploadAll = async () => {
+    const uploadAll = useCallback(async () => {
         const pending = queue.filter(i => !i.done && !i.uploading);
         if (!pending.length) return;
         setUploading(true);
@@ -345,9 +382,9 @@ export default function WorkerPhotoPage() {
         setUploading(false);
         setDesc('');
         if (successCount > 0) {
-            setToast({ message: `✅ ${successCount} photo${successCount !== 1 ? 's' : ''} uploaded`, color: C.green });
+            setToast({ message: `${successCount} photo${successCount !== 1 ? 's' : ''} uploaded`, color: c.green });
         }
-    };
+    }, [c.green, description, queue, selectedTask]);
 
     const doneCount    = queue.filter(i => i.done).length;
     const pendingCount = queue.filter(i => !i.done && !i.uploading).length;
@@ -371,25 +408,26 @@ export default function WorkerPhotoPage() {
     const flatPhotos = filteredPhotos;
 
     return (
-        <div style={{ minHeight: '100vh', background: C.bg, paddingBottom: 100, color: C.text }}>
+        <div style={{ minHeight: '100vh', background: c.bg, paddingBottom: 100, color: c.text }}>
 
             {/* ── Header ── */}
             <div style={{
                 padding: '20px 20px 0',
-                background: C.surface,
-                borderBottom: `1px solid ${C.border}`,
+                background: c.surface,
+                borderBottom: `1px solid ${c.border}`,
                 position: 'sticky', top: 0, zIndex: 50,
+                boxShadow: c.shadow,
             }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                     <div>
-                        <h2 style={{ fontSize: 20, fontWeight: 900, margin: 0, color: C.text }}>Site Photos</h2>
-                        <p style={{ fontSize: 11, color: C.muted, margin: '2px 0 0' }}>
+                        <h2 style={{ fontSize: 22, fontWeight: 900, margin: 0, color: c.text }}>Site Photos</h2>
+                        <p style={{ fontSize: 11, color: c.muted, margin: '2px 0 0' }}>
                             {photos.length > 0 ? `${photos.length} photos uploaded` : 'Document your work'}
                         </p>
                     </div>
                     {tab === 'gallery' && (
-                        <button onClick={loadPhotos} style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 8, color: C.muted, padding: '6px 10px', fontSize: 12, cursor: 'pointer' }}>
-                            ↻
+                        <button onClick={loadPhotos} style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', background: c.card, border: `1px solid ${c.border}`, borderRadius: 12, color: c.muted, width: 40, height: 40, cursor: 'pointer' }}>
+                            <RefreshCw size={16} />
                         </button>
                     )}
                 </div>
@@ -397,18 +435,18 @@ export default function WorkerPhotoPage() {
                 {/* Tabs */}
                 <div style={{ display: 'flex', gap: 4, marginBottom: 14 }}>
                     {[
-                        { key: 'upload',  label: '📷 Upload' },
-                        { key: 'gallery', label: `🖼️ Gallery (${photos.length})` },
+                        { key: 'upload',  label: 'Upload' },
+                        { key: 'gallery', label: `Gallery (${photos.length})` },
                     ].map(t => (
                         <button key={t.key} className="wp-tab-btn" onClick={() => setTab(t.key)}
                             style={{
-                                flex: 1, padding: '9px 4px', borderRadius: 10, border: 'none',
+                                flex: 1, padding: '11px 6px', borderRadius: 14, border: 'none',
                                 background: tab === t.key
-                                    ? `linear-gradient(135deg,${C.blueD},${C.blue})`
-                                    : C.card,
-                                color: tab === t.key ? '#000' : C.muted,
+                                    ? `linear-gradient(135deg,${c.blueD},${c.blue})`
+                                    : c.card,
+                                color: tab === t.key ? '#fff' : c.muted,
                                 fontSize: 12, fontWeight: 800, cursor: 'pointer',
-                                boxShadow: tab === t.key ? `0 4px 14px ${C.blue}40` : 'none',
+                                boxShadow: tab === t.key ? `0 4px 14px ${c.blue}40` : 'none',
                             }}>
                             {t.label}
                         </button>
@@ -422,16 +460,16 @@ export default function WorkerPhotoPage() {
 
                     {/* Task picker — optional */}
                     <div style={{ marginBottom: 14 }}>
-                        <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: 'block', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.06em' }}>
-                            Tag to task <span style={{ color: C.muted, fontWeight: 500, textTransform: 'none' }}>(optional)</span>
+                        <label style={{ fontSize: 11, fontWeight: 700, color: c.muted, display: 'block', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+                            Tag to task <span style={{ color: c.muted, fontWeight: 500, textTransform: 'none' }}>(optional)</span>
                         </label>
                         <select value={selectedTask} onChange={e => setTask(e.target.value)}
                             style={{
                                 width: '100%', padding: '12px 14px', borderRadius: 12,
-                                border: `1.5px solid ${C.border}`,
+                                border: `1.5px solid ${c.border}`,
                                 fontSize: 13, fontWeight: 600,
-                                color: selectedTask ? C.text : C.muted,
-                                background: C.card, outline: 'none',
+                                color: selectedTask ? c.text : c.muted,
+                                background: c.card, outline: 'none',
                             }}>
                             <option value="">No task — general site photo</option>
                             {/* Group by phase for easier navigation */}
@@ -452,48 +490,66 @@ export default function WorkerPhotoPage() {
                                 </optgroup>
                             ))}
                         </select>
-                        <p style={{ fontSize: 11, color: C.muted, margin: '5px 0 0' }}>
-                            📌 Tag to a task for better tracking, or leave blank for general photos
+                        <p style={{ fontSize: 11, color: c.muted, margin: '5px 0 0' }}>
+                            Tag a task for better tracking, or leave it blank for general site photos.
                         </p>
                     </div>
 
                     {/* Caption */}
                     <div style={{ marginBottom: 16 }}>
-                        <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: 'block', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+                        <label style={{ fontSize: 11, fontWeight: 700, color: c.muted, display: 'block', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.06em' }}>
                             Caption (optional)
                         </label>
-                        <input value={description} onChange={e => setDesc(e.target.value)}
+                        <VoiceNoteInput
+                            value={description}
+                            onChange={setDesc}
+                            rows={3}
                             placeholder="e.g. Foundation pour — Level 1 complete"
-                            style={{
-                                width: '100%', padding: '12px 14px', borderRadius: 12,
-                                border: `1px solid ${C.border}`, fontSize: 13,
-                                background: C.card, color: C.text, outline: 'none', boxSizing: 'border-box',
-                            }} />
+                            textareaStyle={{
+                                width: '100%',
+                                padding: '12px 14px',
+                                borderRadius: 12,
+                                border: `1px solid ${c.border}`,
+                                fontSize: 13,
+                                background: c.card,
+                                color: c.text,
+                                outline: 'none',
+                                boxSizing: 'border-box',
+                                resize: 'vertical',
+                                minHeight: 96,
+                            }}
+                        />
                     </div>
 
                     {/* Capture buttons */}
-                    <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
                         <button onClick={() => cameraRef.current?.click()}
                             style={{
-                                flex: 1, padding: '16px 0', borderRadius: 14,
-                                border: `1.5px dashed ${C.blue}`,
+                                padding: '18px 14px', borderRadius: 18,
+                                border: `1px solid ${c.border}`,
                                 background: 'rgba(56,189,248,.06)',
-                                color: C.blue, fontSize: 14, fontWeight: 800, cursor: 'pointer',
-                                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                                color: c.text, fontSize: 14, fontWeight: 800, cursor: 'pointer',
+                                display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8,
                             }}>
-                            <span style={{ fontSize: 24 }}>📷</span>
-                            <span style={{ fontSize: 11 }}>Camera</span>
+                            <span style={{ width: 40, height: 40, borderRadius: 12, display:'grid', placeItems:'center', background: `${c.blue}18`, color: c.blue }}>
+                                <Camera size={20} />
+                            </span>
+                            <span style={{ fontSize: 14 }}>Live photo</span>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: c.muted }}>Open camera and capture directly</span>
                         </button>
                         <button onClick={() => fileInputRef.current?.click()}
                             style={{
-                                flex: 1, padding: '16px 0', borderRadius: 14,
-                                border: `1.5px dashed ${C.purple}`,
+                                padding: '18px 14px', borderRadius: 18,
+                                border: `1px solid ${c.border}`,
                                 background: 'rgba(167,139,250,.06)',
-                                color: C.purple, fontSize: 14, fontWeight: 800, cursor: 'pointer',
-                                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                                color: c.text, fontSize: 14, fontWeight: 800, cursor: 'pointer',
+                                display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8,
                             }}>
-                            <span style={{ fontSize: 24 }}>🖼️</span>
-                            <span style={{ fontSize: 11 }}>Gallery</span>
+                            <span style={{ width: 40, height: 40, borderRadius: 12, display:'grid', placeItems:'center', background: `${c.purple}18`, color: c.purple }}>
+                                <FolderOpen size={20} />
+                            </span>
+                            <span style={{ fontSize: 14 }}>Gallery</span>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: c.muted }}>Pick existing photos from device</span>
                         </button>
                     </div>
 
@@ -505,19 +561,19 @@ export default function WorkerPhotoPage() {
                     {queue.length > 0 && (
                         <div style={{ marginBottom: 14 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                                <p style={{ fontSize: 12, fontWeight: 700, color: C.dim, margin: 0 }}>
+                                <p style={{ fontSize: 12, fontWeight: 700, color: c.dim, margin: 0 }}>
                                     {queue.length} photo{queue.length !== 1 ? 's' : ''} selected
-                                    {doneCount > 0 && <span style={{ color: C.green }}> · {doneCount} uploaded</span>}
+                                    {doneCount > 0 && <span style={{ color: c.green }}> · {doneCount} uploaded</span>}
                                 </p>
                                 {doneCount === queue.length && queue.length > 0 && (
                                     <button onClick={() => setQueue([])}
-                                        style={{ fontSize: 11, color: C.muted, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>
+                                        style={{ fontSize: 11, color: c.muted, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>
                                         Clear all
                                     </button>
                                 )}
                             </div>
                             {queue.map(item => (
-                                <UploadItem key={item.id} item={item} onRemove={removeFromQueue} />
+                                <UploadItem key={item.id} item={item} onRemove={removeFromQueue} c={c} />
                             ))}
                         </div>
                     )}
@@ -527,20 +583,25 @@ export default function WorkerPhotoPage() {
                         style={{
                             width: '100%', padding: '15px', borderRadius: 14, border: 'none',
                             background: canUpload
-                                ? `linear-gradient(135deg,${C.blueD},${C.blue})`
-                                : C.border,
-                            color: canUpload ? '#000' : C.muted,
+                                ? `linear-gradient(135deg,${c.blueD},${c.blue})`
+                                : c.border,
+                            color: canUpload ? '#fff' : c.muted,
                             fontSize: 14, fontWeight: 800,
                             cursor: canUpload ? 'pointer' : 'default',
-                            boxShadow: canUpload ? `0 4px 20px ${C.blue}40` : 'none',
+                            boxShadow: canUpload ? `0 4px 20px ${c.blue}40` : 'none',
                             transition: 'all .2s',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 10,
                         }}>
+                        <UploadCloud size={17} />
                         {uploading
-                            ? '⏳ Uploading…'
+                            ? 'Uploading…'
                             : pendingCount > 0
-                                ? `Upload ${pendingCount} Photo${pendingCount !== 1 ? 's' : ''} →`
+                                ? `Upload ${pendingCount} Photo${pendingCount !== 1 ? 's' : ''}`
                                 : doneCount > 0
-                                    ? '✅ All Uploaded'
+                                    ? 'All Uploaded'
                                     : 'Select Photos First'}
                     </button>
 
@@ -548,16 +609,18 @@ export default function WorkerPhotoPage() {
                     {queue.length === 0 && (
                         <div style={{
                             marginTop: 20, padding: '30px 20px', borderRadius: 16,
-                            border: `1.5px dashed ${C.border}`,
+                            border: `1.5px dashed ${c.border}`,
                             background: 'rgba(255,255,255,.01)',
                             textAlign: 'center',
                         }}>
-                            <div style={{ fontSize: 40, marginBottom: 10 }}>📸</div>
-                            <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>
-                                Tap <strong style={{ color: C.blue }}>Camera</strong> or <strong style={{ color: C.purple }}>Gallery</strong> to add photos
+                            <div style={{ width: 56, height: 56, margin:'0 auto 14px', borderRadius: 18, display:'grid', placeItems:'center', background: c.card, border:`1px solid ${c.border}`, color:c.blue }}>
+                                <Camera size={24} />
+                            </div>
+                            <p style={{ fontSize: 13, color: c.muted, margin: 0 }}>
+                                Choose live camera or gallery to add progress photos.
                             </p>
-                            <p style={{ fontSize: 11, color: C.muted, margin: '6px 0 0', opacity: .7 }}>
-                                No task selection needed — just tap and upload
+                            <p style={{ fontSize: 11, color: c.muted, margin: '6px 0 0', opacity: .7 }}>
+                                Task tagging is optional.
                             </p>
                         </div>
                     )}
@@ -571,15 +634,15 @@ export default function WorkerPhotoPage() {
                     {/* Search */}
                     {photos.length > 0 && (
                         <div style={{ position: 'relative', marginBottom: 14 }}>
-                            <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: C.muted }}>🔍</span>
+                            <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: c.muted }}><Search size={14} /></span>
                             <input
                                 value={galleryFilter} onChange={e => setFilter(e.target.value)}
                                 placeholder="Filter by task or phase…"
                                 style={{
                                     width: '100%', padding: '10px 12px 10px 36px',
-                                    borderRadius: 12, border: `1px solid ${C.border}`,
-                                    fontSize: 13, background: C.card,
-                                    color: C.text, outline: 'none', boxSizing: 'border-box',
+                                    borderRadius: 14, border: `1px solid ${c.border}`,
+                                    fontSize: 13, background: c.card,
+                                    color: c.text, outline: 'none', boxSizing: 'border-box',
                                 }} />
                         </div>
                     )}
@@ -587,43 +650,43 @@ export default function WorkerPhotoPage() {
                     {loadingPhotos && (
                         <div style={{ textAlign: 'center', padding: 60 }}>
                             <div className="wp-spinner" />
-                            <p style={{ fontSize: 13, color: C.muted, marginTop: 16 }}>Loading photos…</p>
+                            <p style={{ fontSize: 13, color: c.muted, marginTop: 16 }}>Loading photos…</p>
                         </div>
                     )}
 
                     {!loadingPhotos && photos.length === 0 && (
-                        <div style={{ textAlign: 'center', padding: 60, color: C.muted }}>
-                            <div style={{ fontSize: 52, marginBottom: 16 }}>📷</div>
-                            <p style={{ fontSize: 15, fontWeight: 700, color: C.dim }}>No photos yet</p>
+                        <div style={{ textAlign: 'center', padding: 60, color: c.muted }}>
+                            <div style={{ width: 60, height: 60, margin:'0 auto 16px', borderRadius: 20, display:'grid', placeItems:'center', background: c.card, border:`1px solid ${c.border}`, color: c.blue }}>
+                                <Camera size={28} />
+                            </div>
+                            <p style={{ fontSize: 15, fontWeight: 700, color: c.dim }}>No photos yet</p>
                             <p style={{ fontSize: 12, marginTop: 4 }}>Switch to Upload to add your first photo.</p>
                             <button onClick={() => setTab('upload')}
                                 style={{
                                     marginTop: 16, padding: '10px 24px', borderRadius: 12,
-                                    background: `linear-gradient(135deg,${C.blueD},${C.blue})`,
-                                    color: '#000', border: 'none', fontSize: 13, fontWeight: 800, cursor: 'pointer',
+                                    background: `linear-gradient(135deg,${c.blueD},${c.blue})`,
+                                    color: '#fff', border: 'none', fontSize: 13, fontWeight: 800, cursor: 'pointer',
                                 }}>
-                                Upload Photos →
+                                Upload Photos
                             </button>
                         </div>
                     )}
 
                     {!loadingPhotos && photos.length > 0 && (
                         Object.keys(photosByPhase).length === 0 ? (
-                            <div style={{ textAlign: 'center', padding: 40, color: C.muted }}>
+                            <div style={{ textAlign: 'center', padding: 40, color: c.muted }}>
                                 <p style={{ fontSize: 13 }}>No photos match your filter.</p>
                             </div>
                         ) : (
                             Object.entries(photosByPhase).map(([phase, pList]) => (
                                 <div key={phase} style={{ marginBottom: 20 }}>
-                                    {/* Phase label */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                                        <span style={{ fontSize: 12 }}>📂</span>
-                                        <span style={{ fontSize: 12, fontWeight: 800, color: C.blue }}>{phase}</span>
-                                        <span style={{ fontSize: 11, color: C.muted }}>({pList.length})</span>
+                                        <span style={{ fontSize: 12, fontWeight: 800, color: c.blue }}>{phase}</span>
+                                        <span style={{ fontSize: 11, color: c.muted }}>({pList.length})</span>
                                     </div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
                                         {pList.map(p => (
-                                            <PhotoThumb key={p.id} photo={p} onClick={(ph) => {
+                                            <PhotoThumb key={p.id} photo={p} c={c} onClick={(ph) => {
                                                 const idx = flatPhotos.findIndex(x => x.id === ph.id);
                                                 setLightbox(idx);
                                             }} />
@@ -640,6 +703,7 @@ export default function WorkerPhotoPage() {
             {lightbox !== null && lightbox >= 0 && lightbox < flatPhotos.length && (
                 <Lightbox
                     photo={flatPhotos[lightbox]}
+                    c={c}
                     onClose={() => setLightbox(null)}
                     onPrev={lightbox > 0 ? () => setLightbox(i => i - 1) : null}
                     onNext={lightbox < flatPhotos.length - 1 ? () => setLightbox(i => i + 1) : null}
@@ -647,7 +711,7 @@ export default function WorkerPhotoPage() {
             )}
 
             {/* Toast */}
-            {toast && <Toast message={toast.message} color={toast.color} onDone={() => setToast(null)} />}
+            {toast && <Toast message={toast.message} color={toast.color} c={c} onDone={() => setToast(null)} />}
         </div>
     );
 }

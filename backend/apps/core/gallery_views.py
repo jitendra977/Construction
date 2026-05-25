@@ -59,7 +59,11 @@ class GalleryViewSet(viewsets.ViewSet):
                 'uploaded_at': tm.created_at,
                 'source_type': 'TASK_MEDIA',
                 'media_type': tm.media_type, # IMAGE/VIDEO
-                'meta': {'task_id': tm.task.id, 'phase_id': phase_id}
+                'meta': {
+                    'task_id': tm.task.id,
+                    'phase_id': phase_id,
+                    'task_status': tm.task.status,
+                }
             })
             
         # C. Phase Files (Naksa, Design, Photos)
@@ -140,9 +144,18 @@ class GalleryViewSet(viewsets.ViewSet):
                 grouped_data[key].append(item)
 
         elif view_mode == 'phases':
-            # Group by Phase
-            # Includes: Phase Files, Task Media
-            filtered = [i for i in items if i.get('meta',{}).get('phase_id')]
+            # Group progress photos by Phase
+            # Includes: in-progress task media + phase completion photos
+            filtered = [
+                i for i in items
+                if i.get('meta', {}).get('phase_id')
+                and i['media_type'] in ['IMAGE', 'VIDEO']
+                and i['source_type'] in ['TASK_MEDIA', 'PHASE_PHOTO']
+                and (
+                    i['source_type'] != 'TASK_MEDIA'
+                    or i.get('meta', {}).get('task_status') == 'IN_PROGRESS'
+                )
+            ]
             for item in filtered:
                 p_id = item['meta']['phase_id']
                 p_info = phase_map.get(p_id, {'name': 'Unassigned', 'order': 99})

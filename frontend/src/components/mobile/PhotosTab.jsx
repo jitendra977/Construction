@@ -200,7 +200,7 @@ const MobileMediaCard = ({ item, onOpen }) => {
 const PhotosTab = () => {
     const [groupedGallery, setGroupedGallery] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [groupBy, setGroupBy] = useState('timeline');
+    const [groupBy, setGroupBy] = useState('phases');
     const [previewItem, setPreviewItem] = useState(null);
 
     useEffect(() => {

@@ -21,6 +21,7 @@ import { createPortal } from 'react-dom';
 import { constructionService } from '../../services/constructionService';
 import { attendanceService }   from '../../services/attendanceService';
 import api                     from '../../services/client';
+import VoiceNoteInput          from '../common/VoiceNoteInput';
 
 /* ── helpers ─────────────────────────────────────────────────────────────── */
 const today = () => new Date().toISOString().slice(0, 10);
@@ -193,11 +194,11 @@ function TaskTab({ projectId }) {
             {/* Note */}
             <div>
                 <label style={lbl}>📝 आजको काम (नोट)</label>
-                <textarea
-                    className="dup-textarea"
-                    rows={3}
+                <VoiceNoteInput
                     value={note}
-                    onChange={e => setNote(e.target.value)}
+                    onChange={setNote}
+                    rows={3}
+                    textareaClassName="dup-textarea"
                     placeholder="आज के काम भयो? जस्तै: Foundation को खुट्टा राखियो, ३ जना मजदुर काममा थिए…"
                 />
             </div>

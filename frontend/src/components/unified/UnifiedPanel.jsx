@@ -15,6 +15,7 @@ import { constructionService } from '../../services/constructionService';
 import { attendanceService }   from '../../services/attendanceService';
 import { assistantService }    from '../../services/api';
 import api                     from '../../services/client';
+import VoiceNoteInput          from '../common/VoiceNoteInput';
 
 /* ─────────────────────────────────────────────────────────────────────────── */
 /*  Shared helpers                                                              */
@@ -1156,7 +1157,13 @@ function TaskTab({ projectId }) {
                 </select>
             </div>
             <div><label style={lbl}>📝 आजको काम</label>
-                <textarea className="up-textarea" rows={3} value={note} onChange={e=>setNote(e.target.value)} placeholder="आज के काम भयो? जस्तै: Foundation को खुट्टा राखियो…"/>
+                <VoiceNoteInput
+                    value={note}
+                    onChange={setNote}
+                    rows={3}
+                    textareaClassName="up-textarea"
+                    placeholder="आज के काम भयो? जस्तै: Foundation को खुट्टा राखियो…"
+                />
             </div>
             <div>
                 <div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}>

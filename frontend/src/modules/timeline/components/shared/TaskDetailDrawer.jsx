@@ -8,6 +8,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTimeline } from '../../context/TimelineContext';
 import timelineApi from '../../services/timelineApi';
+import VoiceNoteInput from '../../../../components/common/VoiceNoteInput';
 
 const STATUS_OPTS = [
     { value: 'PENDING',     label: 'Pending',     color: '#6b7280' },
@@ -312,17 +313,18 @@ export default function TaskDetailDrawer({ task, onClose }) {
                         <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, color: 'var(--t-text2)' }}>
                             📝 Add Progress Note
                         </p>
-                        <textarea
+                        <VoiceNoteInput
                             value={note}
-                            onChange={e => setNote(e.target.value)}
+                            onChange={setNote}
                             placeholder="What was done today? Any blockers?"
                             rows={3}
-                            style={{
+                            textareaStyle={{
                                 width: '100%', padding: '8px', borderRadius: 8,
                                 border: '1px solid var(--t-border)', resize: 'vertical',
                                 background: 'var(--t-surface)', color: 'var(--t-text)',
                                 fontSize: 12, fontFamily: 'inherit', boxSizing: 'border-box',
                             }}
+                            wrapperStyle={{ marginBottom: 2 }}
                         />
                         <button onClick={postUpdate} disabled={posting || !note.trim()} style={{
                             marginTop: 8, padding: '7px 16px', borderRadius: 8,

@@ -224,7 +224,7 @@ const DesktopPhotos = () => {
     const { stats } = useConstruction();
     const [groupedGallery, setGroupedGallery] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [viewMode, setViewMode] = useState('timeline');
+    const [viewMode, setViewMode] = useState('phases');
     const [lightboxItem, setLightboxItem] = useState(null);
 
     useEffect(() => {

@@ -1,24 +1,26 @@
 /**
  * MobileNav — fixed bottom bar + slide-up full-screen app drawer.
  *
- * Bottom bar: Home · Projects · Finance · Workforce · ⊞ All
+ * Bottom bar: Home · Phases · Projects · [Camera] · Finance · Attendance · ⊞ All
  * "All" opens a full-screen drawer with every module, active-state aware.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../../services/auth';
 import ThemeToggle from '../common/ThemeToggle';
 import { useMobileTracker } from '../../modules/location/context/MobileTrackerContext';
+import MobileQuickCapture from './MobileQuickCapture';
 
 const BASE = '/dashboard/mobile';
 
 // ── Primary bottom tabs ───────────────────────────────────────────────────────
 const PRIMARY = [
     { id: 'home',       icon: '🏠',  label: 'Home'     },
+    { id: 'phases',     icon: '📋',  label: 'Phases'   },
     { id: 'projects',   icon: '🗂️', label: 'Projects'  },
     { id: 'finance',    icon: '💰',  label: 'Finance'   },
     { id: 'attendance', icon: '👷',  label: 'Attend'    },
-    { id: 'accounts',   icon: '👤',  label: 'Account'   },
+    { id: 'all',        icon: '⊞',   label: 'All'       },
 ];
 
 // ── Drawer sections ───────────────────────────────────────────────────────────
@@ -126,8 +128,8 @@ function BottomTab({ id, icon, label, showGps = false }) {
             className="flex-1 flex flex-col items-center justify-center relative transition-all"
             style={({ isActive }) => ({
                 color: isActive ? 'var(--t-primary)' : 'var(--t-text3)',
-                paddingTop: 8,
-                paddingBottom: 6,
+                paddingTop: 10,
+                paddingBottom: 8,
             })}
         >
             {({ isActive }) => (
@@ -143,14 +145,14 @@ function BottomTab({ id, icon, label, showGps = false }) {
                         }}
                     />
                     {/* Icon */}
-                    <span className="relative flex items-center justify-center w-7 h-6">
-                        <span className={`text-[19px] leading-none transition-transform duration-200 ${isActive ? 'scale-110' : 'scale-100'}`}>
+                    <span className="relative flex items-center justify-center w-8 h-7">
+                        <span className={`text-[20px] leading-none transition-transform duration-200 ${isActive ? 'scale-110' : 'scale-100'}`}>
                             {icon}
                         </span>
                         {showGps && <GPSStatusDot />}
                     </span>
                     {/* Label */}
-                    <span className={`text-[7px] font-bold uppercase tracking-widest mt-0.5 transition-all ${
+                    <span className={`text-[7.5px] font-bold uppercase tracking-[0.18em] mt-0.5 transition-all ${
                         isActive ? 'opacity-100' : 'opacity-50'
                     }`}>
                         {label}
@@ -390,9 +392,7 @@ function AppDrawer({ onClose }) {
 // ── Main component ────────────────────────────────────────────────────────────
 export default function MobileNav() {
     const [drawerOpen, setDrawerOpen] = useState(false);
-    const location = useLocation();
-
-    useEffect(() => { setDrawerOpen(false); }, [location.pathname]);
+    const [captureOpen, setCaptureOpen] = useState(false);
 
     return (
         <>
@@ -405,15 +405,16 @@ export default function MobileNav() {
                 }}
             >
                 <div
-                    className="flex items-stretch h-[54px] rounded-2xl overflow-hidden"
+                    className="grid items-stretch h-[64px] rounded-[26px] overflow-visible relative"
                     style={{
+                        gridTemplateColumns: '1fr 1fr 1fr 72px 1fr 1fr 1fr',
                         background:     'var(--t-surface)',
                         border:         '1px solid var(--t-border)',
                         backdropFilter: 'blur(20px)',
-                        boxShadow:      '0 -2px 20px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)',
+                        boxShadow:      '0 -6px 28px rgba(0,0,0,0.12), 0 4px 14px rgba(0,0,0,0.08)',
                     }}
                 >
-                    {PRIMARY.map(item => (
+                    {PRIMARY.slice(0, 3).map(item => (
                         <BottomTab
                             key={item.id}
                             {...item}
@@ -421,39 +422,52 @@ export default function MobileNav() {
                         />
                     ))}
 
-                    {/* Divider */}
-                    <div className="w-px self-center h-6 shrink-0" style={{ background: 'var(--t-border)' }} />
+                    <div className="relative flex items-center justify-center">
+                        <button
+                            type="button"
+                            onClick={() => setCaptureOpen(true)}
+                            className="absolute -top-5 w-[64px] h-[64px] rounded-[24px] border-4 border-[var(--t-bg)] flex flex-col items-center justify-center shadow-2xl active:scale-95 transition-transform"
+                            style={{
+                                background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%)',
+                                color: '#fff',
+                            }}
+                            aria-label="Quick photo upload"
+                            title="Quick photo upload"
+                        >
+                            <span className="text-[24px] leading-none">📷</span>
+                            <span className="text-[7px] font-black uppercase tracking-[0.2em] mt-0.5">Upload</span>
+                        </button>
+                    </div>
 
-                    {/* All / drawer toggle */}
+                    {PRIMARY.slice(3, 5).map(item => (
+                        <BottomTab
+                            key={item.id}
+                            {...item}
+                            showGps={item.id === 'attendance'}
+                        />
+                    ))}
+
                     <button
                         onClick={() => setDrawerOpen(true)}
-                        className="flex-1 flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 relative"
+                        className="flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 relative"
                         style={{
                             color: drawerOpen ? 'var(--t-primary)' : 'var(--t-text3)',
-                            paddingTop: 8,
-                            paddingBottom: 6,
+                            paddingTop: 10,
+                            paddingBottom: 8,
                         }}
                     >
-                        {/* Active indicator for drawer button */}
                         {drawerOpen && (
                             <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full"
                                 style={{ background: 'var(--t-primary)' }} />
                         )}
-                        {/* Grid icon */}
-                        <span className="flex items-center justify-center w-7 h-6">
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                                <rect x="1" y="1" width="5.5" height="5.5" rx="1.5" fill="currentColor" opacity="0.85"/>
-                                <rect x="9.5" y="1" width="5.5" height="5.5" rx="1.5" fill="currentColor" opacity="0.85"/>
-                                <rect x="1" y="9.5" width="5.5" height="5.5" rx="1.5" fill="currentColor" opacity="0.85"/>
-                                <rect x="9.5" y="9.5" width="5.5" height="5.5" rx="1.5" fill="currentColor" opacity="0.85"/>
-                            </svg>
-                        </span>
+                        <span className="flex items-center justify-center w-8 h-7 text-[19px] leading-none">⊞</span>
                         <span className="text-[7px] font-bold uppercase tracking-widest">All</span>
                     </button>
                 </div>
             </nav>
 
             {drawerOpen && <AppDrawer onClose={() => setDrawerOpen(false)} />}
+            <MobileQuickCapture open={captureOpen} onClose={() => setCaptureOpen(false)} />
         </>
     );
 }
