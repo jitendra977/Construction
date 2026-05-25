@@ -7,6 +7,16 @@ import { getMediaUrl } from '../../../services/api';
 import { useConstruction } from '../../../context/ConstructionContext';
 import imageCompression from 'browser-image-compression';
 
+function useIsMobile() {
+    const [mobile, setMobile] = useState(() => window.innerWidth < 768);
+    useEffect(() => {
+        const fn = () => setMobile(window.innerWidth < 768);
+        window.addEventListener('resize', fn);
+        return () => window.removeEventListener('resize', fn);
+    }, []);
+    return mobile;
+}
+
 /* ── helpers ── */
 const fmt = (d) => d ? new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : 'TBD';
 const fmtShort = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
@@ -117,6 +127,7 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
     } = useConstruction();
 
     const fileInputRef = useRef(null);
+    const isMobile = useIsMobile();
 
     // Live task from context
     const task = (dashboardData.tasks || []).find(t => t.id === taskId);
@@ -133,7 +144,7 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
 
     if (!task) {
         return (
-            <div style={{ padding: 48, textAlign: 'center', color: 'var(--t-text3)' }}>
+            <div style={{ padding: isMobile ? 24 : 48, textAlign: 'center', color: 'var(--t-text3)' }}>
                 <p style={{ fontSize: 32 }}>🔍</p>
                 <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--t-text)' }}>Task not found</p>
                 <button onClick={onBack} style={{
@@ -225,9 +236,10 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
             {/* ── Breadcrumb bar ── */}
             <div style={{
                 display: 'flex', alignItems: 'center', gap: 10,
-                padding: '12px 24px',
+                padding: isMobile ? '12px 14px' : '12px 24px',
                 background: 'var(--t-surface)', borderBottom: '1px solid var(--t-border)',
                 position: 'sticky', top: 0, zIndex: 20,
+                flexWrap: 'wrap',
             }}>
                 <button onClick={onBack} style={{
                     display: 'flex', alignItems: 'center', gap: 6,
@@ -243,7 +255,7 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                     {task.title}
                 </span>
 
-                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap', width: isMobile ? '100%' : 'auto' }}>
                     {!isEditing ? (
                         <>
                             <button onClick={() => fileInputRef.current?.click()} disabled={uploading} style={{
@@ -287,7 +299,7 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
             {/* ── Delete confirm ── */}
             {showDeleteConfirm && (
                 <div style={{
-                    margin: '16px 24px', padding: 16, borderRadius: 10,
+                    margin: isMobile ? '16px 14px' : '16px 24px', padding: 16, borderRadius: 10,
                     background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)',
                 }}>
                     <p style={{ fontSize: 13, fontWeight: 800, color: '#ef4444', margin: '0 0 6px' }}>Delete this task?</p>
@@ -308,7 +320,7 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                 </div>
             )}
 
-            <div style={{ padding: '24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+            <div style={{ padding: isMobile ? '14px' : '24px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 14 : 24 }}>
 
                 {/* ── LEFT column ── */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -348,7 +360,7 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                         </div>
 
                         {isEditing && (
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
                                 <div>
                                     <label style={{ fontSize: 9, fontWeight: 800, color: 'var(--t-text3)', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Status</label>
                                     <select style={inp} value={formData.status || ''} onChange={e => setFormData(f => ({ ...f, status: e.target.value }))}>
@@ -369,7 +381,7 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                     <div style={{ background: 'var(--t-surface)', borderRadius: 14, border: '1px solid var(--t-border)', padding: 20 }}>
                         <SectionHead label="Task Details" />
                         {isEditing ? (
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
                                 <div>
                                     <label style={{ fontSize: 9, fontWeight: 800, color: 'var(--t-text3)', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Phase</label>
                                     <select style={inp} value={formData.phase || ''} onChange={e => setFormData(f => ({ ...f, phase: parseInt(e.target.value) }))}>
@@ -413,7 +425,7 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                                 </div>
                             </div>
                         ) : (
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
                                 <div
                                     onClick={() => onPhaseClick && phase && onPhaseClick(phase)}
                                     style={{ cursor: onPhaseClick && phase ? 'pointer' : 'default' }}
@@ -460,7 +472,7 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                     <div style={{ background: 'var(--t-surface)', borderRadius: 14, border: '1px solid var(--t-border)', padding: 20 }}>
                         <SectionHead label="Timeline & Budget" />
                         {isEditing ? (
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
                                 {[
                                     { key: 'start_date',     label: 'Start Date',       type: 'date'   },
                                     { key: 'due_date',       label: 'Due Date',         type: 'date'   },
@@ -482,7 +494,7 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                                 </div>
                             </div>
                         ) : (
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
                                 <MetaCard label="Start Date"     value={fmt(task.start_date)} />
                                 <MetaCard label="Due Date"
                                     value={task.due_date
@@ -517,7 +529,7 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
 
                     {/* Audit row */}
                     <div style={{
-                        display: 'flex', gap: 16,
+                        display: 'flex', gap: 16, flexWrap: 'wrap',
                         padding: '10px 14px', borderRadius: 8,
                         background: 'var(--t-surface2)', border: '1px solid var(--t-border)',
                         fontSize: 9, fontWeight: 700, color: 'var(--t-text3)',
@@ -577,7 +589,7 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                                 }}>Upload First Proof</button>
                             </div>
                         ) : (
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 10 }}>
                                 {task.media.map(m => <MediaItem key={m.id} m={m} />)}
                             </div>
                         )}

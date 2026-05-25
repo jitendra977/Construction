@@ -127,6 +127,16 @@ const STATUS_COLOR = {
 };
 const PRIORITY_COLOR = { CRITICAL: '#ef4444', HIGH: '#f97316', MEDIUM: '#f59e0b', LOW: '#6b7280' };
 
+function useIsMobile() {
+    const [mobile, setMobile] = useState(() => window.innerWidth < 768);
+    useEffect(() => {
+        const fn = () => setMobile(window.innerWidth < 768);
+        window.addEventListener('resize', fn);
+        return () => window.removeEventListener('resize', fn);
+    }, []);
+    return mobile;
+}
+
 /* ── small sub-components ── */
 function Pill({ label, color, bg }) {
     return (
@@ -162,7 +172,7 @@ function TaskMiniRow({ task, isSelected, onClick, onTaskClick, canDelete, onDele
     const sm = STATUS_COLOR[task.status] || STATUS_COLOR.PENDING;
     const dl = daysLeft(task.due_date);
     const overdue = dl !== null && dl < 0 && task.status !== 'COMPLETED';
-    const isMobile = window.innerWidth < 768;
+    const isMobile = useIsMobile();
 
     return (
         <div
@@ -258,6 +268,7 @@ function TaskMiniRow({ task, isSelected, onClick, onTaskClick, canDelete, onDele
 
 /* ── MediaGrid ── */
 function MediaGrid({ media, onUpload, uploading, canUpload, onDelete }) {
+    const isMobile = useIsMobile();
     const [preview, setPreview] = useState(null); // { file, name }
 
     return (
@@ -291,7 +302,7 @@ function MediaGrid({ media, onUpload, uploading, canUpload, onDelete }) {
                     📂 No media uploaded yet
                 </div>
             ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 8 }}>
                     {media.map(m => (
                         <div key={m.id} style={{ position: 'relative' }}>
                             <div
@@ -360,6 +371,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
     } = useConstruction();
 
     const canManage = user?.is_system_admin || user?.can_manage_phases;
+    const isMobile = useIsMobile();
 
     const fileInputRef  = useRef(null);
     const phasePhotoRef = useRef(null);
@@ -770,9 +782,10 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
             {/* ── Breadcrumb bar ── */}
             <div style={{
                 display: 'flex', alignItems: 'center', gap: 10,
-                padding: '12px 24px',
+                padding: isMobile ? '12px 14px' : '12px 24px',
                 background: 'var(--t-surface)', borderBottom: '1px solid var(--t-border)',
                 position: 'sticky', top: 0, zIndex: 20,
+                flexWrap: 'wrap',
             }}>
                 <button onClick={onBack} style={{
                     display: 'flex', alignItems: 'center', gap: 6,
@@ -788,7 +801,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                 <div style={{ flex: 1 }} />
                 {canManage && (
                     isEditing ? (
-                        <div style={{ display: 'flex', gap: 8 }}>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', width: isMobile ? '100%' : 'auto' }}>
                             <button onClick={handleSave} disabled={saving} style={{
                                 padding: '6px 18px', borderRadius: 8, fontSize: 11, fontWeight: 800,
                                 background: '#10b981', color: '#fff', border: 'none', cursor: 'pointer',
@@ -805,12 +818,13 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                             padding: '6px 16px', borderRadius: 8, fontSize: 11, fontWeight: 800,
                             background: 'rgba(249,115,22,0.1)', color: '#f97316',
                             border: '1px solid rgba(249,115,22,0.3)', cursor: 'pointer',
+                            width: isMobile ? '100%' : 'auto',
                         }}>✏️ Edit Phase</button>
                     )
                 )}
             </div>
 
-            <div style={{ padding: '24px', display: 'grid', gridTemplateColumns: '340px 1fr', gap: 20 }}>
+            <div style={{ padding: isMobile ? '14px' : '24px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '340px 1fr', gap: isMobile ? 14 : 20 }}>
 
                 {/* ── LEFT: Identity + Tasks ── */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -867,7 +881,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                         </div>
 
                         {/* Dates */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10, marginBottom: 12 }}>
                             <Field label="Start Date">
                                 {isEditing
                                     ? <input type="date" style={inp} value={localPhase.start_date} onChange={e => set('start_date', e.target.value)} />
@@ -926,7 +940,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                         padding: 18,
                     }}>
                         <SectionHead label="Phase Completion" />
-                        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: 12, alignItems: isMobile ? 'stretch' : 'center', flexDirection: isMobile ? 'column' : 'row' }}>
                             <div
                                 onClick={() => isEditing && phasePhotoRef.current?.click()}
                                 style={{
@@ -978,6 +992,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                     <div style={{
                         display: 'flex', borderBottom: '1px solid var(--t-border)',
                         marginBottom: 16,
+                        flexWrap: 'wrap',
                     }}>
                         {[
                             { id: 'tasks',       label: `Execution Tasks (${phaseTasks.length})` },
@@ -1007,7 +1022,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                                     boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
                                 }}>
                                     <SectionHead label="Add New Task" />
-                                    <form onSubmit={handleAddTask} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 120px auto', gap: 10, alignItems: 'end' }}>
+                                    <form onSubmit={handleAddTask} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 120px auto', gap: 10, alignItems: 'end' }}>
                                         <Field label="Task Name">
                                             <input
                                                 value={newTaskTitle}
@@ -1062,13 +1077,13 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                                     {/* Column headers */}
                                     <div style={{
                                         display: 'grid', 
-                                        gridTemplateColumns: window.innerWidth < 768 ? '1fr 120px' : '1fr 100px 100px 100px 120px',
+                                        gridTemplateColumns: isMobile ? '1fr 120px' : '1fr 100px 100px 100px 120px',
                                         padding: '0 12px 6px',
                                         fontSize: 9, fontWeight: 900, color: 'var(--t-text3)',
                                         textTransform: 'uppercase', letterSpacing: '0.1em',
                                     }}>
                                         <span>Task</span>
-                                        {window.innerWidth >= 768 && (
+                                        {!isMobile && (
                                             <>
                                                 <span style={{ textAlign: 'center' }}>Start</span>
                                                 <span style={{ textAlign: 'center' }}>Due</span>
@@ -1104,7 +1119,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
 
                                     {/* Stats summary row */}
                                     <div style={{
-                                        display: 'flex', gap: 12, padding: '12px 12px 0',
+                                        display: 'flex', gap: 12, padding: '12px 12px 0', flexWrap: 'wrap',
                                         borderTop: '1px solid var(--t-border)', marginTop: 8,
                                     }}>
                                         {[
@@ -1214,9 +1229,9 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                         <div>
                             {/* Material table */}
                             <div style={{
-                                border: '1px solid var(--t-border)', borderRadius: 10, overflow: 'hidden', marginBottom: 16,
+                                border: '1px solid var(--t-border)', borderRadius: 10, overflowX: 'auto', overflowY: 'hidden', marginBottom: 16,
                             }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                <table style={{ width: '100%', minWidth: isMobile ? 560 : '100%', borderCollapse: 'collapse' }}>
                                     <thead>
                                         <tr style={{ background: 'var(--t-surface2)' }}>
                                             {['Material', 'Qty', 'Rate', 'Valuation', ''].map((h, i) => (
@@ -1316,12 +1331,12 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
 
                             {/* Allocate materials form */}
                             {canManage && (
-                                <div style={{
-                                    padding: 16, borderRadius: 10,
-                                    background: 'var(--t-surface)', border: '1px solid var(--t-border)',
-                                }}>
-                                    <SectionHead label="Allocate Materials" />
-                                    <form onSubmit={handleAddToCart} style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px auto', gap: 8, alignItems: 'end' }}>
+                            <div style={{
+                                padding: 16, borderRadius: 10,
+                                background: 'var(--t-surface)', border: '1px solid var(--t-border)',
+                            }}>
+                                <SectionHead label="Allocate Materials" />
+                                    <form onSubmit={handleAddToCart} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 100px 100px auto', gap: 8, alignItems: 'end' }}>
                                         <Field label="Material">
                                             <select style={inp} value={selMat} onChange={e => {
                                                 setSelMat(e.target.value);
@@ -1418,10 +1433,11 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
 
                                 // ── Worker row (shared between team & individual) ──────────────
                                 const WorkerRow = ({ a, isTeam }) => {
+                                    const rowMobile = useIsMobile();
                                     const isEditingThis = editingAssignId === a.id;
                                     return (
                                         <div key={a.id} style={{
-                                            display: 'grid', gridTemplateColumns: '1fr auto auto',
+                                            display: 'grid', gridTemplateColumns: rowMobile ? '1fr' : '1fr auto auto',
                                             alignItems: 'center', gap: 12,
                                             padding: '10px 14px',
                                             borderBottom: '1px solid var(--t-border)',
@@ -1472,7 +1488,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                                             </div>
 
                                             {/* Right: save/cancel or edit/delete */}
-                                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: rowMobile ? 'flex-start' : 'flex-end', flexWrap: 'wrap' }}>
                                                 {isEditingThis ? (
                                                     <>
                                                         <button onClick={() => handleUpdateAssignment(a.id)} disabled={saving}
@@ -1574,7 +1590,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                                     background: 'var(--t-surface)', border: '1px solid var(--t-border)',
                                 }}>
                                     <SectionHead label="Assign Worker to Phase" />
-                                    <form onSubmit={handleCreateAssignment} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'end' }}>
+                                    <form onSubmit={handleCreateAssignment} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr auto', gap: 8, alignItems: 'end' }}>
                                         <Field label="Select Worker">
                                             <select style={inp} value={selMember} onChange={e => setSelMember(e.target.value)}>
                                                 <option value="">Select Worker…</option>
@@ -1643,7 +1659,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
 
                             <div style={{ 
                                 display: 'grid', 
-                                gridTemplateColumns: window.innerWidth < 768 ? '1fr' : '1fr 1fr 1fr', 
+                                gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', 
                                 gap: 20 
                             }}>
                                 {/* Naksa / Blueprint */}

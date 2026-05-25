@@ -16,11 +16,22 @@ import PhaseDetailPanel from '../../components/desktop/manage/PhaseDetailPanel';
 import TaskDetailPanel from '../../components/desktop/manage/TaskDetailPanel';
 import { useEffect } from 'react';
 
+function useIsMobileLayout() {
+    const [mobile, setMobile] = useState(() => window.innerWidth < 1024);
+    useEffect(() => {
+        const fn = () => setMobile(window.innerWidth < 1024);
+        window.addEventListener('resize', fn);
+        return () => window.removeEventListener('resize', fn);
+    }, []);
+    return mobile;
+}
+
 export default function PhasesPage() {
     const { dashboardData } = useConstruction();
     const base     = usePlatformBase();
     const navigate = useNavigate();
     const location = useLocation();
+    const isMobile = useIsMobileLayout();
 
     const phases    = dashboardData?.phases || [];
     const tasks     = dashboardData?.tasks  || [];
@@ -34,8 +45,10 @@ export default function PhasesPage() {
 
     useEffect(() => {
         const params = new URLSearchParams(location.search);
-        const phaseId = params.get('phase');
-        const taskId = params.get('task');
+        const stateTaskId = location.state?.openTask;
+        const statePhaseId = location.state?.openPhase;
+        const phaseId = params.get('phase') || statePhaseId;
+        const taskId = params.get('task') || stateTaskId;
 
         if (taskId) {
             setView({ type: 'task', taskId: parseInt(taskId) });
@@ -45,7 +58,7 @@ export default function PhasesPage() {
                 setView({ type: 'phase', phase: targetPhase });
             }
         }
-    }, [location.search, phases.length]);
+    }, [location.search, location.state, phases, tasks.length]);
 
     const goPhase = (phase)             => setView({ type: 'phase', phase });
     const goTask  = (task, fromPhase)   => setView({ type: 'task', taskId: task.id, fromPhase: fromPhase || null });
@@ -62,7 +75,7 @@ export default function PhasesPage() {
 
     return (
         <div style={{ minHeight: '100vh', background: 'var(--t-bg)' }}>
-            <ManagementTabs />
+            {!isMobile && <ManagementTabs />}
 
             {/* ── Sticky header — only in list view ── */}
             {!isDetail && (
@@ -70,11 +83,11 @@ export default function PhasesPage() {
                     position: 'sticky', top: 0, zIndex: 30,
                     background: 'var(--t-surface)',
                     borderBottom: '1px solid var(--t-border)',
-                    padding: '14px 24px',
+                    padding: isMobile ? '12px 14px' : '14px 24px',
                     display: 'flex', alignItems: 'center',
                     justifyContent: 'space-between', gap: 12, flexWrap: 'wrap',
                 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: isMobile ? '1 1 100%' : undefined }}>
                         <div style={{
                             width: 38, height: 38, borderRadius: 10, flexShrink: 0,
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -117,8 +130,8 @@ export default function PhasesPage() {
                         </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ position: 'relative' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', width: isMobile ? '100%' : 'auto' }}>
+                        <div style={{ position: 'relative', flex: isMobile ? '1 1 100%' : undefined, width: isMobile ? '100%' : 'auto' }}>
                             <span style={{
                                 position: 'absolute', left: 10, top: '50%',
                                 transform: 'translateY(-50%)', fontSize: 12, opacity: 0.35,
@@ -134,7 +147,7 @@ export default function PhasesPage() {
                                     borderRadius: 10, fontSize: 12, fontWeight: 600,
                                     border: '1px solid var(--t-border)',
                                     background: 'var(--t-bg)',
-                                    color: 'var(--t-text)', outline: 'none', width: 220,
+                                    color: 'var(--t-text)', outline: 'none', width: isMobile ? '100%' : 220,
                                 }}
                             />
                             {search && (
@@ -154,6 +167,7 @@ export default function PhasesPage() {
                             background: 'rgba(59,130,246,0.08)',
                             color: '#3b82f6', cursor: 'pointer',
                             whiteSpace: 'nowrap', letterSpacing: '0.02em',
+                            width: isMobile ? '100%' : 'auto',
                         }}>📅 Timeline</button>
                     </div>
                 </div>
@@ -161,7 +175,7 @@ export default function PhasesPage() {
 
             {/* ── Views ── */}
             {view.type === 'list' && (
-                <div style={{ padding: '20px 24px 96px' }}>
+                <div style={{ padding: isMobile ? '14px 12px 96px' : '20px 24px 96px' }}>
                     <PhasesTab
                         searchQuery={search}
                         onPhaseClick={goPhase}
