@@ -17,7 +17,7 @@ const PRIMARY = [
     { id: 'home',       icon: '🏠',  label: 'Home'     },
     { id: 'projects',   icon: '🗂️', label: 'Projects'  },
     { id: 'finance',    icon: '💰',  label: 'Finance'   },
-    { id: 'attendance', icon: '👷',  label: 'Work'      },
+    { id: 'attendance', icon: '👷',  label: 'Attend'    },
     { id: 'accounts',   icon: '👤',  label: 'Account'   },
 ];
 
@@ -55,7 +55,8 @@ const SECTIONS = [
         color: '#10b981',
         icon: '👷',
         items: [
-            { id: 'attendance', icon: '👷', label: 'Workforce'  },
+            { id: 'attendance', icon: '🕐', label: 'Attendance' },
+            { id: 'workforce',  icon: '👷', label: 'Workforce'  },
             { id: 'tracking',   icon: '📍', label: 'My GPS'     },
             { id: 'location',   icon: '🗺️', label: 'Site Map'  },
         ],

@@ -37,19 +37,6 @@ export const constructionService = {
     deleteTaskMedia: async (id) => { await api.delete(`task-media/${id}/`); },
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DEPRECATED: calculatorService calls /api/v1/estimate/* (legacy module).
-// The canonical replacement is /api/v1/estimate/ but it uses a different
-// request shape — a full migration requires updating EstimatorHub + BoQWizard.
-// Sunset target: Phase 3 (see backend utils/deprecation_middleware.py).
-// ─────────────────────────────────────────────────────────────────────────────
-if (typeof window !== 'undefined') {
-    console.warn(
-        '[ConstructPro] calculatorService uses deprecated /api/v1/estimate/ endpoints. ' +
-        'Migrate to /api/v1/estimate/ in Phase 3.'
-    );
-}
-
 // Legacy calculator service (kept for backward compat with old BoQ wizard)
 export const calculatorService = {
     calculateWall: (data) => api.post('estimate/wall/', data),

@@ -25,15 +25,60 @@ import { MqttProvider } from '../attendance/MqttContext';
 // Tab order: Members first (most-used), Teams second, then operational tabs, Setup last.
 // "Attendance" tab removed — use the dedicated /attendance page for full attendance mgmt.
 const TABS = [
-    { id: 'MEMBERS',     label: 'Members',      short: 'Staff',   icon: '👥' },
-    { id: 'TEAMS',       label: 'Teams',        short: 'Teams',   icon: '👫' },
-    { id: 'PAYROLL',     label: 'Payroll',      short: 'Pay',     icon: '💰' },
-    { id: 'ASSIGNMENTS', label: 'Assignments',  short: 'Tasks',   icon: '🏗️' },
-    { id: 'EVALUATIONS', label: 'Evaluations',  short: 'Evals',   icon: '📈' },
-    { id: 'SAFETY',      label: 'Safety',       short: 'Safety',  icon: '🦺' },
-    { id: 'NFC',         label: 'NFC Devices',  short: 'NFC',     icon: '🏷️' },
-    { id: 'CONFIG',      label: 'Settings',     short: 'Config',  icon: '⚙️' },
+    { id: 'MEMBERS',     path: 'members',     label: 'Members',      short: 'Staff',   icon: '👥' },
+    { id: 'TEAMS',       path: 'teams',       label: 'Teams',        short: 'Teams',   icon: '👫' },
+    { id: 'PAYROLL',     path: 'payroll',     label: 'Payroll',      short: 'Pay',     icon: '💰' },
+    { id: 'ASSIGNMENTS', path: 'assignments', label: 'Assignments',  short: 'Tasks',   icon: '🏗️' },
+    { id: 'EVALUATIONS', path: 'evaluations', label: 'Evaluations',  short: 'Evals',   icon: '📈' },
+    { id: 'SAFETY',      path: 'safety',      label: 'Safety',       short: 'Safety',  icon: '🦺' },
+    { id: 'NFC',         path: 'nfc',         label: 'NFC Devices',  short: 'NFC',     icon: '🏷️' },
+    { id: 'CONFIG',      path: 'config',      label: 'Settings',     short: 'Config',  icon: '⚙️' },
 ];
+
+function MobileRouteTabs({ activeTab, basePath }) {
+    if (!basePath) return null;
+
+    return (
+        <div style={{
+            display: 'flex',
+            gap: 8,
+            overflowX: 'auto',
+            scrollbarWidth: 'none',
+            WebkitOverflowScrolling: 'touch',
+        }}>
+            <style>{`.workforce-mobile-route-tabs::-webkit-scrollbar{display:none}`}</style>
+            <div className="workforce-mobile-route-tabs" style={{ display: 'flex', gap: 8 }}>
+                {TABS.map(tab => {
+                    const active = tab.id === activeTab;
+                    return (
+                        <Link
+                            key={tab.id}
+                            to={`${basePath}/${tab.path}`}
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                padding: '9px 12px',
+                                borderRadius: 12,
+                                border: active ? '1px solid #10b98140' : '1px solid var(--t-border)',
+                                background: active ? '#10b98112' : 'var(--t-surface)',
+                                color: active ? '#10b981' : 'var(--t-text3)',
+                                textDecoration: 'none',
+                                whiteSpace: 'nowrap',
+                                fontSize: 12,
+                                fontWeight: 800,
+                                flexShrink: 0,
+                            }}
+                        >
+                            <span style={{ fontSize: 16 }}>{tab.icon}</span>
+                            <span>{tab.short}</span>
+                        </Link>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
 
 const STATUS_MAP = {
     ACTIVE:      { bg: '#d1fae5', color: '#065f46', label: 'Active' },
@@ -929,13 +974,14 @@ function SafetyTab({ projectId }) {
 // ═══════════════════════════════════════════════════════════════════
 // MAIN HUB
 // ═══════════════════════════════════════════════════════════════════
-export default function WorkforceHub() {
+export default function WorkforceHub({ forcedTab = null, mobileRouteBase = null }) {
     const { activeProjectId } = useConstruction();
     const isMobile = useIsMobile();
     const [activeTab, setActiveTab] = useState('MEMBERS');
+    const currentTab = forcedTab || activeTab;
 
     const renderTab = () => {
-        switch (activeTab) {
+        switch (currentTab) {
             case 'MEMBERS':     return <WorkforceMembersView projectId={activeProjectId} />;
             case 'TEAMS':       return <TeamManagementPage />;
             case 'PAYROLL':     return <PayrollTab     projectId={activeProjectId} />;
@@ -984,8 +1030,8 @@ export default function WorkforceHub() {
                             display: 'flex', alignItems: 'center', gap: 6,
                             padding: '10px 18px', border: 'none', cursor: 'pointer',
                             background: 'transparent', fontSize: 13, fontWeight: 600,
-                            color: activeTab === t.id ? 'var(--t-primary)' : 'var(--t-text3)',
-                            borderBottom: activeTab === t.id ? '2px solid var(--t-primary)' : '2px solid transparent',
+                            color: currentTab === t.id ? 'var(--t-primary)' : 'var(--t-text3)',
+                            borderBottom: currentTab === t.id ? '2px solid var(--t-primary)' : '2px solid transparent',
                             marginBottom: -2, transition: 'color 0.15s', whiteSpace: 'nowrap',
                         }}>
                             <span>{t.icon}</span> {t.label}
@@ -993,7 +1039,7 @@ export default function WorkforceHub() {
                     ))}
                 </div>
 
-                <div style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)', borderRadius: 14, padding: ['TEAMS','NFC','CONFIG'].includes(activeTab) ? 0 : 24, overflow: 'hidden' }}>
+                <div style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)', borderRadius: 14, padding: ['TEAMS','NFC','CONFIG'].includes(currentTab) ? 0 : 24, overflow: 'hidden' }}>
                     {renderTab()}
                 </div>
 
@@ -1014,40 +1060,69 @@ export default function WorkforceHub() {
 
     // Mobile layout
     return (
-        <div style={{ paddingBottom: 70 }}>
-            <div style={{ padding: '16px 16px 8px', background: 'var(--t-bg)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 900 }}>Workforce & Teams</h2>
-                <Link to="/dashboard/desktop/attendance" style={{ fontSize: 11, fontWeight: 700, color: '#10b981', textDecoration: 'none', padding: '4px 10px', borderRadius: 8, background: '#10b98115', border: '1px solid #10b98130' }}>
+        <div style={{ paddingBottom: mobileRouteBase ? 24 : 70 }}>
+            <div style={{ padding: '16px 16px 8px', background: 'var(--t-bg)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <Link
+                        to="/dashboard/mobile/home"
+                        style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 38,
+                            height: 38,
+                            borderRadius: 10,
+                            border: '1px solid var(--t-border)',
+                            background: 'var(--t-surface)',
+                            textDecoration: 'none',
+                            fontSize: 18,
+                        }}
+                    >
+                        🏠
+                    </Link>
+                    <div>
+                        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 900 }}>Workforce & Teams</h2>
+                        <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--t-text-muted)' }}>
+                            Staff, teams, payroll and field setup
+                        </p>
+                    </div>
+                </div>
+                <Link to="/dashboard/mobile/attendance/daily" style={{ fontSize: 11, fontWeight: 700, color: '#10b981', textDecoration: 'none', padding: '4px 10px', borderRadius: 8, background: '#10b98115', border: '1px solid #10b98130', whiteSpace: 'nowrap' }}>
                     🕐 Attendance
                 </Link>
             </div>
 
             <div style={{ padding: 16 }}>
+                <div style={{ marginBottom: 12 }}>
+                    <MobileRouteTabs activeTab={currentTab} basePath={mobileRouteBase} />
+                </div>
                 {renderTab()}
             </div>
 
-            <div style={{
-                position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
-                background: 'var(--t-surface)',
-                borderTop: '1px solid var(--t-border)',
-                boxShadow: '0 -4px 20px rgba(0,0,0,0.10)',
-                display: 'flex', overflowX: 'auto',
-            }}>
-                {TABS.map(t => (
-                    <button key={t.id} onClick={() => setActiveTab(t.id)} style={{
-                        flex: '0 0 auto', minWidth: 64, padding: '10px 12px',
-                        border: 'none', background: 'transparent', cursor: 'pointer',
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-                        color: activeTab === t.id ? 'var(--t-primary)' : 'var(--t-text-muted)',
-                        fontWeight: activeTab === t.id ? 800 : 500,
-                        borderTop: activeTab === t.id ? '2px solid var(--t-primary)' : '2px solid transparent',
-                        fontSize: 11,
-                    }}>
-                        <span style={{ fontSize: 18 }}>{t.icon}</span>
-                        {t.short}
-                    </button>
-                ))}
-            </div>
+            {!mobileRouteBase && (
+                <div style={{
+                    position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
+                    background: 'var(--t-surface)',
+                    borderTop: '1px solid var(--t-border)',
+                    boxShadow: '0 -4px 20px rgba(0,0,0,0.10)',
+                    display: 'flex', overflowX: 'auto',
+                }}>
+                    {TABS.map(t => (
+                        <button key={t.id} onClick={() => setActiveTab(t.id)} style={{
+                            flex: '0 0 auto', minWidth: 64, padding: '10px 12px',
+                            border: 'none', background: 'transparent', cursor: 'pointer',
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                            color: currentTab === t.id ? 'var(--t-primary)' : 'var(--t-text-muted)',
+                            fontWeight: currentTab === t.id ? 800 : 500,
+                            borderTop: currentTab === t.id ? '2px solid var(--t-primary)' : '2px solid transparent',
+                            fontSize: 11,
+                        }}>
+                            <span style={{ fontSize: 18 }}>{t.icon}</span>
+                            {t.short}
+                        </button>
+                    ))}
+                </div>
+            )}
 
             {/* ── Nepali Note Section (Workforce Hub) ── */}
             <div style={{ margin: '30px 16px 100px', padding: 24, background: '#f8fafc', borderRadius: 20, border: '1px solid var(--t-border)' }}>

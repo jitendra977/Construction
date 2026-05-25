@@ -1266,6 +1266,7 @@ def _build_person_entry(worker, today_records):
         "trade":       worker.trade,
         "trade_label": worker.get_trade_display(),
         "worker_type": worker.worker_type,
+        "photo":       None,
         "phone":       worker.phone,
         "daily_rate":  float(worker.daily_rate),
         "is_active":   worker.is_active,
@@ -1347,21 +1348,26 @@ def persons_list(request):
     persons = [_build_person_entry(w, today_records) for w in workers]
 
     # ── Batch-load workforce_member links ─────────────────────────────────────
-    # Build a map: attendance_worker_id → (workforce_member_id, employee_id)
+    # Build a map: attendance_worker_id → (workforce_member_id, employee_id, photo_url)
     # so each person card knows if it has a workforce profile.
     try:
         from apps.workforce.models import WorkforceMember
         wf_map = {
-            str(m.attendance_worker_id): (str(m.id), m.employee_id)
+            str(m.attendance_worker_id): (
+                str(m.id),
+                m.employee_id,
+                m.photo.url if getattr(m, "photo", None) else None,
+            )
             for m in WorkforceMember.objects.filter(
                 attendance_worker_id__in=worker_ids
-            ).only('id', 'employee_id', 'attendance_worker_id')
+            ).select_related('account').only('id', 'employee_id', 'attendance_worker_id', '_photo', 'account__profile_image')
         }
         for p in persons:
             pair = wf_map.get(str(p['worker_id']))
             if pair:
                 p['workforce_member_id']   = pair[0]
                 p['workforce_employee_id'] = pair[1]
+                p['photo']                = pair[2]
     except Exception:
         pass   # workforce app may not be migrated yet; fail gracefully
 

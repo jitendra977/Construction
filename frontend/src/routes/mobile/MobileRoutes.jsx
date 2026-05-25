@@ -12,6 +12,7 @@ import ActivityLogs  from '../../pages/accounts/ActivityLogs';
 // ── Shared pages (same component, works on both desktop + mobile) ─────────────
 import EstimatorHub  from '../../pages/estimator/EstimatorHub';
 import AttendanceHub from '../../modules/attendance/AttendanceHub';
+import WorkforceHub  from '../../modules/workforce/WorkforceHub';
 import PermitPage    from '../../pages/permits/PermitPage';
 import DataTransferPage  from '../../pages/DataTransferPage';
 import TimelapsePage from '../../pages/TimelapsePage';
@@ -49,7 +50,19 @@ const MobileRoutes = () => {
 
             {/* ── Shared pages ───────────────────────────────────────────── */}
             <Route path="estimator"    element={<EstimatorHub />}    />
-            <Route path="attendance"   element={<AttendanceHub />}   />
+            <Route path="attendance"   element={<Navigate to="daily" replace />} />
+            <Route path="attendance/daily"   element={<AttendanceHub forcedTab="daily" mobileRouteBase="/dashboard/mobile/attendance" />}   />
+            <Route path="attendance/monthly" element={<AttendanceHub forcedTab="monthly" mobileRouteBase="/dashboard/mobile/attendance" />} />
+            <Route path="attendance/payroll" element={<AttendanceHub forcedTab="payroll" mobileRouteBase="/dashboard/mobile/attendance" />} />
+            <Route path="workforce"    element={<Navigate to="members" replace />} />
+            <Route path="workforce/members"     element={<WorkforceHub forcedTab="MEMBERS" mobileRouteBase="/dashboard/mobile/workforce" />} />
+            <Route path="workforce/teams"       element={<WorkforceHub forcedTab="TEAMS" mobileRouteBase="/dashboard/mobile/workforce" />} />
+            <Route path="workforce/payroll"     element={<WorkforceHub forcedTab="PAYROLL" mobileRouteBase="/dashboard/mobile/workforce" />} />
+            <Route path="workforce/assignments" element={<WorkforceHub forcedTab="ASSIGNMENTS" mobileRouteBase="/dashboard/mobile/workforce" />} />
+            <Route path="workforce/evaluations" element={<WorkforceHub forcedTab="EVALUATIONS" mobileRouteBase="/dashboard/mobile/workforce" />} />
+            <Route path="workforce/safety"      element={<WorkforceHub forcedTab="SAFETY" mobileRouteBase="/dashboard/mobile/workforce" />} />
+            <Route path="workforce/nfc"         element={<WorkforceHub forcedTab="NFC" mobileRouteBase="/dashboard/mobile/workforce" />} />
+            <Route path="workforce/config"      element={<WorkforceHub forcedTab="CONFIG" mobileRouteBase="/dashboard/mobile/workforce" />} />
             <Route path="permits"      element={<PermitPage />}      />
             <Route path="data-transfer"  element={<DataTransferPage />} />
             <Route path="timelapse"    element={<TimelapsePage />}   />

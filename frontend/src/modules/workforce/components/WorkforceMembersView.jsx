@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useConstruction } from '../../../context/ConstructionContext';
 import workforceService from '../../../services/workforceService';
 import { accountsService } from '../../../services/accountsService';
+import { getMediaUrl } from '../../../services/api';
 import IDCardModal from './IDCardModal';
 import MemberDrawer, { StatusBadge, TypeBadge, Spinner } from './MemberDrawer';
 
@@ -31,8 +32,20 @@ const TODAY_COLORS = {
     NOT_MARKED: { bg: '#d1d5db', label: '—' },
 };
 
+function useIsMobile() {
+    const [mobile, setMobile] = useState(() => window.innerWidth < 768);
+
+    useEffect(() => {
+        const handleResize = () => setMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    return mobile;
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────
-function StatsBar({ stats }) {
+function StatsBar({ stats, isMobile = false }) {
     if (!stats) return null;
     const cards = [
         { label: 'Total',    value: stats.total,    color: 'var(--t-primary)' },
@@ -43,17 +56,22 @@ function StatsBar({ stats }) {
         { label: 'Linked',   value: stats.linked,   color: '#14b8a6' },
     ];
     return (
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 20 }}>
+        <div style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? 'repeat(3, minmax(0, 1fr))' : 'repeat(6, minmax(0, 1fr))',
+            gap: isMobile ? 8 : 10,
+            marginBottom: 20,
+        }}>
             {cards.map(c => (
                 <div key={c.label} style={{
-                    flex: '1 1 80px',
                     background: 'var(--t-surface)',
                     border: '1px solid var(--t-border)',
-                    borderRadius: 10, padding: '10px 14px',
-                    minWidth: 80,
+                    borderRadius: isMobile ? 8 : 10,
+                    padding: isMobile ? '9px 10px' : '10px 14px',
+                    minWidth: 0,
                 }}>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: c.color }}>{c.value ?? '—'}</div>
-                    <div style={{ fontSize: 11, color: 'var(--t-text-muted)', marginTop: 2 }}>{c.label}</div>
+                    <div style={{ fontSize: isMobile ? 16 : 20, fontWeight: 800, color: c.color, lineHeight: 1.1 }}>{c.value ?? '—'}</div>
+                    <div style={{ fontSize: isMobile ? 10 : 11, color: 'var(--t-text-muted)', marginTop: 3, lineHeight: 1.2 }}>{c.label}</div>
                 </div>
             ))}
         </div>
@@ -80,6 +98,80 @@ const TodayDot = ({ status, checkIn, checkOut }) => {
         </span>
     );
 };
+
+function MobileMemberCard({
+    member,
+    onOpenDrawer,
+}) {
+    const initials = (member.full_name || '?').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
+    const avatarColors = ['#3b82f6','#8b5cf6','#10b981','#f59e0b','#ef4444','#ec4899','#06b6d4','#f97316'];
+    const avatarBg = avatarColors[(member.id || 0) % avatarColors.length];
+    const todayS = TODAY_COLORS[member.today_status || 'NOT_MARKED'] || TODAY_COLORS.NOT_MARKED;
+    const timeStr = member.today_check_in ? `${member.today_check_in}${member.today_check_out ? ` → ${member.today_check_out}` : ''}` : '';
+    const photoUrl = member.photo ? getMediaUrl(member.photo) : '';
+
+    return (
+        <button
+            type="button"
+            onClick={() => onOpenDrawer(member)}
+            style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                textAlign: 'left',
+                border: '1px solid var(--t-border)',
+                background: 'var(--t-surface)',
+                padding: '10px 12px',
+                borderRadius: 12,
+                cursor: 'pointer',
+            }}
+        >
+            <div style={{
+                width: 38, height: 38, borderRadius: 11, flexShrink: 0,
+                background: `${avatarBg}22`, color: avatarBg,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 12, fontWeight: 900, letterSpacing: '0.03em',
+                border: `1.5px solid ${avatarBg}44`,
+                overflow: 'hidden',
+            }}>
+                {photoUrl ? (
+                    <img
+                        src={photoUrl}
+                        alt={member.full_name || 'Member photo'}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                ) : (
+                    initials
+                )}
+            </div>
+            <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--t-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
+                        {member.full_name || '—'}
+                    </div>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: todayS.bg, display: 'inline-block', flexShrink: 0 }} />
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--t-text-muted)', marginTop: 3, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <span style={{ fontFamily: 'monospace' }}>{member.employee_id}</span>
+                    {member.role_name && <span>{member.role_name}</span>}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--t-text3)', marginTop: 4, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <span>{member.phone || 'No phone'}</span>
+                    <span>{member.current_project_name || 'No project'}</span>
+                    {timeStr && <span>{timeStr}</span>}
+                </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
+                <TypeBadge type={member.worker_type} />
+                {member.account && (
+                    <span style={{ fontSize: 9, fontWeight: 800, color: '#5b21b6' }}>Portal</span>
+                )}
+                <span style={{ fontSize: 16, color: 'var(--t-text-muted)', lineHeight: 1 }}>›</span>
+            </div>
+        </button>
+    );
+}
 
 function CreateAccountModal({ member, projects = [], defaultProjectId = '', onClose }) {
     const isExistingAccount = Boolean(member.account);
@@ -459,6 +551,7 @@ function CreateAccountModal({ member, projects = [], defaultProjectId = '', onCl
 // ── MAIN VIEW COMPONENT ───────────────────────────────────────────────────────
 export default function WorkforceMembersView({ projectId, hideProjectFilter = false }) {
     const { projects, activeProjectId } = useConstruction();
+    const isMobile = useIsMobile();
     const [searchParams, setSearchParams] = useSearchParams();
     const [selectedProject, setSelectedProject] = useState(projectId || '');
     const [members, setMembers]     = useState([]);
@@ -609,7 +702,7 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
 
     return (
         <div>
-            <StatsBar stats={stats} />
+            <StatsBar stats={stats} isMobile={isMobile} />
 
             {/* Import from Attendance banner */}
             {pendingAttendanceImports > 0 && !(importResult && !importResult.dry_run) && (
@@ -672,20 +765,20 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
             )}
 
             {/* Controls */}
-            <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center', flexDirection: isMobile ? 'column' : 'row' }}>
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name / ID / phone…"
-                    style={{ flex: 1, minWidth: 200, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--t-border)', background: 'var(--t-surface)', color: 'var(--t-text)', fontSize: 13 }} />
+                    style={{ flex: 1, width: isMobile ? '100%' : undefined, minWidth: isMobile ? 0 : 200, padding: '10px 12px', borderRadius: 10, border: '1px solid var(--t-border)', background: 'var(--t-surface)', color: 'var(--t-text)', fontSize: 13 }} />
                 
                 {!hideProjectFilter && (
                     <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-                        style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--t-border)', background: 'var(--t-surface)', color: 'var(--t-text)', fontSize: 13 }}>
+                        style={{ width: isMobile ? '100%' : undefined, padding: '10px 10px', borderRadius: 10, border: '1px solid var(--t-border)', background: 'var(--t-surface)', color: 'var(--t-text)', fontSize: 13 }}>
                         <option value="">All Projects</option>
                         {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
                 )}
 
                 <select value={statusFilter} onChange={e => setStatus(e.target.value)}
-                    style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--t-border)', background: 'var(--t-surface)', color: 'var(--t-text)', fontSize: 13 }}>
+                    style={{ width: isMobile ? '100%' : undefined, padding: '10px 10px', borderRadius: 10, border: '1px solid var(--t-border)', background: 'var(--t-surface)', color: 'var(--t-text)', fontSize: 13 }}>
                     <option value="">All Statuses</option>
                     <option value="ACTIVE">Active</option>
                     <option value="ON_LEAVE">On Leave</option>
@@ -694,14 +787,14 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
                     <option value="TERMINATED">Terminated</option>
                 </select>
                 <select value={typeFilter} onChange={e => setType(e.target.value)}
-                    style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--t-border)', background: 'var(--t-surface)', color: 'var(--t-text)', fontSize: 13 }}>
+                    style={{ width: isMobile ? '100%' : undefined, padding: '10px 10px', borderRadius: 10, border: '1px solid var(--t-border)', background: 'var(--t-surface)', color: 'var(--t-text)', fontSize: 13 }}>
                     <option value="">All Types</option>
                     <option value="LABOUR">Labour</option>
                     <option value="STAFF">Staff</option>
                     <option value="SUBCONTRACTOR">Subcontractor</option>
                     <option value="FREELANCE">Freelance</option>
                 </select>
-                <button onClick={() => setDrawer('new')} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: 'var(--t-primary)', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>
+                <button onClick={() => setDrawer('new')} style={{ width: isMobile ? '100%' : undefined, padding: '10px 16px', borderRadius: 10, border: 'none', background: 'var(--t-primary)', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>
                     + Add Member
                 </button>
             </div>
@@ -710,6 +803,16 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
 
             {loading ? <Spinner /> : members.length === 0 ? (
                 <EmptyState icon="👷" title="No members found" subtitle="Add your first workforce member or import from attendance." />
+            ) : isMobile ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {members.map(member => (
+                        <MobileMemberCard
+                            key={member.id}
+                            member={member}
+                            onOpenDrawer={setDrawer}
+                        />
+                    ))}
+                </div>
             ) : (
                 <div style={{
                     overflowX: 'auto',
@@ -748,6 +851,7 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
                                 const initials = (m.full_name || '?').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
                                 const avatarColors = ['#3b82f6','#8b5cf6','#10b981','#f59e0b','#ef4444','#ec4899','#06b6d4','#f97316'];
                                 const avatarBg = avatarColors[(m.id || 0) % avatarColors.length];
+                                const photoUrl = m.photo ? getMediaUrl(m.photo) : '';
                                 const statusBg    = { ACTIVE:'#d1fae5', ON_LEAVE:'#fef3c7', INACTIVE:'#f3f4f6', SUSPENDED:'#fee2e2', BLACKLISTED:'#1f2937', TERMINATED:'#fee2e2' }[m.status] || '#f3f4f6';
                                 const statusColor = { ACTIVE:'#065f46', ON_LEAVE:'#92400e', INACTIVE:'#6b7280', SUSPENDED:'#991b1b', BLACKLISTED:'#f9fafb', TERMINATED:'#991b1b' }[m.status] || '#374151';
                                 const todayS = TODAY_COLORS[m.today_status || 'NOT_MARKED'] || TODAY_COLORS.NOT_MARKED;
@@ -768,8 +872,17 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
                                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                     fontSize: 12, fontWeight: 900, letterSpacing: '0.03em',
                                                     border: `1.5px solid ${avatarBg}44`,
+                                                    overflow: 'hidden',
                                                 }}>
-                                                    {initials}
+                                                    {photoUrl ? (
+                                                        <img
+                                                            src={photoUrl}
+                                                            alt={m.full_name || 'Member photo'}
+                                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                        />
+                                                    ) : (
+                                                        initials
+                                                    )}
                                                 </div>
                                                 <div style={{ minWidth: 0 }}>
                                                     <div style={{ fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

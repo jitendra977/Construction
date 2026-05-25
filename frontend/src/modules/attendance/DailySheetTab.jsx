@@ -153,13 +153,14 @@ function CountRing({ counts, total }) {
     const absent  = counts.ABSENT  || 0;
     const leave   = (counts.LEAVE  || 0) + (counts.HOLIDAY || 0);
     const unmarked = Math.max(0, total - (counts.PRESENT||0) - (counts.ABSENT||0) - (counts.HALF_DAY||0) - (counts.LEAVE||0) - (counts.HOLIDAY||0));
+    const safeTotal = total > 0 ? total : 0;
 
-    const pct = total > 0 ? Math.round(present / total * 100) : 0;
+    const pct = safeTotal > 0 ? Math.round(present / safeTotal * 100) : 0;
     const r = 36, cx = 44, cy = 44, stroke = 8;
     const circ = 2 * Math.PI * r;
-    const presentArc = (present / total) * circ;
-    const absentArc  = (absent  / total) * circ;
-    const leaveArc   = (leave   / total) * circ;
+    const presentArc = safeTotal > 0 ? (present / safeTotal) * circ : 0;
+    const absentArc  = safeTotal > 0 ? (absent  / safeTotal) * circ : 0;
+    const leaveArc   = safeTotal > 0 ? (leave   / safeTotal) * circ : 0;
 
     return (
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>

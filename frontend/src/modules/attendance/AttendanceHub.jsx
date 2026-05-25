@@ -5,14 +5,14 @@
  * Desktop : header + horizontal tab bar + card wrapper (unchanged)
  */
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useConstruction } from '../../context/ConstructionContext';
 import attendanceService from '../../services/attendanceService';
 import DailySheetTab    from './DailySheetTab';
 import MonthlyReportTab from './MonthlyReportTab';
 import PayrollTab       from './PayrollTab';
 import { MqttProvider, useMqtt } from './MqttContext';
-import { playScanSound, speakScanResult, speakText, cancelVoice, unlockAudioOnGesture, forceUnlockAudio } from './attendanceSounds';
+import { playScanSound, speakScanResult, speakText, unlockAudioOnGesture } from './attendanceSounds';
 
 // ── Mobile detection hook ──────────────────────────────────────────────────────
 function useIsMobile() {
@@ -118,10 +118,56 @@ function MyQRModal({ projectId, onClose }) {
 // ── Tab definitions ────────────────────────────────────────────────────────────
 // NFC Devices and Settings have moved to the Workforce page (/workforce).
 const TABS = [
-    { id: 'daily',   label: 'Daily Sheet', icon: '📋', short: 'Daily'   },
-    { id: 'monthly', label: 'Monthly',     icon: '📅', short: 'Monthly' },
-    { id: 'payroll', label: 'Payroll',     icon: '💰', short: 'Payroll' },
+    { id: 'daily',   path: 'daily',   label: 'Daily Sheet', icon: '📋', short: 'Daily'   },
+    { id: 'monthly', path: 'monthly', label: 'Monthly',     icon: '📅', short: 'Monthly' },
+    { id: 'payroll', path: 'payroll', label: 'Payroll',     icon: '💰', short: 'Payroll' },
 ];
+
+function MobileRouteTabs({ tabs, activeTab, basePath }) {
+    if (!basePath) return null;
+
+    return (
+        <div style={{
+            display: 'flex',
+            gap: 8,
+            overflowX: 'auto',
+            padding: '0 0 2px',
+            scrollbarWidth: 'none',
+            WebkitOverflowScrolling: 'touch',
+        }}>
+            <style>{`.attendance-mobile-route-tabs::-webkit-scrollbar{display:none}`}</style>
+            <div className="attendance-mobile-route-tabs" style={{ display: 'flex', gap: 8 }}>
+                {tabs.map(tab => {
+                    const active = tab.id === activeTab;
+                    return (
+                        <Link
+                            key={tab.id}
+                            to={`${basePath}/${tab.path}`}
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                padding: '9px 12px',
+                                borderRadius: 12,
+                                border: active ? '1px solid #f9731640' : '1px solid var(--t-border)',
+                                background: active ? '#f9731612' : 'var(--t-surface)',
+                                color: active ? '#f97316' : 'var(--t-text3)',
+                                textDecoration: 'none',
+                                whiteSpace: 'nowrap',
+                                fontSize: 12,
+                                fontWeight: 800,
+                                flexShrink: 0,
+                            }}
+                        >
+                            <span style={{ fontSize: 16 }}>{tab.icon}</span>
+                            <span>{tab.short}</span>
+                        </Link>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
 
 // ── Mobile bottom scrollable tab bar ──────────────────────────────────────────
 function MobileTabBar({ active, onChange, onQR, onHome, alertCount = 0 }) {
@@ -263,7 +309,7 @@ function LiveScanNotifier() {
         };
 
         processScan();
-    }, [lastScan]);
+    }, [lastScan, settings]);
 
     useEffect(() => {
         if (!toast) return;
@@ -446,7 +492,7 @@ function resolveAttendanceProject(activeProjectId, projects, dashboardProject) {
     };
 }
 
-function AttendanceHubContent() {
+function AttendanceHubContent({ forcedTab = null, mobileRouteBase = null }) {
     const [activeTab,      setActiveTab]      = useState('daily');
     const [myQROpen,       setMyQROpen]       = useState(false);
     const [alertCount,     setAlertCount]     = useState(0); 
@@ -459,35 +505,22 @@ function AttendanceHubContent() {
         projects,
         dashboardData?.project,
     );
-    const { settings } = useMqtt();
-
     // Unlock Web Audio + SpeechSynthesis on first user gesture (required on mobile)
     useEffect(() => { unlockAudioOnGesture(); }, []);
+
+    const currentTab = forcedTab || activeTab;
 
     // ── Tab content ────────────────────────────────────────────────────────────
     const tabContent = (
         <>
-            {activeTab === 'daily'   && <DailySheetTab    projectId={effectiveProjectId} onAlertCount={setAlertCount} />}
-            {activeTab === 'monthly' && <MonthlyReportTab  projectId={effectiveProjectId} />}
-            {activeTab === 'payroll' && <PayrollTab        projectId={effectiveProjectId} />}
-        </>
-    );
-
-    const mainLayout = (
-        <>
-            <LiveScanNotifier />
-            {isMobile ? (
-                /* Mobile Layout ... already defined below, but we'll return it here */
-                null 
-            ) : (
-                /* Desktop Layout */
-                null
-            )}
+            {currentTab === 'daily'   && <DailySheetTab    projectId={effectiveProjectId} onAlertCount={setAlertCount} />}
+            {currentTab === 'monthly' && <MonthlyReportTab  projectId={effectiveProjectId} />}
+            {currentTab === 'payroll' && <PayrollTab        projectId={effectiveProjectId} />}
         </>
     );
 
     const content = isMobile ? (
-        <div style={{ minHeight: '100vh', background: 'var(--t-bg)', paddingBottom: 110 }}>
+        <div style={{ minHeight: '100vh', background: 'var(--t-bg)', paddingBottom: mobileRouteBase ? 24 : 110 }}>
             {/* Compact sticky header */}
             <div style={{
                 position: 'sticky', top: 0, zIndex: 50,
@@ -509,7 +542,7 @@ function AttendanceHubContent() {
                     >🏠</button>
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ fontWeight: 900, fontSize: 18, color: 'var(--t-text)', letterSpacing: '-0.02em' }}>Workforce</span>
+                            <span style={{ fontWeight: 900, fontSize: 18, color: 'var(--t-text)', letterSpacing: '-0.02em' }}>Attendance</span>
                         </div>
                         {activeProject && (
                             <p style={{ margin: '1px 0 0 0', fontSize: 11, color: '#f97316', fontWeight: 700 }}>
@@ -525,22 +558,47 @@ function AttendanceHubContent() {
                         background: '#f9731615', border: '1px solid #f9731640',
                         fontSize: 11, fontWeight: 800, color: '#f97316',
                     }}>
-                        {TABS.find(t => t.id === activeTab)?.label}
+                        {TABS.find(t => t.id === currentTab)?.label}
                     </div>
                 </div>
             </div>
 
             <div style={{ padding: '12px 12px 0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <MobileRouteTabs tabs={TABS} activeTab={currentTab} basePath={mobileRouteBase} />
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setMyQROpen(true)}
+                        style={{
+                            padding: '9px 12px',
+                            borderRadius: 12,
+                            border: '1px solid #f9731640',
+                            background: '#f9731612',
+                            color: '#f97316',
+                            fontSize: 12,
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap',
+                            flexShrink: 0,
+                        }}
+                    >
+                        🪪 My QR
+                    </button>
+                </div>
                 {tabContent}
             </div>
 
-            <MobileTabBar
-                active={activeTab}
-                onChange={setActiveTab}
-                onQR={() => setMyQROpen(true)}
-                onHome={() => navigate('/dashboard/mobile/home')}
-                alertCount={alertCount}
-            />
+            {!mobileRouteBase && (
+                <MobileTabBar
+                    active={currentTab}
+                    onChange={setActiveTab}
+                    onQR={() => setMyQROpen(true)}
+                    onHome={() => navigate('/dashboard/mobile/home')}
+                    alertCount={alertCount}
+                />
+            )}
             {myQROpen && <MyQRModal projectId={effectiveProjectId} onClose={() => setMyQROpen(false)} />}
         </div>
     ) : (
@@ -617,7 +675,7 @@ function AttendanceHubContent() {
                 </div>
 
                 <div style={{ background: 'var(--t-surface)', borderRadius: 16, border: '1px solid var(--t-border)', padding: '12px' }}>
-                    {tabContent}
+                        {tabContent}
                 </div>
             </div>
             {myQROpen && <MyQRModal projectId={effectiveProjectId} onClose={() => setMyQROpen(false)} />}
@@ -632,7 +690,7 @@ function AttendanceHubContent() {
     );
 }
 
-export default function AttendanceHub() {
+export default function AttendanceHub({ forcedTab = null, mobileRouteBase = null }) {
     const { activeProjectId, projects, dashboardData } = useConstruction();
     const { projectId: effectiveProjectId } = resolveAttendanceProject(
         activeProjectId,
@@ -642,7 +700,7 @@ export default function AttendanceHub() {
 
     return (
         <MqttProvider projectId={effectiveProjectId}>
-            <AttendanceHubContent />
+            <AttendanceHubContent forcedTab={forcedTab} mobileRouteBase={mobileRouteBase} />
         </MqttProvider>
     );
 }

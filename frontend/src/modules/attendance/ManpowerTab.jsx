@@ -13,6 +13,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { attendanceService } from '../../services/attendanceService';
+import { getMediaUrl } from '../../services/api';
 import { useMqtt } from './MqttContext';
 import NfcDevicesPanel from './NfcDevicesPanel';
 
@@ -65,9 +66,10 @@ const TODAY_COLOR = {
 
 // ─── Tiny utils ────────────────────────────────────────────────────────────────
 
-function Avatar({ name, size = 38 }) {
+function Avatar({ name, photo, size = 38 }) {
   const initials = (name || '?').split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
   const hue = [...(name || 'X')].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
+  const photoUrl = photo ? getMediaUrl(photo) : '';
   return (
     <div style={{
       width: size, height: size, borderRadius: '50%',
@@ -75,7 +77,18 @@ function Avatar({ name, size = 38 }) {
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       color: '#fff', fontWeight: 700, fontSize: size * 0.38, flexShrink: 0,
       userSelect: 'none',
-    }}>{initials}</div>
+      overflow: 'hidden',
+    }}>
+      {photoUrl ? (
+        <img
+          src={photoUrl}
+          alt={name || 'Worker photo'}
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
+      ) : (
+        initials
+      )}
+    </div>
   );
 }
 
@@ -239,7 +252,7 @@ function PersonCard({ person, onToggleRole, onToggleActive, onEdit, onAssignCard
         style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
         onClick={() => setExpanded(e => !e)}
       >
-        <Avatar name={person.name} />
+        <Avatar name={person.name} photo={person.photo} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--t-text)', letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: 6 }}>
             {person.name}

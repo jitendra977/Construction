@@ -173,6 +173,7 @@ class PersonRolesSerializer(serializers.Serializer):
     trade        = serializers.CharField()
     trade_label  = serializers.CharField()
     worker_type  = serializers.CharField()
+    photo        = serializers.CharField(allow_null=True)
     phone        = serializers.CharField()
     daily_rate   = serializers.DecimalField(max_digits=10, decimal_places=2)
     is_active    = serializers.BooleanField()

@@ -160,6 +160,15 @@ function filterRolesByType(roles, workerType) {
     return matched.length > 0 ? matched : roles;
 }
 
+function normalizeGenderValue(value) {
+    const raw = String(value || '').trim().toUpperCase();
+    if (!raw) return 'M';
+    if (raw === 'M' || raw === 'MALE') return 'M';
+    if (raw === 'F' || raw === 'FEMALE') return 'F';
+    if (raw === 'O' || raw === 'OTHER') return 'O';
+    return 'M';
+}
+
 function DeleteConfirmModal({ member, onConfirm, onCancel, deleting }) {
     return (
         <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
@@ -265,7 +274,7 @@ export default function MemberDrawer({ member, onClose, onSaved, onDeleted, proj
                         current_project: full.current_project || projectId || '',
                         team_id:         full.team_id         || '',
                         role:            full.role            || '',
-                        gender:          full.gender          || 'M',
+                        gender:          normalizeGenderValue(full.gender),
                         date_of_birth:   full.date_of_birth   || '',
                         address:         full.address         || '',
                         nationality:     full.nationality     || 'Nepali',
@@ -395,7 +404,7 @@ export default function MemberDrawer({ member, onClose, onSaved, onDeleted, proj
                 end_date:        form.end_date        || null,
                 current_project: form.current_project || projectId || null,
                 role:            form.role            || null,
-                gender:          form.gender          || 'M',
+                gender:          normalizeGenderValue(form.gender),
                 date_of_birth:   form.date_of_birth   || null,
                 address:         form.address         || '',
                 nationality:     form.nationality     || '',

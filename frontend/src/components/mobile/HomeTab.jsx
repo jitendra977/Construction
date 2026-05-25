@@ -173,7 +173,7 @@ function AttendanceCard({ projectId }) {
     const rate    = total > 0 ? Math.round(present / total * 100) : 0;
 
     return (
-        <Card onClick={() => navigate('/dashboard/mobile/attendance')}>
+        <Card onClick={() => navigate('/dashboard/mobile/attendance/daily')}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                 <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--t-text3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Workforce Today</p>
                 <span style={{ fontSize: 9, fontWeight: 700, color: '#22c55e', background: '#22c55e12', padding: '3px 8px', borderRadius: 20, border: '1px solid #22c55e25', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Live</span>
@@ -206,7 +206,7 @@ function AttendanceCard({ projectId }) {
 const NAV = [
     { icon: '📋', label: 'Phases',    path: '/dashboard/mobile/phases'    },
     { icon: '💰', label: 'Finance',   path: '/dashboard/mobile/finance'   },
-    { icon: '👷', label: 'Workforce', path: '/dashboard/mobile/attendance'},
+    { icon: '👷', label: 'Workforce', path: '/dashboard/mobile/workforce/members'},
     { icon: '📅', label: 'Timeline',  path: '/dashboard/mobile/timeline'  },
     { icon: '🗺️', label: 'Site Map',  path: '/dashboard/mobile/location'  },
     { icon: '🧱', label: 'Resources', path: '/dashboard/mobile/resource'  },

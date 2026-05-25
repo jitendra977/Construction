@@ -42,6 +42,16 @@ function getCtx() {
     return _sharedCtx;
 }
 
+function shouldIgnoreSilentAudioError(error) {
+    const name = error?.name || '';
+    const message = String(error?.message || '');
+    return (
+        name === 'NotSupportedError' ||
+        name === 'AbortError' ||
+        message.includes('no supported source was found')
+    );
+}
+
 /**
  * Mobile Audio Unlock
  * ════════════════════
@@ -101,7 +111,11 @@ export function forceUnlockAudio() {
             _silentLoop = new Audio(SILENT_WAV);
             _silentLoop.loop = true;
             _silentLoop.volume = 0.01; // Tiny volume to keep session active
-            _silentLoop.play().catch(e => console.warn("[attendanceSounds] Silent loop failed:", e));
+            _silentLoop.play().catch(e => {
+                if (!shouldIgnoreSilentAudioError(e)) {
+                    console.warn('[attendanceSounds] Silent loop failed:', e);
+                }
+            });
         }
     } catch (e) {
         console.warn("[attendanceSounds] Mute bypass setup failed:", e);
