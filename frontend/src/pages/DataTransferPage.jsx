@@ -25,7 +25,7 @@ const icons = {
     db:        'd="M12 2a9 3 0 1 0 0 6 9 3 0 0 0 0-6zM3 5v4c0 1.657 4.03 3 9 3s9-1.343 9-3V5M3 13v4c0 1.657 4.03 3 9 3s9-1.343 9-3v-4"',
     warn:      'd="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"',
     play:      'd="M5 3l14 9-14 9V3z"',
-    table:     'd="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 1-2-2V9m0 0h18"',
+    table:     'd="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z M3 9h18 M9 21V3"',
     copy:      'd="M8 16H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2M16 8h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2v-2"',
     plus:      'd="M12 5v14M5 12h14"',
     layers:    'd="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"',
@@ -662,17 +662,168 @@ function ImportTab({ user }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // SQL TERMINAL TAB
 // ═══════════════════════════════════════════════════════════════════════════════
-const SAMPLE_QUERIES = [
-    { label: 'Projects',       sql: 'SELECT id, name, address, start_date FROM core_houseproject ORDER BY created_at DESC LIMIT 20' },
-    { label: 'Project members',sql: 'SELECT pm.id, pm.role, u.email FROM core_projectmember pm JOIN accounts_user u ON u.id = pm.user_id LIMIT 50' },
-    { label: 'Tasks',          sql: 'SELECT id, title, status, priority, due_date FROM tasks_task ORDER BY created_at DESC LIMIT 30' },
-    { label: 'Bills',          sql: 'SELECT id, title, amount, status, due_date FROM finance_bill ORDER BY created_at DESC LIMIT 30' },
-    { label: 'Workforce',      sql: 'SELECT id, name, role, phone, daily_rate FROM workforce_workforcemember ORDER BY name LIMIT 50' },
-    { label: 'Materials',      sql: 'SELECT id, name, unit, unit_price FROM resource_material ORDER BY name LIMIT 50' },
+const MODELS = [
+    // Accounts
+    { label: 'Users', table: 'accounts_user', cols: 'id, password, is_superuser, username, first_name, last_name, is_staff, is_active, date_joined, email, bio, address, preferred_language, notifications_enabled, is_verified, created_at, updated_at, digital_signature', orderBy: 'username' },
+    { label: 'Roles', table: 'accounts_role', cols: 'id, code, name, can_manage_all_systems, can_manage_finances, can_view_finances, can_manage_phases, can_view_phases, can_manage_users, can_manage_structure, can_view_structure, can_manage_resources, can_manage_workforce, can_manage_data_transfer, can_manage_settings, can_view_projects, can_manage_projects, can_view_dashboard, can_view_resources, can_view_workforce, can_manage_admin_config, can_view_profile', orderBy: 'name' },
+    
+    // Core
+    { label: 'Projects', table: 'core_houseproject', cols: 'id, name, owner_name, address, total_budget, start_date, expected_completion_date, area_sqft, created_at, updated_at', orderBy: 'created_at DESC' },
+    { label: 'Phases', table: 'core_constructionphase', cols: 'id, name, status, order, description, technical_spec, estimated_budget, permit_required, permit_status, permit_notes' },
+    { label: 'Project members', table: 'core_projectmember', cols: 'id, role, note, joined_at, can_manage_members, can_manage_finances, can_view_finances, can_manage_phases, can_manage_structure, can_manage_resources, can_upload_media, can_manage_workforce, can_approve_purchases, project_id, user_id, can_view_members, can_view_phases, can_view_structure, can_view_resources, can_view_workforce', customSelect: 'SELECT pm.id, pm.role, u.email FROM core_projectmember pm JOIN accounts_user u ON u.id = pm.user_id LIMIT 50' },
+    { label: 'Floors', table: 'core_floor', cols: 'id, name, level, created_at, updated_at' },
+    { label: 'Rooms', table: 'core_room', cols: 'id, name, room_type, status, budget_allocation, floor_finish, wall_finish, color_scheme, window_count, door_count, electrical_points, light_points, fan_points, ac_provision, plumbing_points, priority, notes, floor_id' },
+
+    // Tasks
+    { label: 'Tasks', table: 'tasks_task', cols: 'id, title, description, technical_requirement, estimated_cost, status, priority, created_at, updated_at, phase_id', orderBy: 'created_at DESC' },
+    { label: 'Task Updates', table: 'tasks_taskupdate', cols: 'id, note, progress_percentage, date, task_id' },
+    { label: 'Task Media', table: 'tasks_taskmedia', cols: 'id, file, media_type, created_at' },
+
+    // Workforce
+    { label: 'Workforce', table: 'workforce_workforcemember', cols: 'id, employee_id, first_name, last_name, gender, nationality, language, phone, phone_alt, email, address, worker_type, status, join_date, created_at, updated_at, portal_pin_hash', orderBy: '_first_name' },
+    { label: 'Worker Assignments', table: 'workforce_workerassignment', cols: 'id, start_date, status, estimated_hours, actual_hours, overtime_hours, notes, created_at, updated_at, project_id, worker_id' },
+    { label: 'Payroll', table: 'workforce_payrollrecord', cols: 'id, period_start, period_end, total_days_present, total_days_absent, total_days_leave, total_days_holiday, total_overtime_hours, base_pay, overtime_pay, allowances, bonus, deduction_tax, deduction_advance, deduction_other, deduction_notes, net_pay, currency, status, payment_method, payment_reference, created_at, updated_at, worker_id' },
+
+    // Financials
+    { label: 'Expenses (Fin)', table: 'fin_expense', cols: 'id, title, amount, expense_type, date, paid_to, is_paid, notes, created_at, updated_at' },
+    { label: 'Bills', table: 'finance_bill', cols: 'id, bill_number, date_issued, due_date, total_amount, amount_paid, status, notes, created_at', orderBy: 'created_at DESC' },
+    { label: 'Budget Categories', table: 'fin_budgetcategory', cols: 'id, name, description, created_at, updated_at, project_id, sequence' },
+    { label: 'Accounts', table: 'fin_account', cols: 'id, code, name, account_type, description, is_bank, bank_name, account_number, account_holder_name, is_loan, is_active, created_at, updated_at' },
+
+    // Resources
+    { label: 'Materials', table: 'resource_material', cols: 'id, name, category, unit_price, stock_qty, reorder_level, description, is_active, created_at, updated_at, project_id, unit', orderBy: 'name' },
+    { label: 'Equipment', table: 'resource_equipment', cols: 'id, name, equipment_type, status, daily_rate, quantity, description, is_active, created_at, updated_at, project_id' },
+    { label: 'Suppliers', table: 'resource_supplier', cols: 'id, name, contact_person, phone, email, address, specialty, is_active, notes, created_at, updated_at, project_id' },
+    { label: 'Purchase Orders', table: 'resource_purchaseorder', cols: 'id, order_number, order_date, status, notes, created_at, updated_at, project_id, signature_data, signature_name' },
+
+    // Attendance
+    { label: 'Attendance Workers', table: 'attendance_attendanceworker', cols: 'id, name, trade, worker_type, daily_rate, overtime_rate_per_hour, phone, address, is_active, notes, use_custom_window, qr_token, created_at, updated_at, project_id, working_days_mask' },
+    { label: 'Daily Attendance', table: 'attendance_dailyattendance', cols: 'id, date, status, overtime_hours, daily_rate_snapshot, overtime_rate_snapshot, notes, created_at, updated_at, project_id, worker_id' },
+
+    // Estimate
+    { label: 'Estimates', table: 'estimate_estimate', cols: 'id, name, description, status, quality_tier, total_area_sqft, floors, bedrooms, bathrooms, include_mep, include_finishing, contingency_pct, material_total, labor_total, contingency_amount, grand_total, created_at, updated_at, notes' },
+    { label: 'Estimate Items', table: 'estimate_estimateitem', cols: 'id, label, category, rate_key, quantity, unit, unit_rate, wastage_pct, total, notes, section_id' },
+
+    // Location
+    { label: 'Geofences', table: 'location_tracking_projectgeofence', cols: 'id, latitude, longitude, radius_meters, is_active, updated_at, project_id, name, fence_color' },
+    { label: 'Staff Location Logs', table: 'location_tracking_stafflocationlog', cols: 'id, latitude, longitude, accuracy, timestamp, is_on_site, user_id' },
 ];
+
+const makeUuid = () => {
+    try {
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+            return crypto.randomUUID();
+        }
+    } catch (e) {}
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+};
+
+const getSampleValue = (col, table = '') => {
+    const c = col.trim().toLowerCase();
+    const t = table.toLowerCase();
+    
+    if (c === 'id') {
+        const isUuidTable = t.startsWith('resource_') || t.startsWith('workforce_') || t.startsWith('fin_') || t.startsWith('finance_');
+        return isUuidTable ? `'${makeUuid()}'` : '1';
+    }
+    if (c.endsWith('_id')) {
+        const isUuidFk = ['worker_id', 'supplier_id', 'material_id', 'expense_id'].includes(c);
+        return isUuidFk ? `'${makeUuid()}'` : '1';
+    }
+    
+    if (c.includes('password')) return "'pbkdf2_sha256$...(use Django hash)'";
+    if (c.includes('email')) return "'test@example.com'";
+    if (c.includes('username')) return "'testuser'";
+    if (c.includes('first_name')) return "'John'";
+    if (c.includes('last_name')) return "'Doe'";
+    if (c === 'preferred_language' || c === 'language') return "'en'";
+    if (c === 'digital_signature') return "''";
+    if (c === 'notifications_enabled') return 'true';
+    if (c.includes('name') || c.includes('title') || c.includes('label')) return "'Sample'";
+    if (c.includes('date') || c.includes('timestamp') || c.endsWith('_at')) return "'2026-05-28 07:30:00'";
+    
+    // Description and notes fields
+    if (c.includes('description') || c.includes('spec') || c.includes('note') || c.includes('bio') || c.includes('specialty') || c.includes('relationship') || c.includes('comments') || c.includes('action') || c.includes('recommendation') || c.includes('token') || c.includes('mask') || c.includes('data')) {
+        return "'Sample Details'";
+    }
+    
+    // Numeric metrics
+    if (c.includes('amount') || c.includes('price') || c.includes('rate') || c.includes('total') || c.includes('balance') || c.includes('budget') || c.includes('wage') || c.includes('cost') || c.includes('pay') || c.includes('allowance') || c.includes('bonus') || c.includes('deduction') || c.includes('multiplier') || c.includes('latitude') || c.includes('longitude') || c.includes('snap')) {
+        return '100.50';
+    }
+    
+    // Quantities / levels / counts / points / order / sequence / level / dimensions
+    if (c.includes('qty') || c.includes('quantity') || c.includes('level') || c.includes('radius') || c.includes('count') || c.includes('points') || c.includes('days') || c.includes('hours') || c.includes('pct') || c.includes('percentage') || c.includes('score') || c.includes('order') || c.includes('seq') || c.includes('sequence') || c.includes('duration') || c.includes('floors') || c.includes('bedrooms') || c.includes('bathrooms') || c.includes('accuracy') || c.includes('sqft') || c.includes('area') || c.includes('width') || c.includes('depth') || c.includes('height') || c.includes('pos') || c.includes('cm') || c.includes('years') || c.includes('experience')) {
+        return '10';
+    }
+    
+    // Unit / Category / Types
+    if (c === 'unit') return "'bag'";
+    if (c === 'category') return "'OTHER'";
+    if (c === 'code') return "'CODE'";
+    if (c === 'gender') return "'M'";
+    if (c === 'nationality') return "'Nepalese'";
+    if (c === 'employee_id') return "'EMP001'";
+    if (c === 'portal_pin_hash') return "'hash'";
+    
+    // Booleans
+    if (c.startsWith('can_') || c.includes('is_') || c === 'is_active' || c === 'is_staff' || c === 'is_superuser' || c === 'is_verified' || c === 'is_present' || c === 'use_custom_window' || c === 'include_mep' || c === 'include_finishing' || c === 'auto_generated' || c === 'emailed' || c === 'ac_provision') {
+        return 'true';
+    }
+    
+    if (c.includes('status')) return "'Active'";
+    if (c.includes('role')) return "'Manager'";
+    if (c.includes('type')) return "'General'";
+    if (c.includes('phone')) return "'+1234567890'";
+    if (c.includes('address')) return "'123 Main St'";
+    
+    return "'value'";
+};
+
+const getSnippet = (op, model) => {
+    if (!model) return '';
+    switch(op) {
+        case 'SELECT':
+            if (model.customSelect) return model.customSelect;
+            return `SELECT * FROM ${model.table}${model.orderBy ? ` ORDER BY ${model.orderBy}` : ''} LIMIT 30`;
+        case 'INSERT': {
+            const colsToInsert = model.cols.split(',').map(c => c.trim()).filter(c => c !== 'id');
+            // Generate 3 rows of slightly varied sample data
+            const makeRow = (idx) => {
+                const vals = colsToInsert.map(c => {
+                    const base = getSampleValue(c, model.table);
+                    // Vary string values with a suffix so rows are unique
+                    if (base.startsWith("'") && base !== 'true' && base !== 'false' && !base.includes('@') && !base.includes('-')) {
+                        const inner = base.slice(1, -1);
+                        if (inner && !inner.match(/^\d/) && !inner.includes(':')) {
+                            return `'${inner} ${idx}'`;
+                        }
+                    }
+                    return base;
+                });
+                return `  (${vals.join(', ')})`;
+            };
+            const rows = [makeRow(1), makeRow(2), makeRow(3)].join(',\n');
+            return `INSERT INTO ${model.table} (${colsToInsert.join(', ')})\nVALUES\n${rows}`;
+        }
+        case 'UPDATE': {
+            const sets = model.cols.split(',').filter(c => c.trim() !== 'id').map(c => `${c.trim()} = ${getSampleValue(c, model.table)}`).join(',\n    ');
+            return `UPDATE ${model.table}\nSET\n    ${sets}\nWHERE id = ${getSampleValue('id', model.table)}`;
+        }
+        case 'DELETE':
+            return `DELETE FROM ${model.table}\nWHERE id = ${getSampleValue('id', model.table)}`;
+        default:
+            return '';
+    }
+};
 
 function SqlTerminalTab({ user }) {
     const [sql, setSql]             = useState('SELECT id, name, address FROM core_houseproject ORDER BY created_at DESC LIMIT 20');
+    const [operation, setOperation] = useState('SELECT');
+    const [selectedModel, setSelectedModel] = useState(null);
     const [running, setRunning]     = useState(false);
     const [result, setResult]       = useState(null);
     const [error, setError]         = useState(null);
@@ -687,6 +838,20 @@ function SqlTerminalTab({ user }) {
         try {
             const r = await dataTransferService.runSql(sql.trim());
             setResult(r.data);
+
+            const isWrite = /^\s*(INSERT|UPDATE|DELETE)/i.test(sql);
+            if (isWrite && r.data.success && !r.data.columns?.includes('Error') && selectedModel) {
+                // Auto-run SELECT query to show the updated list in the table
+                const selectSql = `SELECT * FROM ${selectedModel.table} ORDER BY id DESC LIMIT 10`;
+                try {
+                    const r2 = await dataTransferService.runSql(selectSql);
+                    if (r2.data.success) {
+                        setResult(r2.data);
+                    }
+                } catch (e2) {
+                    // Ignore select error so we don't overwrite successful write status
+                }
+            }
         } catch (e) {
             setError(e.response?.data?.error || 'Query failed.');
         } finally { setRunning(false); }
@@ -725,17 +890,34 @@ function SqlTerminalTab({ user }) {
 
     return (
         <div className="space-y-4">
-            {/* Sample query chips */}
+            {/* Quick queries builder */}
             <div>
-                <Label>Quick queries</Label>
-                <div className="flex flex-wrap gap-1.5">
-                    {SAMPLE_QUERIES.map(q => (
+                <Label>1. Select Operation</Label>
+                <div className="flex flex-wrap gap-1.5 mb-4">
+                    {['SELECT', 'INSERT', 'UPDATE', 'DELETE'].map(op => (
                         <button
-                            key={q.label}
-                            onClick={() => { setSql(q.sql); setResult(null); setError(null); }}
+                            key={op}
+                            onClick={() => setOperation(op)}
+                            className={`px-3 py-1.5 rounded-md text-[11px] font-semibold transition-colors ${
+                                operation === op 
+                                    ? 'bg-slate-800 text-white' 
+                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            }`}
+                        >
+                            {op}
+                        </button>
+                    ))}
+                </div>
+                
+                <Label>2. Generate Query for Model</Label>
+                <div className="flex flex-wrap gap-1.5">
+                    {MODELS.map(model => (
+                        <button
+                            key={model.label}
+                            onClick={() => { setSql(getSnippet(operation, model)); setSelectedModel(model); setResult(null); setError(null); }}
                             className="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
                         >
-                            {q.label}
+                            {model.label}
                         </button>
                     ))}
                 </div>
@@ -746,7 +928,7 @@ function SqlTerminalTab({ user }) {
                 <div className="flex items-center justify-between px-3.5 py-2 bg-slate-800">
                     <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono">
                         <I name="terminal" size={12} cls="text-slate-400" />
-                        SQL — SELECT only · Ctrl+Enter to run
+                        SQL — SELECT, INSERT, UPDATE, DELETE · Ctrl+Enter to run
                     </div>
                     <Btn
                         onClick={runQuery}
@@ -770,6 +952,27 @@ function SqlTerminalTab({ user }) {
                     placeholder="SELECT * FROM core_houseproject LIMIT 10"
                 />
             </div>
+
+            {/* Example Values Card – shows below editor for INSERT / UPDATE */}
+            {selectedModel && (operation === 'INSERT' || operation === 'UPDATE') && (
+                <div className="rounded-xl border border-blue-100 bg-blue-50 overflow-hidden">
+                    <div className="flex items-center gap-2 px-3.5 py-2 bg-blue-100">
+                        <I name="warn" size={12} cls="text-blue-500" />
+                        <span className="text-[11px] font-semibold text-blue-700">
+                            Example values for <strong>{selectedModel.label}</strong> — replace before running
+                        </span>
+                    </div>
+                    <div className="px-3.5 py-2.5 flex flex-wrap gap-x-6 gap-y-1.5">
+                        {selectedModel.cols.split(',').map(col => (
+                            <div key={col.trim()} className="flex items-center gap-2 text-[11px]">
+                                <span className="font-mono text-blue-800 font-semibold">{col.trim()}</span>
+                                <span className="text-slate-400">→</span>
+                                <span className="font-mono text-emerald-700 bg-white px-1.5 py-0.5 rounded border border-emerald-200">{getSampleValue(col)}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Error */}
             {error && <Alert type="error">{error}</Alert>}
@@ -833,7 +1036,7 @@ function SqlTerminalTab({ user }) {
             )}
 
             <Alert type="warn">
-                Only <strong>SELECT</strong> statements are allowed. Results are capped at 500 rows. Queries run against the live production database.
+                Queries run against the live production database. Results are capped at 500 rows.
             </Alert>
         </div>
     );

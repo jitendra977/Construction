@@ -559,7 +559,7 @@ class SqlTerminalView(APIView):
 
     # Patterns that are never allowed in the terminal
     TERMINAL_BLOCKED = re.compile(
-        r'\b(DROP|TRUNCATE|ALTER|CREATE|INSERT|UPDATE|DELETE|GRANT|REVOKE'
+        r'\b(DROP|TRUNCATE|ALTER|CREATE|GRANT|REVOKE'
         r'|COPY|VACUUM|CLUSTER|REINDEX|DISCARD|LOCK|NOTIFY|LISTEN|UNLISTEN'
         r'|LOAD|RESET|SET\s+ROLE|SET\s+SESSION)\b',
         re.IGNORECASE,
@@ -578,11 +578,15 @@ class SqlTerminalView(APIView):
         if not sql:
             return Response({'success': False, 'error': 'No SQL provided.'}, status=400)
 
-        # Must start with SELECT (after stripping comments)
+        # Must start with SELECT, INSERT, UPDATE, or DELETE (after stripping comments)
         clean = re.sub(r'--[^\n]*', '', sql).strip()
-        if not re.match(r'^\s*SELECT\b', clean, re.IGNORECASE):
+        clean = re.sub(r';+$', '', clean).strip()
+        is_select = bool(re.match(r'^\s*SELECT\b', clean, re.IGNORECASE))
+        is_write = bool(re.match(r'^\s*(INSERT|UPDATE|DELETE)\b', clean, re.IGNORECASE))
+
+        if not (is_select or is_write):
             return Response(
-                {'success': False, 'error': 'Only SELECT statements are allowed in the SQL terminal.'},
+                {'success': False, 'error': 'Only SELECT, INSERT, UPDATE, and DELETE statements are allowed.'},
                 status=400,
             )
 
@@ -592,23 +596,97 @@ class SqlTerminalView(APIView):
                 status=400,
             )
 
-        # Append a hard row limit so a full-table scan can't kill the server
-        limited_sql = f"SELECT * FROM ({clean}) _q LIMIT {SQL_TERMINAL_ROW_LIMIT}"
-
         t0 = time.time()
         try:
             with connection.cursor() as cursor:
-                cursor.execute(limited_sql)
-                columns = [col[0] for col in (cursor.description or [])]
-                raw_rows = cursor.fetchall()
+                if is_select:
+                    # Append a hard row limit so a full-table scan can't kill the server
+                    limited_sql = f"SELECT * FROM ({clean}) _q LIMIT {SQL_TERMINAL_ROW_LIMIT}"
+                    cursor.execute(limited_sql)
+                    columns = [col[0] for col in (cursor.description or [])]
+                    raw_rows = cursor.fetchall()
+                else:
+                    import uuid as _uuid_mod
+
+                    UUID_TABLES = {
+                        'resource_material', 'resource_equipment', 'resource_supplier',
+                        'resource_purchaseorder', 'resource_purchaseorderitem', 'resource_stockmovement',
+                        'workforce_workforcemember', 'workforce_workerassignment', 'workforce_payrollrecord',
+                        'fin_expense', 'finance_bill', 'fin_account',
+                    }
+
+                    def _split_values(values_block):
+                        """Split  (v1, v2), (v3, v4)  into a list of raw value strings,
+                        respecting quoted strings and nested parens."""
+                        groups, depth, buf, in_str, str_char = [], 0, '', False, ''
+                        for ch in values_block:
+                            if in_str:
+                                buf += ch
+                                if ch == str_char:
+                                    in_str = False
+                            elif ch in ('"', "'"):
+                                in_str, str_char, buf = True, ch, buf + ch
+                            elif ch == '(':
+                                depth += 1
+                                if depth == 1:
+                                    buf = ''
+                                else:
+                                    buf += ch
+                            elif ch == ')':
+                                depth -= 1
+                                if depth == 0:
+                                    groups.append(buf)
+                                    buf = ''
+                                else:
+                                    buf += ch
+                            else:
+                                if depth >= 1:
+                                    buf += ch
+                        return groups
+
+                    # Match:  INSERT INTO <tbl> (<cols>) VALUES <rest>
+                    insert_re = re.compile(
+                        r'^\s*INSERT\s+INTO\s+([a-zA-Z0-9_]+)\s*\(([^)]+)\)\s*VALUES\s+(.*)',
+                        re.IGNORECASE | re.DOTALL,
+                    )
+                    m = insert_re.match(clean)
+                    if m:
+                        tbl_raw  = m.group(1)
+                        cols_str = m.group(2)
+                        vals_raw = m.group(3).rstrip('; \t\n')
+
+                        table_name = tbl_raw.lower().strip()
+                        cols = [c.strip().lower() for c in cols_str.split(',')]
+
+                        if table_name in UUID_TABLES and 'id' not in cols:
+                            # Parse every (…) group and inject a fresh UUID into each
+                            value_groups = _split_values(vals_raw)
+                            if value_groups:
+                                new_rows = [
+                                    f"('{_uuid_mod.uuid4()}', {grp})"
+                                    for grp in value_groups
+                                ]
+                                clean = (
+                                    f"INSERT INTO {tbl_raw} (id, {cols_str}) "
+                                    f"VALUES {', '.join(new_rows)}"
+                                )
+
+                    cursor.execute(clean)
+                    columns = ["Result"]
+                    raw_rows = [[f"Affected rows: {cursor.rowcount}"]]
         except Exception as exc:
             elapsed = round((time.time() - t0) * 1000)
             err_msg = str(exc).split('\n')[0]
             logger.warning('SQL terminal error for user %s: %s', request.user, err_msg)
-            return Response(
-                {'success': False, 'error': err_msg, 'execution_ms': elapsed},
-                status=400,
-            )
+            return Response({
+                'success': True,
+                'columns': ['Error'],
+                'rows': [[err_msg]],
+                'row_count': 1,
+                'truncated': False,
+                'truncated_at': None,
+                'execution_ms': elapsed,
+            })
 
         elapsed = round((time.time() - t0) * 1000)
 
@@ -621,7 +699,7 @@ class SqlTerminalView(APIView):
             return str(v)
 
         rows = [[_safe(cell) for cell in row] for row in raw_rows]
-        truncated = len(rows) == SQL_TERMINAL_ROW_LIMIT
+        truncated = is_select and len(rows) == SQL_TERMINAL_ROW_LIMIT
 
         return Response({
             'success': True,
