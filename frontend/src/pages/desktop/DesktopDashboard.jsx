@@ -39,6 +39,7 @@ function usePageTitle(navItems) {
 
 function DesktopDashboard() {
     const navigate = useNavigate();
+    const location = useLocation();
     const { user, loading, activeProjectId } = useConstruction();
 
     const [collapsed, setCollapsed] = useState(() =>
@@ -130,7 +131,7 @@ function DesktopDashboard() {
                 <TopBar navItems={navItems} user={user} activeProjectId={activeProjectId} />
 
                 {/* Page content */}
-                <div className="flex-1 overflow-hidden flex flex-col h-full">
+                <div className={`flex-1 flex flex-col h-full ${location.pathname.endsWith('/floorplan') ? 'overflow-hidden' : 'overflow-y-auto'}`}>
                     <Outlet />
                 </div>
             </main>

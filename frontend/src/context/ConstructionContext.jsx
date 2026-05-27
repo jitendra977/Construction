@@ -578,6 +578,52 @@ export const ConstructionProvider = ({ children }) => {
         }
     }, [fetchData]);
 
+    // --- Global Background Uploads ---
+    const [globalUploads, setGlobalUploads] = useState({});
+
+    const dispatchGlobalUpload = useCallback(async (uploadFn, formData, filename) => {
+        const uploadId = Date.now().toString();
+        setGlobalUploads(prev => ({
+            ...prev,
+            [uploadId]: { id: uploadId, filename, progress: 0, status: 'UPLOADING' }
+        }));
+
+        try {
+            await uploadFn(formData, (evt) => {
+                const pct = Math.round((evt.loaded * 100) / evt.total);
+                setGlobalUploads(prev => ({
+                    ...prev,
+                    [uploadId]: { ...prev[uploadId], progress: pct }
+                }));
+            });
+            setGlobalUploads(prev => ({
+                ...prev,
+                [uploadId]: { ...prev[uploadId], progress: 100, status: 'COMPLETED' }
+            }));
+            fetchData(true);
+            setTimeout(() => {
+                setGlobalUploads(prev => {
+                    const next = { ...prev };
+                    delete next[uploadId];
+                    return next;
+                });
+            }, 3000);
+        } catch (error) {
+            console.error("Global upload failed", error);
+            setGlobalUploads(prev => ({
+                ...prev,
+                [uploadId]: { ...prev[uploadId], status: 'ERROR' }
+            }));
+            setTimeout(() => {
+                setGlobalUploads(prev => {
+                    const next = { ...prev };
+                    delete next[uploadId];
+                    return next;
+                });
+            }, 5000);
+        }
+    }, [fetchData]);
+
     const value = {
         // State
         user,
@@ -624,6 +670,9 @@ export const ConstructionProvider = ({ children }) => {
         setIsCalculatorOpen: (val) => setIsCalculatorOpen(val),
         toggleCalculator: () => setIsCalculatorOpen(prev => !prev),
 
+        // Global Uploads
+        dispatchGlobalUpload,
+
         // Dynamic Help Context
         activeHelpKey,
         setActiveHelpKey,
@@ -660,6 +709,40 @@ export const ConstructionProvider = ({ children }) => {
     return (
         <ConstructionContext.Provider value={value}>
             {children}
+            {Object.keys(globalUploads).length > 0 && (
+                <div style={{
+                    position: 'fixed', bottom: 30, right: 30, zIndex: 99999,
+                    display: 'flex', flexDirection: 'column', gap: 16,
+                    width: 400, maxWidth: '90vw'
+                }}>
+                    {Object.values(globalUploads).map(upload => (
+                        <div key={upload.id} style={{
+                            background: 'var(--t-surface)', border: '1px solid var(--t-border)',
+                            borderRadius: 16, padding: 24,
+                            boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
+                        }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                                <span style={{ fontSize: 16, fontWeight: 900, color: 'var(--t-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {upload.status === 'UPLOADING' ? '📤 Uploading...' : upload.status === 'ERROR' ? '❌ Failed' : '✅ Completed'}
+                                </span>
+                                <span style={{ fontSize: 18, fontWeight: 900, color: upload.status === 'ERROR' ? '#ef4444' : upload.status === 'COMPLETED' ? '#10b981' : '#3b82f6' }}>
+                                    {upload.status === 'ERROR' ? 'Error' : upload.status === 'COMPLETED' ? '100%' : `${upload.progress}%`}
+                                </span>
+                            </div>
+                            <div style={{ fontSize: 13, color: 'var(--t-text2)', marginBottom: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {upload.filename || 'Media File'}
+                            </div>
+                            <div style={{ width: '100%', height: 12, background: 'var(--t-surface2)', borderRadius: 6, overflow: 'hidden', border: '1px solid var(--t-border)' }}>
+                                <div style={{
+                                    width: `${upload.progress}%`, height: '100%',
+                                    background: upload.status === 'ERROR' ? '#ef4444' : upload.status === 'COMPLETED' ? '#10b981' : 'linear-gradient(90deg, #3b82f6, #60a5fa)',
+                                    transition: 'width 0.3s ease-out'
+                                }} />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
         </ConstructionContext.Provider>
     );
 };

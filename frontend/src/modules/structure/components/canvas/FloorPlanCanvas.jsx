@@ -1099,16 +1099,16 @@ function RoomPalette({ room, floorColor, panMode, setPanMode, editShapeMode, set
     const wCm = b.width;
     const dCm = b.height;
 
-    const fmtFtCm = (cm) => `-- ${Math.round(cm)}cm --`;
+    const fmtDim = (cm) => `${Math.round(cm)} cm`;
 
     // SVG parameters
-    const PRV = 150; // larger preview size
+    const PRV = 110; // smaller preview size
     const PAD = 35;  // padding for labels
     const boxSize = PRV - PAD; // actual size for shape
     const bw = b.width || 1;
     const bh = b.height || 1;
     const sc = Math.min(boxSize / bw, boxSize / bh);
-    const ox = (boxSize - bw * sc) / 2 - b.minX * sc + 10;
+    const ox = (boxSize - bw * sc) / 2 - b.minX * sc + 15;
     const oy = (boxSize - bh * sc) / 2 + 10;
     const maxY = b.maxY;
 
@@ -1166,7 +1166,7 @@ function RoomPalette({ room, floorColor, panMode, setPanMode, editShapeMode, set
                 const rightX = ox + bw * sc;
                 return (
                     <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-black/40 border border-white/5">
-                        <svg width="165" height="155" className="overflow-visible" style={{ background: 'transparent' }}>
+                        <svg width="120" height="110" className="overflow-visible" style={{ background: 'transparent' }}>
                             {/* Path */}
                             <path d={pvPath} fill={`${floorColor}22`} stroke={floorColor} strokeWidth={1.5} fillRule="nonzero" />
                             
@@ -1174,16 +1174,16 @@ function RoomPalette({ room, floorColor, panMode, setPanMode, editShapeMode, set
                             <line x1={ox} y1={bottomY + 12} x2={rightX} y2={bottomY + 12} stroke="#facc15" strokeWidth={1} strokeDasharray="3,3" />
                             <line x1={ox} y1={bottomY + 8} x2={ox} y2={bottomY + 16} stroke="#facc15" strokeWidth={1} />
                             <line x1={rightX} y1={bottomY + 8} x2={rightX} y2={bottomY + 16} stroke="#facc15" strokeWidth={1} />
-                            <text x={ox + (bw * sc) / 2} y={bottomY + 25} textAnchor="middle" fontSize={9.5} fill="#facc15" fontWeight={900}>
-                                {fmtFtCm(wCm)}
+                            <text x={ox + (bw * sc) / 2} y={bottomY + 23} textAnchor="middle" fontSize={8} fill="#facc15" fontWeight={900}>
+                                {fmtDim(wCm)}
                             </text>
 
                             {/* Right dimension (Depth) */}
                             <line x1={rightX + 12} y1={oy} x2={rightX + 12} y2={bottomY} stroke="#facc15" strokeWidth={1} strokeDasharray="3,3" />
                             <line x1={rightX + 8} y1={oy} x2={rightX + 16} y2={oy} stroke="#facc15" strokeWidth={1} />
                             <line x1={rightX + 8} y1={bottomY} x2={rightX + 16} y2={bottomY} stroke="#facc15" strokeWidth={1} />
-                            <text x={rightX + 22} y={oy + (bh * sc) / 2} textAnchor="middle" fontSize={9.5} fill="#facc15" fontWeight={900} transform={`rotate(90 ${rightX + 22} ${oy + (bh * sc) / 2})`}>
-                                {fmtFtCm(dCm)}
+                            <text x={rightX + 20} y={oy + (bh * sc) / 2} textAnchor="middle" fontSize={8} fill="#facc15" fontWeight={900} transform={`rotate(90 ${rightX + 20} ${oy + (bh * sc) / 2})`}>
+                                {fmtDim(dCm)}
                             </text>
                         </svg>
                     </div>
@@ -1998,10 +1998,10 @@ export default function FloorPlanCanvas({ floor }) {
                             </svg>
                         </button>
 
-                        {/* Move Room (Double Cross Move Icon) */}
+                        {/* Move Room (Select Icon) */}
                         <button
                             onClick={() => { setPanMode(false); }}
-                            title="Move Room / Select"
+                            title="Select / Move Room"
                             className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors border"
                             style={{
                                 background: !panMode ? `${accent}33` : 'rgba(255,255,255,0.07)',
@@ -2009,13 +2009,9 @@ export default function FloorPlanCanvas({ floor }) {
                                 color: !panMode ? accent : 'rgba(255,255,255,0.7)',
                             }}
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="5 9 2 12 5 15"/>
-                                <polyline points="9 5 12 2 15 5"/>
-                                <polyline points="15 19 12 22 9 19"/>
-                                <polyline points="19 9 22 12 19 15"/>
-                                <line x1="2" y1="12" x2="22" y2="12"/>
-                                <line x1="12" y1="2" x2="12" y2="22"/>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/>
+                                <path d="m13 13 6 6"/>
                             </svg>
                         </button>
                         

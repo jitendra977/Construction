@@ -23,16 +23,18 @@ export const constructionService = {
     },
 
     // Phase Documents
-    uploadPhaseDocument: async (data) =>
+    uploadPhaseDocument: async (data, onUploadProgress) =>
         (await api.post('phase-documents/', data, {
             headers: { 'Content-Type': 'multipart/form-data' },
+            onUploadProgress,
         })).data,
     deletePhaseDocument: async (id) => { await api.delete(`phase-documents/${id}/`); },
 
     // Task Media
-    uploadTaskMedia: async (data) =>
+    uploadTaskMedia: async (data, onUploadProgress) =>
         (await api.post('task-media/', data, {
             headers: { 'Content-Type': 'multipart/form-data' },
+            onUploadProgress,
         })).data,
     deleteTaskMedia: async (id) => { await api.delete(`task-media/${id}/`); },
 };

@@ -8,10 +8,10 @@ export default function StructureLayout({ children }) {
     const isFloorPlan = location.pathname.endsWith('/floorplan');
 
     return (
-        <div className="flex flex-col h-full" style={{ background: 'var(--t-bg)' }}>
+        <div className={`flex flex-col ${isFloorPlan ? 'h-full' : ''}`} style={{ background: 'var(--t-bg)' }}>
             <ManagementTabs />
             <StructureTopNav />
-            <main className={`flex-1 overflow-hidden flex flex-col ${isFloorPlan ? 'p-0' : 'p-4 pb-4'}`}>
+            <main className={`flex flex-col ${isFloorPlan ? 'flex-1 overflow-hidden p-0' : 'p-4 pb-4'}`}>
                 {children}
             </main>
         </div>

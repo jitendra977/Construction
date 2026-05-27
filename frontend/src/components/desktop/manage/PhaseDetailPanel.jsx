@@ -267,7 +267,7 @@ function TaskMiniRow({ task, isSelected, onClick, onTaskClick, canDelete, onDele
 }
 
 /* ── MediaGrid ── */
-function MediaGrid({ media, onUpload, uploading, canUpload, onDelete }) {
+function MediaGrid({ media, onUpload, canUpload, onDelete }) {
     const isMobile = useIsMobile();
     const [preview, setPreview] = useState(null); // { file, name }
 
@@ -283,14 +283,15 @@ function MediaGrid({ media, onUpload, uploading, canUpload, onDelete }) {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                 <SectionHead label={`Evidence / Media (${media.length})`} />
                 {canUpload && (
-                    <button onClick={onUpload} disabled={uploading} style={{
-                        padding: '4px 12px', borderRadius: 6, fontSize: 10, fontWeight: 800,
-                        background: 'rgba(16,185,129,0.1)', color: '#10b981',
-                        border: '1px solid rgba(16,185,129,0.3)', cursor: 'pointer',
-                        opacity: uploading ? 0.6 : 1,
-                    }}>
-                        {uploading ? '⏳ Uploading…' : '📤 Upload'}
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <button onClick={onUpload} style={{
+                            padding: '4px 12px', borderRadius: 6, fontSize: 10, fontWeight: 800,
+                            background: 'rgba(16,185,129,0.1)', color: '#10b981',
+                            border: '1px solid rgba(16,185,129,0.3)', cursor: 'pointer',
+                        }}>
+                            📤 Upload
+                        </button>
+                    </div>
                 )}
             </div>
             {media.length === 0 ? (
@@ -367,7 +368,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
         updatePhase, updateTask, createExpense, deleteExpense, updateExpense,
         createMaterialTransaction, refreshData, dashboardData, formatCurrency,
         deleteTask, deleteTaskMedia, createTask, user,
-        uploadPhaseDocument, deletePhaseDocument
+        uploadPhaseDocument, deletePhaseDocument, dispatchGlobalUpload
     } = useConstruction();
 
     const canManage = user?.is_system_admin || user?.can_manage_phases;
@@ -494,7 +495,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
         const raw = e.target.files[0];
         const targetTaskId = forcedTaskId || selectedTask?.id;
         if (!raw || !targetTaskId) return;
-        setUploading(true);
+        
         let file = raw;
         let mediaType = 'DOCUMENT';
         if (raw.type.startsWith('image/')) {
@@ -507,9 +508,11 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
         fd.append('task', targetTaskId);
         fd.append('file', file);
         fd.append('media_type', mediaType);
-        try { await constructionService.uploadTaskMedia(fd); refreshData(); }
-        catch { alert('Upload failed.'); }
-        finally { setUploading(false); if (fileInputRef.current) fileInputRef.current.value = ''; }
+        
+        // Dispatch to global upload manager
+        dispatchGlobalUpload(constructionService.uploadTaskMedia, fd, file.name || 'Task Media');
+        
+        if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
     const handleTaskToggle = async (task) => {
@@ -576,38 +579,17 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
     const handleDocumentUpload = async (e, documentType) => {
         const files = e.target.files;
         if (!files || files.length === 0) return;
-        setSaving(true);
-        try {
-            for (let i = 0; i < files.length; i++) {
-                const fd = new FormData();
-                fd.append('phase', phase.id);
-                fd.append('document_type', documentType);
-                fd.append('file', files[i]);
-                await uploadPhaseDocument(fd);
-            }
-            refreshData();
-            setConfirmCfg({
-                isOpen: true,
-                title: 'Success',
-                message: 'Documents uploaded successfully!',
-                confirmText: 'OK',
-                type: 'success',
-                onConfirm: () => setConfirmCfg(c => ({ ...c, isOpen: false }))
-            });
-        } catch (err) {
-            console.error(err);
-            setConfirmCfg({
-                isOpen: true,
-                title: 'Error',
-                message: 'Failed to upload documents.',
-                confirmText: 'OK',
-                type: 'danger',
-                onConfirm: () => setConfirmCfg(c => ({ ...c, isOpen: false }))
-            });
-        } finally {
-            setSaving(false);
-            e.target.value = ''; // Reset input
+        
+        for (let i = 0; i < files.length; i++) {
+            const fd = new FormData();
+            fd.append('phase', phase.id);
+            fd.append('document_type', documentType);
+            fd.append('file', files[i]);
+            
+            // Dispatch to global upload manager
+            dispatchGlobalUpload(constructionService.uploadPhaseDocument, fd, files[i].name || 'Phase Document');
         }
+        e.target.value = ''; // Reset input
     };
 
     const handleDocumentDelete = (docId) => {
@@ -1169,7 +1151,6 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                                     ? (liveTask?.media || [])
                                     : phaseTasks.flatMap(t => (t.media || []).map(m => ({ ...m, taskTitle: t.title })))
                                 }
-                                uploading={uploading}
                                 canUpload={canManage}
                                 onDelete={canManage ? handleDeleteMedia : null}
                                 onUpload={() => {
