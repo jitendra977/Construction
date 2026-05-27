@@ -17,9 +17,9 @@ export default function FloorPlanPage() {
     );
 
     return (
-        <div className="flex flex-col gap-4 h-full" style={{ minHeight: 600 }}>
+        <div className="flex flex-col h-full gap-3">
             {/* Floor tabs */}
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap px-4 pt-3">
                 {floors.map((f, idx) => {
                     const color = FLOOR_COLORS[idx % FLOOR_COLORS.length];
                     const isActive = f.id === activeFloorId;
@@ -69,15 +69,10 @@ export default function FloorPlanPage() {
                     </button>
                 </div>
             ) : (
-                <div className="flex-1" style={{ minHeight: 500 }}>
+                <div className="flex-1 flex flex-col min-h-0">
                     <FloorPlanCanvas floor={activeFloor} />
                 </div>
             )}
-
-            {/* Hint */}
-            <p className="text-[10px] text-center" style={{ color: 'var(--t-text3)' }}>
-                🖱️ Drag rooms to reposition · Scroll to zoom · Click room to inspect · Alt+drag to pan
-            </p>
 
             {showFloorForm && (
                 <Modal isOpen={true} onClose={() => { setShowFloorForm(false); reload(); }}>

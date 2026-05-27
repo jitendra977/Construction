@@ -130,7 +130,7 @@ function DesktopDashboard() {
                 <TopBar navItems={navItems} user={user} activeProjectId={activeProjectId} />
 
                 {/* Page content */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar">
+                <div className="flex-1 overflow-hidden flex flex-col h-full">
                     <Outlet />
                 </div>
             </main>
