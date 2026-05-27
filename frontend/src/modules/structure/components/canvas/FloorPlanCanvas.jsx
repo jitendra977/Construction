@@ -11,9 +11,11 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import structureApi from '../../services/structureApi';
 import { useStructure } from '../../context/StructureContext';
+import { CM2_PER_SQFT } from '../../utils/area';
 
 /* ── Geometry helpers ────────────────────────────────────────────────────── */
 const SNAP = 10;
+const STICKY_GAP = 20;
 const snap = (v) => Math.round(v / SNAP) * SNAP;
 
 const polyArea = (pts) => {
@@ -79,7 +81,60 @@ const SHAPE_PRESETS = {
             { x, y: y + top },
         ];
     },
+    CORRIDOR: (r) => {
+        const x = r.pos_x ?? 0, y = r.pos_y ?? 0,
+              w = r.width_cm || 650, h = r.depth_cm || 140;
+        return [
+            { x, y }, { x: x + w, y },
+            { x: x + w, y: y + h },
+            { x, y: y + h },
+        ];
+    },
+    BALCONY: (r) => {
+        const x = r.pos_x ?? 0, y = r.pos_y ?? 0,
+              w = r.width_cm || 420, h = r.depth_cm || 140,
+              inset = Math.round(Math.min(w, h) * .18);
+        return [
+            { x: x + inset, y }, { x: x + w - inset, y },
+            { x: x + w, y: y + h },
+            { x, y: y + h },
+        ];
+    },
+    STAIR: (r) => {
+        const x = r.pos_x ?? 0, y = r.pos_y ?? 0,
+              w = r.width_cm || 280, h = r.depth_cm || 360,
+              notch = Math.round(Math.min(w, h) * .28);
+        return [
+            { x, y }, { x: x + w, y },
+            { x: x + w, y: y + h },
+            { x: x + notch, y: y + h },
+            { x: x + notch, y: y + notch },
+            { x, y: y + notch },
+        ];
+    },
+    COURTYARD: (r) => {
+        const x = r.pos_x ?? 0, y = r.pos_y ?? 0,
+              w = r.width_cm || 500, h = r.depth_cm || 420,
+              t = Math.round(Math.min(w, h) * .24);
+        return [
+            { x, y }, { x: x + w, y }, { x: x + w, y: y + h },
+            { x, y: y + h }, { x, y },
+            { x: x + t, y: y + t }, { x: x + t, y: y + h - t },
+            { x: x + w - t, y: y + h - t }, { x: x + w - t, y: y + t },
+            { x: x + t, y: y + t },
+        ];
+    },
 };
+
+const SHAPE_BUTTONS = [
+    ['rect', '▭', 'Rectangle'],
+    ['L', 'L', 'L room'],
+    ['U', 'U', 'U room'],
+    ['T', 'T', 'T room'],
+    ['CORRIDOR', '━', 'Corridor'],
+    ['BALCONY', '▱', 'Balcony'],
+    ['STAIR', '▟', 'Stair'],
+];
 
 const STATUS_STYLE = {
     NOT_STARTED: { fill: 'rgba(241,245,249,0.9)', stroke: '#94a3b8' },
@@ -109,6 +164,181 @@ const getPts = (room) =>
         ? room.polygon_points
         : rectToPoly(room);
 
+const hasCustomShape = (room) => Boolean(room.polygon_points && room.polygon_points.length >= 3);
+const polyPath = (pts, scaleValue = 1) => {
+    if (!pts || !pts.length) return '';
+    const [first, ...rest] = pts;
+    return [
+        `M ${(first.x * scaleValue).toFixed(1)} ${(first.y * scaleValue).toFixed(1)}`,
+        ...rest.map(p => `L ${(p.x * scaleValue).toFixed(1)} ${(p.y * scaleValue).toFixed(1)}`),
+        'Z',
+    ].join(' ');
+};
+
+const boundsOf = (pts) => {
+    const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+    return {
+        minX: Math.min(...xs),
+        minY: Math.min(...ys),
+        maxX: Math.max(...xs),
+        maxY: Math.max(...ys),
+        width: Math.max(...xs) - Math.min(...xs),
+        height: Math.max(...ys) - Math.min(...ys),
+    };
+};
+
+const translatePoints = (pts, dx, dy) => pts.map(p => ({ x: p.x + dx, y: p.y + dy }));
+
+const boxesOverlap = (a, b) =>
+    a.minX < b.maxX && a.maxX > b.minX && a.minY < b.maxY && a.maxY > b.minY;
+
+const rangesOverlap = (a1, a2, b1, b2) => a1 < b2 && a2 > b1;
+
+const orient = (a, b, c) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+
+const pointOnSegment = (p, a, b) => {
+    const eps = 0.0001;
+    return Math.abs(orient(a, b, p)) < eps
+        && p.x >= Math.min(a.x, b.x) - eps
+        && p.x <= Math.max(a.x, b.x) + eps
+        && p.y >= Math.min(a.y, b.y) - eps
+        && p.y <= Math.max(a.y, b.y) + eps;
+};
+
+const segmentsCross = (a, b, c, d) => {
+    const eps = 0.0001;
+    const o1 = orient(a, b, c);
+    const o2 = orient(a, b, d);
+    const o3 = orient(c, d, a);
+    const o4 = orient(c, d, b);
+    return ((o1 > eps && o2 < -eps) || (o1 < -eps && o2 > eps))
+        && ((o3 > eps && o4 < -eps) || (o3 < -eps && o4 > eps));
+};
+
+const pointInPolygonStrict = (point, poly) => {
+    if (!poly || poly.length < 3) return false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        if (pointOnSegment(point, poly[j], poly[i])) return false;
+    }
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const pi = poly[i], pj = poly[j];
+        const crosses = (pi.y > point.y) !== (pj.y > point.y);
+        if (crosses) {
+            const xAtY = (pj.x - pi.x) * (point.y - pi.y) / (pj.y - pi.y) + pi.x;
+            if (point.x < xAtY) inside = !inside;
+        }
+    }
+    return inside;
+};
+
+const polygonsOverlap = (aPts, bPts) => {
+    if (!aPts?.length || !bPts?.length) return false;
+    if (!boxesOverlap(boundsOf(aPts), boundsOf(bPts))) return false;
+
+    for (let i = 0; i < aPts.length; i++) {
+        const a1 = aPts[i];
+        const a2 = aPts[(i + 1) % aPts.length];
+        for (let j = 0; j < bPts.length; j++) {
+            const b1 = bPts[j];
+            const b2 = bPts[(j + 1) % bPts.length];
+            if (segmentsCross(a1, a2, b1, b2)) return true;
+        }
+    }
+
+    return aPts.some(p => pointInPolygonStrict(p, bPts))
+        || bPts.some(p => pointInPolygonStrict(p, aPts));
+};
+
+const roomPolygonOverlaps = (roomId, pts, rooms) =>
+    rooms.some(other => other.id !== roomId && polygonsOverlap(pts, getPts(other)));
+
+const clampPointsToBounds = (pts, width, depth) => {
+    const b = boundsOf(pts);
+    let dx = 0;
+    let dy = 0;
+    if (b.minX < 0) dx = -b.minX;
+    if (b.maxX > width) dx = width - b.maxX;
+    if (b.minY < 0) dy = -b.minY;
+    if (b.maxY > depth) dy = depth - b.maxY;
+    return dx || dy ? translatePoints(pts, dx, dy) : pts;
+};
+
+const dragStickyEdges = (point, bounds) => {
+    const xDistances = [
+        ['left', Math.abs(point.x - bounds.minX)],
+        ['right', Math.abs(point.x - bounds.maxX)],
+    ].sort((a, b) => a[1] - b[1]);
+    const yDistances = [
+        ['top', Math.abs(point.y - bounds.minY)],
+        ['bottom', Math.abs(point.y - bounds.maxY)],
+    ].sort((a, b) => a[1] - b[1]);
+    const xRatio = bounds.width ? xDistances[0][1] / bounds.width : 1;
+    const yRatio = bounds.height ? yDistances[0][1] / bounds.height : 1;
+    return {
+        x: xRatio <= 0.35 ? xDistances[0][0] : null,
+        y: yRatio <= 0.35 ? yDistances[0][0] : null,
+    };
+};
+
+const stickyRoomPoints = (roomId, pts, rooms, planWidth, planDepth, stickyEdges = {}) => {
+    let nextPts = clampPointsToBounds(pts, planWidth, planDepth);
+    let b = boundsOf(nextPts);
+
+    for (const other of rooms) {
+        if (other.id === roomId) continue;
+        const ob = boundsOf(getPts(other));
+        let dx = 0;
+        let dy = 0;
+
+        if (stickyEdges.x && rangesOverlap(b.minY, b.maxY, ob.minY, ob.maxY)) {
+            const stickLeft = ob.minX - b.maxX;
+            const stickRight = ob.maxX - b.minX;
+            if (stickyEdges.x === 'right' && Math.abs(stickLeft) <= STICKY_GAP) dx = stickLeft;
+            else if (stickyEdges.x === 'left' && Math.abs(stickRight) <= STICKY_GAP) dx = stickRight;
+        }
+        if (stickyEdges.y && rangesOverlap(b.minX, b.maxX, ob.minX, ob.maxX)) {
+            const stickTop = ob.minY - b.maxY;
+            const stickBottom = ob.maxY - b.minY;
+            if (stickyEdges.y === 'bottom' && Math.abs(stickTop) <= STICKY_GAP) dy = stickTop;
+            else if (stickyEdges.y === 'top' && Math.abs(stickBottom) <= STICKY_GAP) dy = stickBottom;
+        }
+
+        if (dx || dy) {
+            nextPts = clampPointsToBounds(translatePoints(nextPts, dx, dy), planWidth, planDepth);
+            b = boundsOf(nextPts);
+        }
+    }
+
+    return nextPts.map(p => ({ x: snap(p.x), y: snap(p.y) }));
+};
+
+const rotatePoints = (pts, degrees, origin = polyCentroid(pts)) => {
+    const rad = degrees * Math.PI / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    return pts.map(p => ({
+        x: snap(origin.x + (p.x - origin.x) * cos - (p.y - origin.y) * sin),
+        y: snap(origin.y + (p.x - origin.x) * sin + (p.y - origin.y) * cos),
+    }));
+};
+
+const angleBetween = (center, point) => Math.atan2(point.y - center.y, point.x - center.x) * 180 / Math.PI;
+
+const scalePointsToBounds = (pts, fromBounds, toBounds) => {
+    const sx = toBounds.width / Math.max(fromBounds.width, 1);
+    const sy = toBounds.height / Math.max(fromBounds.height, 1);
+    return pts.map(p => ({
+        x: snap(toBounds.minX + (p.x - fromBounds.minX) * sx),
+        y: snap(toBounds.minY + (p.y - fromBounds.minY) * sy),
+    }));
+};
+
+const makeShapePoints = (shape, room) => {
+    if (shape === 'rect') return null;
+    return SHAPE_PRESETS[shape]?.(room) || null;
+};
+
 const ROOM_TYPE_OPTS = [
     ['BEDROOM','🛏️ Bedroom'],['KITCHEN','🍳 Kitchen'],['BATHROOM','🚿 Bathroom'],
     ['LIVING','🛋️ Living'],['DINING','🍽️ Dining'],['OFFICE','💼 Office'],
@@ -118,6 +348,19 @@ const ROOM_TYPE_OPTS = [
 ];
 const FLOOR_FINISH_OPTS = [['','—'],['TILE','Tile'],['MARBLE','Marble'],['GRANITE','Granite'],['WOOD','Wood'],['CEMENT','Cement'],['STONE','Stone'],['OTHER','Other']];
 const WALL_FINISH_OPTS  = [['','—'],['PAINT','Paint'],['PLASTER','Plaster'],['TILE','Tile'],['STONE','Stone'],['OTHER','Other']];
+const BUDGET_PRESETS = [
+    ['Basic', 1200],
+    ['Standard', 1800],
+    ['Premium', 2600],
+];
+const fmtFeet = (cm) => `${(+cm / 30.48).toFixed(1)} ft`;
+const fmtCm = (cm) => `${Math.round(+cm || 0)} cm`;
+const fmtSqft = (cm2) => `${(+cm2 / CM2_PER_SQFT).toFixed(1)} ft²`;
+const money = (value) => new Intl.NumberFormat('en-NP', {
+    style: 'currency',
+    currency: 'NPR',
+    maximumFractionDigits: 0,
+}).format(+value || 0);
 
 /* ── Room Inspector Panel ────────────────────────────────────────────────── */
 function RoomInspector({ room, floorColor, onClose, onDelete, onRoomSaved }) {
@@ -151,7 +394,7 @@ function RoomInspector({ room, floorColor, onClose, onDelete, onRoomSaved }) {
     const [saving, setSaving]   = useState(false);
     const [flash, setFlash]     = useState(false);
     const [deleting, setDel]    = useState(false);
-    const [tab, setTab]         = useState('dims'); // 'dims' | 'finish' | 'mep' | 'schedule' | 'notes'
+    const [tab, setTab]         = useState('layout');
     const timerRef = useRef(null);
 
     // sync position when dragged on canvas
@@ -186,8 +429,8 @@ function RoomInspector({ room, floorColor, onClose, onDelete, onRoomSaved }) {
                     pos_x:             +data.pos_x || 0,
                     pos_y:             +data.pos_y || 0,
                     area_sqft:         data.polygon_points
-                        ? +(polyArea(data.polygon_points) / 929.03).toFixed(2)
-                        : (w && d ? +(w * d / 929.03).toFixed(2) : null),
+                        ? +(polyArea(data.polygon_points) / CM2_PER_SQFT).toFixed(2)
+                        : (w && d ? +(w * d / CM2_PER_SQFT).toFixed(2) : null),
                     budget_allocation: +data.budget_allocation || 0,
                     window_count:      +data.window_count || 0,
                     door_count:        +data.door_count || 1,
@@ -218,13 +461,21 @@ function RoomInspector({ room, floorColor, onClose, onDelete, onRoomSaved }) {
     };
 
     const applyShape = (key) => {
-        const pts = key === 'rect'
-            ? null
-            : SHAPE_PRESETS[key]?.({
-                pos_x: +form.pos_x || 0, pos_y: +form.pos_y || 0,
-                width_cm: +form.width_cm || 300, depth_cm: +form.depth_cm || 300,
-              }) ?? null;
-        change('polygon_points', pts);
+        const pts = makeShapePoints(key, {
+            pos_x: +form.pos_x || 0,
+            pos_y: +form.pos_y || 0,
+            width_cm: +form.width_cm || 300,
+            depth_cm: +form.depth_cm || 300,
+        });
+        const next = { ...form, polygon_points: pts };
+        const shapedPts = pts || rectToPoly(next);
+        const b = boundsOf(shapedPts);
+        next.pos_x = snap(b.minX);
+        next.pos_y = snap(b.minY);
+        next.width_cm = Math.max(SNAP, snap(b.width));
+        next.depth_cm = Math.max(SNAP, snap(b.height));
+        setForm(next);
+        save(next);
     };
 
     const handleDelete = async () => {
@@ -238,7 +489,7 @@ function RoomInspector({ room, floorColor, onClose, onDelete, onRoomSaved }) {
     const isPoly   = pts && pts.length >= 3;
     const W = +form.width_cm || 0, D = +form.depth_cm || 0;
     const areaCm2  = isPoly ? polyArea(pts) : W * D;
-    const areaSqft = (areaCm2 / 929.03).toFixed(1);
+    const areaSqft = (areaCm2 / CM2_PER_SQFT).toFixed(1);
     const areaM2   = (areaCm2 / 10000).toFixed(2);
 
     // mini preview
@@ -253,7 +504,7 @@ function RoomInspector({ room, floorColor, onClose, onDelete, onRoomSaved }) {
         const ox = (PRV - bw * sc) / 2 - minX * sc, oy = (PRV - bh * sc) / 2 - minY * sc;
         previewPts = usePts.map(p => ({ x: ox + p.x * sc, y: oy + p.y * sc }));
     }
-    const pvStr  = previewPts ? previewPts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ') : '';
+    const pvPath = previewPts ? polyPath(previewPts) : '';
     const pvCtr  = previewPts ? polyCentroid(previewPts) : { x: PRV / 2, y: PRV / 2 };
 
     const iStyle = {
@@ -284,20 +535,12 @@ function RoomInspector({ room, floorColor, onClose, onDelete, onRoomSaved }) {
                 <button onClick={onClose} className="text-lg leading-none opacity-40 hover:opacity-80">×</button>
             </div>
 
-            {/* Room type + status */}
+            {/* Room type */}
             <div className="px-4 py-2 space-y-2 shrink-0" style={{ borderBottom: '1px solid var(--t-border)' }}>
                 <div>
                     <Lbl>Type</Lbl>
                     <select value={form.room_type} onChange={e => change('room_type', e.target.value)} style={iStyle}>
                         {ROOM_TYPE_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                    </select>
-                </div>
-                <div>
-                    <Lbl>Status</Lbl>
-                    <select value={form.status} onChange={e => change('status', e.target.value)} style={iStyle}>
-                        <option value="NOT_STARTED">⬜ Not Started</option>
-                        <option value="IN_PROGRESS">🔵 In Progress</option>
-                        <option value="COMPLETED">✅ Completed</option>
                     </select>
                 </div>
             </div>
@@ -307,9 +550,10 @@ function RoomInspector({ room, floorColor, onClose, onDelete, onRoomSaved }) {
                 <div className="px-4 py-2 shrink-0 flex items-center gap-3"
                     style={{ borderBottom: '1px solid var(--t-border)' }}>
                     <svg width={PRV} height={PRV} style={{ borderRadius: 6, background: '#f8fafc', flexShrink: 0 }}>
-                        <polygon points={pvStr}
-                            fill={STATUS_STYLE[form.status]?.fill || '#f1f5f9'}
-                            stroke={floorColor} strokeWidth={2} />
+                        <path d={pvPath}
+                            fill={`${floorColor}18`}
+                            stroke={floorColor} strokeWidth={2}
+                            fillRule="nonzero" />
                         <text x={pvCtr.x} y={pvCtr.y} textAnchor="middle"
                             dominantBaseline="middle" fontSize={10} fill="#374151" fontWeight={600}>
                             {+areaSqft > 0 ? `${areaSqft} ft²` : ''}
@@ -323,34 +567,34 @@ function RoomInspector({ room, floorColor, onClose, onDelete, onRoomSaved }) {
                         {form.ceiling_height_cm && (
                             <p style={{ color: 'var(--t-text3)' }}>H: {form.ceiling_height_cm} cm</p>
                         )}
-                        <p style={{ color: 'var(--t-text3)' }}>🚪{form.door_count} 🪟{form.window_count}</p>
+                        <p style={{ color: 'var(--t-text3)' }}>Doors {form.door_count} · Windows {form.window_count}</p>
                     </div>
                 </div>
             )}
 
             {/* Sub-tabs */}
             <div className="flex shrink-0 overflow-x-auto" style={{ borderBottom: '1px solid var(--t-border)' }}>
-                {[['dims','📐'],['finish','🎨'],['mep','⚡'],['schedule','📅'],['notes','💬']].map(([id, lbl]) => (
+                {[['layout','Layout'],['finish','Finish'],['openings','Openings'],['budget','Budget'],['notes','Notes']].map(([id, lbl]) => (
                     <button key={id} onClick={() => setTab(id)}
                         className="flex-1 py-2 text-[10px] font-bold transition-colors whitespace-nowrap"
                         style={{
                             color: tab === id ? '#f97316' : 'var(--t-text3)',
                             borderBottom: tab === id ? '2px solid #f97316' : '2px solid transparent',
                             background: 'transparent',
-                            minWidth: 40,
+                            minWidth: 58,
                         }}>
                         {lbl}
                     </button>
                 ))}
             </div>
 
-            {/* Tab: Dimensions */}
-            {tab === 'dims' && (
+            {/* Tab: Layout */}
+            {tab === 'layout' && (
                 <div className="px-4 py-3 space-y-3">
                     <div className="grid grid-cols-2 gap-2">
-                        {[['W','width_cm'],['D','depth_cm'],['X','pos_x'],['Y','pos_y']].map(([lbl, k]) => (
+                        {[['Width','width_cm'],['Depth','depth_cm'],['X','pos_x'],['Y','pos_y']].map(([lbl, k]) => (
                             <label key={k} className="flex items-center gap-1.5">
-                                <span className="text-[10px] font-black w-4 shrink-0" style={{ color: '#f97316' }}>{lbl}</span>
+                                <span className="text-[10px] font-black w-9 shrink-0" style={{ color: '#f97316' }}>{lbl}</span>
                                 <input type="number" value={form[k]}
                                     onChange={e => change(k, e.target.value)} style={iStyle} />
                             </label>
@@ -366,27 +610,19 @@ function RoomInspector({ room, floorColor, onClose, onDelete, onRoomSaved }) {
                     {/* Shape presets */}
                     <div>
                         <Lbl>Shape</Lbl>
-                        <div className="flex gap-1.5">
-                            {['rect', 'L', 'U', 'T'].map(k => (
-                                <button key={k} onClick={() => applyShape(k)}
+                        <div className="grid grid-cols-4 gap-1.5">
+                            {SHAPE_BUTTONS.map(([k, icon, title]) => (
+                                <button key={k} onClick={() => applyShape(k)} title={title}
                                     className="flex-1 py-1.5 rounded text-xs font-bold border transition-colors"
                                     style={{
                                         borderColor: (!isPoly && k === 'rect') ? '#f97316' : 'var(--t-border)',
                                         color: (!isPoly && k === 'rect') ? '#f97316' : 'var(--t-text)',
                                         background: 'var(--t-surface)',
                                     }}>
-                                    {k === 'rect' ? '▭' : k}
+                                    {icon}
                                 </button>
                             ))}
                         </div>
-                    </div>
-
-                    {/* Budget */}
-                    <div>
-                        <Lbl>Budget (NPR)</Lbl>
-                        <input type="number" value={form.budget_allocation}
-                            onChange={e => change('budget_allocation', e.target.value)}
-                            style={iStyle} placeholder="0" />
                     </div>
                 </div>
             )}
@@ -420,139 +656,79 @@ function RoomInspector({ room, floorColor, onClose, onDelete, onRoomSaved }) {
                             )}
                         </div>
                     </div>
+                </div>
+            )}
+
+            {/* Tab: Openings */}
+            {tab === 'openings' && (
+                <div className="px-4 py-3 space-y-3">
                     <div className="grid grid-cols-2 gap-2">
                         <div>
-                            <Lbl>🚪 Doors</Lbl>
+                            <Lbl>Doors</Lbl>
                             <input type="number" min="0" value={form.door_count}
                                 onChange={e => change('door_count', e.target.value)} style={iStyle} />
                         </div>
                         <div>
-                            <Lbl>🪟 Windows</Lbl>
+                            <Lbl>Windows</Lbl>
                             <input type="number" min="0" value={form.window_count}
                                 onChange={e => change('window_count', e.target.value)} style={iStyle} />
                         </div>
                     </div>
-                </div>
-            )}
-
-            {/* Tab: MEP */}
-            {tab === 'mep' && (
-                <div className="px-4 py-3 space-y-3">
                     <div className="grid grid-cols-2 gap-2">
-                        <div>
-                            <Lbl>⚡ Electrical Pts</Lbl>
-                            <input type="number" min="0" value={form.electrical_points}
-                                onChange={e => change('electrical_points', e.target.value)} style={iStyle} />
+                        <div className="rounded-lg p-2" style={{ background: 'var(--t-bg)', border: '1px solid var(--t-border)' }}>
+                            <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: 'var(--t-text3)' }}>Total</p>
+                            <p className="text-xs font-black mt-1" style={{ color: '#f97316' }}>
+                                {(+form.door_count || 0) + (+form.window_count || 0)}
+                            </p>
                         </div>
-                        <div>
-                            <Lbl>💡 Light Pts</Lbl>
-                            <input type="number" min="0" value={form.light_points}
-                                onChange={e => change('light_points', e.target.value)} style={iStyle} />
-                        </div>
-                        <div>
-                            <Lbl>🌀 Fan Pts</Lbl>
-                            <input type="number" min="0" value={form.fan_points}
-                                onChange={e => change('fan_points', e.target.value)} style={iStyle} />
-                        </div>
-                        <div>
-                            <Lbl>🔧 Plumbing Pts</Lbl>
-                            <input type="number" min="0" value={form.plumbing_points}
-                                onChange={e => change('plumbing_points', e.target.value)} style={iStyle} />
+                        <div className="rounded-lg p-2" style={{ background: 'var(--t-bg)', border: '1px solid var(--t-border)' }}>
+                            <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: 'var(--t-text3)' }}>Ratio</p>
+                            <p className="text-xs font-black mt-1" style={{ color: 'var(--t-text)' }}>
+                                {+areaSqft > 0 ? (((+form.door_count || 0) + (+form.window_count || 0)) / +areaSqft).toFixed(2) : '0.00'}
+                            </p>
                         </div>
                     </div>
-
-                    {/* AC Provision toggle */}
-                    <button
-                        onClick={() => change('ac_provision', !form.ac_provision)}
-                        className="w-full py-2 rounded-lg text-xs font-bold transition-colors"
-                        style={{
-                            background: form.ac_provision ? 'rgba(59,130,246,0.15)' : 'var(--t-bg)',
-                            color:      form.ac_provision ? '#3b82f6' : 'var(--t-text3)',
-                            border:     `1px solid ${form.ac_provision ? '#3b82f6' : 'var(--t-border)'}`,
-                        }}>
-                        ❄️ AC Provision — {form.ac_provision ? 'Yes (Enabled)' : 'No (Disabled)'}
-                    </button>
-
-                    {/* Summary card */}
-                    {(form.electrical_points > 0 || form.light_points > 0 || form.fan_points > 0
-                        || form.ac_provision || form.plumbing_points > 0) && (
-                        <div className="rounded-lg p-2.5 space-y-1.5"
-                            style={{ background: 'var(--t-bg)', border: '1px solid var(--t-border)' }}>
-                            <p className="text-[9px] font-black uppercase tracking-widest mb-2" style={{ color: 'var(--t-text3)' }}>
-                                MEP Summary
-                            </p>
-                            <div className="flex flex-wrap gap-1.5">
-                                {form.electrical_points > 0 && (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
-                                        style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' }}>
-                                        ⚡ {form.electrical_points} pts
-                                    </span>
-                                )}
-                                {form.light_points > 0 && (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
-                                        style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' }}>
-                                        💡 {form.light_points} pts
-                                    </span>
-                                )}
-                                {form.fan_points > 0 && (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
-                                        style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' }}>
-                                        🌀 {form.fan_points} pts
-                                    </span>
-                                )}
-                                {form.ac_provision && (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
-                                        style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.3)' }}>
-                                        ❄️ AC
-                                    </span>
-                                )}
-                                {form.plumbing_points > 0 && (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
-                                        style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.3)' }}>
-                                        🔧 {form.plumbing_points} pts
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                    )}
                 </div>
             )}
 
-            {/* Tab: Schedule */}
-            {tab === 'schedule' && (
+            {/* Tab: Budget */}
+            {tab === 'budget' && (
                 <div className="px-4 py-3 space-y-3">
                     <div>
-                        <Lbl>Priority / प्राथमिकता</Lbl>
-                        <div className="flex gap-1.5">
-                            {[['HIGH','🔴 High','#ef4444'],['MEDIUM','🟡 Med','#f59e0b'],['LOW','🟢 Low','#10b981']].map(([val, lbl, clr]) => (
-                                <button key={val} onClick={() => change('priority', val)}
-                                    className="flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-colors"
+                        <Lbl>Room Budget</Lbl>
+                        <input type="number" value={form.budget_allocation}
+                            onChange={e => change('budget_allocation', e.target.value)}
+                            style={iStyle} placeholder="0" />
+                    </div>
+                    <div>
+                        <Lbl>Budget Presets</Lbl>
+                        <div className="grid grid-cols-3 gap-1.5">
+                            {BUDGET_PRESETS.map(([label, rate]) => (
+                                <button key={label} type="button"
+                                    onClick={() => change('budget_allocation', Math.round((+areaSqft || 0) * rate))}
+                                    className="py-2 rounded text-[10px] font-black border"
                                     style={{
-                                        background: form.priority === val ? `${clr}20` : 'var(--t-bg)',
-                                        color:      form.priority === val ? clr : 'var(--t-text3)',
-                                        border:     `1px solid ${form.priority === val ? clr : 'var(--t-border)'}`,
+                                        borderColor: 'var(--t-border)',
+                                        color: 'var(--t-text)',
+                                        background: 'var(--t-bg)',
                                     }}>
-                                    {lbl}
+                                    {label}
                                 </button>
                             ))}
                         </div>
                     </div>
-                    <div>
-                        <Lbl>📅 Target Completion</Lbl>
-                        <input type="date" value={form.completion_date}
-                            onChange={e => change('completion_date', e.target.value)} style={iStyle} />
+                    <div className="grid grid-cols-2 gap-2">
+                        <div className="rounded-lg p-2" style={{ background: 'var(--t-bg)', border: '1px solid var(--t-border)' }}>
+                            <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: 'var(--t-text3)' }}>Total</p>
+                            <p className="text-xs font-black mt-1" style={{ color: '#f97316' }}>{money(form.budget_allocation)}</p>
+                        </div>
+                        <div className="rounded-lg p-2" style={{ background: 'var(--t-bg)', border: '1px solid var(--t-border)' }}>
+                            <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: 'var(--t-text3)' }}>Per ft²</p>
+                            <p className="text-xs font-black mt-1" style={{ color: 'var(--t-text)' }}>
+                                {+areaSqft > 0 ? money((+form.budget_allocation || 0) / +areaSqft) : money(0)}
+                            </p>
+                        </div>
                     </div>
-                    {form.completion_date && (() => {
-                        const diff = Math.ceil((new Date(form.completion_date) - new Date()) / 86400000);
-                        const color = diff < 0 ? '#ef4444' : diff <= 7 ? '#f59e0b' : '#10b981';
-                        const label = diff < 0 ? `${Math.abs(diff)} days overdue` : diff === 0 ? 'Due today' : `${diff} days left`;
-                        return (
-                            <div className="rounded-lg px-3 py-2 text-xs font-semibold text-center"
-                                style={{ background: `${color}15`, color, border: `1px solid ${color}40` }}>
-                                📅 {label}
-                            </div>
-                        );
-                    })()}
                 </div>
             )}
 
@@ -591,6 +767,198 @@ function RoomInspector({ room, floorColor, onClose, onDelete, onRoomSaved }) {
     );
 }
 
+function AddRoomPanel({ floor, floorColor, onClose, onCreate }) {
+    const [form, setForm] = useState({
+        name: '',
+        room_type: 'BEDROOM',
+        shape: 'rect',
+        width_cm: 300,
+        depth_cm: 250,
+        pos_x: 50,
+        pos_y: 50,
+        rotation: 0,
+        status: 'NOT_STARTED',
+    });
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
+
+    const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
+    const width = +form.width_cm || 0;
+    const depth = +form.depth_cm || 0;
+    const draft = {
+        pos_x: +form.pos_x || 0,
+        pos_y: +form.pos_y || 0,
+        width_cm: width || 300,
+        depth_cm: depth || 250,
+        polygon_points: makeShapePoints(form.shape, {
+            pos_x: +form.pos_x || 0,
+            pos_y: +form.pos_y || 0,
+            width_cm: width || 300,
+            depth_cm: depth || 250,
+        }),
+    };
+    const basePreviewPts = getPts(draft);
+    const previewPts = +form.rotation ? rotatePoints(basePreviewPts, +form.rotation) : basePreviewPts;
+    const previewBounds = boundsOf(previewPts);
+    const previewScale = Math.min(180 / Math.max(previewBounds.width, 1), 120 / Math.max(previewBounds.height, 1));
+    const preview = previewPts.map(p => ({
+        x: 18 + (p.x - previewBounds.minX) * previewScale,
+        y: 18 + (p.y - previewBounds.minY) * previewScale,
+    }));
+    const previewPath = polyPath(preview);
+    const areaCm2 = polyArea(previewPts);
+
+    const submit = async (e) => {
+        e.preventDefault();
+        if (!form.name.trim()) {
+            setError('Room name is required.');
+            return;
+        }
+        setSaving(true);
+        setError('');
+        try {
+            await onCreate({
+                name: form.name.trim(),
+                floor: floor.id,
+                room_type: form.room_type,
+                status: form.status,
+                pos_x: snap(previewBounds.minX),
+                pos_y: snap(previewBounds.minY),
+                width_cm: Math.max(SNAP, snap(previewBounds.width)) || null,
+                depth_cm: Math.max(SNAP, snap(previewBounds.height)) || null,
+                polygon_points: form.shape !== 'rect' || +form.rotation ? previewPts : null,
+                area_sqft: +(areaCm2 / CM2_PER_SQFT).toFixed(2),
+                budget_allocation: 0,
+            });
+        } catch (err) {
+            console.error(err);
+            setError('Could not create room.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const inputStyle = {
+        width: '100%',
+        padding: '7px 9px',
+        borderRadius: 8,
+        border: '1px solid var(--t-border)',
+        background: 'var(--t-bg)',
+        color: 'var(--t-text)',
+        fontSize: 12,
+        outline: 'none',
+    };
+
+    return (
+        <form onSubmit={submit} className="flex flex-col overflow-y-auto shrink-0"
+            style={{ width: 300, background: 'var(--t-surface)', borderLeft: '1px solid var(--t-border)' }}>
+            <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--t-border)', borderLeft: `3px solid ${floorColor}` }}>
+                <div className="flex items-center justify-between gap-2">
+                    <div>
+                        <h3 className="text-sm font-black" style={{ color: 'var(--t-text)' }}>Add Room</h3>
+                        <p className="text-[10px] mt-0.5" style={{ color: 'var(--t-text3)' }}>{floor.name}</p>
+                    </div>
+                    <button type="button" onClick={onClose} className="text-lg leading-none opacity-40 hover:opacity-80">×</button>
+                </div>
+            </div>
+
+            <div className="px-4 py-3 space-y-3">
+                <div>
+                    <p className="text-[9px] font-black uppercase tracking-widest mb-1" style={{ color: 'var(--t-text3)' }}>Name</p>
+                    <input autoFocus value={form.name} onChange={e => set('name', e.target.value)}
+                        style={inputStyle} placeholder="Master Bedroom" />
+                </div>
+
+                <div>
+                    <p className="text-[9px] font-black uppercase tracking-widest mb-1" style={{ color: 'var(--t-text3)' }}>Type</p>
+                    <select value={form.room_type} onChange={e => set('room_type', e.target.value)} style={inputStyle}>
+                        {ROOM_TYPE_OPTS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                    </select>
+                </div>
+
+                <div>
+                    <p className="text-[9px] font-black uppercase tracking-widest mb-1" style={{ color: 'var(--t-text3)' }}>Shape</p>
+                    <div className="grid grid-cols-4 gap-1.5">
+                        {SHAPE_BUTTONS.map(([key, icon, title]) => (
+                            <button key={key} type="button" title={title} onClick={() => set('shape', key)}
+                                className="py-2 rounded text-xs font-black border"
+                                style={{
+                                    borderColor: form.shape === key ? floorColor : 'var(--t-border)',
+                                    color: form.shape === key ? floorColor : 'var(--t-text)',
+                                    background: form.shape === key ? `${floorColor}12` : 'var(--t-bg)',
+                                }}>
+                                {icon}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div>
+                    <p className="text-[9px] font-black uppercase tracking-widest mb-1" style={{ color: 'var(--t-text3)' }}>Rotation</p>
+                    <div className="grid grid-cols-4 gap-1.5">
+                        {[0, 90, 180, 270].map(deg => (
+                            <button key={deg} type="button" onClick={() => set('rotation', deg)}
+                                className="py-1.5 rounded text-[11px] font-black border"
+                                style={{
+                                    borderColor: Number(form.rotation) === deg ? floorColor : 'var(--t-border)',
+                                    color: Number(form.rotation) === deg ? floorColor : 'var(--t-text)',
+                                    background: Number(form.rotation) === deg ? `${floorColor}12` : 'var(--t-bg)',
+                                }}>
+                                {deg}°
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <svg width="100%" height="150" style={{ borderRadius: 10, background: '#f8fafc', border: '1px solid var(--t-border)' }}>
+                    <path d={previewPath}
+                        fill="rgba(219,234,254,0.9)"
+                        stroke={floorColor}
+                        strokeWidth={2}
+                        fillRule="nonzero" />
+                    <text x="50%" y="134" textAnchor="middle" fontSize="11" fill="#475569" fontWeight="700">
+                        {(areaCm2 / CM2_PER_SQFT).toFixed(1)} ft²
+                    </text>
+                </svg>
+
+                <div className="grid grid-cols-2 gap-2">
+                    <label>
+                        <p className="text-[9px] font-black uppercase tracking-widest mb-1" style={{ color: 'var(--t-text3)' }}>Width cm</p>
+                        <input type="number" value={form.width_cm} onChange={e => set('width_cm', e.target.value)} style={inputStyle} />
+                    </label>
+                    <label>
+                        <p className="text-[9px] font-black uppercase tracking-widest mb-1" style={{ color: 'var(--t-text3)' }}>Depth cm</p>
+                        <input type="number" value={form.depth_cm} onChange={e => set('depth_cm', e.target.value)} style={inputStyle} />
+                    </label>
+                    <label>
+                        <p className="text-[9px] font-black uppercase tracking-widest mb-1" style={{ color: 'var(--t-text3)' }}>X</p>
+                        <input type="number" value={form.pos_x} onChange={e => set('pos_x', e.target.value)} style={inputStyle} />
+                    </label>
+                    <label>
+                        <p className="text-[9px] font-black uppercase tracking-widest mb-1" style={{ color: 'var(--t-text3)' }}>Y</p>
+                        <input type="number" value={form.pos_y} onChange={e => set('pos_y', e.target.value)} style={inputStyle} />
+                    </label>
+                </div>
+
+                {error && <div className="text-xs font-bold text-red-500">{error}</div>}
+            </div>
+
+            <div className="mt-auto px-4 py-3 flex gap-2" style={{ borderTop: '1px solid var(--t-border)' }}>
+                <button type="button" onClick={onClose}
+                    className="flex-1 py-2 rounded-lg text-xs font-bold border"
+                    style={{ borderColor: 'var(--t-border)', color: 'var(--t-text)', background: 'transparent' }}>
+                    Cancel
+                </button>
+                <button type="submit" disabled={saving}
+                    className="flex-1 py-2 rounded-lg text-xs font-black text-white"
+                    style={{ background: saving ? '#94a3b8' : floorColor }}>
+                    {saving ? 'Adding...' : 'Add Room'}
+                </button>
+            </div>
+        </form>
+    );
+}
+
 /* ── FloorPlanCanvas ─────────────────────────────────────────────────────── */
 const FLOOR_COLORS = ['#ea580c', '#3b82f6', '#8b5cf6', '#10b981'];
 
@@ -602,6 +970,8 @@ export default function FloorPlanCanvas({ floor }) {
     const [pan, setPan]             = useState({ x: 40, y: 40 });
     const [selectedId, setSelectedId] = useState(null);
     const [rooms, setRooms]         = useState([]);
+    const [showAddPanel, setShowAddPanel] = useState(false);
+    const [editShapeMode, setEditShapeMode] = useState(false);
 
     // sync rooms when floor changes
     useEffect(() => {
@@ -625,14 +995,24 @@ export default function FloorPlanCanvas({ floor }) {
     const BW     = floor?.plan_width_cm  || 1500;
     const BD     = floor?.plan_depth_cm  || 1000;
     const selectedRoom = rooms.find(r => r.id === selectedId) || null;
+    const floorAreaCm2 = BW * BD;
+    const measureColor = '#facc15';
 
     // ── Drag via refs (stable — no event listener churn) ──────────────────
     const dragRef   = useRef(null);
+    const vertexDragRef = useRef(null);
+    const resizeDragRef = useRef(null);
+    const rotateDragRef = useRef(null);
+    const edgeDragRef = useRef(null);
     const panRef    = useRef(null);
     const scaleRef  = useRef(scale);
     const panValRef = useRef(pan);
+    const roomsRef  = useRef(rooms);
+    const planRef   = useRef({ width: BW, depth: BD });
     useEffect(() => { scaleRef.current = scale; }, [scale]);
     useEffect(() => { panValRef.current = pan; }, [pan]);
+    useEffect(() => { roomsRef.current = rooms; }, [rooms]);
+    useEffect(() => { planRef.current = { width: BW, depth: BD }; }, [BW, BD]);
 
     const svgPoint = (e) => {
         const svg = svgRef.current;
@@ -646,9 +1026,12 @@ export default function FloorPlanCanvas({ floor }) {
 
     const onRoomMouseDown = (e, room) => {
         if (e.button !== 0) return;
+        if (editShapeMode && room.id === selectedId) return;
         e.stopPropagation();
         setSelectedId(room.id);
         const pt = svgPoint(e);
+        const pts = getPts(room);
+        const b = boundsOf(pts);
         dragRef.current = {
             roomId:  room.id,
             startX:  pt.x,
@@ -656,6 +1039,68 @@ export default function FloorPlanCanvas({ floor }) {
             origX:   room.pos_x ?? 0,
             origY:   room.pos_y ?? 0,
             origPts: room.polygon_points ? JSON.parse(JSON.stringify(room.polygon_points)) : null,
+            stickyEdges: dragStickyEdges(pt, b),
+        };
+    };
+
+    const onVertexMouseDown = (e, room, index) => {
+        if (e.button !== 0) return;
+        e.stopPropagation();
+        setSelectedId(room.id);
+        const pts = getPts(room).map(p => ({ ...p }));
+        vertexDragRef.current = { roomId: room.id, index, origPts: pts };
+    };
+
+    const onEdgeMouseDown = (e, room, index) => {
+        if (e.button !== 0) return;
+        e.stopPropagation();
+        setSelectedId(room.id);
+        const pts = getPts(room).map(p => ({ ...p }));
+        const nextIndex = (index + 1) % pts.length;
+        const a = pts[index];
+        const b = pts[nextIndex];
+        const pt = svgPoint(e);
+        const orientation = Math.abs(a.x - b.x) < Math.abs(a.y - b.y)
+            ? 'vertical'
+            : Math.abs(a.y - b.y) < Math.abs(a.x - b.x)
+                ? 'horizontal'
+                : 'free';
+        edgeDragRef.current = {
+            roomId: room.id,
+            index,
+            nextIndex,
+            orientation,
+            startX: pt.x,
+            startY: pt.y,
+            origPts: pts,
+        };
+    };
+
+    const onResizeMouseDown = (e, room, handle) => {
+        if (e.button !== 0) return;
+        e.stopPropagation();
+        setSelectedId(room.id);
+        const pts = getPts(room).map(p => ({ ...p }));
+        resizeDragRef.current = {
+            roomId: room.id,
+            handle,
+            origPts: pts,
+            origBounds: boundsOf(pts),
+            wasPolygon: Boolean(room.polygon_points && room.polygon_points.length >= 3),
+        };
+    };
+
+    const onRotateMouseDown = (e, room) => {
+        if (e.button !== 0) return;
+        e.stopPropagation();
+        setSelectedId(room.id);
+        const pts = getPts(room).map(p => ({ ...p }));
+        const origin = polyCentroid(pts);
+        rotateDragRef.current = {
+            roomId: room.id,
+            origin,
+            origPts: pts,
+            startAngle: angleBetween(origin, svgPoint(e)),
         };
     };
 
@@ -674,6 +1119,119 @@ export default function FloorPlanCanvas({ floor }) {
                 setPan({ x: e.clientX - panRef.current.startX, y: e.clientY - panRef.current.startY });
                 return;
             }
+            if (vertexDragRef.current) {
+                const vertex = vertexDragRef.current;
+                const pt = svgPoint(e);
+                const x = snap(pt.x);
+                const y = snap(pt.y);
+                setRooms(prev => prev.map(r => {
+                    if (r.id !== vertex.roomId) return r;
+                    const { width, depth } = planRef.current;
+                    const nextPts = clampPointsToBounds(
+                        vertex.origPts.map((p, idx) => idx === vertex.index ? { x, y } : p),
+                        width,
+                        depth,
+                    );
+                    const b = boundsOf(nextPts);
+                    const overlaps = roomPolygonOverlaps(vertex.roomId, nextPts, roomsRef.current);
+                    if (overlaps) return r;
+                    return {
+                        ...r,
+                        pos_x: snap(b.minX),
+                        pos_y: snap(b.minY),
+                        width_cm: Math.max(SNAP, snap(b.width)),
+                        depth_cm: Math.max(SNAP, snap(b.height)),
+                        polygon_points: nextPts,
+                    };
+                }));
+                return;
+            }
+            if (edgeDragRef.current) {
+                const edge = edgeDragRef.current;
+                const pt = svgPoint(e);
+                const dx = snap(pt.x - edge.startX);
+                const dy = snap(pt.y - edge.startY);
+                setRooms(prev => prev.map(r => {
+                    if (r.id !== edge.roomId) return r;
+                    const { width, depth } = planRef.current;
+                    const nextPts = clampPointsToBounds(edge.origPts.map((p, idx) => {
+                        if (idx !== edge.index && idx !== edge.nextIndex) return p;
+                        if (edge.orientation === 'vertical') return { x: p.x + dx, y: p.y };
+                        if (edge.orientation === 'horizontal') return { x: p.x, y: p.y + dy };
+                        return { x: p.x + dx, y: p.y + dy };
+                    }), width, depth);
+                    const b = boundsOf(nextPts);
+                    const overlaps = roomPolygonOverlaps(edge.roomId, nextPts, roomsRef.current);
+                    if (overlaps || b.width < SNAP || b.height < SNAP) return r;
+                    return {
+                        ...r,
+                        pos_x: snap(b.minX),
+                        pos_y: snap(b.minY),
+                        width_cm: Math.max(SNAP, snap(b.width)),
+                        depth_cm: Math.max(SNAP, snap(b.height)),
+                        polygon_points: nextPts,
+                    };
+                }));
+                return;
+            }
+            if (resizeDragRef.current) {
+                const resize = resizeDragRef.current;
+                const pt = svgPoint(e);
+                const x = snap(pt.x);
+                const y = snap(pt.y);
+                const b = resize.origBounds;
+                let nextBounds = { ...b };
+
+                if (resize.handle.includes('w')) nextBounds.minX = Math.min(x, b.maxX - SNAP);
+                if (resize.handle.includes('e')) nextBounds.maxX = Math.max(x, b.minX + SNAP);
+                if (resize.handle.includes('n')) nextBounds.minY = Math.min(y, b.maxY - SNAP);
+                if (resize.handle.includes('s')) nextBounds.maxY = Math.max(y, b.minY + SNAP);
+                nextBounds = {
+                    ...nextBounds,
+                    width: nextBounds.maxX - nextBounds.minX,
+                    height: nextBounds.maxY - nextBounds.minY,
+                };
+
+                setRooms(prev => prev.map(r => {
+                    if (r.id !== resize.roomId) return r;
+                    const { width, depth } = planRef.current;
+                    const nextPts = clampPointsToBounds(scalePointsToBounds(resize.origPts, b, nextBounds), width, depth);
+                    const nextB = boundsOf(nextPts);
+                    const overlaps = roomPolygonOverlaps(resize.roomId, nextPts, roomsRef.current);
+                    if (overlaps) return r;
+                    return {
+                        ...r,
+                        pos_x: snap(nextB.minX),
+                        pos_y: snap(nextB.minY),
+                        width_cm: Math.max(SNAP, snap(nextB.width)),
+                        depth_cm: Math.max(SNAP, snap(nextB.height)),
+                        polygon_points: resize.wasPolygon ? nextPts : null,
+                    };
+                }));
+                return;
+            }
+            if (rotateDragRef.current) {
+                const rotate = rotateDragRef.current;
+                const pt = svgPoint(e);
+                const delta = snap(angleBetween(rotate.origin, pt) - rotate.startAngle);
+                setRooms(prev => prev.map(r => {
+                    if (r.id !== rotate.roomId) return r;
+                    const { width, depth } = planRef.current;
+                    const nextPts = clampPointsToBounds(rotatePoints(rotate.origPts, delta, rotate.origin), width, depth);
+                    const b = boundsOf(nextPts);
+                    const overlaps = roomPolygonOverlaps(rotate.roomId, nextPts, roomsRef.current);
+                    if (overlaps) return r;
+                    return {
+                        ...r,
+                        pos_x: snap(b.minX),
+                        pos_y: snap(b.minY),
+                        width_cm: Math.max(SNAP, snap(b.width)),
+                        depth_cm: Math.max(SNAP, snap(b.height)),
+                        polygon_points: nextPts,
+                    };
+                }));
+                return;
+            }
             if (!dragRef.current) return;
 
             // Capture NOW — before setRooms updater runs (dragRef may be null by then)
@@ -686,18 +1244,148 @@ export default function FloorPlanCanvas({ floor }) {
 
             setRooms(prev => prev.map(r => {
                 if (r.id !== drag.roomId) return r;
-                const newPts = drag.origPts
-                    ? drag.origPts.map(p => ({
+                const basePts = drag.origPts || rectToPoly(r);
+                const newPts = stickyRoomPoints(
+                    drag.roomId,
+                    basePts.map(p => ({
                         x: p.x + (newX - drag.origX),
                         y: p.y + (newY - drag.origY),
-                    }))
-                    : null;
-                return { ...r, pos_x: newX, pos_y: newY, polygon_points: newPts };
+                    })),
+                    roomsRef.current,
+                    planRef.current.width,
+                    planRef.current.depth,
+                    drag.stickyEdges,
+                );
+                const b = boundsOf(newPts);
+                const overlaps = roomPolygonOverlaps(drag.roomId, newPts, roomsRef.current);
+                if (overlaps) return r;
+                return {
+                    ...r,
+                    pos_x: snap(b.minX),
+                    pos_y: snap(b.minY),
+                    polygon_points: drag.origPts ? newPts : null,
+                };
             }));
         };
 
         const onUp = async () => {
             panRef.current = null;
+            if (vertexDragRef.current) {
+                const { roomId } = vertexDragRef.current;
+                vertexDragRef.current = null;
+                setRooms(prev => {
+                    const room = prev.find(r => r.id === roomId);
+                    if (room) {
+                        const area_sqft = +(polyArea(getPts(room)) / CM2_PER_SQFT).toFixed(2);
+                        structureApi.updateRoom(roomId, {
+                            pos_x: room.pos_x,
+                            pos_y: room.pos_y,
+                            width_cm: room.width_cm,
+                            depth_cm: room.depth_cm,
+                            polygon_points: room.polygon_points,
+                            area_sqft,
+                        }).then(() => {
+                            updateRoomLocal(roomId, {
+                                pos_x: room.pos_x,
+                                pos_y: room.pos_y,
+                                width_cm: room.width_cm,
+                                depth_cm: room.depth_cm,
+                                polygon_points: room.polygon_points,
+                                area_sqft,
+                            });
+                        }).catch(console.error);
+                    }
+                    return prev;
+                });
+                return;
+            }
+            if (edgeDragRef.current) {
+                const { roomId } = edgeDragRef.current;
+                edgeDragRef.current = null;
+                setRooms(prev => {
+                    const room = prev.find(r => r.id === roomId);
+                    if (room) {
+                        const area_sqft = +(polyArea(getPts(room)) / CM2_PER_SQFT).toFixed(2);
+                        structureApi.updateRoom(roomId, {
+                            pos_x: room.pos_x,
+                            pos_y: room.pos_y,
+                            width_cm: room.width_cm,
+                            depth_cm: room.depth_cm,
+                            polygon_points: room.polygon_points,
+                            area_sqft,
+                        }).then(() => {
+                            updateRoomLocal(roomId, {
+                                pos_x: room.pos_x,
+                                pos_y: room.pos_y,
+                                width_cm: room.width_cm,
+                                depth_cm: room.depth_cm,
+                                polygon_points: room.polygon_points,
+                                area_sqft,
+                            });
+                        }).catch(console.error);
+                    }
+                    return prev;
+                });
+                return;
+            }
+            if (resizeDragRef.current) {
+                const { roomId } = resizeDragRef.current;
+                resizeDragRef.current = null;
+                setRooms(prev => {
+                    const room = prev.find(r => r.id === roomId);
+                    if (room) {
+                        const area_sqft = +(polyArea(getPts(room)) / CM2_PER_SQFT).toFixed(2);
+                        structureApi.updateRoom(roomId, {
+                            pos_x: room.pos_x,
+                            pos_y: room.pos_y,
+                            width_cm: room.width_cm,
+                            depth_cm: room.depth_cm,
+                            polygon_points: room.polygon_points,
+                            area_sqft,
+                        }).then(() => {
+                            updateRoomLocal(roomId, {
+                                pos_x: room.pos_x,
+                                pos_y: room.pos_y,
+                                width_cm: room.width_cm,
+                                depth_cm: room.depth_cm,
+                                polygon_points: room.polygon_points,
+                                area_sqft,
+                            });
+                        }).catch(console.error);
+                    }
+                    return prev;
+                });
+                return;
+            }
+            if (rotateDragRef.current) {
+                const { roomId } = rotateDragRef.current;
+                rotateDragRef.current = null;
+                setRooms(prev => {
+                    const room = prev.find(r => r.id === roomId);
+                    if (room) {
+                        const area_sqft = +(polyArea(getPts(room)) / CM2_PER_SQFT).toFixed(2);
+                        structureApi.updateRoom(roomId, {
+                            pos_x: room.pos_x,
+                            pos_y: room.pos_y,
+                            width_cm: room.width_cm,
+                            depth_cm: room.depth_cm,
+                            polygon_points: room.polygon_points,
+                            area_sqft,
+                        }).then(() => {
+                            updateRoomLocal(roomId, {
+                                pos_x: room.pos_x,
+                                pos_y: room.pos_y,
+                                width_cm: room.width_cm,
+                                depth_cm: room.depth_cm,
+                                polygon_points: room.polygon_points,
+                                area_sqft,
+                            });
+                        }).catch(console.error);
+                    }
+                    return prev;
+                });
+                return;
+            }
             if (!dragRef.current) return;
             const { roomId } = dragRef.current;
             dragRef.current = null;
@@ -736,21 +1424,88 @@ export default function FloorPlanCanvas({ floor }) {
     };
 
     // ── Add room ──────────────────────────────────────────────────────────
-    const addRoom = async () => {
+    const createRoom = async (payload) => {
         if (!floor) return;
-        const name = prompt('Room name (e.g. "Living Room / बैठककोठा"):');
-        if (!name?.trim()) return;
-        try {
-            const res = await structureApi.createRoom({
-                name: name.trim(), floor: floor.id,
-                pos_x: 50, pos_y: 50,
-                width_cm: 300, depth_cm: 250,
-                status: 'NOT_STARTED', budget_allocation: 0,
-            });
-            setRooms(prev => [...prev, res.data]);
-            addRoomLocal(res.data);
-            setSelectedId(res.data.id);
-        } catch (e) { console.error(e); }
+        const res = await structureApi.createRoom(payload);
+        setRooms(prev => [...prev, res.data]);
+        addRoomLocal(res.data);
+        setSelectedId(res.data.id);
+        setShowAddPanel(false);
+    };
+
+    const persistRoomPatch = (roomId, patch) => {
+        setRooms(prev => prev.map(r => r.id === roomId ? { ...r, ...patch } : r));
+        structureApi.updateRoom(roomId, patch)
+            .then(() => updateRoomLocal(roomId, patch))
+            .catch(console.error);
+    };
+
+    const duplicateSelected = async () => {
+        if (!selectedRoom || !floor) return;
+        const pts = getPts(selectedRoom);
+        const newPts = selectedRoom.polygon_points ? translatePoints(pts, 40, 40) : null;
+        const res = await structureApi.createRoom({
+            floor: floor.id,
+            name: `${selectedRoom.name} Copy`,
+            room_type: selectedRoom.room_type || 'OTHER',
+            status: selectedRoom.status || 'NOT_STARTED',
+            width_cm: selectedRoom.width_cm,
+            depth_cm: selectedRoom.depth_cm,
+            ceiling_height_cm: selectedRoom.ceiling_height_cm,
+            pos_x: (selectedRoom.pos_x ?? 0) + 40,
+            pos_y: (selectedRoom.pos_y ?? 0) + 40,
+            polygon_points: newPts,
+            floor_finish: selectedRoom.floor_finish || '',
+            wall_finish: selectedRoom.wall_finish || '',
+            color_scheme: selectedRoom.color_scheme || '',
+            window_count: selectedRoom.window_count || 0,
+            door_count: selectedRoom.door_count || 1,
+            electrical_points: selectedRoom.electrical_points || 0,
+            light_points: selectedRoom.light_points || 0,
+            fan_points: selectedRoom.fan_points || 0,
+            ac_provision: !!selectedRoom.ac_provision,
+            plumbing_points: selectedRoom.plumbing_points || 0,
+            priority: selectedRoom.priority || 'MEDIUM',
+            completion_date: selectedRoom.completion_date || null,
+            budget_allocation: selectedRoom.budget_allocation || 0,
+            notes: selectedRoom.notes || '',
+            area_sqft: +(polyArea(newPts || translatePoints(pts, 40, 40)) / CM2_PER_SQFT).toFixed(2),
+        });
+        setRooms(prev => [...prev, res.data]);
+        addRoomLocal(res.data);
+        setSelectedId(res.data.id);
+    };
+
+    const alignSelected = (edge) => {
+        if (!selectedRoom) return;
+        const pts = getPts(selectedRoom);
+        const b = boundsOf(pts);
+        let dx = 0, dy = 0;
+        if (edge === 'left') dx = -b.minX;
+        if (edge === 'top') dy = -b.minY;
+        if (edge === 'right') dx = BW - b.maxX;
+        if (edge === 'bottom') dy = BD - b.maxY;
+        const nextPts = selectedRoom.polygon_points ? translatePoints(pts, dx, dy) : null;
+        persistRoomPatch(selectedRoom.id, {
+            pos_x: snap((selectedRoom.pos_x ?? 0) + dx),
+            pos_y: snap((selectedRoom.pos_y ?? 0) + dy),
+            polygon_points: nextPts,
+        });
+    };
+
+    const rotateSelected = (degrees) => {
+        if (!selectedRoom) return;
+        const pts = getPts(selectedRoom);
+        const nextPts = rotatePoints(pts, degrees);
+        const b = boundsOf(nextPts);
+        persistRoomPatch(selectedRoom.id, {
+            pos_x: snap(b.minX),
+            pos_y: snap(b.minY),
+            width_cm: Math.max(SNAP, snap(b.width)),
+            depth_cm: Math.max(SNAP, snap(b.height)),
+            polygon_points: nextPts,
+            area_sqft: +(polyArea(nextPts) / CM2_PER_SQFT).toFixed(2),
+        });
     };
 
     const handleDelete = (roomId) => {
@@ -765,8 +1520,7 @@ export default function FloorPlanCanvas({ floor }) {
     };
 
     // ── Coordinate helpers ────────────────────────────────────────────────
-    const polyStr = (room) =>
-        getPts(room).map(p => `${(p.x * scale).toFixed(1)},${(p.y * scale).toFixed(1)}`).join(' ');
+    const roomPath = (room) => polyPath(getPts(room), scale);
 
     const center = (room) => {
         const c = polyCentroid(getPts(room));
@@ -775,7 +1529,53 @@ export default function FloorPlanCanvas({ floor }) {
 
     const areaSqft = (room) => {
         const pts = getPts(room);
-        return +(polyArea(pts) / 929.03).toFixed(1);
+        return +(polyArea(pts) / CM2_PER_SQFT).toFixed(1);
+    };
+
+    const resizeHandlesFor = (room) => {
+        const b = boundsOf(getPts(room));
+        return [
+            ['nw', b.minX, b.minY],
+            ['ne', b.maxX, b.minY],
+            ['se', b.maxX, b.maxY],
+            ['sw', b.minX, b.maxY],
+        ];
+    };
+
+    const edgeHandlesFor = (room) => {
+        const pts = getPts(room);
+        return pts.map((p, index) => {
+            const n = pts[(index + 1) % pts.length];
+            const orientation = Math.abs(p.x - n.x) < Math.abs(p.y - n.y)
+                ? 'vertical'
+                : Math.abs(p.y - n.y) < Math.abs(p.x - n.x)
+                    ? 'horizontal'
+                    : 'free';
+            return {
+                index,
+                x: (p.x + n.x) / 2,
+                y: (p.y + n.y) / 2,
+                orientation,
+            };
+        });
+    };
+
+    const edgeCursor = (orientation) => {
+        if (orientation === 'vertical') return 'ew-resize';
+        if (orientation === 'horizontal') return 'ns-resize';
+        return 'move';
+    };
+
+    const rotateHandleFor = (room) => {
+        const pts = getPts(room);
+        const b = boundsOf(pts);
+        const c = polyCentroid(pts);
+        return {
+            cx: c.x,
+            cy: c.y,
+            x: c.x,
+            y: b.minY - Math.max(50, Math.min(90, b.height * 0.25)),
+        };
     };
 
     if (!floor) return (
@@ -794,11 +1594,54 @@ export default function FloorPlanCanvas({ floor }) {
             >
                 {/* Toolbar */}
                 <div className="absolute top-3 left-3 z-10 flex items-center gap-2 flex-wrap">
-                    <button onClick={addRoom}
+                    <button onClick={() => { setShowAddPanel(true); setEditShapeMode(false); }}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white shadow"
                         style={{ background: '#ea580c' }}>
                         + Add Room
                     </button>
+                    {selectedRoom && (
+                        <>
+                            <button onClick={duplicateSelected}
+                                className="px-2.5 h-7 rounded text-white/70 hover:text-white text-xs font-bold"
+                                style={{ background: 'rgba(0,0,0,0.45)' }}>
+                                Duplicate
+                            </button>
+                            <button onClick={() => setEditShapeMode(v => !v)}
+                                className="px-2.5 h-7 rounded text-xs font-bold"
+                                style={{
+                                    background: editShapeMode ? `${accent}dd` : 'rgba(0,0,0,0.45)',
+                                    color: '#fff',
+                                }}>
+                                {editShapeMode ? 'Done Points' : 'Edit Points'}
+                            </button>
+                            <button onClick={() => rotateSelected(-15)}
+                                className="w-7 h-7 rounded text-white/60 hover:text-white text-xs font-bold"
+                                title="Rotate left 15 degrees"
+                                style={{ background: 'rgba(0,0,0,0.4)' }}>
+                                ↶
+                            </button>
+                            <button onClick={() => rotateSelected(15)}
+                                className="w-7 h-7 rounded text-white/60 hover:text-white text-xs font-bold"
+                                title="Rotate right 15 degrees"
+                                style={{ background: 'rgba(0,0,0,0.4)' }}>
+                                ↷
+                            </button>
+                            <button onClick={() => rotateSelected(90)}
+                                className="px-2 h-7 rounded text-white/60 hover:text-white text-xs font-bold"
+                                title="Rotate 90 degrees"
+                                style={{ background: 'rgba(0,0,0,0.4)' }}>
+                                90°
+                            </button>
+                            {['left', 'top', 'right', 'bottom'].map(edge => (
+                                <button key={edge} onClick={() => alignSelected(edge)}
+                                    className="w-7 h-7 rounded text-white/60 hover:text-white text-xs font-bold"
+                                    title={`Align ${edge}`}
+                                    style={{ background: 'rgba(0,0,0,0.4)' }}>
+                                    {edge === 'left' ? '⟸' : edge === 'right' ? '⟹' : edge === 'top' ? '⟰' : '⟱'}
+                                </button>
+                            ))}
+                        </>
+                    )}
                     <span className="px-2.5 py-1.5 rounded-lg text-xs font-mono text-white/50"
                         style={{ background: 'rgba(0,0,0,0.5)' }}>
                         {Math.round(scale * 100)}% · {rooms.length} rooms
@@ -819,7 +1662,7 @@ export default function FloorPlanCanvas({ floor }) {
                     width="100%" height="100%"
                     style={{ display: 'block', minHeight: 540 }}
                     onMouseDown={onSvgMouseDown}
-                    onClick={() => setSelectedId(null)}
+                    onClick={() => { setSelectedId(null); setEditShapeMode(false); }}
                 >
                     <defs>
                         <pattern id="sg10" width={10 * scale} height={10 * scale} patternUnits="userSpaceOnUse">
@@ -844,18 +1687,97 @@ export default function FloorPlanCanvas({ floor }) {
                             width={BW * scale} height={BD * scale}
                             fill="rgba(255,255,255,0.02)"
                             stroke={accent} strokeWidth={2} strokeDasharray="10,5" />
+                        <g style={{ pointerEvents: 'none' }}>
+                            <line
+                                x1={0}
+                                y1={BD * scale + 34}
+                                x2={BW * scale}
+                                y2={BD * scale + 34}
+                                stroke={measureColor}
+                                strokeWidth={1.5}
+                                strokeDasharray="5,5"
+                            />
+                            <line x1={0} y1={BD * scale + 26} x2={0} y2={BD * scale + 42}
+                                stroke={measureColor} strokeWidth={1.5} strokeDasharray="3,3" />
+                            <line x1={BW * scale} y1={BD * scale + 26} x2={BW * scale} y2={BD * scale + 42}
+                                stroke={measureColor} strokeWidth={1.5} strokeDasharray="3,3" />
+                            <text
+                                x={(BW * scale) / 2}
+                                y={BD * scale + 30}
+                                textAnchor="middle"
+                                fontSize={11}
+                                fill={measureColor}
+                                fontWeight={900}>
+                                --- {fmtFeet(BW)} / {fmtCm(BW)} ---
+                            </text>
+
+                            <line
+                                x1={BW * scale + 34}
+                                y1={0}
+                                x2={BW * scale + 34}
+                                y2={BD * scale}
+                                stroke={measureColor}
+                                strokeWidth={1.5}
+                                strokeDasharray="5,5"
+                            />
+                            <line x1={BW * scale + 26} y1={0} x2={BW * scale + 42} y2={0}
+                                stroke={measureColor} strokeWidth={1.5} strokeDasharray="3,3" />
+                            <line x1={BW * scale + 26} y1={BD * scale} x2={BW * scale + 42} y2={BD * scale}
+                                stroke={measureColor} strokeWidth={1.5} strokeDasharray="3,3" />
+                            <text
+                                x={BW * scale + 43}
+                                y={(BD * scale) / 2}
+                                textAnchor="middle"
+                                fontSize={11}
+                                fill={measureColor}
+                                fontWeight={900}
+                                transform={`rotate(90 ${BW * scale + 43} ${(BD * scale) / 2})`}>
+                                --- {fmtFeet(BD)} / {fmtCm(BD)} ---
+                            </text>
+
+                            <rect
+                                x={BW * scale + 52}
+                                y={8}
+                                width={124}
+                                height={32}
+                                rx={6}
+                                fill="rgba(0,0,0,0.45)"
+                                stroke={measureColor}
+                                strokeWidth={1}
+                                strokeDasharray="4,4"
+                            />
+                            <text
+                                x={BW * scale + 114}
+                                y={21}
+                                textAnchor="middle"
+                                fontSize={9}
+                                fill={measureColor}
+                                fontWeight={900}>
+                                FULL AREA
+                            </text>
+                            <text
+                                x={BW * scale + 114}
+                                y={34}
+                                textAnchor="middle"
+                                fontSize={11}
+                                fill={measureColor}
+                                fontWeight={900}>
+                                {fmtSqft(floorAreaCm2)}
+                            </text>
+                        </g>
                         <text x={4} y={-8} fontSize={10} fill={accent} fontWeight={700} opacity={0.8}>
-                            {floor.name}  —  {(BW / 100).toFixed(1)}m × {(BD / 100).toFixed(1)}m
+                            {floor.name}  —  {fmtFeet(BW)} × {fmtFeet(BD)} ({fmtCm(BW)} × {fmtCm(BD)})
                         </text>
 
                         {/* Rooms */}
                         {rooms.map(room => {
                             const cs       = STATUS_STYLE[room.status] || STATUS_STYLE.NOT_STARTED;
-                            const poly     = polyStr(room);
+                            const path     = roomPath(room);
                             const c        = center(room);
                             const area     = areaSqft(room);
                             const label    = room.name.split('/')[0].trim();
                             const isActive = room.id === selectedId;
+                            const isCustom = hasCustomShape(room);
                             const fontSize = Math.max(7, Math.min(13, (room.width_cm || 200) * scale / 22));
 
                             return (
@@ -863,11 +1785,12 @@ export default function FloorPlanCanvas({ floor }) {
                                     style={{ cursor: 'grab' }}
                                     onMouseDown={e => onRoomMouseDown(e, room)}
                                     onClick={e => { e.stopPropagation(); setSelectedId(room.id); }}>
-                                    <polygon
-                                        points={poly}
+                                    <path
+                                        d={path}
                                         fill={cs.fill}
                                         stroke={isActive ? accent : cs.stroke}
                                         strokeWidth={isActive ? 2.5 : 1.5}
+                                        fillRule="nonzero"
                                     />
                                     <text x={c.x} y={c.y - 6}
                                         textAnchor="middle" fontSize={fontSize}
@@ -883,6 +1806,72 @@ export default function FloorPlanCanvas({ floor }) {
                                             {area} ft²
                                         </text>
                                     )}
+                                    {isActive && (editShapeMode || isCustom) && getPts(room).map((p, idx) => (
+                                        <circle key={`${room.id}-pt-${idx}`}
+                                            cx={p.x * scale} cy={p.y * scale} r={editShapeMode ? 6 : 4}
+                                            fill="#fff" stroke={accent} strokeWidth={2}
+                                            opacity={editShapeMode ? 1 : 0.85}
+                                            style={{ cursor: editShapeMode ? 'move' : 'default', pointerEvents: editShapeMode ? 'auto' : 'none' }}
+                                            onMouseDown={editShapeMode ? (e => onVertexMouseDown(e, room, idx)) : undefined}
+                                        />
+                                    ))}
+                                    {isActive && editShapeMode && edgeHandlesFor(room).map(handle => (
+                                        <rect key={`${room.id}-edge-${handle.index}`}
+                                            x={handle.x * scale - 5} y={handle.y * scale - 5}
+                                            width={10} height={10} rx={5}
+                                            fill={accent}
+                                            stroke="#fff" strokeWidth={2}
+                                            style={{ cursor: edgeCursor(handle.orientation) }}
+                                            onMouseDown={e => onEdgeMouseDown(e, room, handle.index)}
+                                        />
+                                    ))}
+                                    {isActive && (!isCustom || !editShapeMode) && resizeHandlesFor(room).map(([handle, x, y]) => (
+                                        <rect key={`${room.id}-resize-${handle}`}
+                                            x={x * scale - 5} y={y * scale - 5}
+                                            width={10} height={10} rx={2}
+                                            fill={editShapeMode ? '#111827' : '#fff'}
+                                            stroke={accent} strokeWidth={2}
+                                            style={{ cursor: `${handle}-resize` }}
+                                            onMouseDown={e => onResizeMouseDown(e, room, handle)}
+                                        />
+                                    ))}
+                                    {isActive && (() => {
+                                        const handle = rotateHandleFor(room);
+                                        return (
+                                            <>
+                                                <line
+                                                    x1={handle.cx * scale}
+                                                    y1={handle.cy * scale}
+                                                    x2={handle.x * scale}
+                                                    y2={handle.y * scale}
+                                                    stroke={accent}
+                                                    strokeWidth={1.5}
+                                                    strokeDasharray="4,4"
+                                                    style={{ pointerEvents: 'none' }}
+                                                />
+                                                <circle
+                                                    cx={handle.x * scale}
+                                                    cy={handle.y * scale}
+                                                    r={8}
+                                                    fill="#fff"
+                                                    stroke={accent}
+                                                    strokeWidth={2}
+                                                    style={{ cursor: 'grab' }}
+                                                    onMouseDown={e => onRotateMouseDown(e, room)}
+                                                />
+                                                <text
+                                                    x={handle.x * scale}
+                                                    y={handle.y * scale + 3}
+                                                    textAnchor="middle"
+                                                    fontSize={10}
+                                                    fill={accent}
+                                                    fontWeight={900}
+                                                    style={{ pointerEvents: 'none', userSelect: 'none' }}>
+                                                    ↻
+                                                </text>
+                                            </>
+                                        );
+                                    })()}
                                 </g>
                             );
                         })}
@@ -891,12 +1880,21 @@ export default function FloorPlanCanvas({ floor }) {
 
                 {/* Hint */}
                 <div className="absolute bottom-2 right-3 text-[10px]" style={{ color: 'rgba(255,255,255,0.25)' }}>
-                    Drag to move  ·  Scroll to zoom  ·  Alt+drag to pan  ·  Click to inspect
+                    Drag from a side to snap that side  ·  Edit Points: drag corners or edge handles  ·  Drag circle handle to rotate
                 </div>
             </div>
 
             {/* ── Inspector ── */}
-            {selectedRoom && (
+            {showAddPanel && (
+                <AddRoomPanel
+                    floor={floor}
+                    floorColor={accent}
+                    onClose={() => setShowAddPanel(false)}
+                    onCreate={createRoom}
+                />
+            )}
+
+            {!showAddPanel && selectedRoom && (
                 <RoomInspector
                     key={selectedRoom.id}
                     room={rooms.find(r => r.id === selectedRoom.id) || selectedRoom}

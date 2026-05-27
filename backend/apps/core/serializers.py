@@ -82,6 +82,7 @@ class ProjectMemberSerializer(serializers.ModelSerializer):
 class HouseProjectSerializer(serializers.ModelSerializer):
     category_allocation_total = serializers.ReadOnlyField()
     budget_health             = serializers.ReadOnlyField()
+    build_area_sqft           = serializers.SerializerMethodField()
     member_count              = serializers.SerializerMethodField()
     phase_count               = serializers.SerializerMethodField()
     completed_phase_count     = serializers.SerializerMethodField()
@@ -92,6 +93,14 @@ class HouseProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model  = HouseProject
         fields = '__all__'
+
+    def get_build_area_sqft(self, obj):
+        total_cm2 = 0
+        for floor in obj.floors.all():
+            width = floor.plan_width_cm or 0
+            depth = floor.plan_depth_cm or 0
+            total_cm2 += width * depth
+        return round(total_cm2 / 929.0304, 2) if total_cm2 else 0
 
     def get_member_count(self, obj):
         return obj.members.count()

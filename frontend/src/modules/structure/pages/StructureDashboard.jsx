@@ -4,6 +4,7 @@ import Modal from '../../../components/common/Modal';
 import FloorForm from '../components/floors/FloorForm';
 import RoomForm from '../components/rooms/RoomForm';
 import StatusBadge, { STATUS_MAP } from '../components/shared/StatusBadge';
+import { floorBuildAreaSqft, SQFT_TO_M2 } from '../utils/area';
 
 const FLOOR_COLORS = ['#ea580c', '#3b82f6', '#8b5cf6', '#10b981'];
 
@@ -75,8 +76,8 @@ export default function StructureDashboard() {
                 <Stat icon="🏢" label="Total Floors" value={floors.length} />
                 <Stat icon="🚪" label="Total Rooms" value={stats.totalRooms}
                     sub={`${stats.completedRooms} completed`} />
-                <Stat icon="📐" label="Total Area" value={`${stats.totalArea.toFixed(0)} ft²`}
-                    sub={`${(stats.totalArea * 0.0929).toFixed(1)} m²`} />
+                <Stat icon="📐" label="Build Area" value={`${stats.totalArea.toFixed(0)} ft²`}
+                    sub={`${(stats.totalArea * SQFT_TO_M2).toFixed(1)} m²`} />
                 <Stat icon="💰" label="Budgeted"
                     value={`NPR ${(stats.totalBudget / 1000).toFixed(0)}k`} />
             </div>
@@ -110,6 +111,7 @@ export default function StructureDashboard() {
                     const rooms = floor.rooms || [];
                     const done  = rooms.filter(r => r.status === 'COMPLETED').length;
                     const pct   = rooms.length ? Math.round((done / rooms.length) * 100) : 0;
+                    const buildArea = floorBuildAreaSqft(floor);
 
                     return (
                         <div
@@ -126,7 +128,7 @@ export default function StructureDashboard() {
                                     </h3>
                                     <p className="text-[10px]" style={{ color: 'var(--t-text3)' }}>
                                         Level {floor.level} · {rooms.length} rooms
-                                        {floor.plan_width_cm && ` · ${floor.plan_width_cm / 100}m × ${floor.plan_depth_cm / 100}m`}
+                                        {buildArea > 0 && ` · ${buildArea.toFixed(0)} ft² build`}
                                     </p>
                                 </div>
                                 <button

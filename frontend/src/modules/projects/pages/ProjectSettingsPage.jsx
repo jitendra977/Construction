@@ -6,6 +6,8 @@ import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import api from '../services/projectsApi';
 import { useProjects } from '../context/ProjectsContext';
 import { usePlatformBase } from '../../../shared/utils/platformNav';
+import structureApi from '../../structure/services/structureApi';
+import { SQFT_TO_M2, totalBuildAreaSqft } from '../../structure/utils/area';
 
 const FIELD = {
     background: 'var(--t-bg)', border: '1px solid var(--t-border)',
@@ -28,6 +30,7 @@ export default function ProjectSettingsPage() {
 
     const [project, setProject] = useState(null);
     const [form, setForm]       = useState(null);
+    const [floors, setFloors]   = useState([]);
     const [saving, setSaving]   = useState(false);
     const [flash, setFlash]     = useState(false);
     const [err, setErr]         = useState('');
@@ -41,7 +44,6 @@ export default function ProjectSettingsPage() {
                 owner_name:               ctxProject.owner_name || '',
                 address:                  ctxProject.address || '',
                 total_budget:             ctxProject.total_budget || '',
-                area_sqft:                ctxProject.area_sqft || '',
                 start_date:               ctxProject.start_date || '',
                 expected_completion_date: ctxProject.expected_completion_date || '',
             });
@@ -53,13 +55,22 @@ export default function ProjectSettingsPage() {
                     owner_name:               r.data.owner_name || '',
                     address:                  r.data.address || '',
                     total_budget:             r.data.total_budget || '',
-                    area_sqft:                r.data.area_sqft || '',
                     start_date:               r.data.start_date || '',
                     expected_completion_date: r.data.expected_completion_date || '',
                 });
             });
         }
     }, [id, ctxProject]);
+
+    useEffect(() => {
+        if (!id) return;
+        structureApi.getFloors(id)
+            .then(r => setFloors(Array.isArray(r.data) ? r.data : []))
+            .catch(e => {
+                console.error('Could not load floor build area', e);
+                setFloors([]);
+            });
+    }, [id]);
 
     const change = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -71,7 +82,6 @@ export default function ProjectSettingsPage() {
             const res = await api.updateProject(project.id, {
                 ...form,
                 total_budget: +form.total_budget || 0,
-                area_sqft:    +form.area_sqft    || null,
             });
             updateProjectLocal(res.data);
             setFlash(true);
@@ -98,6 +108,9 @@ export default function ProjectSettingsPage() {
             <div className="animate-pulse text-4xl">⚙️</div>
         </div>
     );
+
+    const buildAreaSqft = totalBuildAreaSqft(floors);
+    const buildAreaM2 = buildAreaSqft * SQFT_TO_M2;
 
     return (
         <div className="p-6">
@@ -127,8 +140,17 @@ export default function ProjectSettingsPage() {
                             <input value={form.owner_name} onChange={e => change('owner_name', e.target.value)} style={FIELD} />
                         </div>
                         <div>
-                            <Label>Build Area (ft²)</Label>
-                            <input type="number" value={form.area_sqft} onChange={e => change('area_sqft', e.target.value)} style={FIELD} />
+                            <Label>Build Area (read only)</Label>
+                            <div className="rounded-lg px-3 py-2 text-sm font-bold"
+                                style={{ background: 'var(--t-bg)', border: '1px solid var(--t-border)', color: 'var(--t-text)' }}>
+                                {buildAreaSqft > 0 ? `${buildAreaSqft.toFixed(0)} ft²` : '—'}
+                                <span className="ml-2 text-[10px] font-semibold" style={{ color: 'var(--t-text3)' }}>
+                                    {buildAreaSqft > 0 ? `${buildAreaM2.toFixed(1)} m²` : 'Add floor plan dimensions'}
+                                </span>
+                            </div>
+                            <p className="text-[10px] mt-1" style={{ color: 'var(--t-text3)' }}>
+                                Calculated from Structure floors, not manually edited here.
+                            </p>
                         </div>
                     </div>
                     <div>

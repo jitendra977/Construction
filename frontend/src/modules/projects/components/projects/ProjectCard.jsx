@@ -44,6 +44,7 @@ export default function ProjectCard({ project, isActive, onActivate, onEdit }) {
     const roomPct    = roomTotal > 0 ? Math.round(roomDone / roomTotal * 100) : 0;
 
     const health     = project.budget_health?.status || 'HEALTHY';
+    const buildArea  = +project.build_area_sqft || 0;
 
     return (
         <div
@@ -101,7 +102,7 @@ export default function ProjectCard({ project, isActive, onActivate, onEdit }) {
                 </div>
                 <div className="rounded-lg p-2" style={{ background: 'var(--t-bg)' }}>
                     <p className="text-xs font-black" style={{ color: 'var(--t-text)' }}>
-                        {project.area_sqft ? `${project.area_sqft.toLocaleString()} ft²` : '—'}
+                        {buildArea ? `${Math.round(buildArea).toLocaleString()} ft²` : '—'}
                     </p>
                     <p className="text-[9px] mt-0.5" style={{ color: 'var(--t-text3)' }}>Build Area</p>
                 </div>

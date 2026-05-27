@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import Modal from './Modal';
 import { dashboardService } from '../../services/api';
 import { useConstruction } from '../../context/ConstructionContext';
+import structureApi from '../../modules/structure/services/structureApi';
+import { SQFT_TO_M2, totalBuildAreaSqft } from '../../modules/structure/utils/area';
 
 const HouseConfigModal = ({ isOpen, onClose }) => {
     const { dashboardData, refreshData, budgetStats, formatCurrency } = useConstruction();
@@ -14,8 +16,8 @@ const HouseConfigModal = ({ isOpen, onClose }) => {
         total_budget: '',
         start_date: '',
         expected_completion_date: '',
-        area_sqft: '',
     });
+    const [floors, setFloors] = useState([]);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [activeSection, setActiveSection] = useState('config'); // 'config' | 'budget'
@@ -29,11 +31,20 @@ const HouseConfigModal = ({ isOpen, onClose }) => {
                 total_budget: project.total_budget || '',
                 start_date: project.start_date || '',
                 expected_completion_date: project.expected_completion_date || '',
-                area_sqft: project.area_sqft || '',
             });
             setSaved(false);
         }
     }, [project, isOpen]);
+
+    useEffect(() => {
+        if (!project?.id || !isOpen) return;
+        structureApi.getFloors(project.id)
+            .then(r => setFloors(Array.isArray(r.data) ? r.data : []))
+            .catch(e => {
+                console.error('Could not load project build area', e);
+                setFloors([]);
+            });
+    }, [project?.id, isOpen]);
 
     const handleChange = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -79,6 +90,8 @@ const HouseConfigModal = ({ isOpen, onClose }) => {
     const fundingCoverage = budgetStats.fundingCoverage || 0;
     const categories = budgetStats.categories || [];
     const projectHealth = budgetStats.projectHealth || { status: 'UNKNOWN', issues: [] };
+    const buildAreaSqft = totalBuildAreaSqft(floors);
+    const buildAreaM2 = buildAreaSqft * SQFT_TO_M2;
 
     // Preview the budget change in real-time if user edits total_budget field
     const previewBudget = Number(formData.total_budget) || masterBudget;
@@ -131,7 +144,7 @@ const HouseConfigModal = ({ isOpen, onClose }) => {
                             </div>
                             <div className="bg-[var(--t-surface2)] border border-[var(--t-border)] rounded-xl p-3 text-center">
                                 <div className="text-[8px] font-black text-[var(--t-text2)] uppercase tracking-[.2em] mb-1" style={{ fontFamily: 'var(--f-mono)' }}>Area</div>
-                                <div className="text-2xl font-black text-[var(--t-text)]" style={{ fontFamily: 'var(--f-disp)' }}>{Number(project.area_sqft || 0).toLocaleString()}</div>
+                                <div className="text-2xl font-black text-[var(--t-text)]" style={{ fontFamily: 'var(--f-disp)' }}>{Math.round(buildAreaSqft).toLocaleString()}</div>
                                 <div className="text-[8px] text-[var(--t-text3)] uppercase tracking-wider mt-0.5">Sq Ft</div>
                             </div>
                             <div className={`border rounded-xl p-3 text-center ${daysLeft !== null && daysLeft < 30 ? 'bg-[var(--t-danger)]/8 border-[var(--t-danger)]/20' : 'bg-[var(--t-primary2)]/8 border-[var(--t-primary2)]/20'}`}>
@@ -175,18 +188,19 @@ const HouseConfigModal = ({ isOpen, onClose }) => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest mb-1.5 ml-1">Build Area (SQFT)</label>
+                                        <label className="block text-[10px] font-black text-[var(--t-text3)] uppercase tracking-widest mb-1.5 ml-1">Build Area</label>
                                         <div className="relative">
-                                            <input
-                                                type="number"
-                                                value={formData.area_sqft}
-                                                onChange={(e) => handleChange('area_sqft', e.target.value)}
-                                                className="w-full bg-[var(--t-surface)] border border-[var(--t-border)] p-3 rounded-lg text-sm font-bold text-[var(--t-text)] outline-none focus:border-[var(--t-primary)] transition-all pr-12"
-                                                placeholder="0"
-                                                required
-                                            />
+                                            <div className="w-full bg-[var(--t-surface)] border border-[var(--t-border)] p-3 rounded-lg text-sm font-bold text-[var(--t-text)] pr-12">
+                                                {buildAreaSqft > 0 ? `${Math.round(buildAreaSqft).toLocaleString()} ft²` : '—'}
+                                                <span className="ml-2 text-[10px] font-semibold text-[var(--t-text3)]">
+                                                    {buildAreaSqft > 0 ? `${buildAreaM2.toFixed(1)} m²` : 'Add floor dimensions'}
+                                                </span>
+                                            </div>
                                             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-black text-[var(--t-text3)]">FT²</span>
                                         </div>
+                                        <p className="mt-1 text-[9px] font-semibold text-[var(--t-text3)] ml-1">
+                                            Read-only from Structure floors.
+                                        </p>
                                     </div>
                                 </div>
 

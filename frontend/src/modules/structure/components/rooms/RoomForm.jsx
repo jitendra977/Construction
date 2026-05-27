@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import structureApi from '../../services/structureApi';
 import { useStructure } from '../../context/StructureContext';
+import { CM2_PER_SQFT } from '../../utils/area';
 
 const FIELD = 'w-full px-3 py-2 rounded-lg text-sm border outline-none transition-colors';
 const STYLE = { background: 'var(--t-surface)', border: '1px solid var(--t-border)', color: 'var(--t-text)' };
@@ -105,7 +106,7 @@ export default function RoomForm({ onClose, editRoom = null, defaultFloorId = nu
                 ceiling_height_cm: +form.ceiling_height_cm || null,
                 pos_x:             +form.pos_x || 0,
                 pos_y:             +form.pos_y || 0,
-                area_sqft:         w && d ? +(w * d / 929.03).toFixed(2) : null,
+                area_sqft:         w && d ? +(w * d / CM2_PER_SQFT).toFixed(2) : null,
                 floor_finish:      form.floor_finish  || '',
                 wall_finish:       form.wall_finish   || '',
                 color_scheme:      form.color_scheme  || '',
@@ -138,7 +139,7 @@ export default function RoomForm({ onClose, editRoom = null, defaultFloorId = nu
     };
 
     const w = +form.width_cm, d = +form.depth_cm;
-    const areaSqft = w && d ? +(w * d / 929.03).toFixed(1) : null;
+    const areaSqft = w && d ? +(w * d / CM2_PER_SQFT).toFixed(1) : null;
 
     return (
         <form onSubmit={submit} style={{ minWidth: 520, maxWidth: 600 }}>

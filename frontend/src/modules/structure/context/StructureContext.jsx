@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import structureApi from '../services/structureApi';
+import { totalBuildAreaSqft } from '../utils/area';
 
 const StructureContext = createContext(null);
 
@@ -37,7 +38,7 @@ export function StructureProvider({ projectId, children }) {
     const totalRooms     = allRooms.length;
     const completedRooms = allRooms.filter(r => r.status === 'COMPLETED').length;
     const inProgressRooms = allRooms.filter(r => r.status === 'IN_PROGRESS').length;
-    const totalArea      = allRooms.reduce((s, r) => s + (+r.area_sqft || 0), 0);
+    const totalArea      = totalBuildAreaSqft(floors);
     const totalBudget    = allRooms.reduce((s, r) => s + (+r.budget_allocation || 0), 0);
 
     // ── room mutations ───────────────────────────────────────────────────────

@@ -162,7 +162,7 @@ class WorkforceMemberListSerializer(serializers.ModelSerializer):
     class Meta:
         model = WorkforceMember
         fields = [
-            'id', 'account', 'employee_id', 'full_name', 'name', 'photo', 'phone',
+            'id', 'account', 'employee_id', 'full_name', 'name', 'photo', 'phone', 'email',
             'worker_type', 'role', 'role_name', 'status', 'status_display',
             'current_project', 'project_name',
             'account_email', 'has_admin_access', 'account_role_id', 'account_role_name',

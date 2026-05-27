@@ -1,5 +1,6 @@
 import React from 'react';
 import StatusBadge from '../shared/StatusBadge';
+import { roomAreaSqft } from '../../utils/area';
 
 const ROOM_TYPE_ICONS = {
     BEDROOM:   '🛏️', KITCHEN:   '🍳', BATHROOM:  '🚿',
@@ -55,9 +56,7 @@ const Chip = ({ children, color }) => (
 
 export default function RoomCard({ room, floorName, onClick }) {
     const w = room.width_cm, d = room.depth_cm;
-    const areaSqft = room.area_sqft
-        ? +room.area_sqft
-        : (w && d ? +(w * d / 929.03).toFixed(1) : null);
+    const areaSqft = roomAreaSqft(room) || null;
     const icon = roomIcon(room);
 
     const priority   = PRIORITY_CONFIG[room.priority] || null;

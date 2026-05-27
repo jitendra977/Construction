@@ -191,7 +191,7 @@ function CreateAccountModal({ member, projects = [], defaultProjectId = '', onCl
     const [resetAdminPassword, setResetAdminPassword] = useState(!initialAdminAccess);
     const [adminLoginEmail, setAdminLoginEmail] = useState(existingAdminEmail || memberEmail || '');
     // Email send step
-    const [emailDest, setEmailDest]       = useState('member'); // 'member' | 'custom'
+    const [emailDest, setEmailDest]       = useState(memberEmail ? 'member' : 'custom'); // 'member' | 'custom'
     const [customEmail, setCustomEmail]   = useState('');
     const [sending, setSending]           = useState(false);
     const [emailStatus, setEmailStatus]   = useState(null); // null | 'sent' | 'failed'
@@ -308,7 +308,15 @@ function CreateAccountModal({ member, projects = [], defaultProjectId = '', onCl
     const renderEmailConfig = () => (
         <div style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)', borderRadius: 12, padding: 16, marginBottom: 16 }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-                <input type="checkbox" checked={sendEmail} onChange={e => setSendEmail(e.target.checked)} style={{ width: 16, height: 16, cursor: 'pointer' }} />
+                <input
+                    type="checkbox"
+                    checked={sendEmail}
+                    onChange={e => {
+                        setSendEmail(e.target.checked);
+                        if (e.target.checked && !memberEmail) setEmailDest('custom');
+                    }}
+                    style={{ width: 16, height: 16, cursor: 'pointer' }}
+                />
                 ✉️ Send credentials via email
             </label>
             {sendEmail && (

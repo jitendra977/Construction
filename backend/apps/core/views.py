@@ -88,6 +88,10 @@ class HouseProjectViewSet(viewsets.ModelViewSet):
         room_total  = all_rooms.count()
         room_done   = all_rooms.filter(status='COMPLETED').count()
         room_pct    = round(room_done / room_total * 100, 1) if room_total else 0
+        build_area_sqft = round(
+            sum((floor.plan_width_cm or 0) * (floor.plan_depth_cm or 0) for floor in floors) / 929.0304,
+            2,
+        )
 
         # ── Phases ────────────────────────────────────────────────────────
         phases          = project.phases.all()
@@ -129,6 +133,7 @@ class HouseProjectViewSet(viewsets.ModelViewSet):
                 'rooms':        room_total,
                 'rooms_done':   room_done,
                 'room_pct':     room_pct,
+                'build_area_sqft': build_area_sqft,
             },
             'phases': {
                 'total':        phase_total,

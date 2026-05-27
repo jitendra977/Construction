@@ -10,7 +10,7 @@ const FIELD = {
 
 const EMPTY = {
     name: '', owner_name: '', address: '',
-    total_budget: '', area_sqft: '',
+    total_budget: '',
     start_date: '', expected_completion_date: '',
 };
 
@@ -22,7 +22,6 @@ export default function ProjectForm({ initial, onClose, onSaved }) {
         owner_name:               initial.owner_name || '',
         address:                  initial.address || '',
         total_budget:             initial.total_budget || '',
-        area_sqft:                initial.area_sqft || '',
         start_date:               initial.start_date || '',
         expected_completion_date: initial.expected_completion_date || '',
     } : EMPTY);
@@ -39,8 +38,9 @@ export default function ProjectForm({ initial, onClose, onSaved }) {
             const payload = {
                 ...form,
                 total_budget: +form.total_budget || 0,
-                area_sqft:    +form.area_sqft    || null,
+                area_sqft:    isEdit ? undefined : 0,
             };
+            if (isEdit) delete payload.area_sqft;
             if (isEdit) {
                 const res = await api.updateProject(initial.id, payload);
                 updateProjectLocal(res.data);
@@ -105,10 +105,13 @@ export default function ProjectForm({ initial, onClose, onSaved }) {
                                 style={FIELD} placeholder="Owner's full name" />
                         </div>
                         <div>
-                            <Label>Build Area (ft²)</Label>
-                            <input type="number" min="0" value={form.area_sqft}
-                                onChange={e => change('area_sqft', e.target.value)}
-                                style={FIELD} placeholder="e.g. 1800" />
+                            <Label>Build Area</Label>
+                            <div className="rounded-lg px-3 py-2 text-sm font-bold"
+                                style={{ background: 'var(--t-bg)', border: '1px solid var(--t-border)', color: 'var(--t-text)' }}>
+                                {isEdit && initial?.build_area_sqft
+                                    ? `${Math.round(initial.build_area_sqft).toLocaleString()} ft²`
+                                    : 'Calculated after floors'}
+                            </div>
                         </div>
                     </div>
 

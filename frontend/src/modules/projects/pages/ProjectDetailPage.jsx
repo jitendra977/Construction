@@ -7,6 +7,8 @@ import { useOutletContext, useNavigate } from 'react-router-dom';
 import { usePlatformBase } from '../../../shared/utils/platformNav';
 import api from '../services/projectsApi';
 import { useConstruction } from '../../../context/ConstructionContext';
+import structureApi from '../../structure/services/structureApi';
+import { totalBuildAreaSqft } from '../../structure/utils/area';
 
 const fmt = (n)  => `NPR ${(+n || 0).toLocaleString()}`;
 const pct  = (v) => `${(+v || 0).toFixed(1)}%`;
@@ -43,6 +45,7 @@ export default function ProjectDetailPage() {
     const isMobile     = base.includes('mobile');
     const { activeProjectId } = useConstruction();
     const [stats, setStats]   = useState(null);
+    const [floors, setFloors] = useState([]);
     const [loadingStats, setLS] = useState(false);
 
     const id = project?.id || activeProjectId;
@@ -54,6 +57,12 @@ export default function ProjectDetailPage() {
             .then(r  => setStats(r.data))
             .catch(e => console.error('Stats failed', e))
             .finally(() => setLS(false));
+        structureApi.getFloors(id)
+            .then(r => setFloors(Array.isArray(r.data) ? r.data : []))
+            .catch(e => {
+                console.error('Floors failed', e);
+                setFloors([]);
+            });
     }, [id]);
 
     if (!id) return (
@@ -71,6 +80,8 @@ export default function ProjectDetailPage() {
     );
 
     const s = stats;
+    const floorBuildAreaSqft = totalBuildAreaSqft(floors);
+    const buildAreaSqft = floorBuildAreaSqft || s?.structure?.build_area_sqft || project?.build_area_sqft || 0;
 
     return (
         <div style={{ padding: isMobile ? '14px 14px 24px' : '24px' }} className="space-y-5">
@@ -88,7 +99,7 @@ export default function ProjectDetailPage() {
                         <div className="flex flex-wrap gap-3 mt-2 text-xs">
                             <span style={{ color: 'var(--t-text3)' }}>👤 {project.owner_name || '—'}</span>
                             <span style={{ color: 'var(--t-text3)' }}>📅 {project.start_date} → {project.expected_completion_date}</span>
-                            <span style={{ color: 'var(--t-text3)' }}>📐 {project.area_sqft ? `${project.area_sqft.toLocaleString()} ft²` : '—'}</span>
+                            <span style={{ color: 'var(--t-text3)' }}>📐 {buildAreaSqft ? `${Math.round(buildAreaSqft).toLocaleString()} ft² build` : '—'}</span>
                         </div>
                     </div>
                     <div className="flex gap-2">
@@ -144,8 +155,8 @@ export default function ProjectDetailPage() {
                             <StatCard icon="✅" label="Rooms Complete"  value={s.structure.rooms_done} color="#10b981"
                                 sub={pct(s.structure.room_pct)} />
                             <StatCard icon="🏗️" label="Floors"         value={s.structure.floors}     color="#3b82f6" />
-                            <StatCard icon="📐" label="Completion"      value={pct(s.structure.room_pct)}
-                                color={s.structure.room_pct > 80 ? '#10b981' : s.structure.room_pct > 40 ? '#f59e0b' : '#f97316'} />
+                            <StatCard icon="📐" label="Build Area"      value={`${Math.round(buildAreaSqft).toLocaleString()} ft²`}
+                                color="#f97316" sub="from floor dimensions" />
                         </div>
                         <ProgressBar value={s.structure.rooms_done} max={s.structure.rooms}
                             color="#8b5cf6" label="Rooms Completed" />

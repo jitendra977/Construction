@@ -1,6 +1,7 @@
 import React from 'react';
 import { useStructure } from '../context/StructureContext';
 import StatusBadge, { STATUS_MAP } from '../components/shared/StatusBadge';
+import { floorBuildAreaSqft, roomAreaSqft } from '../utils/area';
 
 const FLOOR_COLORS = ['#ea580c', '#3b82f6', '#8b5cf6', '#10b981'];
 const fmt = (n) => n ? `NPR ${(+n).toLocaleString()}` : '—';
@@ -62,7 +63,7 @@ export default function ProgressPage() {
                     const done   = rooms.filter(r => r.status === 'COMPLETED').length;
                     const inProg = rooms.filter(r => r.status === 'IN_PROGRESS').length;
                     const pct    = rooms.length ? Math.round((done / rooms.length) * 100) : 0;
-                    const totalArea  = rooms.reduce((s, r) => s + (r.area_sqft ? +r.area_sqft : (r.width_cm && r.depth_cm ? r.width_cm * r.depth_cm / 929.03 : 0)), 0);
+                    const totalArea  = floorBuildAreaSqft(floor);
                     const totalBudget = rooms.reduce((s, r) => s + (+r.budget_allocation || 0), 0);
 
                     return (
@@ -108,9 +109,7 @@ export default function ProgressPage() {
                                         </thead>
                                         <tbody>
                                             {rooms.map(room => {
-                                                const area = room.area_sqft
-                                                    ? +room.area_sqft
-                                                    : (room.width_cm && room.depth_cm ? +(room.width_cm * room.depth_cm / 929.03).toFixed(1) : null);
+                                                const area = roomAreaSqft(room);
                                                 return (
                                                     <tr key={room.id} style={{ borderTop: '1px solid var(--t-border)' }}>
                                                         <td className="py-1.5 font-medium">
