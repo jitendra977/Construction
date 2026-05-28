@@ -53,19 +53,16 @@ export default function PhasesPage() {
         if (taskId) {
             setView({ type: 'task', taskId: parseInt(taskId) });
         } else if (phaseId) {
-            const targetPhase = phases.find(p => p.id === parseInt(phaseId));
-            if (targetPhase) {
-                setView({ type: 'phase', phase: targetPhase });
-            }
+            navigate(`${base}/phases/${phaseId}`, { replace: true });
         }
-    }, [location.search, location.state, phases, tasks.length]);
+    }, [location.search, location.state, phases, tasks.length, base, navigate]);
 
-    const goPhase = (phase)             => setView({ type: 'phase', phase });
+    const goPhase = (phase)             => navigate(`${base}/phases/${phase.id}`);
     const goTask  = (task, fromPhase)   => setView({ type: 'task', taskId: task.id, fromPhase: fromPhase || null });
     const goList  = ()                  => setView({ type: 'list' });
     const goBack  = ()                  => {
         if (view.type === 'task' && view.fromPhase) {
-            setView({ type: 'phase', phase: view.fromPhase });
+            navigate(`${base}/phases/${view.fromPhase.id}`);
         } else {
             goList();
         }
@@ -184,22 +181,12 @@ export default function PhasesPage() {
                 </div>
             )}
 
-            {view.type === 'phase' && (
-                <div style={{ paddingBottom: 96 }}>
-                    <PhaseDetailPanel
-                        phase={view.phase}
-                        onBack={goList}
-                        onTaskClick={(task) => goTask(task, view.phase)}
-                    />
-                </div>
-            )}
-
             {view.type === 'task' && (
                 <div style={{ paddingBottom: 96 }}>
                     <TaskDetailPanel
                         taskId={view.taskId}
                         onBack={goBack}
-                        onPhaseClick={(phase) => setView({ type: 'phase', phase })}
+                        onPhaseClick={(phase) => navigate(`${base}/phases/${phase.id}`)}
                     />
                 </div>
             )}

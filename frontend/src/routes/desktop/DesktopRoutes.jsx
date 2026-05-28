@@ -12,6 +12,7 @@ import PermitPage      from '../../pages/permits/PermitPage';
 import DataTransferPage  from '../../pages/DataTransferPage';
 import UserGuidePage   from '../../pages/desktop/UserGuidePage';
 import PhasesPage      from '../../pages/desktop/PhasesPage';
+import PhaseDetailPage from '../../pages/desktop/PhaseDetailPage';
 import TimelapsePage   from '../../pages/TimelapsePage';
 import AnalyticsPage   from '../../pages/AnalyticsPage';
 import WorkerPortal    from '../../modules/worker/WorkerPortal';
@@ -68,6 +69,7 @@ const DesktopRoutes = () => {
             <Route path="permits"    element={<RequirePermission permission="can_manage_phases"><PermitPage /></RequirePermission>}     />
             <Route path="manage"     element={<RequirePermission permission="can_manage_phases"><DesktopManage /></RequirePermission>}  />
             <Route path="phases"     element={<RequirePermission permission="can_view_phases"><PhasesPage /></RequirePermission>}     />
+            <Route path="phases/:id" element={<RequirePermission permission="can_view_phases"><PhaseDetailPage /></RequirePermission>} />
             <Route path="photos"     element={<RequirePermission permission="can_view_dashboard"><DesktopPhotos /></RequirePermission>}  />
             <Route path="data-transfer"  element={<RequirePermission permission="can_manage_data_transfer"><DataTransferPage /></RequirePermission>}  />
             <Route path="guides"     element={<RequirePermission permission="can_view_dashboard"><UserGuidePage /></RequirePermission>}  />
