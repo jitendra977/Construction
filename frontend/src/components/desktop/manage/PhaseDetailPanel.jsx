@@ -540,20 +540,38 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
         finally { setSaving(false); }
     };
 
-    const handleDeleteTask = async (id) => {
-        if (!window.confirm("Delete this task and all its media/updates?")) return;
-        try {
-            await deleteTask(id);
-            refreshData();
-        } catch { alert('Failed to delete task.'); }
+    const handleDeleteTask = (id) => {
+        setConfirmCfg({
+            isOpen: true,
+            title: 'Delete Task',
+            message: 'Delete this task and all its media/updates?',
+            confirmText: 'Delete',
+            type: 'danger',
+            onConfirm: async () => {
+                setConfirmCfg(c => ({ ...c, isOpen: false }));
+                try {
+                    await deleteTask(id);
+                    refreshData();
+                } catch { alert('Failed to delete task.'); }
+            }
+        });
     };
 
-    const handleDeleteMedia = async (id) => {
-        if (!window.confirm("Delete this media file?")) return;
-        try {
-            await deleteTaskMedia(id);
-            refreshData();
-        } catch { alert('Failed to delete media.'); }
+    const handleDeleteMedia = (id) => {
+        setConfirmCfg({
+            isOpen: true,
+            title: 'Delete Media',
+            message: 'Delete this media file?',
+            confirmText: 'Delete',
+            type: 'danger',
+            onConfirm: async () => {
+                setConfirmCfg(c => ({ ...c, isOpen: false }));
+                try {
+                    await deleteTaskMedia(id);
+                    refreshData();
+                } catch { alert('Failed to delete media.'); }
+            }
+        });
     };
 
     const handleFileUpload = async (e, field) => {
@@ -682,12 +700,21 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
         finally { setSaving(false); }
     };
 
-    const handleDeleteAssignment = async (id) => {
-        if (!window.confirm("Remove this worker from the phase?")) return;
-        try {
-            await workforceService.deleteAssignment(id);
-            fetchPhaseAssignments();
-        } catch { alert('Failed to remove assignment.'); }
+    const handleDeleteAssignment = (id) => {
+        setConfirmCfg({
+            isOpen: true,
+            title: 'Remove Worker',
+            message: 'Remove this worker from the phase?',
+            confirmText: 'Remove',
+            type: 'danger',
+            onConfirm: async () => {
+                setConfirmCfg(c => ({ ...c, isOpen: false }));
+                try {
+                    await workforceService.deleteAssignment(id);
+                    fetchPhaseAssignments();
+                } catch { alert('Failed to remove assignment.'); }
+            }
+        });
     };
 
     const handleUpdateAssignment = async (id) => {
@@ -713,11 +740,20 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
         });
     };
 
-    const handleDeleteAllocation = async (expenseId) => {
-        if (!window.confirm('Remove this material allocation? This cannot be undone.')) return;
-        try {
-            await deleteExpense(expenseId);
-        } catch { alert('Failed to delete allocation.'); }
+    const handleDeleteAllocation = (expenseId) => {
+        setConfirmCfg({
+            isOpen: true,
+            title: 'Remove Allocation',
+            message: 'Remove this material allocation? This cannot be undone.',
+            confirmText: 'Remove',
+            type: 'danger',
+            onConfirm: async () => {
+                setConfirmCfg(c => ({ ...c, isOpen: false }));
+                try {
+                    await deleteExpense(expenseId);
+                } catch { alert('Failed to delete allocation.'); }
+            }
+        });
     };
 
     const handleUpdateAllocation = async (expenseId) => {

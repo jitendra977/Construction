@@ -23,16 +23,16 @@ export const dashboardService = {
     getRecentUpdates: () => api.get('updates/'),
 
     // ── Canonical: fin expenses (/api/v1/fin/expenses/) ──────────────────────
-    getBudgetCategories: () => api.get('fin/budget-categories/'),
-    createBudgetCategory: (data) => api.post('fin/budget-categories/', data),
-    updateBudgetCategory: (id, data) => api.patch(`fin/budget-categories/${id}/`, data),
-    deleteBudgetCategory: (id) => api.delete(`fin/budget-categories/${id}/`),
+    getBudgetCategories: () => api.get('financials/budget-categories/'),
+    createBudgetCategory: (data) => api.post('financials/budget-categories/', data),
+    updateBudgetCategory: (id, data) => api.patch(`financials/budget-categories/${id}/`, data),
+    deleteBudgetCategory: (id) => api.delete(`financials/budget-categories/${id}/`),
 
-    getBudgetStats: () => api.get('fin/expenses/'),
-    getExpenses: () => api.get('fin/expenses/'),
-    createExpense: (data) => api.post('fin/expenses/', data),
-    updateExpense: (id, data) => api.patch(`fin/expenses/${id}/`, data),
-    deleteExpense: (id) => api.delete(`fin/expenses/${id}/`),
+    getBudgetStats: () => api.get('finance/expenses/'),
+    getExpenses: () => api.get('finance/expenses/'),
+    createExpense: (data) => api.post('finance/expenses/', data),
+    updateExpense: (id, data) => api.patch(`finance/expenses/${id}/`, data),
+    deleteExpense: (id) => api.delete(`finance/expenses/${id}/`),
     // exportExpensesPdf not available on fin — keep legacy fallback if needed
     exportExpensesPdf: (params = {}) =>
         api.get('finance/expenses/export-pdf/', { params, responseType: 'blob' }),

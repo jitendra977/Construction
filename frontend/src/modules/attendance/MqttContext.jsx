@@ -22,6 +22,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import mqtt from 'mqtt';
 import mqttService         from '../../services/mqttService';
 import attendanceService   from '../../services/attendanceService';
+import { mqttWebSocketUrl, normalizeMqttBrokerHost } from './utils/mqttUrl';
 
 const DEVICE_HEARTBEAT_GRACE_MS = 45 * 1000;
 const MQTT_RECONNECT_PERIOD_MS = 5 * 1000;
@@ -38,9 +39,10 @@ function _isDeviceOnline(lastSeen, graceMs = DEVICE_HEARTBEAT_GRACE_MS) {
  */
 function _resolveBrokerHost(host) {
     if (!host) return window.location.hostname;
-    const h = host.trim().toLowerCase();
+    const normalized = normalizeMqttBrokerHost(host);
+    const h = normalized.toLowerCase();
     if (h === 'localhost' || h === '127.0.0.1') return window.location.hostname;
-    return host;
+    return normalized;
 }
 
 const MqttContext = createContext(null);
@@ -185,8 +187,7 @@ export function MqttProvider({ projectId, children }) {
         }
 
         // ── Build WebSocket URL ───────────────────────────────────────────────
-        const protocol = brokerCfg.use_tls ? 'wss' : 'ws';
-        const wsUrl    = `${protocol}://${brokerCfg.broker_host}:${brokerCfg.ws_port}`;
+        const wsUrl = mqttWebSocketUrl(brokerCfg.broker_host, brokerCfg.ws_port, brokerCfg.use_tls);
 
         setStatus('Connecting...');
         startReconnectCountdown();

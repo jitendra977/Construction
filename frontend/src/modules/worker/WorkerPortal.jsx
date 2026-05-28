@@ -12,6 +12,7 @@ import BrickCalculator     from '../../pages/estimator/BrickCalculator';
 import ConcreteCalculator  from '../../pages/estimator/ConcreteCalculator';
 import PlasterCalculator   from '../../pages/estimator/PlasterCalculator';
 import FlooringCalculator  from '../../pages/estimator/FlooringCalculator';
+import { WorkerUploadProvider } from '../../context/WorkerUploadContext';
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const STYLES = `
@@ -681,7 +682,7 @@ export default function WorkerPortal() {
 
   const handleLogout=()=>{ workerPortalApi.logout(); setUser(null); };
 
-  if(!user) return <LoginScreen onLogin={setUser}/>;
+  if(!user) return <WorkerUploadProvider><LoginScreen onLogin={setUser}/></WorkerUploadProvider>;
 
   const g     = greeting();
   const today = profile?.today||{};
@@ -704,6 +705,7 @@ export default function WorkerPortal() {
   ];
 
   return (
+    <WorkerUploadProvider>
     <div className="wp wp-fade" style={{minHeight:'100dvh',background:C.bg,color:C.text,overflowX:'hidden'}}>
       <style>{STYLES}</style>
 
@@ -1174,5 +1176,6 @@ export default function WorkerPortal() {
         })}
       </div>
     </div>
+    </WorkerUploadProvider>
   );
 }

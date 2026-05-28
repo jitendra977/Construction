@@ -16,6 +16,7 @@ import { Camera, FolderOpen, RefreshCw, Search, UploadCloud } from 'lucide-react
 import workerPortalApi from '../../../services/workerPortalApi';
 import VoiceNoteInput from '../../../components/common/VoiceNoteInput';
 import { useTheme } from '../../../context/ThemeContext';
+import { useWorkerUpload } from '../../../context/WorkerUploadContext';
 
 // ─── Design tokens ─────────────────────────────────────────────────────────────
 function getPalette(theme) {
@@ -309,7 +310,6 @@ export default function WorkerPhotoPage() {
     const [selectedTask, setTask]   = useState('');
     const [description, setDesc]    = useState('');
     const [queue, setQueue]         = useState([]);
-    const [uploading, setUploading] = useState(false);
     const [photos, setPhotos]       = useState([]);
     const [loadingPhotos, setLoadingPhotos] = useState(false);
     const [lightbox, setLightbox]   = useState(null);  // index into photos[]
@@ -317,6 +317,7 @@ export default function WorkerPhotoPage() {
     const [galleryFilter, setFilter] = useState('');    // filter by phase/task name
     const fileInputRef = useRef(null);
     const cameraRef    = useRef(null);
+    const { dispatchWorkerUpload } = useWorkerUpload();
 
     useEffect(() => {
         // Use all project tasks (not just assigned-to-me) so any task can be tagged.
@@ -358,37 +359,44 @@ export default function WorkerPhotoPage() {
 
     const removeFromQueue = (id) => setQueue(q => q.filter(i => i.id !== id));
 
-    const uploadAll = useCallback(async () => {
-        const pending = queue.filter(i => !i.done && !i.uploading);
+    const uploadAll = useCallback(() => {
+        const pending = queue.filter(i => !i.done && !i.error);
         if (!pending.length) return;
-        setUploading(true);
-        let successCount = 0;
+
         for (const item of pending) {
+            const taskId = selectedTask ? Number(selectedTask) : null;
+            const filename = item.file.name;
+
+            // Mark item as uploading in the local queue UI immediately
             setQueue(q => q.map(i => i.id === item.id ? { ...i, uploading: true, error: '' } : i));
-            try {
-                // task is optional — pass null/undefined if none selected
-                const taskId = selectedTask ? Number(selectedTask) : null;
-                await workerPortalApi.uploadPhoto(
+
+            // Dispatch to global background upload manager
+            dispatchWorkerUpload(
+                (onProgress) => workerPortalApi.uploadPhoto(
                     item.file, taskId, description,
-                    (pct) => setQueue(q => q.map(i => i.id === item.id ? { ...i, progress: pct } : i)),
-                );
-                setQueue(q => q.map(i => i.id === item.id ? { ...i, uploading: false, done: true, progress: 100 } : i));
-                successCount++;
-            } catch (e) {
-                const msg = e.response?.data?.error || e.response?.data?.file?.[0] || 'Upload failed';
-                setQueue(q => q.map(i => i.id === item.id ? { ...i, uploading: false, error: msg } : i));
-            }
+                    (pct) => {
+                        // Update local queue progress
+                        setQueue(q => q.map(i => i.id === item.id ? { ...i, progress: pct } : i));
+                        // Also pass raw event to dispatchWorkerUpload
+                        onProgress({ loaded: pct, total: 100 });
+                    }
+                ).then(() => {
+                    setQueue(q => q.map(i => i.id === item.id ? { ...i, uploading: false, done: true, progress: 100 } : i));
+                }).catch(e => {
+                    const msg = e.response?.data?.error || e.response?.data?.file?.[0] || 'Upload failed';
+                    setQueue(q => q.map(i => i.id === item.id ? { ...i, uploading: false, error: msg } : i));
+                    throw e;
+                }),
+                filename,
+            );
         }
-        setUploading(false);
+
         setDesc('');
-        if (successCount > 0) {
-            setToast({ message: `${successCount} photo${successCount !== 1 ? 's' : ''} uploaded`, color: c.green });
-        }
-    }, [c.green, description, queue, selectedTask]);
+    }, [description, dispatchWorkerUpload, queue, selectedTask]);
 
     const doneCount    = queue.filter(i => i.done).length;
     const pendingCount = queue.filter(i => !i.done && !i.uploading).length;
-    const canUpload    = pendingCount > 0 && !uploading;
+    const canUpload    = pendingCount > 0;
 
     // Gallery filtering + grouping by phase
     const filteredPhotos = photos.filter(p =>

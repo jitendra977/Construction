@@ -73,9 +73,8 @@ export default function MobileQuickCapture({ open, onClose }) {
     const [note, setNote] = useState('');
     const [files, setFiles] = useState([]);
     const [loadingTasks, setLoadingTasks] = useState(false);
-    const [uploading, setUploading] = useState(false);
 
-    const { activeProjectId, dashboardData } = useConstruction();
+    const { activeProjectId, dashboardData, dispatchGlobalUpload } = useConstruction();
     const tracker = useMobileTracker();
     const location = useLocation();
     const user = authService.getCurrentUser();
@@ -188,45 +187,45 @@ export default function MobileQuickCapture({ open, onClose }) {
         });
     };
 
-    const uploadAll = async () => {
+    const uploadAll = () => {
         if (!taskId || !files.length) return;
-        setUploading(true);
 
-        try {
-            for (const entry of files.filter((file) => file.status === 'pending')) {
+        const pendingFiles = files.filter((file) => file.status === 'pending');
+        if (!pendingFiles.length) return;
+
+        for (const entry of pendingFiles) {
+            setFiles((prev) => prev.map((file) => (
+                file.id === entry.id ? { ...file, status: 'uploading' } : file
+            )));
+
+            const payload = new FormData();
+            payload.append('task', taskId);
+            payload.append('file', entry.file);
+            payload.append('media_type', entry.file.type.startsWith('video/') ? 'VIDEO' : 'IMAGE');
+            payload.append('description', buildDescription({
+                file: entry.file,
+                liveCapture: entry.liveCapture,
+                user,
+                projectName: dashboardData?.project?.name,
+                taskTitle: selectedTask?.title,
+                pathname: location.pathname,
+                tracker,
+                note,
+            }));
+
+            dispatchGlobalUpload(
+                constructionService.uploadTaskMedia,
+                payload,
+                entry.file.name || 'Site Photo',
+            ).then(() => {
                 setFiles((prev) => prev.map((file) => (
-                    file.id === entry.id ? { ...file, status: 'uploading' } : file
+                    file.id === entry.id ? { ...file, status: 'done' } : file
                 )));
-
-                const payload = new FormData();
-                payload.append('task', taskId);
-                payload.append('file', entry.file);
-                payload.append('media_type', entry.file.type.startsWith('video/') ? 'VIDEO' : 'IMAGE');
-                payload.append('description', buildDescription({
-                    file: entry.file,
-                    liveCapture: entry.liveCapture,
-                    user,
-                    projectName: dashboardData?.project?.name,
-                    taskTitle: selectedTask?.title,
-                    pathname: location.pathname,
-                    tracker,
-                    note,
-                }));
-
-                try {
-                    await constructionService.uploadTaskMedia(payload);
-                    setFiles((prev) => prev.map((file) => (
-                        file.id === entry.id ? { ...file, status: 'done' } : file
-                    )));
-                } catch (error) {
-                    console.error('Quick capture upload failed', error);
-                    setFiles((prev) => prev.map((file) => (
-                        file.id === entry.id ? { ...file, status: 'error' } : file
-                    )));
-                }
-            }
-        } finally {
-            setUploading(false);
+            }).catch(() => {
+                setFiles((prev) => prev.map((file) => (
+                    file.id === entry.id ? { ...file, status: 'error' } : file
+                )));
+            });
         }
     };
 

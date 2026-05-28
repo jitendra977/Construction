@@ -22,6 +22,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import mqttService from '../../../services/mqttService';
+import { MQTT_URL_EXAMPLES, mqttWebSocketUrl, normalizeMqttBrokerHost } from '../utils/mqttUrl';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Tiny UI atoms
@@ -228,11 +229,24 @@ export default function MqttConfig({ projectId }) {
         setTestResult(null);
     };
 
+    const setBrokerHost = (value) => {
+        setForm((f) => ({ ...f, broker_host: value }));
+        setDirty(true);
+        setTestResult(null);
+    };
+
+    const normalizeBrokerHostField = () => {
+        setForm((f) => ({ ...f, broker_host: normalizeMqttBrokerHost(f?.broker_host) }));
+    };
+
     // ── Save ──────────────────────────────────────────────────────────────────
     const handleSave = async () => {
         setSaving(true);
         try {
-            const payload = { ...form };
+            const payload = {
+                ...form,
+                broker_host: normalizeMqttBrokerHost(form?.broker_host),
+            };
             if (newPassword) payload.password = newPassword;
             const updated = await mqttService.updateConfig(projectId, payload);
             setConfig(updated);
@@ -255,7 +269,7 @@ export default function MqttConfig({ projectId }) {
         setTestResult(null);
         try {
             const result = await mqttService.testConnection(projectId, {
-                broker_host: form.broker_host,
+                broker_host: normalizeMqttBrokerHost(form.broker_host),
                 broker_port: form.broker_port,
             });
             setTestResult(result);
@@ -343,10 +357,11 @@ export default function MqttConfig({ projectId }) {
 
                 <Input
                     label="Broker Host"
-                    hint="Hostname or IP of your MQTT broker (e.g. 192.168.1.100 or mqtt.example.com)"
+                    hint={`Hostname or IP only is saved. You can paste: ${MQTT_URL_EXAMPLES.join('  |  ')}`}
                     value={form?.broker_host}
-                    onChange={set('broker_host')}
-                    placeholder="localhost"
+                    onChange={setBrokerHost}
+                    onBlur={normalizeBrokerHostField}
+                    placeholder="nishanaweb.cloud"
                 />
 
                 <div style={s.row3}>
@@ -383,6 +398,22 @@ export default function MqttConfig({ projectId }) {
                     onChange={set('topic')}
                     placeholder="nfc/+/state"
                 />
+
+                <div style={{
+                    marginTop: 12,
+                    padding: '11px 14px',
+                    borderRadius: 10,
+                    background: 'var(--t-surface2)',
+                    border: '1px solid var(--t-border)',
+                    fontSize: 12,
+                    color: 'var(--t-text3)',
+                    lineHeight: 1.5,
+                }}>
+                    Browser WebSocket URL:{' '}
+                    <strong style={{ color: 'var(--t-text)', fontFamily: 'monospace', overflowWrap: 'anywhere' }}>
+                        {mqttWebSocketUrl(form?.broker_host, form?.ws_port, form?.use_tls)}
+                    </strong>
+                </div>
             </div>
 
             {/* ── Credentials ────────────────────────────────────────────── */}

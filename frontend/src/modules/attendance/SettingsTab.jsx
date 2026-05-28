@@ -12,6 +12,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import mqtt from 'mqtt';
 import attendanceService from '../../services/attendanceService';
 import { previewTheme, SOUND_THEMES } from './attendanceSounds';
+import { MQTT_URL_EXAMPLES, mqttWebSocketUrl, normalizeMqttBrokerHost } from './utils/mqttUrl';
 
 // ── Tiny helpers ──────────────────────────────────────────────────────────────
 const Row = ({ label, children, hint }) => (
@@ -93,7 +94,7 @@ const LiveMqttTerminal = ({ brokerUrl, topic, username, password }) => {
     const connect = () => {
         const safeBroker = brokerUrl && brokerUrl.trim();
         if (!safeBroker) { setLogs([`[Error] No broker IP set. Fill in MQTT Broker URL below and Save first.`]); return; }
-        const wsUrl = `ws://${safeBroker}:${wsPort}`;
+        const wsUrl = mqttWebSocketUrl(safeBroker, wsPort);
         setStatus('Connecting...');
         setLogs([`[System] Connecting to ${wsUrl} ...`]);
         let client;
@@ -301,7 +302,11 @@ export default function SettingsTab({ projectId }) {
     const saveSettings = async () => {
         setSettingsBusy(true); setSettingsErr('');
         try {
-            const d = await attendanceService.updateSettings(projectId, settings);
+            const payload = {
+                ...settings,
+                mqtt_broker_url: normalizeMqttBrokerHost(settings.mqtt_broker_url),
+            };
+            const d = await attendanceService.updateSettings(projectId, payload);
             setSettings(d);
             setOrigSettings(d);
             setSettingsSaved(true);
@@ -569,11 +574,30 @@ export default function SettingsTab({ projectId }) {
                     </p>
                     
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-                        <Row label="MQTT Broker URL (Local IP or Domain)">
-                            <Input value={settings.mqtt_broker_url ?? window.location.hostname} onChange={v => setSettings(s => ({ ...s, mqtt_broker_url: v }))} />
+                        <Row label="MQTT Broker URL (Local IP or Domain)" hint={`Examples: ${MQTT_URL_EXAMPLES.join('  |  ')}`}>
+                            <Input
+                                value={settings.mqtt_broker_url ?? window.location.hostname}
+                                onChange={v => setSettings(s => ({ ...s, mqtt_broker_url: v }))}
+                                onBlur={e => setSettings(s => ({ ...s, mqtt_broker_url: normalizeMqttBrokerHost(e.target.value) }))}
+                                placeholder="nishanaweb.cloud"
+                            />
                         </Row>
                         <Row label="MQTT Port">
                             <Input type="number" value={settings.mqtt_port ?? 1883} onChange={v => setSettings(s => ({ ...s, mqtt_port: parseInt(v) || 1883 }))} />
+                        </Row>
+                        <Row label="Browser WebSocket URL" hint="The browser live terminal uses WebSockets, usually port 9001. If this page is HTTPS, prefer wss:// on your broker/proxy.">
+                            <div style={{
+                                padding: '12px 14px',
+                                borderRadius: 12,
+                                fontSize: 13,
+                                fontFamily: 'monospace',
+                                background: 'var(--t-bg)',
+                                color: 'var(--t-text)',
+                                border: '1.5px solid var(--t-border)',
+                                overflowWrap: 'anywhere',
+                            }}>
+                                {mqttWebSocketUrl(settings.mqtt_broker_url ?? window.location.hostname, 9001)}
+                            </div>
                         </Row>
                         <Row label="Topic Format" hint="Use + as wildcard for MAC address">
                             <Input value={settings.mqtt_topic ?? 'nfc/+/state'} onChange={v => setSettings(s => ({ ...s, mqtt_topic: v }))} style={{ fontFamily: 'monospace', fontSize: 12 }} />
