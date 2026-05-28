@@ -51,24 +51,17 @@ export default function PhasesPage() {
         const taskId = params.get('task') || stateTaskId;
 
         if (taskId) {
-            setView({ type: 'task', taskId: parseInt(taskId) });
+            navigate(`${base}/tasks/${taskId}`, { replace: true });
         } else if (phaseId) {
             navigate(`${base}/phases/${phaseId}`, { replace: true });
         }
     }, [location.search, location.state, phases, tasks.length, base, navigate]);
 
     const goPhase = (phase)             => navigate(`${base}/phases/${phase.id}`);
-    const goTask  = (task, fromPhase)   => setView({ type: 'task', taskId: task.id, fromPhase: fromPhase || null });
-    const goList  = ()                  => setView({ type: 'list' });
-    const goBack  = ()                  => {
-        if (view.type === 'task' && view.fromPhase) {
-            navigate(`${base}/phases/${view.fromPhase.id}`);
-        } else {
-            goList();
-        }
-    };
+    const goTask  = (task)              => navigate(`${base}/tasks/${task.id}`);
+    const goList  = ()                  => navigate(`${base}/phases`);
 
-    const isDetail = view.type !== 'list';
+    const isDetail = false;
 
     return (
         <div style={{ minHeight: '100vh', background: 'var(--t-bg)' }}>
@@ -177,16 +170,6 @@ export default function PhasesPage() {
                         searchQuery={search}
                         onPhaseClick={goPhase}
                         onTaskClick={(task) => goTask(task, null)}
-                    />
-                </div>
-            )}
-
-            {view.type === 'task' && (
-                <div style={{ paddingBottom: 96 }}>
-                    <TaskDetailPanel
-                        taskId={view.taskId}
-                        onBack={goBack}
-                        onPhaseClick={(phase) => navigate(`${base}/phases/${phase.id}`)}
                     />
                 </div>
             )}

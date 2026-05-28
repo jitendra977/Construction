@@ -315,8 +315,8 @@ export default function Dashboard() {
     }, []);
 
     /* ── navigation helpers ── */
-    const goPhaseDetail = (phase) => navigate(`${base}/phases`, { state: { openPhase: phase.id } });
-    const goTaskDetail  = (task)  => navigate(`${base}/phases`, { state: { openTask: task.id } });
+    const goPhaseDetail = (phase) => navigate(`${base}/phases/${phase.id}`);
+    const goTaskDetail  = (task)  => navigate(`${base}/tasks/${task.id}`);
     const go            = (path)  => navigate(path);
 
     const quickActions = [

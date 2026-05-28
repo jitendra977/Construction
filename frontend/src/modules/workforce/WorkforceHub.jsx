@@ -721,7 +721,7 @@ function AssignmentsTab({ projectId }) {
                                         </span>
                                         {group.key !== '__no_phase__' && (
                                             <Link
-                                                to={`/dashboard/desktop/phases?phase=${group.key}`}
+                                                to={`/dashboard/desktop/phases/${group.key}`}
                                                 onClick={e => e.stopPropagation()}
                                                 style={{ marginLeft: 10, fontSize: 11, color, textDecoration: 'none', fontWeight: 600 }}>
                                                 View Phase ↗
@@ -779,7 +779,7 @@ function AssignmentsTab({ projectId }) {
                                                             </td>
                                                             <td style={{ padding: '9px 10px' }}>
                                                                 {a.task ? (
-                                                                    <Link to={`/dashboard/desktop/phases?task=${a.task}`} style={{ fontSize: 12, color: 'var(--t-primary)', textDecoration: 'none', fontWeight: 600 }}>
+                                                                    <Link to={`/dashboard/desktop/tasks/${a.task}`} style={{ fontSize: 12, color: 'var(--t-primary)', textDecoration: 'none', fontWeight: 600 }}>
                                                                         {a.task_name || `Task #${a.task}`}
                                                                     </Link>
                                                                 ) : <span style={{ color: 'var(--t-text-muted)', fontSize: 12 }}>Phase-level</span>}
