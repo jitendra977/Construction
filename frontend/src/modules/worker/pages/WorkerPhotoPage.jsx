@@ -396,6 +396,7 @@ export default function WorkerPhotoPage() {
 
     const doneCount    = queue.filter(i => i.done).length;
     const pendingCount = queue.filter(i => !i.done && !i.uploading).length;
+    const uploading    = queue.some(i => i.uploading);
     const canUpload    = pendingCount > 0;
 
     // Gallery filtering + grouping by phase

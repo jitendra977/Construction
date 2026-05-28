@@ -399,6 +399,18 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
     const [editingMatId,   setEditingMatId]   = useState(null);
     const [editMatData,    setEditMatData]     = useState({});
     const [confirmCfg,     setConfirmCfg]     = useState({ isOpen: false });
+
+    // ── Modal helpers (replace browser alert) ────────────────────────────
+    const showError = (msg) => setConfirmCfg({
+        isOpen: true, title: 'Error', message: msg,
+        confirmText: 'OK', type: 'warning',
+        onConfirm: () => setConfirmCfg(c => ({ ...c, isOpen: false })),
+    });
+    const showInfo = (msg) => setConfirmCfg({
+        isOpen: true, title: 'Success', message: msg,
+        confirmText: 'OK', type: 'info',
+        onConfirm: () => setConfirmCfg(c => ({ ...c, isOpen: false })),
+    });
     const [showMediaUploadModal, setShowMediaUploadModal] = useState(false);
     const [uploadMediaTaskId, setUploadMediaTaskId] = useState('');
     const [activeTab,      setActiveTab]      = useState('tasks'); // 'tasks' | 'media' | 'materials' | 'assignments'
@@ -487,7 +499,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
             setIsDirty(false);
             setIsEditing(false);
             refreshData();
-        } catch { alert('Failed to save.'); }
+        } catch (err) { showError(err?.response?.data?.detail || 'Failed to save phase. Please try again.'); }
         finally { setSaving(false); }
     };
 
@@ -536,7 +548,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
             setNewTaskSpec('');
             setNewTaskPriority('MEDIUM');
             refreshData();
-        } catch { alert('Failed to create task.'); }
+        } catch (err) { showError(err?.response?.data?.detail || 'Failed to create task.'); }
         finally { setSaving(false); }
     };
 
@@ -552,7 +564,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                 try {
                     await deleteTask(id);
                     refreshData();
-                } catch { alert('Failed to delete task.'); }
+                } catch (err) { showError(err?.response?.data?.detail || 'Failed to delete task.'); }
             }
         });
     };
@@ -569,7 +581,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                 try {
                     await deleteTaskMedia(id);
                     refreshData();
-                } catch { alert('Failed to delete media.'); }
+                } catch (err) { showError(err?.response?.data?.detail || 'Failed to delete media.'); }
             }
         });
     };
@@ -585,10 +597,10 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
         try {
             await updatePhase(phase.id, formData);
             refreshData();
-            alert('File uploaded successfully!');
+            showInfo('File uploaded successfully!');
         } catch (err) {
             console.error(err);
-            alert('Failed to upload file.');
+            showError(err?.response?.data?.detail || 'Failed to upload file.');
         } finally {
             setSaving(false);
         }
@@ -625,7 +637,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                     refreshData();
                 } catch (err) {
                     console.error(err);
-                    alert('Failed to delete document.');
+                    showError(err?.response?.data?.detail || 'Failed to delete document.');
                 } finally {
                     setSaving(false);
                 }
@@ -660,7 +672,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
             }
             setMaterialCart([]);
             refreshData();
-        } catch { alert('Failed to allocate materials.'); }
+        } catch (err) { showError(err?.response?.data?.detail || 'Failed to allocate materials.'); }
         finally { setSaving(false); }
     };
 
@@ -675,7 +687,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
             String(a.task || '') === String(selTask || '')
         );
         if (isDuplicate) {
-            alert('This worker is already assigned to this phase / task.');
+            showError('This worker is already assigned to this phase / task.');
             return;
         }
 
@@ -696,7 +708,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
             setSelTask('');
             fetchPhaseAssignments();
             refreshData(); // update dashboardData.contractors so task dropdown is current
-        } catch { alert('Failed to create assignment.'); }
+        } catch (err) { showError(err?.response?.data?.detail || 'Failed to create assignment.'); }
         finally { setSaving(false); }
     };
 
@@ -712,7 +724,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                 try {
                     await workforceService.deleteAssignment(id);
                     fetchPhaseAssignments();
-                } catch { alert('Failed to remove assignment.'); }
+                } catch (err) { showError(err?.response?.data?.detail || 'Failed to remove assignment.'); }
             }
         });
     };
@@ -727,7 +739,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
             });
             setEditingAssignId(null);
             fetchPhaseAssignments();
-        } catch { alert('Failed to update assignment.'); }
+        } catch (err) { showError(err?.response?.data?.detail || 'Failed to update assignment.'); }
         finally { setSaving(false); }
     };
 
@@ -751,7 +763,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                 setConfirmCfg(c => ({ ...c, isOpen: false }));
                 try {
                     await deleteExpense(expenseId);
-                } catch { alert('Failed to delete allocation.'); }
+                } catch (err) { showError(err?.response?.data?.detail || 'Failed to delete allocation.'); }
             }
         });
     };
@@ -766,14 +778,14 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                 amount:     parseFloat(editMatData.quantity) * parseFloat(editMatData.unit_price),
             });
             setEditingMatId(null);
-        } catch { alert('Failed to update allocation.'); }
+        } catch (err) { showError(err?.response?.data?.detail || 'Failed to update allocation.'); }
         finally { setSaving(false); }
     };
 
     const handleComplete = async () => {
-        if (!phase.completion_photo) { alert('Phase completion photo is required.'); return; }
+        if (!phase.completion_photo) { showError('Phase completion photo is required.'); return; }
         const incomplete = phaseTasks.filter(t => t.status !== 'COMPLETED');
-        if (incomplete.length > 0) { alert(`${incomplete.length} tasks still incomplete.`); return; }
+        if (incomplete.length > 0) { showError(`${incomplete.length} tasks still incomplete.`); return; }
         setCompleting(true);
         try { await updatePhase(phase.id, { status: 'COMPLETED' }); refreshData(); }
         finally { setCompleting(false); }
@@ -1226,7 +1238,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                                             </select>
                                         </div>
                                         <input type="file" id="general-media-upload" accept="image/*,video/*,.pdf,.doc,.docx" style={{ display: 'none' }} onChange={(e) => {
-                                            if (!uploadMediaTaskId) { alert('Please select a task first'); return; }
+                                            if (!uploadMediaTaskId) { showError('Please select a task first.'); return; }
                                             handleUploadMedia(e, uploadMediaTaskId);
                                             setShowMediaUploadModal(false);
                                             setUploadMediaTaskId('');

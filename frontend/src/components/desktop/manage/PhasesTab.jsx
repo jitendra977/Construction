@@ -321,15 +321,15 @@ function TaskRow({ task, onUpdate, onDelete, onTaskClick }) {
                 <button
                     onClick={e => { e.stopPropagation(); onTaskClick(task); }}
                     style={{
-                        padding: '3px 9px', borderRadius: 5, fontSize: 10, fontWeight: 800,
-                        background: hovered ? 'rgba(249,115,22,0.1)' : 'transparent',
-                        color: hovered ? '#f97316' : 'transparent',
-                        border: hovered ? '1px solid rgba(249,115,22,0.3)' : '1px solid transparent',
+                        padding: '4px 12px', borderRadius: 6, fontSize: 10, fontWeight: 800,
+                        background: 'rgba(249,115,22,0.1)',
+                        color: '#f97316',
+                        border: '1px solid rgba(249,115,22,0.3)',
                         cursor: 'pointer', flexShrink: 0,
                         transition: 'all 0.15s', whiteSpace: 'nowrap',
                     }}
                 >
-                    Detail
+                    Detail →
                 </button>
             )}
 
@@ -478,12 +478,13 @@ function MobilePhaseCard({
                         <button
                             onClick={e => { e.stopPropagation(); onPhaseClick(phase); }}
                             style={{
-                                padding: '2px 7px', borderRadius: 4, fontSize: 9, fontWeight: 800,
-                                background: 'rgba(249,115,22,0.08)', color: '#f97316',
-                                border: '1px solid rgba(249,115,22,0.2)',
+                                padding: '5px 12px', borderRadius: 6, fontSize: 11, fontWeight: 800,
+                                background: 'rgba(249,115,22,0.12)', color: '#f97316',
+                                border: '1px solid rgba(249,115,22,0.3)',
                                 cursor: 'pointer', flexShrink: 0,
+                                whiteSpace: 'nowrap',
                             }}
-                        >→</button>
+                        >Detail →</button>
                     )}
 
                     {/* Chevron */}
@@ -639,9 +640,10 @@ function MobilePhaseCard({
                                                     <button
                                                         onClick={() => onTaskClick(task)}
                                                         style={{
-                                                            padding: '2px 7px', borderRadius: 4, fontSize: 9, fontWeight: 800,
-                                                            background: 'rgba(249,115,22,0.08)', color: '#f97316',
-                                                            border: '1px solid rgba(249,115,22,0.2)', cursor: 'pointer',
+                                                            padding: '5px 12px', borderRadius: 6, fontSize: 11, fontWeight: 800,
+                                                            background: 'rgba(249,115,22,0.12)', color: '#f97316',
+                                                            border: '1px solid rgba(249,115,22,0.3)', cursor: 'pointer',
+                                                            whiteSpace: 'nowrap',
                                                         }}
                                                     >Detail →</button>
                                                 )}
@@ -761,13 +763,13 @@ function SortablePhaseAccordion({
                             <button
                                 onClick={e => { e.stopPropagation(); onPhaseClick(phase); }}
                                 style={{
-                                    padding: '2px 8px', borderRadius: 4, fontSize: 9, fontWeight: 800,
-                                    background: 'rgba(249,115,22,0.08)', color: '#f97316',
-                                    border: '1px solid rgba(249,115,22,0.25)', cursor: 'pointer',
+                                    padding: '5px 14px', borderRadius: 7, fontSize: 11, fontWeight: 800,
+                                    background: 'rgba(249,115,22,0.12)', color: '#f97316',
+                                    border: '1px solid rgba(249,115,22,0.35)', cursor: 'pointer',
                                     flexShrink: 0, whiteSpace: 'nowrap', letterSpacing: '0.04em',
                                 }}
                             >
-                                Detail →
+                                📋 Detail →
                             </button>
                         )}
                     </div>

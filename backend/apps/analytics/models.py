@@ -67,7 +67,7 @@ class SupplierRateTrend(models.Model):
     """
 
     supplier = models.ForeignKey(
-        Vendor, on_delete=models.CASCADE, related_name="rate_trends"
+        "resource.Supplier", on_delete=models.CASCADE, related_name="rate_trends"
     )
     material = models.ForeignKey(
         Material, on_delete=models.CASCADE, related_name="rate_trends"

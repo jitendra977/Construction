@@ -20,13 +20,13 @@ export default function CustomVideoPlayer({ src, className = '' }) {
     const [isHovering, setIsHovering] = useState(true);
     const [isLoading, setIsLoading] = useState(true);
     
-    let hideTimeout;
+    const hideTimeout = useRef(null);
 
     const handleMouseMove = () => {
         setIsHovering(true);
-        clearTimeout(hideTimeout);
+        clearTimeout(hideTimeout.current);
         if (isPlaying) {
-            hideTimeout = setTimeout(() => setIsHovering(false), 2500);
+            hideTimeout.current = setTimeout(() => setIsHovering(false), 2500);
         }
     };
 
