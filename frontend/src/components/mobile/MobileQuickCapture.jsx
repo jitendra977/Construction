@@ -233,6 +233,7 @@ export default function MobileQuickCapture({ open, onClose }) {
 
     const pendingCount = files.filter((file) => file.status === 'pending').length;
     const liveCount = files.filter((file) => file.liveCapture).length;
+    const uploading = files.some((file) => file.status === 'uploading');
 
     return createPortal(
         <div className="fixed inset-0 z-[120] bg-black/65 backdrop-blur-sm flex items-end sm:items-center justify-center" onClick={onClose}>
