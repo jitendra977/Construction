@@ -405,8 +405,8 @@ def accounts_stats(request):
     active_users  = User.objects.filter(is_active=True).count()
     inactive_users = total_users - active_users
     total_roles   = Role.objects.count()
-    today         = timezone.now().date()
-    new_today     = User.objects.filter(date_joined__date=today).count()
+    start_of_today = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    new_today     = User.objects.filter(date_joined__gte=start_of_today).count()
 
     # Activity summary (last 30 days)
     from datetime import timedelta
@@ -1269,8 +1269,8 @@ class WorkerQRCheckinView(APIView):
         
         scan_type = 'CHECK_OUT' if (att_today and att_today.check_in) else 'CHECK_IN'
 
-        # ── Enforce Cooling Periods ───────────────────────────────────────────
-        last_log = QRScanLog.objects.filter(worker=my_worker, scanned_at__date=today).order_by('-scanned_at').first()
+        start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        last_log = QRScanLog.objects.filter(worker=my_worker, scanned_at__gte=start_of_today).order_by('-scanned_at').first()
         if last_log:
             diff_seconds = (now - last_log.scanned_at).total_seconds()
             

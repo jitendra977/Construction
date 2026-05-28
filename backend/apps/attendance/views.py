@@ -589,7 +589,14 @@ def project_scan_logs(request):
     ).select_related("worker", "scanned_by", "attendance").order_by("-scanned_at")
 
     if d := request.query_params.get("date"):
-        qs = qs.filter(scanned_at__date=d)
+        from datetime import datetime, time
+        try:
+            parsed_date = datetime.strptime(d, "%Y-%m-%d").date()
+            start_dt = timezone.make_aware(datetime.combine(parsed_date, time.min))
+            end_dt = timezone.make_aware(datetime.combine(parsed_date, time.max))
+            qs = qs.filter(scanned_at__range=(start_dt, end_dt))
+        except ValueError:
+            pass
 
     if status_filter := request.query_params.get("scan_status"):
         qs = qs.filter(scan_status=status_filter)
@@ -1100,11 +1107,12 @@ def dashboard(request):
     today_ot   = sum(float(r.overtime_hours) for r in today_records)
 
     # Workers late (from QR logs today)
+    start_of_today = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
     late_count = QRScanLog.objects.filter(
         worker__project_id=project_id,
         scan_type="CHECK_IN",
         is_late=True,
-        scanned_at__date=today,
+        scanned_at__gte=start_of_today,
     ).count()
 
     # ── 7-day trend ──────────────────────────────────────────────────────────
