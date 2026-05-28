@@ -12,6 +12,7 @@ import { dashboardService, getMediaUrl } from '../../services/api';
 import MediaThumbnail from '../common/MediaThumbnail';
 import { useConstruction } from '../../context/ConstructionContext';
 import ManagementTabs from './manage/ManagementTabs';
+import CustomVideoPlayer from '../common/CustomVideoPlayer';
 
 const TYPE_META = {
     IMAGE: {
@@ -193,11 +194,9 @@ const MediaPreviewModal = ({ item, onClose }) => {
                         />
                     )}
                     {item.type === 'VIDEO' && (
-                        <video
-                            src={item.url}
-                            controls
-                            playsInline
-                            className="max-h-[72vh] max-w-full rounded-2xl bg-black"
+                        <CustomVideoPlayer 
+                            src={item.url} 
+                            className="w-full max-w-full h-auto max-h-[72vh] shadow-2xl" 
                         />
                     )}
                     {item.type === 'PDF' && (
