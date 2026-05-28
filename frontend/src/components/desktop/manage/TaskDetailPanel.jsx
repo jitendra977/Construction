@@ -1,6 +1,11 @@
 /**
- * TaskDetailPanel — full-page inline panel for task details.
- * Shown inside PhasesPage when a task is selected (no modal).
+ * TaskDetailPanel — Premium redesigned standalone panel for task details.
+ * Features:
+ *   • Ultra-modern premium SaaS layout (Linear/Stripe aesthetic)
+ *   • Glassmorphic cards with soft shadows and custom HSL gradients
+ *   • High contrast scannable detail grid with modern micro-animations
+ *   • Interactive, animated status/priority cycle pills
+ *   • Gorgeous visual media proof gallery with absolute hover overlays
  */
 import React, { useState, useEffect, useRef } from 'react';
 import { getMediaUrl } from '../../../services/api';
@@ -8,85 +13,128 @@ import { useConstruction } from '../../../context/ConstructionContext';
 import imageCompression from 'browser-image-compression';
 
 function useIsMobile() {
-    const [mobile, setMobile] = useState(() => window.innerWidth < 768);
+    const [mobile, setMobile] = useState(() => window.innerWidth < 1024);
     useEffect(() => {
-        const fn = () => setMobile(window.innerWidth < 768);
+        const fn = () => setMobile(window.innerWidth < 1024);
         window.addEventListener('resize', fn);
         return () => window.removeEventListener('resize', fn);
     }, []);
     return mobile;
 }
 
-/* ── helpers ── */
 const fmt = (d) => d ? new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : 'TBD';
 const fmtShort = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 const daysLeft = (s) => s ? Math.round((new Date(s) - new Date()) / 86400000) : null;
 
 const STATUS_META = {
-    COMPLETED:   { label: 'Completed',   color: '#10b981', bg: '#10b98115' },
-    IN_PROGRESS: { label: 'In Progress', color: '#3b82f6', bg: '#3b82f615' },
-    BLOCKED:     { label: 'Blocked',     color: '#f59e0b', bg: '#f59e0b15' },
-    PENDING:     { label: 'Pending',     color: '#6b7280', bg: '#6b728015' },
+    COMPLETED:   { label: 'Completed',   color: '#10b981', bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.2)' },
+    IN_PROGRESS: { label: 'In Progress', color: '#3b82f6', bg: 'rgba(59,130,246,0.08)',  border: 'rgba(59,130,246,0.2)' },
+    BLOCKED:     { label: 'Blocked',     color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.2)' },
+    PENDING:     { label: 'Pending',     color: '#94a3b8', bg: 'rgba(148,163,184,0.08)', border: 'rgba(148,163,184,0.2)' },
 };
 
 const PRIORITY_META = {
-    CRITICAL: { label: 'Critical', color: '#ef4444', bg: '#ef444415' },
-    HIGH:     { label: 'High',     color: '#f97316', bg: '#f9731615' },
-    MEDIUM:   { label: 'Medium',   color: '#f59e0b', bg: '#f59e0b15' },
-    LOW:      { label: 'Low',      color: '#6b7280', bg: '#6b728015' },
+    CRITICAL: { label: 'Critical', color: '#ef4444', bg: 'rgba(239,68,68,0.08)',  border: 'rgba(239,68,68,0.2)' },
+    HIGH:     { label: 'High',     color: '#f97316', bg: 'rgba(249,115,22,0.08)',  border: 'rgba(249,115,22,0.2)' },
+    MEDIUM:   { label: 'Medium',   color: '#eab308', bg: 'rgba(234,179,8,0.08)',   border: 'rgba(234,179,8,0.2)' },
+    LOW:      { label: 'Low',      color: '#64748b', bg: 'rgba(100,116,139,0.08)', border: 'rgba(100,116,139,0.2)' },
 };
 
-function Pill({ label, color, bg, onClick, title }) {
+function Pill({ label, color, bg, border, onClick, title }) {
+    const [hover, setHover] = useState(false);
     return (
         <span
             onClick={onClick}
             title={title}
+            onMouseEnter={() => setHover(true)}
+            onMouseLeave={() => setHover(false)}
             style={{
-                fontSize: 10, fontWeight: 800, padding: '3px 10px', borderRadius: 6,
-                background: bg, color, border: `1px solid ${color}30`,
+                fontSize: 10, fontWeight: 800, padding: '5px 12px', borderRadius: 8,
+                background: bg, color, border: `1px solid ${border || `${color}30`}`,
                 cursor: onClick ? 'pointer' : 'default',
                 textTransform: 'uppercase', letterSpacing: '0.08em',
-                userSelect: 'none',
+                userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 6,
+                transform: hover && onClick ? 'scale(1.05) translateY(-0.5px)' : 'none',
+                boxShadow: hover && onClick ? `0 4px 12px ${color}15` : 'none',
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
             }}
-        >{label}</span>
+        >
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />
+            {label}
+        </span>
     );
 }
 
-function SectionHead({ label }) {
+function SectionHead({ label, icon }) {
     return (
         <div style={{
-            fontSize: 9, fontWeight: 900, color: 'var(--t-text3)',
-            textTransform: 'uppercase', letterSpacing: '0.16em',
-            borderBottom: '1px solid var(--t-border)', paddingBottom: 6, marginBottom: 12,
-        }}>{label}</div>
-    );
-}
-
-function MetaCard({ label, value, accent }) {
-    return (
-        <div style={{
-            padding: '10px 14px', borderRadius: 10,
-            background: 'var(--t-surface2)', border: '1px solid var(--t-border)',
+            fontSize: 10, fontWeight: 900, color: 'var(--t-text3)',
+            textTransform: 'uppercase', letterSpacing: '0.14em',
+            borderBottom: '1px solid var(--t-border)', paddingBottom: 8, marginBottom: 16,
+            display: 'flex', alignItems: 'center', gap: 8,
         }}>
-            <div style={{ fontSize: 9, fontWeight: 800, color: 'var(--t-text3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>
-                {label}
+            <span>{icon}</span>
+            <span>{label}</span>
+        </div>
+    );
+}
+
+function MetaCard({ label, value, icon, accent, onClick }) {
+    const [hover, setHover] = useState(false);
+    return (
+        <div 
+            onClick={onClick}
+            onMouseEnter={() => setHover(true)}
+            onMouseLeave={() => setHover(false)}
+            style={{
+                padding: '16px 20px', borderRadius: 16,
+                background: 'var(--t-surface2, rgba(255,255,255,0.015))', 
+                border: '1px solid var(--t-border)',
+                cursor: onClick ? 'pointer' : 'default',
+                transform: hover && onClick ? 'translateY(-2px)' : 'none',
+                borderColor: hover && onClick ? (accent || 'var(--t-primary)') : 'var(--t-border)',
+                boxShadow: hover && onClick ? '0 10px 25px -5px rgba(0,0,0,0.15)' : 'none',
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                display: 'flex', alignItems: 'center', gap: 14,
+            }}
+        >
+            <div style={{
+                width: 38, height: 38, borderRadius: 10,
+                background: accent ? `${accent}12` : 'rgba(255,255,255,0.03)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 18, color: accent || 'var(--t-text3)', flexShrink: 0,
+                border: `1px solid ${accent ? `${accent}25` : 'var(--t-border)'}`,
+            }}>
+                {icon}
             </div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: accent || 'var(--t-text)' }}>
-                {value || '—'}
+            <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 9, fontWeight: 800, color: 'var(--t-text3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>
+                    {label}
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: accent || 'var(--t-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {value || '—'}
+                </div>
             </div>
         </div>
     );
 }
 
-/* ── MediaItem ── */
 function MediaItem({ m }) {
+    const [hover, setHover] = useState(false);
     return (
-        <a href={getMediaUrl(m.file)} target="_blank" rel="noopener noreferrer"
+        <a 
+            href={getMediaUrl(m.file)} target="_blank" rel="noopener noreferrer"
+            onMouseEnter={() => setHover(true)}
+            onMouseLeave={() => setHover(false)}
             style={{
-                display: 'block', borderRadius: 10, overflow: 'hidden',
-                border: '1px solid var(--t-border)', background: 'var(--t-surface2)',
-                aspectRatio: '16/9', position: 'relative',
-            }}>
+                display: 'block', borderRadius: 14, overflow: 'hidden',
+                border: '1px solid var(--t-border)', background: 'var(--t-surface2, rgba(255,255,255,0.015))',
+                aspectRatio: '16/10', position: 'relative',
+                transform: hover ? 'translateY(-3px) scale(1.01)' : 'none',
+                boxShadow: hover ? '0 12px 30px -5px rgba(0,0,0,0.3)' : 'none',
+                transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+        >
             {m.media_type === 'IMAGE' ? (
                 <img src={getMediaUrl(m.file)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             ) : m.media_type === 'VIDEO' ? (
@@ -96,30 +144,32 @@ function MediaItem({ m }) {
                     width: '100%', height: '100%',
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6,
                 }}>
-                    <span style={{ fontSize: 28 }}>📄</span>
-                    <span style={{ fontSize: 9, color: 'var(--t-text3)', fontWeight: 700, textAlign: 'center', padding: '0 8px' }}>
-                        {m.file.split('/').pop().slice(0, 20)}
+                    <span style={{ fontSize: 32 }}>📄</span>
+                    <span style={{ fontSize: 9, color: 'var(--t-text3)', fontWeight: 800, textAlign: 'center', padding: '0 12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '90%' }}>
+                        {m.file.split('/').pop().slice(-25)}
                     </span>
                 </div>
             )}
+            
             <div style={{
                 position: 'absolute', inset: 0,
-                background: 'rgba(0,0,0,0.5)',
+                background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(3px)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                opacity: 0, transition: 'opacity 0.2s',
-            }}
-                onMouseEnter={e => e.currentTarget.style.opacity = '1'}
-                onMouseLeave={e => e.currentTarget.style.opacity = '0'}
-            >
-                <span style={{ color: '#fff', fontSize: 11, fontWeight: 800, border: '1px solid rgba(255,255,255,0.4)', padding: '4px 12px', borderRadius: 20 }}>
-                    View
+                opacity: hover ? 1 : 0, transition: 'all 0.2s ease',
+            }}>
+                <span style={{ 
+                    color: '#fff', fontSize: 11, fontWeight: 800, 
+                    border: '1px solid rgba(255,255,255,0.3)', padding: '5px 14px', 
+                    borderRadius: 20, background: 'rgba(255,255,255,0.1)',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+                }}>
+                    View Document
                 </span>
             </div>
         </a>
     );
 }
 
-/* ── Main component ── */
 export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
     const {
         dashboardData, updateTask, deleteTask,
@@ -128,8 +178,6 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
 
     const fileInputRef = useRef(null);
     const isMobile = useIsMobile();
-
-    // Live task from context
     const task = (dashboardData.tasks || []).find(t => t.id === taskId);
 
     const [isEditing, setIsEditing] = useState(false);
@@ -144,12 +192,13 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
 
     if (!task) {
         return (
-            <div style={{ padding: isMobile ? 24 : 48, textAlign: 'center', color: 'var(--t-text3)' }}>
-                <p style={{ fontSize: 32 }}>🔍</p>
-                <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--t-text)' }}>Task not found</p>
+            <div style={{ padding: isMobile ? 32 : 64, textAlign: 'center', color: 'var(--t-text3)' }}>
+                <p style={{ fontSize: 48 }}>🔍</p>
+                <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--t-text)', marginBottom: 20 }}>Task details not found</p>
                 <button onClick={onBack} style={{
-                    marginTop: 16, padding: '8px 20px', borderRadius: 8, fontSize: 12, fontWeight: 800,
-                    background: '#f97316', color: '#fff', border: 'none', cursor: 'pointer',
+                    padding: '10px 24px', borderRadius: 10, fontSize: 12, fontWeight: 800,
+                    background: 'var(--t-primary)', color: '#fff', border: 'none', cursor: 'pointer',
+                    boxShadow: '0 4px 15px var(--t-primary-shadow)',
                 }}>← Go Back</button>
             </div>
         );
@@ -169,11 +218,13 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
 
     const STATUS_STATUSES  = ['PENDING', 'IN_PROGRESS', 'BLOCKED', 'COMPLETED'];
     const PRIORITY_LEVELS  = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+    
     const cycleStatus   = () => {
         const idx  = STATUS_STATUSES.indexOf(task.status);
         const next = STATUS_STATUSES[(idx + 1) % STATUS_STATUSES.length];
         handleFieldSave({ status: next });
     };
+    
     const cyclePriority = () => {
         const idx  = PRIORITY_LEVELS.indexOf(task.priority);
         const next = PRIORITY_LEVELS[(idx + 1) % PRIORITY_LEVELS.length];
@@ -226,68 +277,132 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
     };
 
     const inp = {
-        width: '100%', padding: '7px 10px', borderRadius: 8, fontSize: 12,
-        border: '1px solid var(--t-border)', background: 'var(--t-surface2)',
+        width: '100%', padding: '10px 14px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+        border: '1px solid var(--t-border)', background: 'var(--t-surface2, rgba(255,255,255,0.015))',
         color: 'var(--t-text)', outline: 'none', boxSizing: 'border-box',
+        transition: 'all 0.2s',
     };
 
     return (
         <div style={{ minHeight: '100%' }}>
-            {/* ── Breadcrumb bar ── */}
+            
+            {/* ── Breadcrumb & Actions Bar ── */}
             <div style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: isMobile ? '12px 14px' : '12px 24px',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+                padding: isMobile ? '16px 20px' : '18px 32px',
                 background: 'var(--t-surface)', borderBottom: '1px solid var(--t-border)',
-                position: 'sticky', top: 0, zIndex: 20,
-                flexWrap: 'wrap',
+                position: 'sticky', top: 0, zIndex: 100,
+                backdropFilter: 'blur(12px)',
             }}>
-                <button onClick={onBack} style={{
-                    display: 'flex', alignItems: 'center', gap: 6,
-                    padding: '5px 12px', borderRadius: 8, fontSize: 11, fontWeight: 800,
-                    background: 'var(--t-surface2)', color: 'var(--t-text)',
-                    border: '1px solid var(--t-border)', cursor: 'pointer',
-                }}>
-                    ← Back
-                </button>
-                <span style={{ fontSize: 12, color: 'var(--t-text3)' }}>Task Detail</span>
-                <span style={{ fontSize: 12, color: 'var(--t-text3)' }}>›</span>
-                <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--t-text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {task.title}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                    <button 
+                        onClick={onBack} 
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            padding: '7px 14px', borderRadius: 10, fontSize: 12, fontWeight: 800,
+                            background: 'var(--t-surface2)', color: 'var(--t-text)',
+                            border: '1px solid var(--t-border)', cursor: 'pointer',
+                            transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.transform = 'translateX(-2px)'}
+                        onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                    >
+                        ← Back
+                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--t-text3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span>Phases &amp; Tasks</span>
+                        <span>›</span>
+                        <span style={{ fontWeight: 800, color: 'var(--t-text)' }}>#{task.id}</span>
+                    </div>
+                </div>
 
-                <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap', width: isMobile ? '100%' : 'auto' }}>
+                <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
                     {!isEditing ? (
                         <>
-                            <button onClick={() => fileInputRef.current?.click()} disabled={uploading} style={{
-                                padding: '5px 12px', borderRadius: 8, fontSize: 11, fontWeight: 800,
-                                background: 'rgba(16,185,129,0.1)', color: '#10b981',
-                                border: '1px solid rgba(16,185,129,0.3)', cursor: 'pointer',
-                            }}>
-                                {uploading ? '⏳ Uploading…' : '📤 Upload'}
+                            <button 
+                                onClick={() => fileInputRef.current?.click()} 
+                                disabled={uploading} 
+                                style={{
+                                    padding: '7px 16px', borderRadius: 10, fontSize: 12, fontWeight: 800,
+                                    background: 'rgba(16,185,129,0.08)', color: '#10b981',
+                                    border: '1px solid rgba(16,185,129,0.25)', cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                }}
+                                onMouseEnter={e => {
+                                    e.currentTarget.style.transform = 'translateY(-1px)';
+                                    e.currentTarget.style.background = 'rgba(16,185,129,0.12)';
+                                }}
+                                onMouseLeave={e => {
+                                    e.currentTarget.style.transform = 'none';
+                                    e.currentTarget.style.background = 'rgba(16,185,129,0.08)';
+                                }}
+                            >
+                                {uploading ? '⏳ Uploading…' : '📤 Upload Proof'}
                             </button>
-                            <button onClick={() => setIsEditing(true)} style={{
-                                padding: '5px 12px', borderRadius: 8, fontSize: 11, fontWeight: 800,
-                                background: 'rgba(249,115,22,0.1)', color: '#f97316',
-                                border: '1px solid rgba(249,115,22,0.3)', cursor: 'pointer',
-                            }}>✏️ Edit</button>
-                            <button onClick={() => setShowDeleteConfirm(true)} style={{
-                                padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 800,
-                                background: 'rgba(239,68,68,0.08)', color: '#ef4444',
-                                border: '1px solid rgba(239,68,68,0.25)', cursor: 'pointer',
-                            }}>🗑</button>
+                            <button 
+                                onClick={() => setIsEditing(true)} 
+                                style={{
+                                    padding: '7px 16px', borderRadius: 10, fontSize: 12, fontWeight: 800,
+                                    background: 'rgba(249,115,22,0.08)', color: '#f97316',
+                                    border: '1px solid rgba(249,115,22,0.25)', cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                }}
+                                onMouseEnter={e => {
+                                    e.currentTarget.style.transform = 'translateY(-1px)';
+                                    e.currentTarget.style.background = 'rgba(249,115,22,0.12)';
+                                }}
+                                onMouseLeave={e => {
+                                    e.currentTarget.style.transform = 'none';
+                                    e.currentTarget.style.background = 'rgba(249,115,22,0.08)';
+                                }}
+                            >
+                                ✏️ Edit
+                            </button>
+                            <button 
+                                onClick={() => setShowDeleteConfirm(true)} 
+                                style={{
+                                    padding: '7px 12px', borderRadius: 10, fontSize: 12, fontWeight: 800,
+                                    background: 'rgba(239,68,68,0.08)', color: '#ef4444',
+                                    border: '1px solid rgba(239,68,68,0.25)', cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                }}
+                                onMouseEnter={e => {
+                                    e.currentTarget.style.transform = 'translateY(-1px)';
+                                    e.currentTarget.style.background = 'rgba(239,68,68,0.12)';
+                                }}
+                                onMouseLeave={e => {
+                                    e.currentTarget.style.transform = 'none';
+                                    e.currentTarget.style.background = 'rgba(239,68,68,0.08)';
+                                }}
+                            >
+                                🗑️
+                            </button>
                         </>
                     ) : (
                         <>
-                            <button onClick={handleFullSave} disabled={loading} style={{
-                                padding: '5px 16px', borderRadius: 8, fontSize: 11, fontWeight: 800,
-                                background: '#10b981', color: '#fff', border: 'none', cursor: 'pointer',
-                                opacity: loading ? 0.6 : 1,
-                            }}>{loading ? 'Saving…' : '✓ Save'}</button>
-                            <button onClick={() => setIsEditing(false)} style={{
-                                padding: '5px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700,
-                                background: 'var(--t-surface2)', color: 'var(--t-text)',
-                                border: '1px solid var(--t-border)', cursor: 'pointer',
-                            }}>Cancel</button>
+                            <button 
+                                onClick={handleFullSave} 
+                                disabled={loading} 
+                                style={{
+                                    padding: '7px 18px', borderRadius: 10, fontSize: 12, fontWeight: 800,
+                                    background: '#10b981', color: '#fff', border: 'none', cursor: 'pointer',
+                                    opacity: loading ? 0.6 : 1, transition: 'all 0.2s',
+                                    boxShadow: '0 4px 12px rgba(16,185,129,0.2)',
+                                }}
+                            >
+                                {loading ? 'Saving…' : '✓ Save Changes'}
+                            </button>
+                            <button 
+                                onClick={() => setIsEditing(false)} 
+                                style={{
+                                    padding: '7px 14px', borderRadius: 10, fontSize: 12, fontWeight: 800,
+                                    background: 'var(--t-surface2)', color: 'var(--t-text)',
+                                    border: '1px solid var(--t-border)', cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                }}
+                            >
+                                Cancel
+                            </button>
                         </>
                     )}
                 </div>
@@ -296,23 +411,24 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
             <input type="file" ref={fileInputRef} style={{ display: 'none' }}
                 accept="image/*,video/*,.pdf,.doc,.docx" onChange={handleUpload} />
 
-            {/* ── Delete confirm ── */}
+            {/* ── Delete Confirmation banner ── */}
             {showDeleteConfirm && (
                 <div style={{
-                    margin: isMobile ? '16px 14px' : '16px 24px', padding: 16, borderRadius: 10,
-                    background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)',
+                    margin: isMobile ? '16px 20px' : '20px 32px', padding: 20, borderRadius: 16,
+                    background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)',
+                    display: 'flex', flexDirection: 'column', gap: 6,
                 }}>
-                    <p style={{ fontSize: 13, fontWeight: 800, color: '#ef4444', margin: '0 0 6px' }}>Delete this task?</p>
-                    <p style={{ fontSize: 11, color: 'var(--t-text3)', margin: '0 0 12px' }}>
-                        This cannot be undone. All task data and proofs will be permanently removed.
+                    <p style={{ fontSize: 14, fontWeight: 800, color: '#ef4444', margin: 0 }}>⚠️ Delete this task permanently?</p>
+                    <p style={{ fontSize: 12, color: 'var(--t-text3)', margin: '0 0 12px' }}>
+                        This action cannot be undone. All task logs, data, and proof files will be destroyed.
                     </p>
-                    <div style={{ display: 'flex', gap: 8 }}>
+                    <div style={{ display: 'flex', gap: 10 }}>
                         <button onClick={handleDelete} disabled={loading} style={{
-                            padding: '6px 18px', borderRadius: 7, fontSize: 11, fontWeight: 800,
+                            padding: '8px 20px', borderRadius: 10, fontSize: 12, fontWeight: 800,
                             background: '#ef4444', color: '#fff', border: 'none', cursor: 'pointer',
-                        }}>Yes, Delete</button>
+                        }}>{loading ? 'Deleting…' : 'Confirm Delete'}</button>
                         <button onClick={() => setShowDeleteConfirm(false)} style={{
-                            padding: '6px 14px', borderRadius: 7, fontSize: 11, fontWeight: 700,
+                            padding: '8px 16px', borderRadius: 10, fontSize: 12, fontWeight: 800,
                             background: 'var(--t-surface2)', color: 'var(--t-text)',
                             border: '1px solid var(--t-border)', cursor: 'pointer',
                         }}>Cancel</button>
@@ -320,55 +436,65 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                 </div>
             )}
 
-            <div style={{ padding: isMobile ? '14px' : '24px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 14 : 24 }}>
+            {/* ── Main Dashboard Layout Grid ── */}
+            <div style={{ 
+                padding: isMobile ? '20px' : '28px 32px', 
+                display: 'grid', 
+                gridTemplateColumns: isMobile ? '1fr' : '1fr 360px', 
+                gap: 24 
+            }}>
 
-                {/* ── LEFT column ── */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                {/* ── LEFT COLUMN: Title & Details Cards ── */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-                    {/* Title + status + priority */}
+                    {/* 1. Header Card (Title, Status, Priority) */}
                     <div style={{
-                        background: 'var(--t-surface)', borderRadius: 14,
+                        background: 'var(--t-surface)', borderRadius: 18,
                         border: '1px solid var(--t-border)',
                         borderLeft: `4px solid ${pm.color}`,
-                        padding: 20,
+                        padding: 24,
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
                     }}>
                         {isEditing ? (
-                            <input style={{ ...inp, fontSize: 16, fontWeight: 800, marginBottom: 14 }}
-                                value={formData.title || ''}
-                                onChange={e => setFormData(f => ({ ...f, title: e.target.value }))}
-                                placeholder="Task title…" />
+                            <div style={{ marginBottom: 16 }}>
+                                <label style={{ fontSize: 9, fontWeight: 900, color: 'var(--t-text3)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Task Title</label>
+                                <input style={{ ...inp, fontSize: 16, fontWeight: 800 }}
+                                    value={formData.title || ''}
+                                    onChange={e => setFormData(f => ({ ...f, title: e.target.value }))}
+                                    placeholder="Enter task title…" />
+                            </div>
                         ) : (
-                            <h2 style={{ fontSize: 18, fontWeight: 900, color: 'var(--t-text)', margin: '0 0 12px', lineHeight: 1.3 }}>
+                            <h2 style={{ fontSize: 22, fontWeight: 900, color: 'var(--t-text)', margin: '0 0 14px', lineHeight: 1.35, letterSpacing: '-0.02em' }}>
                                 {task.title}
                             </h2>
                         )}
 
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: isEditing ? 16 : 0, alignItems: 'center' }}>
                             <Pill
-                                label={sm.label} color={sm.color} bg={sm.bg}
+                                label={sm.label} color={sm.color} bg={sm.bg} border={sm.border}
                                 onClick={!isEditing ? cycleStatus : undefined}
-                                title={!isEditing ? 'Click to cycle status' : undefined}
+                                title={!isEditing ? 'Click to toggle status' : undefined}
                             />
                             <Pill
-                                label={pm.label} color={pm.color} bg={pm.bg}
+                                label={pm.label} color={pm.color} bg={pm.bg} border={pm.border}
                                 onClick={!isEditing ? cyclePriority : undefined}
-                                title={!isEditing ? 'Click to cycle priority' : undefined}
+                                title={!isEditing ? 'Click to toggle priority' : undefined}
                             />
                             {overdue && (
-                                <Pill label={`${Math.abs(dl)}d overdue`} color="#ef4444" bg="#ef444415" />
+                                <Pill label={`${Math.abs(dl)}d overdue`} color="#ef4444" bg="rgba(239,68,68,0.08)" border="rgba(239,68,68,0.25)" />
                             )}
                         </div>
 
                         {isEditing && (
-                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                                 <div>
-                                    <label style={{ fontSize: 9, fontWeight: 800, color: 'var(--t-text3)', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Status</label>
+                                    <label style={{ fontSize: 9, fontWeight: 850, color: 'var(--t-text3)', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>Status</label>
                                     <select style={inp} value={formData.status || ''} onChange={e => setFormData(f => ({ ...f, status: e.target.value }))}>
                                         {['PENDING','IN_PROGRESS','BLOCKED','COMPLETED'].map(s => <option key={s} value={s}>{s.replace('_',' ')}</option>)}
                                     </select>
                                 </div>
                                 <div>
-                                    <label style={{ fontSize: 9, fontWeight: 800, color: 'var(--t-text3)', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Priority</label>
+                                    <label style={{ fontSize: 9, fontWeight: 850, color: 'var(--t-text3)', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>Priority</label>
                                     <select style={inp} value={formData.priority || ''} onChange={e => setFormData(f => ({ ...f, priority: e.target.value }))}>
                                         {['LOW','MEDIUM','HIGH','CRITICAL'].map(p => <option key={p} value={p}>{p}</option>)}
                                     </select>
@@ -377,30 +503,29 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                         )}
                     </div>
 
-                    {/* Meta: phase, contractor, room, category */}
-                    <div style={{ background: 'var(--t-surface)', borderRadius: 14, border: '1px solid var(--t-border)', padding: 20 }}>
-                        <SectionHead label="Task Details" />
+                    {/* 2. Meta Details Card (Phase, Member, Location, Category) */}
+                    <div style={{ background: 'var(--t-surface)', borderRadius: 18, border: '1px solid var(--t-border)', padding: 24 }}>
+                        <SectionHead label="Assignment & Location" icon="🏗️" />
+                        
                         {isEditing ? (
-                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
                                 <div>
-                                    <label style={{ fontSize: 9, fontWeight: 800, color: 'var(--t-text3)', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Phase</label>
+                                    <label style={{ fontSize: 9, fontWeight: 850, color: 'var(--t-text3)', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>Construction Phase</label>
                                     <select style={inp} value={formData.phase || ''} onChange={e => setFormData(f => ({ ...f, phase: parseInt(e.target.value) }))}>
                                         {(dashboardData.phases || []).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                     </select>
                                 </div>
                                 <div>
-                                    <label style={{ fontSize: 9, fontWeight: 800, color: 'var(--t-text3)', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>
-                                        {assignmentType === 'team'
-                                            ? '👥 Team Assignment (edit via Workforce tab)'
-                                            : 'Assign Worker (Individual)'}
+                                    <label style={{ fontSize: 9, fontWeight: 850, color: 'var(--t-text3)', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>
+                                        {assignmentType === 'team' ? '👥 Team Assignment' : 'Worker Assignment'}
                                     </label>
                                     {assignmentType === 'team' ? (
                                         <div style={{
-                                            padding: '6px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700,
-                                            background: 'rgba(139,92,246,0.08)', color: '#8b5cf6',
+                                            padding: '10px 14px', borderRadius: 10, fontSize: 12, fontWeight: 700,
+                                            background: 'rgba(139,92,246,0.06)', color: '#8b5cf6',
                                             border: '1px solid rgba(139,92,246,0.2)',
                                         }}>
-                                            👥 {assignedTeam?.name} — managed in Workforce tab
+                                            👥 {assignedTeam?.name} (managed in Workforce)
                                         </div>
                                     ) : (
                                         <select style={inp} value={formData.assigned_to || ''} onChange={e => setFormData(f => ({ ...f, assigned_to: e.target.value || null }))}>
@@ -410,14 +535,14 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                                     )}
                                 </div>
                                 <div>
-                                    <label style={{ fontSize: 9, fontWeight: 800, color: 'var(--t-text3)', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Room / Location</label>
+                                    <label style={{ fontSize: 9, fontWeight: 850, color: 'var(--t-text3)', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>Room / Location</label>
                                     <select style={inp} value={formData.room || ''} onChange={e => setFormData(f => ({ ...f, room: e.target.value ? parseInt(e.target.value) : null }))}>
                                         <option value="">General Area</option>
                                         {(dashboardData.rooms || []).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                                     </select>
                                 </div>
                                 <div>
-                                    <label style={{ fontSize: 9, fontWeight: 800, color: 'var(--t-text3)', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Category</label>
+                                    <label style={{ fontSize: 9, fontWeight: 850, color: 'var(--t-text3)', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>Budget Category</label>
                                     <select style={inp} value={formData.category || ''} onChange={e => setFormData(f => ({ ...f, category: e.target.value ? parseInt(e.target.value) : null }))}>
                                         <option value="">N/A</option>
                                         {(dashboardData.budgetCategories || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -425,177 +550,215 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                                 </div>
                             </div>
                         ) : (
-                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
-                                <div
-                                    onClick={() => onPhaseClick && phase && onPhaseClick(phase)}
-                                    style={{ cursor: onPhaseClick && phase ? 'pointer' : 'default' }}
-                                >
-                                    <MetaCard label="Phase" value={phase ? `📋 ${phase.name}` : 'Unknown'} accent={onPhaseClick && phase ? '#f97316' : undefined} />
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
+                                    <div 
+                                        onClick={() => onPhaseClick && phase && onPhaseClick(phase)}
+                                        style={{ cursor: onPhaseClick && phase ? 'pointer' : 'default' }}
+                                    >
+                                        <MetaCard 
+                                            label="Phase" 
+                                            value={phase ? `📋 ${phase.name}` : 'General Phase'} 
+                                            icon="📋" 
+                                            accent={onPhaseClick && phase ? '#f97316' : undefined} 
+                                        />
+                                    </div>
+                                    <MetaCard
+                                        label={assignmentType === 'team' ? 'Assigned Team' : 'Assigned Worker'}
+                                        value={
+                                            assignmentType === 'team' && assignedTeam
+                                                ? `👥 ${assignedTeam.name} (${assignedTeam.member_count} members)`
+                                                : assignedMember
+                                                    ? `👤 ${assignedMember.name}`
+                                                    : 'Unassigned'
+                                        }
+                                        icon={assignmentType === 'team' ? '👥' : '👤'}
+                                        accent={assignmentType === 'team' ? '#8b5cf6' : assignedMember ? '#3b82f6' : undefined}
+                                    />
                                 </div>
-                                <MetaCard
-                                    label={assignmentType === 'team' ? 'Assigned Team' : 'Assigned Worker'}
-                                    value={
-                                        assignmentType === 'team' && assignedTeam
-                                            ? `👥 ${assignedTeam.name} (${assignedTeam.member_count} members)`
-                                            : assignedMember
-                                                ? `👤 ${assignedMember.name}${assignedMember.employee_id ? ` · ${assignedMember.employee_id}` : ''}`
-                                                : 'Unassigned'
-                                    }
-                                    accent={assignmentType === 'team' ? '#8b5cf6' : assignedMember ? '#3b82f6' : undefined}
-                                />
-                                {/* Team members tooltip row */}
+
                                 {assignmentType === 'team' && assignedTeam?.members?.length > 0 && (
                                     <div style={{
-                                        gridColumn: '1 / -1',
-                                        background: 'rgba(139,92,246,0.06)',
-                                        border: '1px solid rgba(139,92,246,0.2)',
-                                        borderRadius: 10, padding: '8px 14px',
-                                        display: 'flex', flexWrap: 'wrap', gap: 6,
+                                        background: 'rgba(139,92,246,0.04)',
+                                        border: '1px solid rgba(139,92,246,0.15)',
+                                        borderRadius: 14, padding: '12px 18px',
+                                        display: 'flex', flexWrap: 'wrap', gap: 8,
                                     }}>
                                         {assignedTeam.members.map(m => (
                                             <span key={m.id} style={{
-                                                fontSize: 10, fontWeight: 700,
-                                                background: 'rgba(139,92,246,0.12)',
+                                                fontSize: 10, fontWeight: 800,
+                                                background: 'rgba(139,92,246,0.08)',
                                                 color: '#8b5cf6',
-                                                padding: '2px 8px', borderRadius: 6,
+                                                padding: '4px 10px', borderRadius: 8,
+                                                border: '1px solid rgba(139,92,246,0.15)',
                                             }}>👤 {m.name}</span>
                                         ))}
                                     </div>
                                 )}
-                                <MetaCard label="Location" value={room ? `📍 ${room.name}` : 'General Area'} />
-                                <MetaCard label="Category" value={cat?.name || 'N/A'} />
+
+                                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
+                                    <MetaCard label="Room / Area" value={room ? `📍 ${room.name}` : 'General Area'} icon="📍" />
+                                    <MetaCard label="Budget Category" value={cat ? `💰 ${cat.name}` : 'N/A'} icon="💰" />
+                                </div>
                             </div>
                         )}
                     </div>
+                </div>
 
-                    {/* Timeline + cost */}
-                    <div style={{ background: 'var(--t-surface)', borderRadius: 14, border: '1px solid var(--t-border)', padding: 20 }}>
-                        <SectionHead label="Timeline & Budget" />
+                {/* ── RIGHT COLUMN: Timeline, Cost & Description ── */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                    
+                    {/* 3. Timeline & Budget Card */}
+                    <div style={{ background: 'var(--t-surface)', borderRadius: 18, border: '1px solid var(--t-border)', padding: 24 }}>
+                        <SectionHead label="Timeline & Costs" icon="📅" />
+                        
                         {isEditing ? (
-                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                                 {[
-                                    { key: 'start_date',     label: 'Start Date',       type: 'date'   },
-                                    { key: 'due_date',       label: 'Due Date',         type: 'date'   },
-                                    { key: 'completed_date', label: 'Completed On',     type: 'date'   },
-                                    { key: 'estimated_cost', label: 'Estimated Cost',   type: 'number' },
+                                    { key: 'start_date',     label: 'Start Date',     type: 'date'   },
+                                    { key: 'due_date',       label: 'Due Date',       type: 'date'   },
+                                    { key: 'completed_date', label: 'Completed On',   type: 'date'   },
+                                    { key: 'estimated_cost', label: 'Estimated Cost', type: 'number' },
                                 ].map(({ key, label, type }) => (
                                     <div key={key}>
-                                        <label style={{ fontSize: 9, fontWeight: 800, color: 'var(--t-text3)', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>{label}</label>
+                                        <label style={{ fontSize: 9, fontWeight: 850, color: 'var(--t-text3)', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>{label}</label>
                                         <input type={type} style={inp}
                                             value={formData[key] || ''}
                                             onChange={e => setFormData(f => ({ ...f, [key]: type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value }))} />
                                     </div>
                                 ))}
                                 <div>
-                                    <label style={{ fontSize: 9, fontWeight: 800, color: 'var(--t-text3)', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Progress %</label>
+                                    <label style={{ fontSize: 9, fontWeight: 850, color: 'var(--t-text3)', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>Progress %</label>
                                     <input type="number" min={0} max={100} style={inp}
                                         value={formData.progress_percentage || 0}
                                         onChange={e => setFormData(f => ({ ...f, progress_percentage: parseInt(e.target.value) || 0 }))} />
                                 </div>
                             </div>
                         ) : (
-                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
-                                <MetaCard label="Start Date"     value={fmt(task.start_date)} />
-                                <MetaCard label="Due Date"
-                                    value={task.due_date
-                                        ? `${fmt(task.due_date)}${overdue ? ` (${Math.abs(dl)}d over)` : dl !== null && dl <= 3 ? ` (${dl}d left)` : ''}`
-                                        : 'TBD'}
-                                    accent={overdue ? '#ef4444' : dl !== null && dl <= 3 ? '#f59e0b' : undefined}
-                                />
-                                <MetaCard label="Completed On"   value={fmt(task.completed_date)} accent={task.completed_date ? '#10b981' : undefined} />
-                                <MetaCard label="Estimated Cost"
-                                    value={formatCurrency ? formatCurrency(task.estimated_cost) : `Rs. ${Number(task.estimated_cost || 0).toLocaleString()}`}
-                                    accent="#f97316"
-                                />
-                            </div>
-                        )}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
+                                    <MetaCard label="Start Date" value={fmt(task.start_date)} icon="🛫" />
+                                    <MetaCard 
+                                        label="Due Date" 
+                                        value={task.due_date ? `${fmt(task.due_date)}${overdue ? ' (Overdue)' : ''}` : 'TBD'} 
+                                        icon="🏁" 
+                                        accent={overdue ? '#ef4444' : undefined} 
+                                    />
+                                    <MetaCard label="Completed On" value={fmt(task.completed_date)} icon="✓" accent={task.completed_date ? '#10b981' : undefined} />
+                                    <MetaCard 
+                                        label="Estimated Cost" 
+                                        value={formatCurrency ? formatCurrency(task.estimated_cost) : `Rs. ${Number(task.estimated_cost || 0).toLocaleString()}`} 
+                                        icon="💳" 
+                                        accent="#f97316" 
+                                    />
+                                </div>
 
-                        {/* Progress bar */}
-                        {!isEditing && (task.progress_percentage > 0) && (
-                            <div style={{ marginTop: 14 }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                                    <span style={{ fontSize: 10, color: 'var(--t-text3)', fontWeight: 700 }}>Progress</span>
-                                    <span style={{ fontSize: 10, fontWeight: 900, color: '#3b82f6' }}>{task.progress_percentage}%</span>
-                                </div>
-                                <div style={{ height: 5, borderRadius: 3, background: 'var(--t-border)', overflow: 'hidden' }}>
-                                    <div style={{
-                                        height: '100%', width: `${task.progress_percentage}%`, borderRadius: 3,
-                                        background: task.progress_percentage === 100 ? '#10b981' : '#3b82f6',
-                                    }} />
-                                </div>
+                                {task.progress_percentage > 0 && (
+                                    <div style={{ marginTop: 6 }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                                            <span style={{ fontSize: 10, color: 'var(--t-text3)', fontWeight: 800 }}>TASK COMPLETION</span>
+                                            <span style={{ fontSize: 10, fontWeight: 900, color: '#3b82f6' }}>{task.progress_percentage}%</span>
+                                        </div>
+                                        <div style={{ height: 6, borderRadius: 3, background: 'var(--t-border)', overflow: 'hidden' }}>
+                                            <div style={{
+                                                height: '100%', width: `${task.progress_percentage}%`, borderRadius: 3,
+                                                background: task.progress_percentage === 100 ? '#10b981' : '#3b82f6',
+                                            }} />
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
 
-                    {/* Audit row */}
-                    <div style={{
-                        display: 'flex', gap: 16, flexWrap: 'wrap',
-                        padding: '10px 14px', borderRadius: 8,
-                        background: 'var(--t-surface2)', border: '1px solid var(--t-border)',
-                        fontSize: 9, fontWeight: 700, color: 'var(--t-text3)',
-                        textTransform: 'uppercase', letterSpacing: '0.08em',
-                    }}>
-                        <span>ID: #{task.id}</span>
-                        <span>Created: {fmtShort(task.created_at)}</span>
-                        <span>Updated: {fmtShort(task.updated_at)}</span>
-                    </div>
-                </div>
-
-                {/* ── RIGHT column: description + media ── */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-
-                    {/* Description */}
-                    <div style={{ background: 'var(--t-surface)', borderRadius: 14, border: '1px solid var(--t-border)', padding: 20 }}>
-                        <SectionHead label="Description" />
+                    {/* 4. Description Card */}
+                    <div style={{ background: 'var(--t-surface)', borderRadius: 18, border: '1px solid var(--t-border)', padding: 24 }}>
+                        <SectionHead label="Description" icon="📝" />
                         {isEditing ? (
-                            <textarea rows={6} style={{ ...inp, resize: 'vertical', lineHeight: 1.6 }}
+                            <textarea rows={5} style={{ ...inp, resize: 'vertical', lineHeight: 1.6 }}
                                 value={formData.description || ''}
                                 onChange={e => setFormData(f => ({ ...f, description: e.target.value }))}
-                                placeholder="Describe this task…" />
+                                placeholder="Enter detailed task description…" />
                         ) : task.description ? (
-                            <p style={{ fontSize: 13, color: 'var(--t-text2)', lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap' }}>
+                            <p style={{ 
+                                fontSize: 13, color: 'var(--t-text2)', lineHeight: 1.7, margin: 0, 
+                                whiteSpace: 'pre-wrap', paddingLeft: 12, borderLeft: '3px solid var(--t-border)' 
+                            }}>
                                 {task.description}
                             </p>
                         ) : (
                             <p style={{ fontSize: 12, color: 'var(--t-text3)', fontStyle: 'italic', margin: 0 }}>No description provided.</p>
                         )}
                     </div>
-
-                    {/* Media / Proofs */}
-                    <div style={{ background: 'var(--t-surface)', borderRadius: 14, border: '1px solid var(--t-border)', padding: 20, flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                            <SectionHead label={`Proof of Work & Files (${task.media?.length || 0})`} />
-                            <button onClick={() => fileInputRef.current?.click()} disabled={uploading} style={{
-                                padding: '4px 12px', borderRadius: 6, fontSize: 10, fontWeight: 800,
-                                background: 'rgba(16,185,129,0.1)', color: '#10b981',
-                                border: '1px solid rgba(16,185,129,0.3)', cursor: 'pointer',
-                            }}>
-                                {uploading ? '⏳' : '📤 Upload'}
-                            </button>
-                        </div>
-
-                        {(!task.media || task.media.length === 0) ? (
-                            <div style={{
-                                padding: '40px 0', textAlign: 'center',
-                                border: '1px dashed var(--t-border)', borderRadius: 10,
-                                color: 'var(--t-text3)',
-                            }}>
-                                <p style={{ fontSize: 28, margin: '0 0 8px' }}>📸</p>
-                                <p style={{ fontSize: 12, margin: 0 }}>No proofs uploaded yet</p>
-                                <button onClick={() => fileInputRef.current?.click()} style={{
-                                    marginTop: 12, padding: '6px 18px', borderRadius: 8, fontSize: 11, fontWeight: 800,
-                                    background: 'rgba(16,185,129,0.1)', color: '#10b981',
-                                    border: '1px solid rgba(16,185,129,0.3)', cursor: 'pointer',
-                                }}>Upload First Proof</button>
-                            </div>
-                        ) : (
-                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 10 }}>
-                                {task.media.map(m => <MediaItem key={m.id} m={m} />)}
-                            </div>
-                        )}
-                    </div>
                 </div>
             </div>
+
+            {/* ── BOTTOM FULL-WIDTH: Proof of Work & Uploaded Files ── */}
+            <div style={{ padding: isMobile ? '0 20px 96px' : '0 32px 96px' }}>
+                <div style={{ 
+                    background: 'var(--t-surface)', borderRadius: 18, 
+                    border: '1px solid var(--t-border)', padding: 24 
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                        <SectionHead label={`Proof of Work & Uploaded Files (${task.media?.length || 0})`} icon="📸" />
+                        <button 
+                            onClick={() => fileInputRef.current?.click()} 
+                            disabled={uploading} 
+                            style={{
+                                padding: '6px 16px', borderRadius: 10, fontSize: 11, fontWeight: 800,
+                                background: 'rgba(16,185,129,0.08)', color: '#10b981',
+                                border: '1px solid rgba(16,185,129,0.25)', cursor: 'pointer',
+                                transition: 'all 0.2s',
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
+                            onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                        >
+                            {uploading ? '⏳ Uploading…' : '📤 Upload File'}
+                        </button>
+                    </div>
+
+                    {(!task.media || task.media.length === 0) ? (
+                        <div style={{
+                            padding: '48px 0', textAlign: 'center',
+                            border: '2.5px dashed var(--t-border)', borderRadius: 16,
+                            color: 'var(--t-text3)', background: 'var(--t-surface2, rgba(255,255,255,0.01))',
+                        }}>
+                            <p style={{ fontSize: 36, margin: '0 0 12px' }}>📸</p>
+                            <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--t-text)', margin: '0 0 4px' }}>No proofs uploaded yet</p>
+                            <p style={{ fontSize: 11, color: 'var(--t-text3)', margin: '0 0 16px' }}>Upload photos or document files as proof of progress.</p>
+                            <button 
+                                onClick={() => fileInputRef.current?.click()} 
+                                style={{
+                                    padding: '8px 20px', borderRadius: 10, fontSize: 12, fontWeight: 850,
+                                    background: 'rgba(16,185,129,0.08)', color: '#10b981',
+                                    border: '1px solid rgba(16,185,129,0.25)', cursor: 'pointer',
+                                }}
+                            >
+                                Upload First Proof
+                            </button>
+                        </div>
+                    ) : (
+                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: 16 }}>
+                            {task.media.map(m => <MediaItem key={m.id} m={m} />)}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* ── Footer Audit Bar ── */}
+            <div style={{
+                margin: isMobile ? '0 20px 48px' : '0 32px 48px',
+                padding: '12px 20px', borderRadius: 12,
+                background: 'var(--t-surface2, rgba(255,255,255,0.01))', border: '1px solid var(--t-border)',
+                fontSize: 10, fontWeight: 800, color: 'var(--t-text3)',
+                textTransform: 'uppercase', letterSpacing: '0.08em',
+                display: 'flex', gap: 16, flexWrap: 'wrap',
+            }}>
+                <span>System Task ID: #{task.id}</span>
+                <span>Created: {fmtShort(task.created_at)}</span>
+                <span>Last Updated: {fmtShort(task.updated_at)}</span>
+            </div>
+
         </div>
     );
 }
