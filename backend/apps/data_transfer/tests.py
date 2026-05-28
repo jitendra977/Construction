@@ -25,7 +25,7 @@ class DataTransferSqlImportTestCase(TestCase):
     def test_normalizes_postgres_casts_for_local_sqlite_import(self):
         sql = "INSERT INTO x VALUES ('2026-05-22'::date, '08:00:00'::time, '2026-05-22T01:02:03+00:00'::timestamptz);"
 
-        normalized = _normalize_sql_for_connection(sql)
+        normalized = _normalize_sql_for_connection(sql, vendor="sqlite")
 
         self.assertNotIn("::date", normalized)
         self.assertNotIn("::time", normalized)

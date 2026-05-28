@@ -859,10 +859,7 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
         if not dry_run and workers:
             try:
                 with transaction.atomic():
-                    locked_qs = AttendanceWorker.objects.select_for_update().select_related(
-                        'project', 'linked_user',
-                    ).filter(
-                        workforce_member__isnull=True,
+                    locked_qs = AttendanceWorker.objects.select_for_update().filter(
                         id__in=[aw.id for aw in workers],
                     ).order_by('name', 'id')
 
@@ -871,6 +868,9 @@ class WorkforceMemberViewSet(viewsets.ModelViewSet):
 
                     preview = []
                     for aw in locked_qs:
+                        # Double-check link under lock to prevent race condition
+                        if hasattr(aw, 'workforce_member') and aw.workforce_member:
+                            continue
                         entry, member = build_member_for_attendance_worker(aw)
                         member.save()
                         created += 1

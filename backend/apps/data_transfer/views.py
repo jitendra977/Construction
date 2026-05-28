@@ -79,13 +79,14 @@ def _split_statements(sql: str) -> list[str]:
     return stmts
 
 
-def _normalize_sql_for_connection(sql: str) -> str:
+def _normalize_sql_for_connection(sql: str, vendor: Optional[str] = None) -> str:
     """
     Make our PostgreSQL-style exports executable on the current database.
     Local development commonly runs SQLite, while production exports include
     PostgreSQL casts like '2026-01-01'::date and ::timestamptz.
     """
-    if connection.vendor != 'sqlite':
+    target_vendor = vendor or connection.vendor
+    if target_vendor != 'sqlite':
         return sql
 
     sql = re.sub(r"'([^']*)'::(?:timestamptz|timestamp|date|time)", r"'\1'", sql, flags=re.IGNORECASE)

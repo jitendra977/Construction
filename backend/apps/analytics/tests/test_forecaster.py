@@ -11,8 +11,7 @@ from apps.analytics.services.alerts import rebuild_alerts
 from apps.analytics.services.forecaster import _linear_fit, forecast_category
 from apps.core.models import HouseProject
 from apps.finance.models import BudgetCategory, Expense
-from apps.financials.models.vendor import Vendor
-from apps.resource.models import Material
+from apps.resource.models import Material, Supplier
 
 
 class LinearFitTests(TestCase):
@@ -131,12 +130,12 @@ class AlertsTests(TestCase):
             expected_completion_date=date.today() + timedelta(days=90),
             area_sqft=800,
         )
-        vendor = Vendor.objects.create(name="Hari Hardware", phone="9800000000", category="Civil")
+        supplier = Supplier.objects.create(project=hp, name="Hari Hardware", phone="9800000000")
         material = Material.objects.create(
             name="OPC Cement", unit="bag", unit_price=Decimal("800"), project=hp
         )
         SupplierRateTrend.objects.create(
-            supplier=vendor, material=material,
+            supplier=supplier, material=material,
             first_seen_rate=Decimal("800"), last_seen_rate=Decimal("880"),
             avg_rate_30d=Decimal("880"), avg_rate_90d=Decimal("810"),
             change_pct_last_month=12.5, transactions_count=6,
