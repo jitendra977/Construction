@@ -173,7 +173,7 @@ function MediaItem({ m }) {
 export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
     const {
         dashboardData, updateTask, deleteTask,
-        uploadTaskMedia, formatCurrency,
+        uploadTaskMedia, formatCurrency, dispatchGlobalUpload,
     } = useConstruction();
 
     const fileInputRef = useRef(null);
@@ -268,7 +268,9 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
         fd.append('task', task.id);
         fd.append('file', file);
         fd.append('media_type', mediaType);
-        try { await uploadTaskMedia(fd); }
+        try {
+            dispatchGlobalUpload(uploadTaskMedia, fd, file.name || 'Task Media');
+        }
         catch { alert('Upload failed.'); }
         finally {
             setUploading(false);
