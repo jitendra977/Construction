@@ -124,6 +124,7 @@ services:
       - media_data:/app/media
     networks:
       - internal
+      - app_network
     depends_on:
       backend:
         condition: service_healthy
@@ -152,6 +153,7 @@ services:
       - media_data:/app/media
     networks:
       - internal
+      - app_network
     healthcheck:
       test: ["CMD-SHELL", "celery -A config inspect ping -d celery@$$HOSTNAME || exit 1"]
       interval: 30s
