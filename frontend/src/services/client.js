@@ -157,7 +157,8 @@ export const attachResponseInterceptor = (axiosInstance) => {
             const method = (originalRequest?.method || '').toLowerCase();
             const isMutation = ['post', 'patch', 'put', 'delete'].includes(method);
             const isNetworkError = !error.response || error.code === 'ERR_NETWORK';
-            if (isMutation && isNetworkError && originalRequest?.url) {
+            const isAuthRequest = originalRequest?.url?.includes('auth/');
+            if (isMutation && isNetworkError && originalRequest?.url && !isAuthRequest) {
                 try {
                     await offlineQueue.enqueue({
                         url: toQueueUrl(originalRequest),
