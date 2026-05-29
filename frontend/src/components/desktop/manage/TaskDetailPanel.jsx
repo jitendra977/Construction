@@ -11,6 +11,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getMediaUrl } from '../../../services/api';
 import { useConstruction } from '../../../context/ConstructionContext';
 import imageCompression from 'browser-image-compression';
+import FilePreviewModal from '../../common/FilePreviewModal';
 
 function useIsMobile() {
     const [mobile, setMobile] = useState(() => window.innerWidth < 1024);
@@ -119,11 +120,11 @@ function MetaCard({ label, value, icon, accent, onClick }) {
     );
 }
 
-function MediaItem({ m }) {
+function MediaItem({ m, onPreview }) {
     const [hover, setHover] = useState(false);
     return (
-        <a 
-            href={getMediaUrl(m.file)} target="_blank" rel="noopener noreferrer"
+        <div 
+            onClick={() => onPreview({ file: m.file, name: m.file?.split('/').pop() })}
             onMouseEnter={() => setHover(true)}
             onMouseLeave={() => setHover(false)}
             style={{
@@ -133,6 +134,7 @@ function MediaItem({ m }) {
                 transform: hover ? 'translateY(-3px) scale(1.01)' : 'none',
                 boxShadow: hover ? '0 12px 30px -5px rgba(0,0,0,0.3)' : 'none',
                 transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                cursor: 'pointer',
             }}
         >
             {m.media_type === 'IMAGE' ? (
@@ -166,7 +168,7 @@ function MediaItem({ m }) {
                     View Document
                 </span>
             </div>
-        </a>
+        </div>
     );
 }
 
@@ -185,6 +187,7 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
     const [loading,   setLoading]   = useState(false);
     const [uploading, setUploading] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [previewDoc, setPreviewDoc] = useState(null); // { file, name } for FilePreviewModal
 
     useEffect(() => {
         if (task) setFormData({ ...task });
@@ -287,6 +290,13 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
 
     return (
         <div style={{ minHeight: '100%' }}>
+            {previewDoc && (
+                <FilePreviewModal
+                    file={previewDoc.file}
+                    name={previewDoc.name}
+                    onClose={() => setPreviewDoc(null)}
+                />
+            )}
             
             {/* ── Breadcrumb & Actions Bar ── */}
             <div style={{
@@ -741,7 +751,7 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                         </div>
                     ) : (
                         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: 16 }}>
-                            {task.media.map(m => <MediaItem key={m.id} m={m} />)}
+                            {task.media.map(m => <MediaItem key={m.id} m={m} onPreview={setPreviewDoc} />)}
                         </div>
                     )}
                 </div>

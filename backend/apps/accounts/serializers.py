@@ -43,6 +43,7 @@ class UserSerializer(serializers.ModelSerializer):
     # Plain integer — maps directly to the active_project_id DB column.
     # DRF will assign it to the FK field on save via Meta.fields.
     active_project_id = serializers.IntegerField(allow_null=True, required=False)
+    has_face_id = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = User
@@ -61,6 +62,7 @@ class UserSerializer(serializers.ModelSerializer):
             'contractor_profile', 'password', 'is_superuser',
             'assigned_projects', 'assigned_project_ids', 'assigned_projects_data',
             'is_active', 'date_joined', 'frontend_last_login',
+            'has_face_id',
         )
         read_only_fields = ('id', 'is_verified', 'is_system_admin', 'is_superuser', 'assigned_projects', 'date_joined', 'frontend_last_login', 'can_view_projects', 'can_manage_projects', 'can_view_dashboard', 'can_view_profile', 'can_manage_admin_config', 'can_manage_phases', 'can_manage_finances', 'can_view_finances', 'can_manage_users', 'can_manage_structure', 'can_view_structure', 'can_view_resources', 'can_manage_resources', 'can_view_workforce', 'can_manage_workforce', 'can_manage_data_transfer', 'can_manage_settings')
 
@@ -69,6 +71,13 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_assigned_projects_data(self, obj):
         return [{'id': p.id, 'name': p.name} for p in obj.assigned_projects.all()]
+
+    def get_has_face_id(self, obj):
+        """True if the user has a biometric face signature registered."""
+        try:
+            return hasattr(obj, 'face_signature') and obj.face_signature is not None
+        except Exception:
+            return False
 
     def get_contractor_profile(self, obj):
         try:

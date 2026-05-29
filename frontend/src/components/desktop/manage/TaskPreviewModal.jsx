@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import Modal from '../../common/Modal';
 import { getMediaUrl } from '../../../services/api';
 import { useConstruction } from '../../../context/ConstructionContext';
+import FilePreviewModal from '../../common/FilePreviewModal';
+import CustomVideoPlayer from '../../common/CustomVideoPlayer';
 import imageCompression from 'browser-image-compression';
 
 const TaskPreviewModal = ({ isOpen, onClose, task, initialMode = 'read' }) => {
@@ -15,6 +17,7 @@ const TaskPreviewModal = ({ isOpen, onClose, task, initialMode = 'read' }) => {
     const [uploading, setUploading] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const fileInputRef = useRef(null);
+    const [previewDoc, setPreviewDoc] = useState(null); // { file, name } for FilePreviewModal
 
     useEffect(() => {
         if (isOpen) {
@@ -226,6 +229,13 @@ const TaskPreviewModal = ({ isOpen, onClose, task, initialMode = 'read' }) => {
             }
         >
             <div className="space-y-6">
+                {previewDoc && (
+                    <FilePreviewModal
+                        file={previewDoc.file}
+                        name={previewDoc.name}
+                        onClose={() => setPreviewDoc(null)}
+                    />
+                )}
 
                 {showDeleteConfirm && (
                     <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl animate-shake">
@@ -502,7 +512,7 @@ const TaskPreviewModal = ({ isOpen, onClose, task, initialMode = 'read' }) => {
                                                     loading="lazy"
                                                 />
                                             ) : m.media_type === 'VIDEO' ? (
-                                                <video src={getMediaUrl(m.file)} className="w-full h-full object-contain" controls />
+                                                <CustomVideoPlayer src={getMediaUrl(m.file)} className="w-full h-full object-contain" />
                                             ) : m.file?.toLowerCase().endsWith('.pdf') ? (
                                                 <div className="w-full h-full bg-red-600/10 flex flex-col items-center justify-center relative p-4 group">
                                                     <div className="absolute top-3 left-3 bg-red-600 text-white text-[9px] font-black px-2 py-0.5 rounded-sm shadow-lg z-10">PDF</div>
@@ -522,14 +532,12 @@ const TaskPreviewModal = ({ isOpen, onClose, task, initialMode = 'read' }) => {
                                                     <p className="text-[8px] text-white/40 truncate w-full px-2">{m.file.split('/').pop()}</p>
                                                 </div>
                                             )}
-                                            <a
-                                                href={getMediaUrl(m.file)}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2"
+                                            <div
+                                                onClick={() => setPreviewDoc({ file: m.file, name: m.file?.split('/').pop() })}
+                                                className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 cursor-pointer z-10"
                                             >
                                                 <span className="text-white text-[10px] font-black uppercase tracking-widest border border-white/30 px-3 py-1.5 rounded-full backdrop-blur-sm">View Full Resolution</span>
-                                            </a>
+                                            </div>
                                         </div>
                                         {m.description && (
                                             <div className="p-2 border-t border-[var(--t-border)]">

@@ -6,6 +6,51 @@ import { accountsService } from '../../../services/accountsService';
 import { getMediaUrl } from '../../../services/api';
 import IDCardModal from './IDCardModal';
 import MemberDrawer, { StatusBadge, TypeBadge, Spinner } from './MemberDrawer';
+import * as faceapi from '@vladmandic/face-api';
+import api from '../../../services/client';
+import { toast } from 'sonner';
+
+// ── Tiny sound beeps via Web Audio ──────────────────────────────────────────
+function beep(type) {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        if (type === 'tick') {
+            o.type = 'sine'; o.frequency.value = 880;
+            g.gain.setValueAtTime(0.08, ctx.currentTime);
+            g.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.1);
+            o.start(); o.stop(ctx.currentTime + 0.1);
+        } else if (type === 'success') {
+            o.type = 'sine';
+            o.frequency.setValueAtTime(523, ctx.currentTime);
+            o.frequency.setValueAtTime(783, ctx.currentTime + 0.12);
+            o.frequency.setValueAtTime(1046, ctx.currentTime + 0.24);
+            g.gain.setValueAtTime(0.1, ctx.currentTime);
+            g.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.5);
+            o.start(); o.stop(ctx.currentTime + 0.5);
+        } else if (type === 'error') {
+            o.type = 'sawtooth'; o.frequency.value = 120;
+            g.gain.setValueAtTime(0.1, ctx.currentTime);
+            g.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.3);
+            o.start(); o.stop(ctx.currentTime + 0.3);
+        }
+    } catch (_) {}
+}
+
+const IconFaceID = ({ size = 13, color = 'currentColor' }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5"
+        style={{ width: size, height: size, display: 'inline-block', verticalAlign: 'middle' }}>
+        <path d="M3 7V5a2 2 0 0 1 2-2h2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M17 3h2a2 2 0 0 1 2 2v2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M21 17v2a2 2 0 0 1-2 2h-2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M7 21H5a2 2 0 0 1-2-2v-2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M8 14s1.5 2 4 2 4-2 4-2" strokeLinecap="round" strokeLinejoin="round" />
+        <line x1="9" y1="9" x2="9.01" y2="9" strokeLinecap="round" strokeWidth="3.5" />
+        <line x1="15" y1="9" x2="15.01" y2="9" strokeLinecap="round" strokeWidth="3.5" />
+    </svg>
+);
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const STATUS_MAP = {
@@ -556,6 +601,343 @@ function CreateAccountModal({ member, projects = [], defaultProjectId = '', onCl
     );
 }
 
+function BiometricTrainingModal({ member, onClose }) {
+    const [modelReady, setModelReady] = useState(false);
+    const [modelLoading, setModelLoading] = useState(false);
+    const [camError, setCamError]     = useState(null);
+    const [faceDetected, setFaceDetected] = useState(false);
+    const [regCountdown, setRegCountdown] = useState(null); // null | 3 | 2 | 1 | 0
+    const [regStatus, setRegStatus]       = useState('idle'); // idle | detecting | countdown | saving | done | error
+
+    const videoRef    = useRef(null);
+    const canvasRef   = useRef(null);
+    const streamRef   = useRef(null);
+    const loopRef     = useRef(null);
+    const busyRef     = useRef(false);
+    const stableCount = useRef(0);
+    const countdownTimer = useRef(null);
+    const capturedDescRef = useRef(null);
+
+    const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+
+    useEffect(() => {
+        const load = async () => {
+            setModelLoading(true);
+            try {
+                await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+                await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+                await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+                setModelReady(true);
+            } catch (e) {
+                toast.error('AI models failed to load — check internet connection.');
+            } finally {
+                setModelLoading(false);
+            }
+        };
+        load();
+        return () => stopEverything();
+    }, []);
+
+    useEffect(() => {
+        if (modelReady) startCamera();
+        return () => stopEverything();
+    }, [modelReady]);
+
+    const startCamera = async () => {
+        setCamError(null);
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { width: 640, height: 480, facingMode: 'user' }
+            });
+            streamRef.current = stream;
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+                await videoRef.current.play();
+                loopRef.current = requestAnimationFrame(frameLoop);
+            }
+        } catch (e) {
+            setCamError('Camera permission denied. Please allow camera access.');
+        }
+    };
+
+    const stopCamera = () => {
+        if (loopRef.current) { cancelAnimationFrame(loopRef.current); loopRef.current = null; }
+        if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null; }
+    };
+
+    const stopEverything = () => {
+        stopCamera();
+        if (countdownTimer.current) { clearInterval(countdownTimer.current); countdownTimer.current = null; }
+    };
+
+    const resetState = () => {
+        busyRef.current = false;
+        stableCount.current = 0;
+        capturedDescRef.current = null;
+        setFaceDetected(false);
+        setRegCountdown(null);
+        setRegStatus('idle');
+        if (countdownTimer.current) { clearInterval(countdownTimer.current); countdownTimer.current = null; }
+    };
+
+    const frameLoop = useCallback(async () => {
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        if (!video || video.paused || video.ended || !canvas) {
+            loopRef.current = requestAnimationFrame(frameLoop);
+            return;
+        }
+
+        try {
+            const det = await faceapi
+                .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
+                .withFaceLandmarks()
+                .withFaceDescriptor();
+
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                if (det) {
+                    setFaceDetected(true);
+                    stableCount.current += 1;
+
+                    const dims = faceapi.matchDimensions(canvas, video, true);
+                    const resized = faceapi.resizeResults(det, dims);
+                    ctx.fillStyle = 'rgba(16,185,129,0.7)';
+                    resized.landmarks.positions.forEach(p => {
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, 1.5, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+
+                    capturedDescRef.current = det.descriptor;
+                    handleRegisterFrame();
+                } else {
+                    setFaceDetected(false);
+                    stableCount.current = 0;
+                    capturedDescRef.current = null;
+                    if (countdownTimer.current) {
+                        clearInterval(countdownTimer.current); countdownTimer.current = null;
+                        setRegCountdown(null);
+                        setRegStatus('detecting');
+                    }
+                }
+            }
+        } catch (_) {}
+
+        loopRef.current = requestAnimationFrame(frameLoop);
+    }, []);
+
+    const handleRegisterFrame = () => {
+        if (busyRef.current) return;
+
+        if (stableCount.current === 10 && !countdownTimer.current) {
+            setRegStatus('countdown');
+            setRegCountdown(3);
+            beep('tick');
+
+            let count = 3;
+            countdownTimer.current = setInterval(() => {
+                count -= 1;
+                if (count > 0) {
+                    setRegCountdown(count);
+                    beep('tick');
+                } else {
+                    clearInterval(countdownTimer.current);
+                    countdownTimer.current = null;
+                    setRegCountdown(0);
+                    if (capturedDescRef.current) {
+                        submitRegistration(Array.from(capturedDescRef.current));
+                    }
+                }
+            }, 1000);
+        }
+
+        if (stableCount.current < 10) {
+            setRegStatus('detecting');
+        }
+    };
+
+    const submitRegistration = async (encoding) => {
+        busyRef.current = true;
+        setRegStatus('saving');
+        stopCamera();
+        try {
+            await api.post('/biometrics/train/', {
+                encoding,
+                user_id: member.account
+            });
+            beep('success');
+            setRegStatus('done');
+            toast.success('Face ID biometrics successfully trained for ' + member.full_name + '!');
+        } catch (e) {
+            beep('error');
+            setRegStatus('error');
+            toast.error(e.response?.data?.error || 'Failed to save biometric signature.');
+            busyRef.current = false;
+        }
+    };
+
+    const retry = () => {
+        resetState();
+        stopEverything();
+        setTimeout(() => startCamera(), 300);
+    };
+
+    // Derived SVG metrics
+    const CIRC = 2 * Math.PI * 78;
+    let ringProgress = 0;
+    if (regStatus === 'detecting') ringProgress = Math.min((stableCount.current / 10) * 30, 30);
+    else if (regStatus === 'countdown' && regCountdown !== null) ringProgress = 30 + ((3 - regCountdown) / 3) * 60;
+    else if (regStatus === 'saving') ringProgress = 90;
+    else if (regStatus === 'done') ringProgress = 100;
+    const ringDash = CIRC - (CIRC * ringProgress) / 100;
+
+    let statusMsg = '';
+    let statusSub = '';
+    if (camError) {
+        statusMsg = 'Camera Error';
+        statusSub = camError;
+    } else if (modelLoading) {
+        statusMsg = 'Loading AI Models…';
+        statusSub = 'Preparing face detection networks';
+    } else if (!modelReady) {
+        statusMsg = 'Initialising…';
+    } else {
+        if (regStatus === 'idle' || regStatus === 'detecting') {
+            if (!faceDetected) { statusMsg = 'Position worker\'s face in circle'; statusSub = 'Ensure face is well-lit and centered'; }
+            else { statusMsg = 'Hold still…'; statusSub = 'Capturing stable frames'; }
+        } else if (regStatus === 'countdown') {
+            statusMsg = regCountdown > 0 ? `Capturing in ${regCountdown}…` : 'Capturing…';
+            statusSub = 'Keep still';
+        } else if (regStatus === 'saving') {
+            statusMsg = 'Saving Face ID…';
+            statusSub = 'Linking biometric signature to user';
+        } else if (regStatus === 'done') {
+            statusMsg = 'Face ID Registered! ✓';
+            statusSub = 'Biometric signature successfully linked';
+        } else if (regStatus === 'error') {
+            statusMsg = 'Registration failed';
+            statusSub = 'Ensure worker is centered and try again';
+        }
+    }
+
+    return (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 450, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div style={{ background: '#121212', border: '1px solid rgba(16, 185, 129, 0.25)', color: '#fff', borderRadius: 16, padding: 24, width: '100%', maxWidth: 400, boxShadow: '0 20px 60px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18 }}>
+                <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                        <h3 style={{ margin: 0, fontWeight: 900, fontSize: 16, display: 'flex', alignItems: 'center', gap: 8, color: '#10b981' }}>
+                            <IconFaceID size={18} color="#10b981" />
+                            Train Face ID Biometrics
+                        </h3>
+                        <p style={{ margin: '3px 0 0', fontSize: 11, color: '#9ca3af' }}>
+                            {member.full_name} · {member.employee_id}
+                        </p>
+                    </div>
+                    <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: 18, cursor: 'pointer', outline: 'none' }}>×</button>
+                </div>
+
+                {/* Webcam + Ring Tracers */}
+                <div style={{ position: 'relative', width: 180, height: 180 }}>
+                    <svg width="180" height="180" style={{ position: 'absolute', inset: 0, transform: 'rotate(-90deg)', zIndex: 10, pointerEvents: 'none' }}>
+                        <circle cx="90" cy="90" r="78" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="4" />
+                        <circle
+                            cx="90" cy="90" r="78" fill="none"
+                            stroke={regStatus === 'done' ? '#10b981' : regStatus === 'error' ? '#ef4444' : '#10b981'}
+                            strokeWidth="4"
+                            strokeDasharray={`${CIRC}`}
+                            strokeDashoffset={ringDash}
+                            strokeLinecap="round"
+                            style={{ transition: 'stroke-dashoffset 0.4s ease' }}
+                        />
+                    </svg>
+
+                    <div style={{
+                        position: 'absolute', inset: 8,
+                        borderRadius: '50%', overflow: 'hidden',
+                        background: '#0a0a0a',
+                        boxShadow: faceDetected
+                            ? `0 0 0 2px ${regStatus === 'done' ? '#10b981' : '#10b981'}44`
+                            : 'none',
+                        transition: 'box-shadow 0.3s',
+                    }}>
+                        <video ref={videoRef} autoPlay muted playsInline width="640" height="480"
+                            style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%) scaleX(-1)', height: '100%', width: 'auto', objectFit: 'cover' }}
+                        />
+                        <canvas ref={canvasRef} width="164" height="164"
+                            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 3, pointerEvents: 'none', transform: 'scaleX(-1)' }}
+                        />
+
+                        {/* Scan line */}
+                        {regStatus !== 'done' && regStatus !== 'error' && faceDetected && (
+                            <div style={{
+                                position: 'absolute', left: 0, right: 0, height: 2,
+                                background: 'linear-gradient(90deg, transparent, #10b981, transparent)',
+                                boxShadow: '0 0 8px #10b981',
+                                animation: 'sweep 2.5s ease-in-out infinite',
+                                zIndex: 5,
+                            }} />
+                        )}
+
+                        {/* Success overlay */}
+                        {regStatus === 'done' && (
+                            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(16,185,129,0.15)', zIndex: 8 }}>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="1.5" style={{ width: 42, height: 42 }}>
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" strokeLinecap="round" strokeLinejoin="round" />
+                                    <path d="M22 4L12 14.01l-3-3" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Countdown */}
+                    {regStatus === 'countdown' && regCountdown !== null && regCountdown > 0 && (
+                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20 }}>
+                            <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 900, color: '#fff', boxShadow: '0 0 15px rgba(16,185,129,0.5)' }}>
+                                {regCountdown}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Status text */}
+                <div style={{ textAlign: 'center', width: '100%' }}>
+                    <p style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 800, color: regStatus === 'done' ? '#10b981' : regStatus === 'error' ? '#ef4444' : '#fff' }}>
+                        {statusMsg}
+                    </p>
+                    <p style={{ margin: 0, fontSize: 11, color: '#9ca3af', lineHeight: 1.4 }}>
+                        {statusSub}
+                    </p>
+                </div>
+
+                <div style={{ display: 'flex', gap: 10, width: '100%', marginTop: 6 }}>
+                    {(regStatus === 'done' || regStatus === 'error' || camError) ? (
+                        <button onClick={retry} style={{ flex: 1, padding: '10px', borderRadius: 10, border: 'none', background: '#10b981', color: '#fff', fontWeight: 800, cursor: 'pointer', fontSize: 12 }}>
+                            Scan Again
+                        </button>
+                    ) : (
+                        <p style={{ width: '100%', margin: 0, fontSize: 10, color: '#6b7280', textAlign: 'center', lineHeight: 1.3 }}>
+                            Please have the worker hold still centered inside the frame. Camera captures automatically.
+                        </p>
+                    )}
+                    <button onClick={onClose} style={{ padding: '10px 18px', borderRadius: 10, border: '1px solid #374151', background: 'transparent', color: '#9ca3af', cursor: 'pointer', fontSize: 12 }}>
+                        Close
+                    </button>
+                </div>
+            </div>
+            <style>{`
+                @keyframes sweep {
+                    0%   { top: 5%; }
+                    50%  { top: 90%; }
+                    100% { top: 5%; }
+                }
+            `}</style>
+        </div>
+    );
+}
+
 // ── MAIN VIEW COMPONENT ───────────────────────────────────────────────────────
 export default function WorkforceMembersView({ projectId, hideProjectFilter = false }) {
     const { projects, activeProjectId } = useConstruction();
@@ -578,6 +960,7 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
     const [showIDCard, setShowIDCard]       = useState(false);
     const [idCardMemberId, setIdCardMemberId] = useState(null);
     const [portalTarget, setPortalTarget]   = useState(null);
+    const [biometricTarget, setBiometricTarget] = useState(null);
     // Assign-to-project state (used in Workforce Hub where hideProjectFilter=false)
     const [assigningProject, setAssigningProject] = useState({}); // { [memberId]: bool }
     // Per-member attendance sync state
@@ -1013,6 +1396,19 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
                                                         }}>
                                                         {m.account ? '✅' : '📱'}
                                                     </button>
+                                                    {m.account && (
+                                                        <button onClick={() => setBiometricTarget(m)} title={m.has_face_id ? 'Face ID Trained' : 'Train Face ID'}
+                                                            style={{
+                                                                flex: 1, padding: '4px 6px', borderRadius: 6, fontSize: 10, fontWeight: 700,
+                                                                border: `1px solid ${m.has_face_id ? '#10b981' : '#d1d5db'}`,
+                                                                background: m.has_face_id ? 'rgba(16,185,129,0.1)' : 'var(--t-surface)',
+                                                                color: m.has_face_id ? '#10b981' : 'var(--t-text-muted)',
+                                                                cursor: 'pointer',
+                                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                            }}>
+                                                            <IconFaceID size={12} color={m.has_face_id ? '#10b981' : 'var(--t-text-muted)'} />
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
                                         </td>
@@ -1045,6 +1441,13 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
                     projects={projects}
                     defaultProjectId={effectiveProjectId}
                     onClose={() => { setPortalTarget(null); load(); }}
+                />
+            )}
+
+            {biometricTarget && (
+                <BiometricTrainingModal
+                    member={biometricTarget}
+                    onClose={() => { setBiometricTarget(null); load(); }}
                 />
             )}
         </div>

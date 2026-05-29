@@ -11,6 +11,7 @@ import { dashboardService, getMediaUrl } from '../../services/api';
 import MediaThumbnail from '../common/MediaThumbnail';
 import MobileLayout from './MobileLayout';
 import MobilePageHeader from './MobilePageHeader';
+import CustomVideoPlayer from '../common/CustomVideoPlayer';
 
 const TYPE_META = {
     IMAGE: {
@@ -109,10 +110,8 @@ const MediaPreview = ({ item, onClose }) => {
                         />
                     )}
                     {item.type === 'VIDEO' && (
-                        <video
+                        <CustomVideoPlayer
                             src={item.url}
-                            controls
-                            playsInline
                             className="max-h-[62vh] w-full rounded-2xl bg-black"
                         />
                     )}

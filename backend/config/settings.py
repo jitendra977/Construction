@@ -134,6 +134,9 @@ INSTALLED_APPS = [
 
     # ── Worker Portal (field worker API — no models, no migrations) ───────────
     'apps.worker',
+
+    # ── Biometric Face Authentication ─────────────────────────────────────────
+    'apps.biometrics',
 ]
 
 # Explicitly map migration folders for nested apps to prevent loader errors
@@ -154,6 +157,7 @@ MIGRATION_MODULES = {
     'estimate': 'apps.estimate.migrations',
     'location_tracking': 'apps.location_tracking.migrations',
     'worker': 'apps.worker.migrations',
+    'biometrics': 'apps.biometrics.migrations',
 }
 
 # ─── Photo Intelligence (HCMS-2) ──────────────────────────────────────

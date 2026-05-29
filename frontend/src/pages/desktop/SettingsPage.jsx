@@ -338,6 +338,24 @@ function SecuritySection({ user }) {
 
             <div style={row}>
                 <div>
+                    <p style={rowLabel}>Biometric Face Sign-in</p>
+                    <p style={rowSub}>Train and enable secure facial recognition login.</p>
+                </div>
+                <button 
+                    onClick={() => window.location.href = '/dashboard/desktop/biometrics'}
+                    style={{ 
+                        padding: '7px 16px', borderRadius: 10, 
+                        background: 'rgba(99,102,241,0.1)', color: '#6366f1', 
+                        fontWeight: 800, fontSize: 12, 
+                        border: '1px solid rgba(99,102,241,0.25)', cursor: 'pointer' 
+                    }}
+                >
+                    Configure
+                </button>
+            </div>
+
+            <div style={row}>
+                <div>
                     <p style={rowLabel}>JWT Token Expiry</p>
                     <p style={rowSub}>Access tokens expire after 60 min · Refresh tokens last 7 days.</p>
                 </div>

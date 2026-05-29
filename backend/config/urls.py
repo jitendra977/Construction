@@ -111,6 +111,9 @@ urlpatterns = [
 
     # ── Location Tracking ─────────────────────────────────────────────────────
     path('api/v1/location/', include('apps.location_tracking.urls')),
+
+    # ── Biometrics Face Authentication ────────────────────────────────────────
+    path('api/v1/biometrics/', include('apps.biometrics.urls')),
 ]
 
 # Serve media files in development

@@ -5,6 +5,7 @@ import { useConstruction } from '../../../context/ConstructionContext';
 import ConfirmModal from '../../common/ConfirmModal';
 import TaskPreviewModal from './TaskPreviewModal';
 import imageCompression from 'browser-image-compression';
+import FilePreviewModal from '../../common/FilePreviewModal';
 
 const PhaseDetailModal = ({ isOpen, onClose, phase, tasks, initialMode = 'read' }) => {
     const {
@@ -41,6 +42,7 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks, initialMode = 'read' 
     const [showCloseWarning, setShowCloseWarning] = useState(false);
     const [isEditing, setIsEditing] = useState(initialMode === 'edit');
     const [taskForDetail, setTaskForDetail] = useState(null);
+    const [previewDoc, setPreviewDoc] = useState(null); // { file, name } for FilePreviewModal
 
     // Sync local state when phase prop changes (e.g. modal opened for different phase)
     React.useEffect(() => {
@@ -284,6 +286,13 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks, initialMode = 'read' 
                 </div>
             }
         >
+            {previewDoc && (
+                <FilePreviewModal
+                    file={previewDoc.file}
+                    name={previewDoc.name}
+                    onClose={() => setPreviewDoc(null)}
+                />
+            )}
             <div className="flex flex-col lg:flex-row gap-6 bg-[var(--t-bg)] p-2 sm:p-4 lg:p-6 min-h-fit lg:min-h-[600px]">
                 {/* Left Column: Core Identity & Structural Nodes */}
                 <div className="w-full lg:w-5/12 flex flex-col gap-6">
@@ -486,14 +495,12 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks, initialMode = 'read' 
                                             {m.media_type === 'VIDEO' ? (
                                                 <div className="relative w-full h-full group">
                                                     <video src={getMediaUrl(m.file)} className="w-full h-full object-cover" />
-                                                    <a
-                                                        href={getMediaUrl(m.file)}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10"
+                                                    <div
+                                                        onClick={() => setPreviewDoc({ file: m.file, name: m.file?.split('/').pop() })}
+                                                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 cursor-pointer"
                                                     >
                                                         <span className="text-white text-[7px] font-black uppercase tracking-widest border border-white/30 px-2 py-0.5 rounded-full backdrop-blur-sm">View</span>
-                                                    </a>
+                                                    </div>
                                                 </div>
                                             ) : m.file?.toLowerCase().endsWith('.pdf') ? (
                                                 <div className="w-full h-full bg-red-50 flex flex-col items-center justify-center relative p-2 group">
@@ -505,26 +512,22 @@ const PhaseDetailModal = ({ isOpen, onClose, phase, tasks, initialMode = 'read' 
                                                     <p className="mt-1.5 text-[7px] font-black text-red-900/60 uppercase tracking-tighter truncate w-full text-center px-1">
                                                         {m.file.split('/').pop()}
                                                     </p>
-                                                    <a
-                                                        href={getMediaUrl(m.file)}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 z-20"
+                                                    <div
+                                                        onClick={() => setPreviewDoc({ file: m.file, name: m.file?.split('/').pop() })}
+                                                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 z-20 cursor-pointer"
                                                     >
                                                         <span className="text-white text-[7px] font-black uppercase tracking-widest border border-white/30 px-2 py-0.5 rounded-full backdrop-blur-sm">View</span>
-                                                    </a>
+                                                    </div>
                                                 </div>
                                             ) : (
                                                 <div className="relative w-full h-full group">
                                                     <img src={getMediaUrl(m.file)} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" />
-                                                    <a
-                                                        href={getMediaUrl(m.file)}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10"
+                                                    <div
+                                                        onClick={() => setPreviewDoc({ file: m.file, name: m.file?.split('/').pop() })}
+                                                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 cursor-pointer"
                                                     >
                                                         <span className="text-white text-[7px] font-black uppercase tracking-widest border border-white/30 px-2 py-0.5 rounded-full backdrop-blur-sm">View</span>
-                                                    </a>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>

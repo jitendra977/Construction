@@ -9,6 +9,14 @@ import offlineQueue from './offlineQueue';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
+// The path-only portion of API_URL (e.g. "/api/v1") — used to strip the
+// prefix from absolute URLs before they are stored in the offline queue,
+// so that offlineQueue.normalizeQueuedUrl doesn't prepend it a second time.
+const API_PATH = (() => {
+    try { return new URL(API_URL, 'http://x').pathname.replace(/\/$/, ''); }
+    catch { return API_URL.startsWith('http') ? '/api/v1' : API_URL.replace(/\/$/, ''); }
+})();
+
 const getAuthHeader = () => {
     const accessToken = localStorage.getItem('access_token');
     return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
@@ -17,26 +25,45 @@ const getAuthHeader = () => {
 const toQueueUrl = (request = {}) => {
     const rawUrl = request.url || '';
     if (!rawUrl) return rawUrl;
+
+    // Absolute URL → extract path only, then strip the API base path so the
+    // offline queue doesn't prepend it again when replaying.
     if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
         try {
             const parsed = new URL(rawUrl);
-            return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+            const pathname = `${parsed.pathname}${parsed.search}${parsed.hash}`;
+            // Strip API_PATH prefix to get a plain relative path like "auth/login/"
+            if (API_PATH && pathname.startsWith(API_PATH)) {
+                return pathname.slice(API_PATH.length).replace(/^\//, '');
+            }
+            return pathname;
         } catch {
             return rawUrl;
         }
     }
-    if (rawUrl.startsWith('/')) return rawUrl;
 
+    // Already an absolute path starting with "/" — strip API_PATH prefix.
+    if (rawUrl.startsWith('/')) {
+        if (API_PATH && rawUrl.startsWith(API_PATH)) {
+            return rawUrl.slice(API_PATH.length).replace(/^\//, '');
+        }
+        return rawUrl;
+    }
+
+    // Relative URL (e.g. "auth/login/") — resolve against the base URL, then strip.
     const rawBase = request.baseURL || API_URL;
     const normalizedBase = rawBase.endsWith('/') ? rawBase : `${rawBase}/`;
-
     try {
         const origin =
             typeof window !== 'undefined' && window.location?.origin
                 ? window.location.origin
                 : 'http://localhost';
         const resolved = new URL(rawUrl, new URL(normalizedBase, origin));
-        return `${resolved.pathname}${resolved.search}${resolved.hash}`;
+        const pathname = `${resolved.pathname}${resolved.search}${resolved.hash}`;
+        if (API_PATH && pathname.startsWith(API_PATH)) {
+            return pathname.slice(API_PATH.length).replace(/^\//, '');
+        }
+        return pathname;
     } catch {
         return rawUrl;
     }
@@ -103,8 +130,11 @@ export const attachResponseInterceptor = (axiosInstance) => {
                     const refreshToken = localStorage.getItem('refresh_token');
                     if (!refreshToken) throw new Error('No refresh token');
 
-                    const { data } = await axios.post(
-                        `${API_URL}/auth/token/refresh/`,
+                    // Use a plain relative path so axios resolves it against
+                    // baseURL — avoids doubling the prefix if API_URL already
+                    // contains "/api/v1".
+                    const { data } = await api.post(
+                        'auth/token/refresh/',
                         { refresh: refreshToken },
                     );
                     localStorage.setItem('access_token', data.access);

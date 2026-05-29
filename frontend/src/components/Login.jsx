@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useConstruction } from '../context/ConstructionContext';
+import * as faceapi from '@vladmandic/face-api';
+import api from '../services/client';
+import { toast } from 'sonner';
 
 // ── Rate-limit: max 5 attempts per 15 min window (client-side gate) ──────────
 const RATE_WINDOW_MS = 15 * 60 * 1000;
@@ -36,6 +39,35 @@ function remainingLockSec() {
     const s = getRateState();
     const elapsed = Date.now() - s.first;
     return Math.ceil((RATE_WINDOW_MS - elapsed) / 1000);
+}
+
+// ── Tiny sound beeps via Web Audio ──────────────────────────────────────────
+function beep(type) {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        if (type === 'tick') {
+            o.type = 'sine'; o.frequency.value = 880;
+            g.gain.setValueAtTime(0.08, ctx.currentTime);
+            g.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.1);
+            o.start(); o.stop(ctx.currentTime + 0.1);
+        } else if (type === 'success') {
+            o.type = 'sine';
+            o.frequency.setValueAtTime(523, ctx.currentTime);
+            o.frequency.setValueAtTime(783, ctx.currentTime + 0.12);
+            o.frequency.setValueAtTime(1046, ctx.currentTime + 0.24);
+            g.gain.setValueAtTime(0.1, ctx.currentTime);
+            g.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.5);
+            o.start(); o.stop(ctx.currentTime + 0.5);
+        } else if (type === 'error') {
+            o.type = 'sawtooth'; o.frequency.value = 120;
+            g.gain.setValueAtTime(0.1, ctx.currentTime);
+            g.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.3);
+            o.start(); o.stop(ctx.currentTime + 0.3);
+        }
+    } catch (_) {}
 }
 
 // ── Tiny icon components (inline SVG, no deps) ───────────────────────────────
@@ -80,6 +112,18 @@ const IconAlert = () => (
         <circle cx="12" cy="12" r="10" />
         <line x1="12" y1="8" x2="12" y2="12" strokeLinecap="round" />
         <line x1="12" y1="16" x2="12.01" y2="16" strokeLinecap="round" />
+    </svg>
+);
+const IconFaceID = () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+        style={{ width: 18, height: 18 }}>
+        <path d="M3 7V5a2 2 0 0 1 2-2h2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M17 3h2a2 2 0 0 1 2 2v2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M21 17v2a2 2 0 0 1-2 2h-2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M7 21H5a2 2 0 0 1-2-2v-2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M8 14s1.5 2 4 2 4-2 4-2" strokeLinecap="round" strokeLinejoin="round" />
+        <line x1="9" y1="9" x2="9.01" y2="9" strokeLinecap="round" strokeWidth="3" />
+        <line x1="15" y1="9" x2="15.01" y2="9" strokeLinecap="round" strokeWidth="3" />
     </svg>
 );
 
@@ -358,6 +402,24 @@ export default function Login() {
     const [success,   setSuccess]     = useState(false);
     const [capsLock,  setCapsLock]    = useState(false);
 
+    // Face ID Login States
+    const [faceMode, setFaceMode]                 = useState(false);
+    const [faceModelReady, setFaceModelReady]     = useState(false);
+    const [faceModelLoading, setFaceModelLoading] = useState(false);
+    const [faceCamError, setFaceCamError]         = useState(null);
+    const [faceDetected, setFaceDetected]         = useState(false);
+    const [faceLoginStatus, setFaceLoginStatus]   = useState('idle'); // 'idle' | 'detecting' | 'verifying' | 'done' | 'error'
+
+    const faceVideoRef = useRef(null);
+    const faceCanvasRef = useRef(null);
+    const faceStreamRef = useRef(null);
+    const faceLoopRef = useRef(null);
+    const faceBusyRef = useRef(false);
+    const faceStableCount = useRef(0);
+    const faceCapturedDescRef = useRef(null);
+
+    const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+
     const { geoStatus, geoDetails, retry } = useGeoPermission();
     const geoBlocked = geoStatus === 'denied';             // hard block
     const geoPending = geoStatus === 'checking' || geoStatus === 'prompting';
@@ -395,6 +457,170 @@ export default function Login() {
     const triggerShake = () => {
         setShake(true);
         setTimeout(() => setShake(false), 600);
+    };
+
+    // Lazy-load models when Face ID is clicked
+    const loadFaceModels = async () => {
+        if (faceModelReady) {
+            startFaceCamera();
+            return;
+        }
+        setFaceModelLoading(true);
+        setFaceLoginStatus('idle');
+        setFaceCamError(null);
+        try {
+            await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+            await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+            await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+            setFaceModelReady(true);
+        } catch (e) {
+            toast.error('AI models failed to load — check internet connection.');
+            setFaceCamError('Failed to load AI face recognition models.');
+        } finally {
+            setFaceModelLoading(false);
+        }
+    };
+
+    const startFaceCamera = async () => {
+        setFaceCamError(null);
+        setFaceLoginStatus('idle');
+        faceBusyRef.current = false;
+        faceStableCount.current = 0;
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { width: 640, height: 480, facingMode: 'user' }
+            });
+            faceStreamRef.current = stream;
+            if (faceVideoRef.current) {
+                faceVideoRef.current.srcObject = stream;
+                await faceVideoRef.current.play();
+                faceLoopRef.current = requestAnimationFrame(faceFrameLoop);
+            }
+        } catch (e) {
+            setFaceCamError('Camera permission denied. Please allow camera access.');
+        }
+    };
+
+    const stopFaceEverything = () => {
+        if (faceLoopRef.current) {
+            cancelAnimationFrame(faceLoopRef.current);
+            faceLoopRef.current = null;
+        }
+        if (faceStreamRef.current) {
+            faceStreamRef.current.getTracks().forEach(t => t.stop());
+            faceStreamRef.current = null;
+        }
+        faceBusyRef.current = false;
+        faceStableCount.current = 0;
+        faceCapturedDescRef.current = null;
+    };
+
+    useEffect(() => {
+        if (faceMode && faceModelReady) {
+            startFaceCamera();
+        }
+        return () => stopFaceEverything();
+    }, [faceMode, faceModelReady]);
+
+    useEffect(() => {
+        if (faceMode && !faceModelReady && !faceModelLoading) {
+            loadFaceModels();
+        }
+    }, [faceMode, faceModelReady, faceModelLoading]);
+
+    const faceFrameLoop = async () => {
+        const video = faceVideoRef.current;
+        const canvas = faceCanvasRef.current;
+        if (!video || video.paused || video.ended || !canvas) {
+            faceLoopRef.current = requestAnimationFrame(faceFrameLoop);
+            return;
+        }
+
+        try {
+            const det = await faceapi
+                .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
+                .withFaceLandmarks()
+                .withFaceDescriptor();
+
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                if (det) {
+                    setFaceDetected(true);
+                    faceStableCount.current += 1;
+
+                    const dims = faceapi.matchDimensions(canvas, video, true);
+                    const resized = faceapi.resizeResults(det, dims);
+                    ctx.fillStyle = 'rgba(16,185,129,0.7)';
+                    resized.landmarks.positions.forEach(p => {
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, 1.5, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+
+                    faceCapturedDescRef.current = det.descriptor;
+                    handleFaceLoginFrame(det.descriptor);
+                } else {
+                    setFaceDetected(false);
+                    faceStableCount.current = 0;
+                    faceCapturedDescRef.current = null;
+                }
+            }
+        } catch (_) {}
+
+        faceLoopRef.current = requestAnimationFrame(faceFrameLoop);
+    };
+
+    const handleFaceLoginFrame = async (descriptor) => {
+        if (faceBusyRef.current) return;
+        if (faceStableCount.current < 15) {
+            setFaceLoginStatus('detecting');
+            return;
+        }
+
+        faceBusyRef.current = true;
+        setFaceLoginStatus('verifying');
+        
+        if (faceStreamRef.current) {
+            faceStreamRef.current.getTracks().forEach(t => t.stop());
+            faceStreamRef.current = null;
+        }
+
+        try {
+            const res = await api.post('/biometrics/login/', {
+                encoding: Array.from(descriptor),
+                username: username || ''
+            });
+
+            beep('success');
+            setFaceLoginStatus('done');
+            setSuccess(true);
+
+            if (res.data.access)  localStorage.setItem('access_token',  res.data.access);
+            if (res.data.refresh) localStorage.setItem('refresh_token', res.data.refresh);
+            if (res.data.user)    localStorage.setItem('user', JSON.stringify(res.data.user));
+
+            toast.success(`Welcome back, ${res.data.user.first_name || res.data.user.username}!`);
+            window.dispatchEvent(new Event('auth-changed'));
+
+            setTimeout(() => {
+                navigate('/dashboard');
+            }, 800);
+
+        } catch (e) {
+            beep('error');
+            setFaceLoginStatus('error');
+            const errMsg = e.response?.data?.error || 'Face not recognised. Try again or use password login.';
+            toast.error(errMsg);
+            faceBusyRef.current = false;
+
+            setTimeout(() => {
+                if (faceMode) {
+                    startFaceCamera();
+                }
+            }, 2500);
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -591,6 +817,11 @@ export default function Login() {
                     90%{transform:translateX(3px)}
                 }
                 @keyframes spin { to{transform:rotate(360deg)} }
+                @keyframes sweep {
+                    0%   { top: 5%; }
+                    50%  { top: 90%; }
+                    100% { top: 5%; }
+                }
                 input:-webkit-autofill {
                     -webkit-box-shadow: 0 0 0 100px #1a1a1a inset !important;
                     -webkit-text-fill-color: #f9fafb !important;
@@ -620,17 +851,17 @@ export default function Login() {
                 </div>
 
                 {/* GPS gate */}
-                <GeoGate geoStatus={geoStatus} onRetry={retry} />
+                {!faceMode && <GeoGate geoStatus={geoStatus} onRetry={retry} />}
 
                 {/* Alerts */}
-                {expired && (
+                {!faceMode && expired && (
                     <div style={S.alert('warning')}>
                         <IconAlert />
                         <span>Your session expired. Please sign in again to continue.</span>
                     </div>
                 )}
 
-                {locked && (
+                {!faceMode && locked && (
                     <div style={S.alert('error')}>
                         <IconAlert />
                         <span>
@@ -640,7 +871,7 @@ export default function Login() {
                     </div>
                 )}
 
-                {!locked && error && (
+                {!faceMode && !locked && error && (
                     <div style={S.alert('error')}>
                         <IconAlert />
                         <div>
@@ -662,123 +893,276 @@ export default function Login() {
                 )}
 
                 {/* Form */}
-                <form onSubmit={handleSubmit} autoComplete="on" noValidate>
-                    {/* Email */}
-                    <div style={S.inputWrap}>
-                        <label style={S.label}>Email Address</label>
-                        <div style={{ position: 'relative' }}>
-                            <span style={S.inputIcon}><IconUser /></span>
-                            <input
-                                type="email"
-                                id="username"
-                                autoComplete="email"
-                                value={username}
-                                onChange={e => setUsername(e.target.value)}
-                                required
-                                disabled={loading || locked || success || geoBlocked || geoPending}
-                                placeholder="you@company.com"
-                                style={S.input}
-                            />
-                        </div>
-                    </div>
+                {faceMode ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20, width: '100%' }}>
+                        {/* Face ID circular camera viewport */}
+                        <div style={{ position: 'relative', width: 220, height: 220 }}>
+                            {/* Progress ring SVG */}
+                            <svg width="220" height="220" style={{ position: 'absolute', inset: 0, transform: 'rotate(-90deg)', zIndex: 10, pointerEvents: 'none' }}>
+                                <circle cx="110" cy="110" r="98" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="4" />
+                                <circle
+                                    cx="110" cy="110" r="98" fill="none"
+                                    stroke={
+                                        faceLoginStatus === 'done' ? '#10b981'
+                                        : faceLoginStatus === 'error' ? '#ef4444'
+                                        : '#f97316'
+                                    }
+                                    strokeWidth="4"
+                                    strokeDasharray={`${2 * Math.PI * 98}`}
+                                    strokeDashoffset={(() => {
+                                        const circ = 2 * Math.PI * 98;
+                                        let progress = 0;
+                                        if (faceLoginStatus === 'detecting') {
+                                            progress = Math.min((faceStableCount.current / 15) * 50, 50);
+                                        } else if (faceLoginStatus === 'verifying') {
+                                            progress = 80;
+                                        } else if (faceLoginStatus === 'done') {
+                                            progress = 100;
+                                        }
+                                        return circ - (circ * progress) / 100;
+                                    })()}
+                                    strokeLinecap="round"
+                                    style={{ transition: 'stroke-dashoffset 0.3s ease, stroke 0.3s' }}
+                                />
+                            </svg>
 
-                    {/* Password */}
-                    <div style={S.inputWrap}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                            <label style={{ ...S.label, marginBottom: 0 }}>Password</label>
-                            {capsLock && (
-                                <span style={{ fontSize: 10, color: '#fcd34d', fontWeight: 700 }}>
-                                    ⚠ Caps Lock is on
-                                </span>
+                            {/* Circular camera viewport */}
+                            <div style={{
+                                position: 'absolute', inset: 10,
+                                borderRadius: '50%', overflow: 'hidden',
+                                background: '#0a0a0a',
+                                boxShadow: faceDetected
+                                    ? `0 0 0 2px ${faceLoginStatus === 'done' ? '#10b981' : faceLoginStatus === 'error' ? '#ef4444' : '#f97316'}, 0 0 30px ${faceLoginStatus === 'done' ? '#10b981' : faceLoginStatus === 'error' ? '#ef4444' : '#f97316'}44`
+                                    : '0 0 0 1px rgba(255,255,255,0.05)',
+                                transition: 'box-shadow 0.3s',
+                            }}>
+                                <video ref={faceVideoRef} autoPlay muted playsInline width="640" height="480"
+                                    style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%) scaleX(-1)', height: '100%', width: 'auto', objectFit: 'cover' }}
+                                />
+                                <canvas ref={faceCanvasRef} width="200" height="200"
+                                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 3, pointerEvents: 'none', transform: 'scaleX(-1)' }}
+                                />
+
+                                {/* Scan sweep line */}
+                                {faceLoginStatus !== 'done' && faceLoginStatus !== 'error' && faceDetected && (
+                                    <div style={{
+                                        position: 'absolute', left: 0, right: 0, height: 2,
+                                        background: 'linear-gradient(90deg, transparent, #f97316, transparent)',
+                                        boxShadow: '0 0 8px #f97316',
+                                        animation: 'sweep 2.5s ease-in-out infinite',
+                                        zIndex: 5,
+                                    }} />
+                                )}
+
+                                {/* Done overlay */}
+                                {faceLoginStatus === 'done' && (
+                                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(16,185,129,0.15)', zIndex: 8 }}>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="1.5" style={{ width: 48, height: 48 }}>
+                                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" strokeLinecap="round" strokeLinejoin="round" />
+                                            <path d="M22 4L12 14.01l-3-3" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Status texts */}
+                        <div style={{ textAlign: 'center', maxWidth: 300 }}>
+                            <p style={{
+                                margin: '0 0 4px',
+                                fontSize: 15,
+                                fontWeight: 800,
+                                color: faceLoginStatus === 'done' ? '#10b981' : faceLoginStatus === 'error' ? '#ef4444' : '#fff',
+                                transition: 'color 0.3s',
+                            }}>
+                                {(() => {
+                                    if (faceCamError) return 'Camera Error';
+                                    if (faceModelLoading) return 'Loading Face AI…';
+                                    if (!faceModelReady) return 'Initialising…';
+                                    if (faceLoginStatus === 'idle' || faceLoginStatus === 'detecting') {
+                                        return faceDetected ? 'Recognising…' : 'Look at the camera';
+                                    }
+                                    if (faceLoginStatus === 'verifying') return 'Verifying identity…';
+                                    if (faceLoginStatus === 'done') return 'Welcome back!';
+                                    if (faceLoginStatus === 'error') return 'Face not recognised';
+                                    return '';
+                                })()}
+                            </p>
+                            <p style={{ margin: 0, fontSize: 11, color: '#9ca3af', lineHeight: 1.5 }}>
+                                {(() => {
+                                    if (faceCamError) return faceCamError;
+                                    if (faceModelLoading) return 'Loading recognition models (one-time)';
+                                    if (!faceModelReady) return 'Please wait...';
+                                    if (faceLoginStatus === 'idle' || faceLoginStatus === 'detecting') {
+                                        return faceDetected ? 'Keep your face centred' : 'Position your face in the circle';
+                                    }
+                                    if (faceLoginStatus === 'verifying') return 'Checking biometric signatures';
+                                    if (faceLoginStatus === 'done') return 'Redirecting to your dashboard…';
+                                    if (faceLoginStatus === 'error') return 'Retrying automatically in a few seconds…';
+                                    return '';
+                                })()}
+                            </p>
+                        </div>
+
+                        {/* Action Button: Password fallback */}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                stopFaceEverything();
+                                setFaceMode(false);
+                            }}
+                            style={{
+                                marginTop: 10,
+                                background: 'none',
+                                border: 'none',
+                                color: '#f97316',
+                                fontSize: 12,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                letterSpacing: '0.04em',
+                                textTransform: 'uppercase',
+                                outline: 'none',
+                            }}
+                        >
+                            Use Password Instead
+                        </button>
+                    </div>
+                ) : (
+                    <form onSubmit={handleSubmit} autoComplete="on" noValidate>
+                        {/* Email */}
+                        <div style={S.inputWrap}>
+                            <label style={S.label}>Email Address</label>
+                            <div style={{ position: 'relative' }}>
+                                <span style={S.inputIcon}><IconUser /></span>
+                                <input
+                                    type="email"
+                                    id="username"
+                                    autoComplete="email"
+                                    value={username}
+                                    onChange={e => setUsername(e.target.value)}
+                                    required
+                                    disabled={loading || locked || success || geoBlocked || geoPending}
+                                    placeholder="you@company.com"
+                                    style={S.input}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Password */}
+                        <div style={S.inputWrap}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                <label style={{ ...S.label, marginBottom: 0 }}>Password</label>
+                                {capsLock && (
+                                    <span style={{ fontSize: 10, color: '#fcd34d', fontWeight: 700 }}>
+                                        ⚠ Caps Lock is on
+                                    </span>
+                                )}
+                            </div>
+                            <div style={{ position: 'relative' }}>
+                                <span style={S.inputIcon}><IconLock /></span>
+                                <input
+                                    type={showPass ? 'text' : 'password'}
+                                    id="password"
+                                    autoComplete="current-password"
+                                    value={password}
+                                    onChange={e => setPassword(e.target.value)}
+                                    onKeyUp={handleKey}
+                                    required
+                                    disabled={loading || locked || success || geoBlocked || geoPending}
+                                    placeholder="Enter your password"
+                                    style={{ ...S.input, paddingRight: 44 }}
+                                />
+                                <button
+                                    type="button"
+                                    tabIndex={-1}
+                                    onClick={() => setShowPass(v => !v)}
+                                    style={S.pwToggle}
+                                    aria-label={showPass ? 'Hide password' : 'Show password'}
+                                >
+                                    <IconEye off={showPass} />
+                                </button>
+                            </div>
+                            {/* Strength meter — shown while typing */}
+                            {password.length > 0 && (
+                                <div>
+                                    <div style={S.strengthBar}>
+                                        {[0,1,2,3].map(i => (
+                                            <div key={i} style={S.strengthSeg(i, pwStrength)} />
+                                        ))}
+                                    </div>
+                                    <div style={{ marginTop: 5, fontSize: 10, color: STRENGTH_COLOR[pwStrength], fontWeight: 700, letterSpacing: '0.05em' }}>
+                                        {STRENGTH_LABEL[pwStrength]}
+                                    </div>
+                                </div>
                             )}
                         </div>
-                        <div style={{ position: 'relative' }}>
-                            <span style={S.inputIcon}><IconLock /></span>
-                            <input
-                                type={showPass ? 'text' : 'password'}
-                                id="password"
-                                autoComplete="current-password"
-                                value={password}
-                                onChange={e => setPassword(e.target.value)}
-                                onKeyUp={handleKey}
-                                required
-                                disabled={loading || locked || success || geoBlocked || geoPending}
-                                placeholder="Enter your password"
-                                style={{ ...S.input, paddingRight: 44 }}
-                            />
-                            <button
-                                type="button"
-                                tabIndex={-1}
-                                onClick={() => setShowPass(v => !v)}
-                                style={S.pwToggle}
-                                aria-label={showPass ? 'Hide password' : 'Show password'}
-                            >
-                                <IconEye off={showPass} />
-                            </button>
+
+                        {/* Divider */}
+                        <div style={S.divider}>
+                            <div style={S.divLine} />
+                            <span style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 600 }}>
+                                Secure Sign-In
+                            </span>
+                            <div style={S.divLine} />
                         </div>
-                        {/* Strength meter — shown while typing */}
-                        {password.length > 0 && (
-                            <div>
-                                <div style={S.strengthBar}>
-                                    {[0,1,2,3].map(i => (
-                                        <div key={i} style={S.strengthSeg(i, pwStrength)} />
-                                    ))}
-                                </div>
-                                <div style={{ marginTop: 5, fontSize: 10, color: STRENGTH_COLOR[pwStrength], fontWeight: 700, letterSpacing: '0.05em' }}>
-                                    {STRENGTH_LABEL[pwStrength]}
-                                </div>
-                            </div>
-                        )}
-                    </div>
 
-                    {/* Divider */}
-                    <div style={S.divider}>
-                        <div style={S.divLine} />
-                        <span style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 600 }}>
-                            Secure Sign-In
-                        </span>
-                        <div style={S.divLine} />
-                    </div>
+                        {/* Submit */}
+                        <button
+                            type="submit"
+                            disabled={loading || locked || success || geoBlocked || geoPending}
+                            style={S.btn}
+                        >
+                            {geoBlocked ? (
+                                <>📵 Allow Location to Sign In</>
+                            ) : geoPending ? (
+                                <>
+                                    <span style={{
+                                        width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)',
+                                        borderTopColor: '#fff', borderRadius: '50%',
+                                        animation: 'spin 0.8s linear infinite', display: 'inline-block',
+                                    }} />
+                                    Waiting for Location…
+                                </>
+                            ) : loading ? (
+                                <>
+                                    <span style={{
+                                        width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)',
+                                        borderTopColor: '#fff', borderRadius: '50%',
+                                        animation: 'spin 0.8s linear infinite',
+                                        display: 'inline-block',
+                                    }} />
+                                    Authenticating…
+                                </>
+                            ) : locked ? (
+                                <>🔒 Locked — {Math.floor(lockSec / 60)}:{String(lockSec % 60).padStart(2, '0')}</>
+                            ) : success ? (
+                                <>✓ Authenticated</>
+                            ) : (
+                                <>
+                                    <IconShield />
+                                    Sign In Securely
+                                </>
+                            )}
+                        </button>
 
-                    {/* Submit */}
-                    <button
-                        type="submit"
-                        disabled={loading || locked || success || geoBlocked || geoPending}
-                        style={S.btn}
-                    >
-                        {geoBlocked ? (
-                            <>📵 Allow Location to Sign In</>
-                        ) : geoPending ? (
-                            <>
-                                <span style={{
-                                    width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)',
-                                    borderTopColor: '#fff', borderRadius: '50%',
-                                    animation: 'spin 0.8s linear infinite', display: 'inline-block',
-                                }} />
-                                Waiting for Location…
-                            </>
-                        ) : loading ? (
-                            <>
-                                <span style={{
-                                    width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)',
-                                    borderTopColor: '#fff', borderRadius: '50%',
-                                    animation: 'spin 0.8s linear infinite',
-                                    display: 'inline-block',
-                                }} />
-                                Authenticating…
-                            </>
-                        ) : locked ? (
-                            <>🔒 Locked — {Math.floor(lockSec / 60)}:{String(lockSec % 60).padStart(2, '0')}</>
-                        ) : success ? (
-                            <>✓ Authenticated</>
-                        ) : (
-                            <>
-                                <IconShield />
-                                Sign In Securely
-                            </>
-                        )}
-                    </button>
-                </form>
+                        {/* Face ID Toggle Button */}
+                        <button
+                            type="button"
+                            onClick={() => setFaceMode(true)}
+                            style={{
+                                ...S.btn,
+                                marginTop: 12,
+                                background: 'rgba(249,115,22,0.1)',
+                                border: '1px solid rgba(249,115,22,0.3)',
+                                color: '#fdba74',
+                                boxShadow: 'none',
+                            }}
+                        >
+                            <IconFaceID />
+                            Sign in with Face ID
+                        </button>
+                    </form>
+                )}
 
                 {/* Footer */}
                 <div style={S.footer}>

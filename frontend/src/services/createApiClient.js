@@ -36,8 +36,10 @@ export default function createApiClient(options = {}) {
                 const refresh = localStorage.getItem('refresh_token');
                 if (refresh) {
                     try {
-                        const { data } = await axios.post(
-                            `${BASE}/auth/token/refresh/`,
+                        // Use `http` (not bare `axios`) with a relative path so
+                        // the baseURL is applied once — avoids /api/v1/api/v1/ doubling.
+                        const { data } = await http.post(
+                            'auth/token/refresh/',
                             { refresh }
                         );
                         localStorage.setItem('access_token', data.access);

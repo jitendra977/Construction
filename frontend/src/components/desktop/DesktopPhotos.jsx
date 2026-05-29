@@ -12,7 +12,7 @@ import { dashboardService, getMediaUrl } from '../../services/api';
 import MediaThumbnail from '../common/MediaThumbnail';
 import { useConstruction } from '../../context/ConstructionContext';
 import ManagementTabs from './manage/ManagementTabs';
-import CustomVideoPlayer from '../common/CustomVideoPlayer';
+import FilePreviewModal from '../common/FilePreviewModal';
 
 const TYPE_META = {
     IMAGE: {
@@ -125,99 +125,7 @@ const MediaCard = ({ item, onOpen, compact = false }) => {
     );
 };
 
-const MediaPreviewModal = ({ item, onClose }) => {
-    if (!item) return null;
-    const meta = TYPE_META[item.type] || TYPE_META.FILE;
 
-    return (
-        <div
-            className="fixed inset-0 z-[100] bg-black/92 backdrop-blur-md flex items-center justify-center p-4"
-            onClick={onClose}
-        >
-            <button
-                type="button"
-                className="absolute top-4 right-4 text-white/70 hover:text-white p-2 transition-colors"
-                onClick={onClose}
-            >
-                <X className="w-8 h-8" />
-            </button>
-
-            <div
-                className="w-full max-w-6xl max-h-[92vh] bg-[var(--t-surface)] rounded-3xl border border-white/10 overflow-hidden shadow-2xl"
-                onClick={(e) => e.stopPropagation()}
-            >
-                <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-[var(--t-border)] bg-[var(--t-surface2)]">
-                    <div className="min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                            <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${meta.badgeClass}`}>
-                                <meta.icon className="w-3.5 h-3.5" />
-                                {meta.label}
-                            </span>
-                            {item.uploadedLabel && (
-                                <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.18em] text-[var(--t-text3)]">
-                                    <Calendar className="w-3.5 h-3.5" />
-                                    {item.uploadedLabel}
-                                </span>
-                            )}
-                        </div>
-                        <h3 className="text-xl font-black text-[var(--t-text)] line-clamp-2">{item.title}</h3>
-                        <p className="text-sm text-[var(--t-text2)] mt-1 line-clamp-2">{item.subtitle}</p>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                        <a
-                            href={item.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--t-border)] text-xs font-bold uppercase tracking-[0.18em] text-[var(--t-text2)] hover:text-[var(--t-text)]"
-                        >
-                            <Eye className="w-4 h-4" />
-                            Open
-                        </a>
-                        <a
-                            href={item.url}
-                            download
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--t-primary)] text-[var(--t-bg)] text-xs font-bold uppercase tracking-[0.18em]"
-                        >
-                            <Download className="w-4 h-4" />
-                            Download
-                        </a>
-                    </div>
-                </div>
-
-                <div className="min-h-[60vh] max-h-[78vh] bg-black/95 flex items-center justify-center p-6">
-                    {item.type === 'IMAGE' && (
-                        <img
-                            src={item.url}
-                            alt={item.title}
-                            className="max-h-[72vh] max-w-full object-contain rounded-2xl"
-                        />
-                    )}
-                    {item.type === 'VIDEO' && (
-                        <CustomVideoPlayer 
-                            src={item.url} 
-                            className="w-full max-w-full h-auto max-h-[72vh] shadow-2xl" 
-                        />
-                    )}
-                    {item.type === 'PDF' && (
-                        <iframe
-                            src={item.url}
-                            title={item.title}
-                            className="w-full h-[72vh] rounded-2xl bg-white"
-                        />
-                    )}
-                    {item.type === 'FILE' && (
-                        <div className="w-full max-w-lg rounded-3xl bg-white p-10 text-center">
-                            <FileText className="w-16 h-16 mx-auto text-slate-500 mb-4" />
-                            <h4 className="text-xl font-bold text-slate-900 mb-2">{item.title}</h4>
-                            <p className="text-sm text-slate-600">Preview is not available for this file type.</p>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-};
 
 const DesktopPhotos = () => {
     const { stats } = useConstruction();
@@ -304,7 +212,7 @@ const DesktopPhotos = () => {
                                 {totalItems} Files
                             </div>
                         </div>
-                        {stats.slice(0, 3).map((stat, idx) => (
+                        {(stats || []).slice(0, 3).map((stat, idx) => (
                             <div key={idx} className="bg-[var(--t-surface2)] rounded-xl p-3 border border-[var(--t-border)] hidden sm:block">
                                 <div className="text-[var(--t-text3)] text-[10px] font-bold uppercase tracking-wider opacity-80">{stat.title}</div>
                                 <div className="text-xl font-bold text-[var(--t-text)] mt-0.5 flex justify-between items-center">
@@ -343,31 +251,7 @@ const DesktopPhotos = () => {
                                     </div>
 
                                     <div className="p-6">
-                                        {viewMode === 'timeline' && (
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                                                {group.items.map((item) => (
-                                                    <MediaCard
-                                                        key={item.id}
-                                                        item={item}
-                                                        onOpen={setLightboxItem}
-                                                    />
-                                                ))}
-                                            </div>
-                                        )}
-
-                                        {(viewMode === 'phases' || viewMode === 'blueprints') && (
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                                                {group.items.map((item) => (
-                                                    <MediaCard
-                                                        key={item.id}
-                                                        item={item}
-                                                        onOpen={setLightboxItem}
-                                                    />
-                                                ))}
-                                            </div>
-                                        )}
-
-                                        {viewMode === 'permits' && (
+                                        {viewMode === 'permits' ? (
                                             <div className="grid grid-cols-1 gap-4">
                                                 {group.items.map((item) => {
                                                     const meta = TYPE_META[item.type] || TYPE_META.FILE;
@@ -425,6 +309,16 @@ const DesktopPhotos = () => {
                                                     );
                                                 })}
                                             </div>
+                                        ) : (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                                                {group.items.map((item) => (
+                                                    <MediaCard
+                                                        key={item.id}
+                                                        item={item}
+                                                        onOpen={setLightboxItem}
+                                                    />
+                                                ))}
+                                            </div>
                                         )}
                                     </div>
                                 </section>
@@ -445,7 +339,13 @@ const DesktopPhotos = () => {
                 </div>
             </div>
 
-            <MediaPreviewModal item={lightboxItem} onClose={() => setLightboxItem(null)} />
+            {lightboxItem && (
+                <FilePreviewModal
+                    file={lightboxItem.url}
+                    name={lightboxItem.title}
+                    onClose={() => setLightboxItem(null)}
+                />
+            )}
         </div>
     );
 };

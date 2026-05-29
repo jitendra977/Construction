@@ -26,6 +26,7 @@ class WorkforceMemberSerializer(serializers.ModelSerializer):
     has_admin_access = serializers.SerializerMethodField()
     account_role_id = serializers.SerializerMethodField()
     account_role_name = serializers.SerializerMethodField()
+    has_face_id = serializers.SerializerMethodField()
 
     # Nested Relations (Detailed View)
     skills = WorkerSkillSerializer(many=True, read_only=True)
@@ -47,6 +48,7 @@ class WorkforceMemberSerializer(serializers.ModelSerializer):
             'worker_type_display', 'role', 'role_name', 'status', 'status_display', 
             'join_date', 'end_date', 'current_project', 'project_name',
             'account_email', 'has_admin_access', 'account_role_id', 'account_role_name',
+            'has_face_id',
             'is_active', 'has_attendance_link', 'attendance_worker',
             'skills', 'documents', 'contracts', 'emergency_contacts',
             'wage_structures', 'evaluations', 'last_evaluation_rating',
@@ -56,6 +58,11 @@ class WorkforceMemberSerializer(serializers.ModelSerializer):
     def get_last_evaluation_rating(self, obj):
         last_eval = obj.evaluations.order_by('-eval_date').first()
         return last_eval.overall_score if last_eval else None
+
+    def get_has_face_id(self, obj):
+        if obj.account_id:
+            return hasattr(obj.account, 'face_signature') and bool(obj.account.face_signature)
+        return False
 
     def get_account_email(self, obj):
         return obj.account.email if obj.account_id else ''
@@ -147,6 +154,7 @@ class WorkforceMemberListSerializer(serializers.ModelSerializer):
     has_admin_access = serializers.SerializerMethodField()
     account_role_id = serializers.SerializerMethodField()
     account_role_name = serializers.SerializerMethodField()
+    has_face_id = serializers.SerializerMethodField()
 
     # Attendance bridge — populated via SerializerMethodField so we can
     # include live today-data without hitting N+1 queries (caller should
@@ -166,11 +174,17 @@ class WorkforceMemberListSerializer(serializers.ModelSerializer):
             'worker_type', 'role', 'role_name', 'status', 'status_display',
             'current_project', 'project_name',
             'account_email', 'has_admin_access', 'account_role_id', 'account_role_name',
+            'has_face_id',
             # Attendance live data
             'has_attendance_link', 'attendance_worker_id',
             'daily_rate', 'qr_token',
             'today_status', 'today_check_in', 'today_check_out',
         ]
+
+    def get_has_face_id(self, obj):
+        if obj.account_id:
+            return hasattr(obj.account, 'face_signature') and bool(obj.account.face_signature)
+        return False
 
     def _get_today_record(self, obj):
         """

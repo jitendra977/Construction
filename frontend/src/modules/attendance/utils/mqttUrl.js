@@ -30,8 +30,19 @@ export const mqttWebSocketUrl = (brokerHost, wsPort = 9001, useTls = false) => {
 
     const parsedInput = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `mqtt://${raw}`;
     let host = normalizeMqttBrokerHost(raw);
+    
+    // Auto-detect secure context (HTTPS) to automatically upgrade to wss://
+    const isSecureContext = typeof window !== 'undefined' && window.location?.protocol === 'https:';
+    let tls = useTls || isSecureContext;
+    
     let port = Number(wsPort) || 9001;
-    let tls = useTls;
+    
+    // If running inside a secure context, cloud proxy managers (like NPM) always
+    // terminate SSL/TLS over standard HTTPS port 443. We dynamically default
+    // port to 443 in secure remote contexts unless explicitly overridden.
+    if (tls && port === 9001 && host && !host.includes('127.0.0.1') && !host.includes('localhost')) {
+        port = 443;
+    }
 
     try {
         const url = new URL(parsedInput);

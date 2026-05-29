@@ -19,6 +19,7 @@ import AnalyticsPage   from '../../pages/AnalyticsPage';
 import WorkerPortal    from '../../modules/worker/WorkerPortal';
 import TeamManagementPage from '../../pages/desktop/TeamManagementPage';
 import SettingsPage       from '../../pages/desktop/SettingsPage';
+import BiometricsPortalPage from '../../pages/desktop/BiometricsPortalPage';
 
 // Self-contained modules
 import FinanceRoutes   from '../../modules/finance';
@@ -82,6 +83,7 @@ const DesktopRoutes = () => {
             {/* /teams redirects into the Workforce hub (Teams tab) */}
             <Route path="teams"      element={<Navigate to="/dashboard/desktop/workforce" replace />} />
             <Route path="settings"   element={<RequirePermission permission="can_manage_settings"><SettingsPage /></RequirePermission>}      />
+            <Route path="biometrics" element={<BiometricsPortalPage />} />
 
             {/* Self-contained modules */}
             <Route path="projects/*"  element={<RequirePermission permission="can_view_projects"><ProjectsRoutes /></RequirePermission>} />

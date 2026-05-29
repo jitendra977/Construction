@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Play, RefreshCw, Download, Film, Clock, Trash2 } from 'lucide-react';
 import { photoIntelService } from '../../services/api';
+import CustomVideoPlayer from '../common/CustomVideoPlayer';
 
 const scopeLabel = {
     ROOM: 'Room',
@@ -37,10 +38,8 @@ const TimelapseCard = ({ timelapse, onChange }) => {
             <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
                 {hasOutput && isPlaying ? (
                     timelapse.video_url ? (
-                        <video
+                        <CustomVideoPlayer
                             src={src}
-                            controls
-                            autoPlay
                             className="w-full h-full object-contain"
                         />
                     ) : (

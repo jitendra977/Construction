@@ -145,16 +145,12 @@ class GalleryViewSet(viewsets.ViewSet):
 
         elif view_mode == 'phases':
             # Group progress photos by Phase
-            # Includes: in-progress task media + phase completion photos
+            # Includes: all task media + phase completion photos
             filtered = [
                 i for i in items
                 if i.get('meta', {}).get('phase_id')
                 and i['media_type'] in ['IMAGE', 'VIDEO']
                 and i['source_type'] in ['TASK_MEDIA', 'PHASE_PHOTO']
-                and (
-                    i['source_type'] != 'TASK_MEDIA'
-                    or i.get('meta', {}).get('task_status') == 'IN_PROGRESS'
-                )
             ]
             for item in filtered:
                 p_id = item['meta']['phase_id']
