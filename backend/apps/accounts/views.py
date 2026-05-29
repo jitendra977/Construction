@@ -173,6 +173,9 @@ def log_activity(request, user, action, model_name,
                  changes=None, success=True, error_message=''):
     try:
         if user and user.is_authenticated:
+            from utils.audit_log import resolve_ip_location
+            ip = get_client_ip(request)
+            loc = resolve_ip_location(ip) if ip else {}
             ActivityLog.objects.create(
                 user=user,
                 username=user.username,
@@ -182,7 +185,10 @@ def log_activity(request, user, action, model_name,
                 object_repr=str(object_repr)[:200],
                 description=description,
                 changes=changes,
-                ip_address=get_client_ip(request),
+                ip_address=ip,
+                city=loc.get('city', ''),
+                region=loc.get('region', ''),
+                country=loc.get('country', ''),
                 user_agent=request.META.get('HTTP_USER_AGENT', '')[:1000],
                 endpoint=request.path,
                 method=request.method,

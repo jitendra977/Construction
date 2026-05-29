@@ -172,7 +172,12 @@ export default function ActivityPage() {
                                         <span style={{ fontSize:10, color:'var(--t-text3)' }}>
                                             👤 {log.user_display_name || log.username || 'System'}
                                         </span>
-                                        {log.ip_address && <span style={{ fontSize:10, color:'var(--t-text3)' }}>🌐 {log.ip_address}</span>}
+                                        {log.ip_address && (
+                                            <span style={{ fontSize:10, color:'var(--t-text3)' }}>
+                                                🌐 {log.ip_address}
+                                                {log.city && ` (${[log.city, log.country].filter(Boolean).join(', ')})`}
+                                            </span>
+                                        )}
                                         {log.object_repr && <span style={{ fontSize:10, color:'var(--t-text3)', fontFamily:'monospace' }}>#{log.object_repr}</span>}
                                     </div>
                                 </div>
@@ -203,6 +208,7 @@ export default function ActivityPage() {
                             { label:'Object',      value: selected.object_repr  || '—' },
                             { label:'User',        value: selected.user_display_name || selected.username || '—' },
                             { label:'IP Address',  value: selected.ip_address   || '—' },
+                            { label:'Location',    value: selected.city ? `${[selected.city, selected.region, selected.country].filter(Boolean).join(', ')}` : '—' },
                             { label:'Method',      value: selected.method       || '—' },
                             { label:'Endpoint',    value: selected.endpoint     || '—' },
                             { label:'Success',     value: selected.success ? '✅ Yes' : '❌ No' },
