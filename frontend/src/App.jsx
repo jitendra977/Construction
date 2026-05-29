@@ -19,6 +19,7 @@ const AboutDeveloper = lazyWithRetry(() => import('./pages/desktop/AboutDevelope
 const WorkerPortal      = lazyWithRetry(() => import('./modules/worker/WorkerPortal'));
 const AttendanceKiosk   = lazyWithRetry(() => import('./modules/attendance/AttendanceKiosk'));
 const AttendanceQrKiosk = lazyWithRetry(() => import('./modules/attendance/AttendanceQrKiosk'));
+const AttendanceBiometricKiosk = lazyWithRetry(() => import('./modules/attendance/AttendanceBiometricKiosk'));
 
 const LoadingFallback = () => (
   <div className="flex justify-center items-center h-screen bg-[var(--t-bg)]">
@@ -86,7 +87,8 @@ const AppOverlays = () => {
   const location = useLocation();
   const isKioskRoute =
     location.pathname.startsWith('/kiosk/') ||
-    location.pathname.startsWith('/qr-kiosk/');
+    location.pathname.startsWith('/qr-kiosk/') ||
+    location.pathname.startsWith('/face-kiosk/');
 
   if (isKioskRoute) return null;
 
@@ -191,6 +193,14 @@ function App() {
                 element={
                   <Suspense fallback={<LoadingFallback />}>
                     <AttendanceQrKiosk />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/face-kiosk/:projectId"
+                element={
+                  <Suspense fallback={<LoadingFallback />}>
+                    <AttendanceBiometricKiosk />
                   </Suspense>
                 }
               />

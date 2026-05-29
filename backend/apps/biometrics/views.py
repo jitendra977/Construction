@@ -200,3 +200,95 @@ class FaceLoginView(APIView):
         return Response({
             "error": "Face verification failed. Please try again or use standard password login."
         }, status=status.HTTP_401_UNAUTHORIZED)
+
+
+class BiometricKioskCheckInView(APIView):
+    """
+    Endpoint for performing biometric face check-in from the public kiosk.
+    Path: /api/v1/biometrics/kiosk-checkin/
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        from apps.attendance.models import AttendanceWorker
+        from apps.attendance.views import _process_attendance_scan
+
+        serializer = FaceLoginSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        project_id = request.data.get('project')
+        if not project_id:
+            return Response({"error": "Project ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        query_vector = serializer.validated_data['encoding']
+        SIMILARITY_THRESHOLD = 0.55
+
+        matched_worker = None
+        min_distance = float('inf')
+
+        try:
+            # Retrieve all active workers in this project who have a linked user account
+            workers = AttendanceWorker.objects.filter(
+                project_id=project_id,
+                is_active=True,
+                linked_user__isnull=False
+            ).select_related('linked_user__face_signature')
+
+            for worker in workers:
+                user = worker.linked_user
+                if hasattr(user, 'face_signature') and user.face_signature:
+                    db_vector = user.face_signature.get_encoding()
+                    if db_vector:
+                        distance = euclidean_distance(query_vector, db_vector)
+                        if distance < min_distance and distance < SIMILARITY_THRESHOLD:
+                            min_distance = distance
+                            matched_worker = worker
+        except Exception as e:
+            logger.error("Error during 1:N biometric kiosk lookup: %s", e)
+            return Response({"error": "Database lookup failed during face match."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        if matched_worker:
+            try:
+                # Record attendance scan using standard logic
+                result = _process_attendance_scan(
+                    matched_worker,
+                    request=request,
+                    scan_source="Face ID Kiosk"
+                )
+
+                log_activity(
+                    request,
+                    matched_worker.linked_user,
+                    'KIOSK_CHECKIN_BIOMETRIC',
+                    'AttendanceWorker',
+                    object_id=matched_worker.id,
+                    object_repr=matched_worker.name,
+                    description=f"Recorded kiosk check-in via face scan. Distance: {min_distance:.4f}. Result: {result.get('message')}"
+                )
+
+                if result.get("success"):
+                    return Response({
+                        "status": "success",
+                        "worker": {
+                            "id": matched_worker.id,
+                            "name": matched_worker.name,
+                            "trade": matched_worker.get_trade_display(),
+                            "worker_type": matched_worker.get_worker_type_display()
+                        },
+                        "action": result.get("action", "CHECK_IN"),
+                        "message": result.get("message", "")
+                    }, status=status.HTTP_200_OK)
+                else:
+                    return Response({
+                        "error": result.get("message", "Attendance scan rejected by rules.")
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+            except Exception as e:
+                logger.error("Failed to process biometric kiosk attendance: %s", e)
+                return Response({"error": "Face matched, but attendance could not be saved."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response({
+            "error": "Face verification failed. Worker not recognized."
+        }, status=status.HTTP_401_UNAUTHORIZED)
+

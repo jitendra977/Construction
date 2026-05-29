@@ -4,7 +4,7 @@ import { useConstruction } from '../../context/ConstructionContext';
 import DesktopSidebar from '../../components/desktop/DesktopSidebar';
 import UnifiedButton from '../../components/unified/UnifiedButton';
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Camera, MonitorSmartphone, ScanLine, Users } from 'lucide-react';
+import { Camera, MonitorSmartphone, ScanLine, Users, UserCheck } from 'lucide-react';
 
 // Sidebar widths kept in sync with DesktopSidebar.jsx
 const SIDEBAR_EXPANDED  = 256;
@@ -242,6 +242,16 @@ function AttendanceShortcutIcons({ activeProjectId }) {
             color: '#3b82f6',
             bg: '#3b82f615',
             border: '#3b82f640',
+        },
+        {
+            key: 'face-kiosk',
+            icon: UserCheck,
+            title: 'Biometric Face Kiosk',
+            action: () => activeProjectId && openKioskWindow(`/face-kiosk/${activeProjectId}`),
+            disabled: !activeProjectId,
+            color: '#a855f7',
+            bg: '#a855f715',
+            border: '#a855f740',
         },
     ];
 
