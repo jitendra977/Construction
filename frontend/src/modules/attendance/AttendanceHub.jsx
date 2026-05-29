@@ -492,10 +492,37 @@ function resolveAttendanceProject(activeProjectId, projects, dashboardProject) {
     };
 }
 
+function openKioskWindow(path) {
+    const features = [
+        'popup=yes',
+        'width=1440',
+        'height=900',
+        'menubar=no',
+        'toolbar=no',
+        'location=no',
+        'status=no',
+        'resizable=yes',
+        'scrollbars=yes',
+    ].join(',');
+    window.open(path, 'constructpro-kiosk', features);
+}
+
 function AttendanceHubContent({ forcedTab = null, mobileRouteBase = null }) {
     const [activeTab,      setActiveTab]      = useState('daily');
     const [myQROpen,       setMyQROpen]       = useState(false);
     const [alertCount,     setAlertCount]     = useState(0); 
+    const [kioskMenuOpen,  setKioskMenuOpen]  = useState(false);
+    const kioskMenuRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (kioskMenuRef.current && !kioskMenuRef.current.contains(event.target)) {
+                setKioskMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
     const navigate = useNavigate();
     const isMobile = useIsMobile();
 
@@ -627,8 +654,85 @@ function AttendanceHubContent({ forcedTab = null, mobileRouteBase = null }) {
                                 : 'Select a project from Project Manager to get started.'}
                         </p>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, position: 'relative' }} ref={kioskMenuRef}>
                         <MqttStatusBadge />
+                        
+                        {/* Kiosk Dropdown Menu */}
+                        <div style={{ position: 'relative' }}>
+                            <button
+                                onClick={() => effectiveProjectId && setKioskMenuOpen(!kioskMenuOpen)}
+                                disabled={!effectiveProjectId}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: 6,
+                                    padding: '8px 14px', borderRadius: 10, cursor: effectiveProjectId ? 'pointer' : 'not-allowed',
+                                    background: 'var(--t-surface2, #f3f4f6)',
+                                    border: '1px solid var(--t-border, #d1d5db)',
+                                    color: 'var(--t-text, #1f2937)',
+                                    fontWeight: 800, fontSize: 13,
+                                    whiteSpace: 'nowrap', flexShrink: 0,
+                                    opacity: effectiveProjectId ? 1 : 0.6,
+                                }}
+                            >
+                                🖥️ Kiosks ▾
+                            </button>
+                            {kioskMenuOpen && (
+                                <div style={{
+                                    position: 'absolute', top: '105%', right: 0, zIndex: 1000,
+                                    width: 240, background: 'var(--t-surface, #fff)',
+                                    border: '1px solid var(--t-border, #e5e7eb)',
+                                    borderRadius: 12, padding: '8px',
+                                    boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+                                    display: 'flex', flexDirection: 'column', gap: 4,
+                                }}>
+                                    <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--t-text-muted, #9ca3af)', textTransform: 'uppercase', padding: '6px 8px', letterSpacing: '0.04em' }}>
+                                        Launch Entry Kiosk
+                                    </div>
+                                    <button
+                                        onClick={() => { openKioskWindow(`/kiosk/${effectiveProjectId}`); setKioskMenuOpen(false); }}
+                                        style={{
+                                            display: 'flex', alignItems: 'center', gap: 8,
+                                            padding: '8px 10px', width: '100%', borderRadius: 8,
+                                            border: 'none', background: 'transparent',
+                                            color: 'var(--t-text, #1f2937)', fontSize: 12, fontWeight: 700,
+                                            textAlign: 'left', cursor: 'pointer',
+                                        }}
+                                        onMouseEnter={e => e.target.style.background = 'var(--t-surface2, #f3f4f6)'}
+                                        onMouseLeave={e => e.target.style.background = 'transparent'}
+                                    >
+                                        📟 NFC Attendance Kiosk
+                                    </button>
+                                    <button
+                                        onClick={() => { openKioskWindow(`/qr-kiosk/${effectiveProjectId}`); setKioskMenuOpen(false); }}
+                                        style={{
+                                            display: 'flex', alignItems: 'center', gap: 8,
+                                            padding: '8px 10px', width: '100%', borderRadius: 8,
+                                            border: 'none', background: 'transparent',
+                                            color: 'var(--t-text, #1f2937)', fontSize: 12, fontWeight: 700,
+                                            textAlign: 'left', cursor: 'pointer',
+                                        }}
+                                        onMouseEnter={e => e.target.style.background = 'var(--t-surface2, #f3f4f6)'}
+                                        onMouseLeave={e => e.target.style.background = 'transparent'}
+                                    >
+                                        📸 QR Code Kiosk
+                                    </button>
+                                    <button
+                                        onClick={() => { openKioskWindow(`/face-kiosk/${effectiveProjectId}`); setKioskMenuOpen(false); }}
+                                        style={{
+                                            display: 'flex', alignItems: 'center', gap: 8,
+                                            padding: '8px 10px', width: '100%', borderRadius: 8,
+                                            border: 'none', background: 'transparent',
+                                            color: 'var(--t-text, #1f2937)', fontSize: 12, fontWeight: 700,
+                                            textAlign: 'left', cursor: 'pointer',
+                                        }}
+                                        onMouseEnter={e => e.target.style.background = 'var(--t-surface2, #f3f4f6)'}
+                                        onMouseLeave={e => e.target.style.background = 'transparent'}
+                                    >
+                                        ✨ Biometric Face ID Kiosk
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
                         <button onClick={() => setMyQROpen(true)} title="View my QR attendance badge" style={{
                             display: 'flex', alignItems: 'center', gap: 6,
                             padding: '8px 14px', borderRadius: 10, cursor: 'pointer',
