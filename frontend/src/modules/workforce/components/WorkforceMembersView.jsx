@@ -1400,13 +1400,13 @@ export default function WorkforceMembersView({ projectId, hideProjectFilter = fa
                                                         <button onClick={() => setBiometricTarget(m)} title={m.has_face_id ? 'Face ID Trained' : 'Train Face ID'}
                                                             style={{
                                                                 flex: 1, padding: '4px 6px', borderRadius: 6, fontSize: 10, fontWeight: 700,
-                                                                border: `1px solid ${m.has_face_id ? '#10b981' : '#d1d5db'}`,
-                                                                background: m.has_face_id ? 'rgba(16,185,129,0.1)' : 'var(--t-surface)',
-                                                                color: m.has_face_id ? '#10b981' : 'var(--t-text-muted)',
+                                                                border: `1px solid ${m.has_face_id ? '#10b981' : 'var(--t-border, #d1d5db)'}`,
+                                                                background: m.has_face_id ? 'rgba(16,185,129,0.1)' : 'var(--t-surface, #f9fafb)',
+                                                                color: m.has_face_id ? '#10b981' : 'var(--t-text-muted, #6b7280)',
                                                                 cursor: 'pointer',
                                                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                             }}>
-                                                            <IconFaceID size={12} color={m.has_face_id ? '#10b981' : 'var(--t-text-muted)'} />
+                                                            <IconFaceID size={14} color={m.has_face_id ? '#10b981' : 'var(--t-text-muted, #6b7280)'} />
                                                         </button>
                                                     )}
                                                 </div>
