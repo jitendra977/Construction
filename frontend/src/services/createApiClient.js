@@ -31,7 +31,12 @@ export default function createApiClient(options = {}) {
         (res) => res,
         async (err) => {
             const original = err.config;
-            if (err.response?.status === 401 && !original._retry && !original.url.includes('auth/login/')) {
+            if (
+                err.response?.status === 401 &&
+                !original._retry &&
+                !original.url.includes('auth/login/') &&
+                !original.url.includes('auth/token/refresh/')
+            ) {
                 original._retry = true;
                 const refresh = localStorage.getItem('refresh_token');
                 if (refresh) {

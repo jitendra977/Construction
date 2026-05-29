@@ -118,12 +118,14 @@ export const attachResponseInterceptor = (axiosInstance) => {
                 toast.error(label, { duration: 4000 });
             }
 
-            // 401 handling — skip for login endpoint itself
+            // 401 handling — skip for login and refresh endpoints themselves
             const isLoginRequest = originalRequest?.url?.includes('auth/login/');
+            const isRefreshRequest = originalRequest?.url?.includes('auth/token/refresh/');
             if (
                 error.response?.status === 401 &&
                 !originalRequest._retry &&
-                !isLoginRequest
+                !isLoginRequest &&
+                !isRefreshRequest
             ) {
                 originalRequest._retry = true;
                 try {
