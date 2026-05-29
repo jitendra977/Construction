@@ -1004,6 +1004,38 @@ export default function Login() {
                             </p>
                         </div>
 
+                        {faceCamError && (
+                            <button
+                                type="button"
+                                onClick={startFaceCamera}
+                                style={{
+                                    marginTop: 14,
+                                    padding: '8px 16px',
+                                    borderRadius: '8px',
+                                    border: '1px solid #f97316',
+                                    background: 'rgba(249, 115, 22, 0.1)',
+                                    color: '#f97316',
+                                    fontSize: 12,
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    letterSpacing: '0.04em',
+                                    textTransform: 'uppercase',
+                                    transition: 'all 0.2s',
+                                    outline: 'none',
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.target.style.background = 'rgba(249, 115, 22, 0.2)';
+                                    e.target.style.boxShadow = '0 0 12px rgba(249, 115, 22, 0.3)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.target.style.background = 'rgba(249, 115, 22, 0.1)';
+                                    e.target.style.boxShadow = 'none';
+                                }}
+                            >
+                                Try Enabling Camera
+                            </button>
+                        )}
+
                         {/* Action Button: Password fallback */}
                         <button
                             type="button"
