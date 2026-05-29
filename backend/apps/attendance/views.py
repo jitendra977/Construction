@@ -335,6 +335,25 @@ def _process_attendance_scan(worker, request=None, scan_source="QR", scan_time=N
                 "cooldown_remaining": wait,
             }
 
+    # 2.5. 5-Minute Checkout Cooldown Guard (prevent rapid checkouts within 5 mins of check-in)
+    if intended == "CHECK_OUT" and today_record and today_record.check_in:
+        check_in_dt = p_tz.localize(datetime.combine(today, today_record.check_in))
+        elapsed_seconds = (now - check_in_dt).total_seconds()
+        if elapsed_seconds < 300:
+            remaining = 300 - int(elapsed_seconds)
+            minutes = remaining // 60
+            seconds = remaining % 60
+            wait_msg = f"{minutes}m {seconds}s" if minutes > 0 else f"{seconds}s"
+            
+            _log("IGNORED", "TOO_FAST", note=f"Checkout blocked — only {int(elapsed_seconds)}s after check-in")
+            return {
+                "success": False,
+                "action": "IGNORED",
+                "message": f"Cannot check out within 5 minutes of checking in. Please wait {wait_msg}.",
+                "worker": {"id": worker.id, "name": worker.name, "trade": worker.get_trade_display()},
+                "cooldown_remaining": remaining,
+            }
+
     # 3. Final block if already finished for the day (and not a rapid duplicate)
     if intended == "BLOCKED":
         _log("BLOCKED", "REJECTED", attendance=today_record, note="Already recorded IN/OUT today")
