@@ -286,7 +286,9 @@ export default function BiometricsPortalPage() {
       // Store tokens
       if (res.data.access)  localStorage.setItem('access_token',  res.data.access);
       if (res.data.refresh) localStorage.setItem('refresh_token', res.data.refresh);
+      if (res.data.user)    localStorage.setItem('user', JSON.stringify(res.data.user));
       toast.success(`Welcome back, ${res.data.user.first_name || res.data.user.username}!`);
+      window.dispatchEvent(new Event('auth-changed'));
     } catch (e) {
       beep('error');
       setLoginStatus('error');

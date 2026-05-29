@@ -69,6 +69,22 @@ class FaceTrainingView(APIView):
         else:
             consolidated_vector = encoding
 
+        # Check if this face encoding matches another registered user's face encoding in the database (within similarity threshold)
+        SIMILARITY_THRESHOLD = 0.55
+        try:
+            signatures = UserFaceSignature.objects.exclude(user=target_user).select_related('user')
+            for sig in signatures:
+                db_vector = sig.get_encoding()
+                if db_vector:
+                    distance = euclidean_distance(consolidated_vector, db_vector)
+                    if distance < SIMILARITY_THRESHOLD:
+                        clashing_name = sig.user.first_name or sig.user.username
+                        return Response({
+                            "error": f"This face is already registered to another user ({clashing_name}). Each user must have a unique face ID."
+                        }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error("Failed to perform duplicate face signature validation: %s", e)
+
         try:
             signature, created = UserFaceSignature.objects.get_or_create(user=target_user)
             signature.set_encoding(consolidated_vector)

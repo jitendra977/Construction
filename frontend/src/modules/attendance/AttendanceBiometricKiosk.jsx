@@ -118,6 +118,7 @@ export default function AttendanceBiometricKiosk() {
     const [scanError, setScanError] = useState(null);
     const [checkInResult, setCheckInResult] = useState(null);
     const [kioskStatus, setKioskStatus] = useState('idle'); // idle | loading | scanning | matching | success | error
+    const [language, setLanguage] = useState('both'); // 'both' | 'ne' | 'en'
 
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
@@ -278,10 +279,10 @@ export default function AttendanceBiometricKiosk() {
             // Clean up and display worker name card
             stopCamera();
             
-            // Auto reset back to welcome screen after 4 seconds
+            // Auto reset back to welcome screen after 5 seconds
             resultTimerRef.current = setTimeout(() => {
                 resetToStart();
-            }, 4000);
+            }, 5000);
 
         } catch (err) {
             console.error('Face match error:', err);
@@ -291,10 +292,10 @@ export default function AttendanceBiometricKiosk() {
             
             stopCamera();
             
-            // Auto reset back to welcome screen after 4 seconds
+            // Auto reset back to welcome screen after 5 seconds
             resultTimerRef.current = setTimeout(() => {
                 resetToStart();
-            }, 4000);
+            }, 5000);
         }
     };
 
@@ -344,7 +345,7 @@ export default function AttendanceBiometricKiosk() {
             }}>
                 
                 {/* Header branding */}
-                <div style={{ textAlign: 'center', marginBottom: 40 }}>
+                <div style={{ textAlign: 'center', marginBottom: 25 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
                         <span style={{ fontSize: 32 }}>✨</span>
                         <h1 style={{ margin: 0, fontSize: 36, fontWeight: 900, letterSpacing: '-0.02em', background: 'linear-gradient(135deg, #f97316, #10b981)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
@@ -352,24 +353,84 @@ export default function AttendanceBiometricKiosk() {
                         </h1>
                     </div>
                     <p style={{ margin: 0, fontSize: 16, color: '#94a3b8', fontWeight: 500 }}>
-                        Biometric Site-Entrance Attendance Portal
+                        Biometric Site-Entrance Attendance Portal / बायोमेट्रिक हाजिरी प्रणाली
                     </p>
+                </div>
+
+                {/* Language Switcher Bar */}
+                <div style={{
+                    display: 'flex',
+                    background: 'rgba(15, 23, 42, 0.6)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: 14,
+                    padding: 4,
+                    marginBottom: 20,
+                    gap: 4
+                }}>
+                    <button
+                        onClick={() => setLanguage('both')}
+                        style={{
+                            padding: '6px 12px',
+                            borderRadius: 10,
+                            border: 'none',
+                            fontSize: 12,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            background: language === 'both' ? '#f97316' : 'transparent',
+                            color: '#fff',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        🌎 English + नेपाली
+                    </button>
+                    <button
+                        onClick={() => setLanguage('ne')}
+                        style={{
+                            padding: '6px 12px',
+                            borderRadius: 10,
+                            border: 'none',
+                            fontSize: 12,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            background: language === 'ne' ? '#f97316' : 'transparent',
+                            color: '#fff',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        नेपाली
+                    </button>
+                    <button
+                        onClick={() => setLanguage('en')}
+                        style={{
+                            padding: '6px 12px',
+                            borderRadius: 10,
+                            border: 'none',
+                            fontSize: 12,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            background: language === 'en' ? '#f97316' : 'transparent',
+                            color: '#fff',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        English
+                    </button>
                 </div>
 
                 {/* Main Card View */}
                 <div style={{
                     width: '100%',
-                    maxWidth: 520,
+                    maxWidth: 560,
                     background: 'rgba(15, 23, 42, 0.45)',
                     border: '1px solid rgba(255,255,255,0.06)',
                     borderRadius: 28,
-                    padding: 40,
+                    padding: '30px 24px',
                     backdropFilter: 'blur(20px)',
                     boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    gap: 30,
+                    gap: 24,
                     position: 'relative'
                 }}>
                     
@@ -377,59 +438,133 @@ export default function AttendanceBiometricKiosk() {
                     {kioskStatus === 'idle' && (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, width: '100%', textAlign: 'center' }}>
                             <div style={{
-                                width: 140,
-                                height: 140,
-                                borderRadius: 70,
+                                width: 110,
+                                height: 110,
+                                borderRadius: 55,
                                 background: 'rgba(249,115,22,0.1)',
-                                border: '1px dashed #f97316',
+                                border: '2px dashed #f97316',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 animation: 'pulse 2s infinite',
                                 color: '#f97316'
                             }}>
-                                <Camera size={56} />
+                                <Camera size={44} />
                             </div>
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>Welcome to Site entrance</h2>
-                                <p style={{ margin: 0, fontSize: 14, color: '#94a3b8', lineHeight: 1.5 }}>
-                                    Position yourself in front of the terminal and click below to record your check-in/out.
-                                </p>
+                                {(language === 'both' || language === 'ne') && (
+                                    <h2 style={{ margin: 0, fontSize: 24, fontWeight: 900, color: '#f97316' }}>
+                                        हाजिरी गर्न यहाँ थिच्नुहोस्!
+                                    </h2>
+                                )}
+                                {(language === 'both' || language === 'en') && (
+                                    <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#f97316', marginTop: language === 'both' ? 2 : 0 }}>
+                                        Tap Here to Mark Attendance
+                                    </h2>
+                                )}
                             </div>
 
+                            {/* Interactive Pulsing Scan Trigger Button */}
                             <button
                                 onClick={startScanning}
                                 style={{
                                     width: '100%',
-                                    padding: '16px 24px',
-                                    borderRadius: 16,
+                                    padding: '20px 24px',
+                                    borderRadius: 20,
                                     border: 'none',
                                     background: 'linear-gradient(135deg, #f97316, #ea580c)',
                                     color: '#fff',
-                                    fontSize: 16,
-                                    fontWeight: 800,
+                                    fontSize: 18,
+                                    fontWeight: 900,
                                     cursor: 'pointer',
-                                    boxShadow: '0 8px 24px rgba(249, 115, 22, 0.28)',
+                                    boxShadow: '0 8px 30px rgba(249, 115, 22, 0.4)',
                                     transition: 'all 0.2s',
                                     display: 'flex',
+                                    flexDirection: 'column',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    gap: 10
+                                    gap: 4
                                 }}
                             >
-                                <Camera size={18} />
-                                <span>Start Face Check-In</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <Camera size={24} />
+                                    <span>
+                                        {language === 'ne' ? 'अनुहार स्क्यान सुरु गर्नुहोस्' : 
+                                         language === 'en' ? 'Start Face Scan' : 
+                                         'अनुहार स्क्यान सुरु गर्नुहोस् / Start Face Scan'}
+                                    </span>
+                                </div>
+                                <span style={{ fontSize: 12, opacity: 0.85, fontWeight: 500 }}>
+                                    {language === 'ne' ? '(क्यामेरा खोल्नुहोस्)' : '(Opens the camera)'}
+                                </span>
                             </button>
+
+                            {/* Visual Step-by-Step Onboarding Guide */}
+                            <div style={{ width: '100%', marginTop: 10, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 20 }}>
+                                <h4 style={{ margin: '0 0 16px 0', fontSize: 14, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                    {language === 'ne' ? 'हाजिरी गर्ने सजिलो तरिका:' : 
+                                     language === 'en' ? 'Easy Steps to Follow:' : 
+                                     'हाजिरी गर्ने तरिका / How it works:'}
+                                </h4>
+                                
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, textAlign: 'left' }}>
+                                    {/* Step 1 */}
+                                    <div style={{ display: 'flex', gap: 12, background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 14, border: '1px solid rgba(255,255,255,0.03)' }}>
+                                        <div style={{ fontSize: 24, display: 'flex', alignItems: 'center' }}>1️⃣</div>
+                                        <div>
+                                            <div style={{ fontWeight: 800, fontSize: 14, color: '#f8fafc' }}>
+                                                {language === 'en' ? 'Tap Start Button' : 'स्क्यान सुरु गर्नुहोस्'}
+                                            </div>
+                                            <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
+                                                {language === 'en' ? 'Tap the orange button to turn on the screen camera.' : 
+                                                 'माथिको ठूलो सुन्तला बटन थिचेर क्यामेरा सुरु गर्नुहोस्।'}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Step 2 */}
+                                    <div style={{ display: 'flex', gap: 12, background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 14, border: '1px solid rgba(255,255,255,0.03)' }}>
+                                        <div style={{ fontSize: 24, display: 'flex', alignItems: 'center' }}>2️⃣</div>
+                                        <div>
+                                            <div style={{ fontWeight: 800, fontSize: 14, color: '#f8fafc' }}>
+                                                {language === 'en' ? 'Look Straight & Hold Still' : 'क्यामेरामा सिधा हेर्नुहोस्'}
+                                            </div>
+                                            <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
+                                                {language === 'en' ? 'Position your face in the center of the green ring.' : 
+                                                 'आफ्नो अनुहार गोलो हरियो घेरा भित्र मिलाई सिधा हेर्नुहोस्।'}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Step 3 */}
+                                    <div style={{ display: 'flex', gap: 12, background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 14, border: '1px solid rgba(255,255,255,0.03)' }}>
+                                        <div style={{ fontSize: 24, display: 'flex', alignItems: 'center' }}>3️⃣</div>
+                                        <div>
+                                            <div style={{ fontWeight: 800, fontSize: 14, color: '#f8fafc' }}>
+                                                {language === 'en' ? 'Wait for Green Message & Ring' : 'सफल सन्देशको प्रतिक्षा गर्नुहोस्'}
+                                            </div>
+                                            <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
+                                                {language === 'en' ? 'The system rings a bell and automatically saves attendance.' : 
+                                                 'सफल भएपछि घण्टी बज्नेछ र तपाईको हाजिरी दर्ता हुनेछ।'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     )}
 
                     {/* Loader/Models Loading */}
                     {kioskStatus === 'loading' && (
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '40px 0' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '40px 0', textAlign: 'center' }}>
                             <RefreshCw size={44} className="animate-spin" style={{ color: '#f97316' }} />
-                            <div style={{ fontSize: 16, fontWeight: 700 }}>Initializing Face AI…</div>
-                            <div style={{ fontSize: 12, color: '#64748b' }}>Downloading model weights for first-time use</div>
+                            <div style={{ fontSize: 18, fontWeight: 800 }}>
+                                {language === 'ne' ? 'प्रणाली तयार हुँदैछ...' : 'Initializing Face AI...'}
+                            </div>
+                            <div style={{ fontSize: 13, color: '#94a3b8' }}>
+                                {language === 'ne' ? 'पहिलो पटक चलाउँदा केही सेकेन्ड लाग्न सक्छ।' : 'Setting up biometric weights. Please wait a moment.'}
+                            </div>
                         </div>
                     )}
 
@@ -439,13 +574,13 @@ export default function AttendanceBiometricKiosk() {
                             
                             {/* Glowing Camera Feed Circle */}
                             <div style={{
-                                width: 260,
-                                height: 260,
-                                borderRadius: 130,
+                                width: 280,
+                                height: 280,
+                                borderRadius: 140,
                                 overflow: 'hidden',
                                 position: 'relative',
-                                border: `3px solid ${faceDetected ? '#10b981' : '#f97316'}`,
-                                boxShadow: faceDetected ? '0 0 24px rgba(16,185,129,0.35)' : '0 0 24px rgba(249,115,22,0.25)',
+                                border: `4px solid ${faceDetected ? '#10b981' : '#f97316'}`,
+                                boxShadow: faceDetected ? '0 0 32px rgba(16,185,129,0.5)' : '0 0 32px rgba(249,115,22,0.3)',
                                 background: '#000',
                                 transition: 'border-color 0.3s'
                             }}>
@@ -479,9 +614,9 @@ export default function AttendanceBiometricKiosk() {
                                     position: 'absolute',
                                     left: 0,
                                     right: 0,
-                                    height: '3px',
+                                    height: '4px',
                                     background: 'linear-gradient(to right, transparent, #ea580c, transparent)',
-                                    boxShadow: '0 0 8px #ea580c',
+                                    boxShadow: '0 0 12px #ea580c',
                                     animation: 'scanner-sweep 3s infinite linear',
                                     zIndex: 2,
                                     pointerEvents: 'none'
@@ -489,29 +624,40 @@ export default function AttendanceBiometricKiosk() {
                             </div>
 
                             {/* Tracking text instructions */}
-                            <div style={{ textAlign: 'center' }}>
-                                <div style={{ fontSize: 16, fontWeight: 800, color: faceDetected ? '#10b981' : '#fff', transition: 'color 0.3s' }}>
-                                    {kioskStatus === 'matching' ? 'Matching face signature...' : faceDetected ? 'Align and hold still' : 'Look at the camera'}
+                            <div style={{ textAlign: 'center', padding: '0 10px' }}>
+                                <div style={{ fontSize: 18, fontWeight: 900, color: faceDetected ? '#10b981' : '#fff', transition: 'color 0.3s' }}>
+                                    {kioskStatus === 'matching' ? (
+                                        language === 'en' ? 'Matching identity...' : 'पहिचान मिलान गर्दै...'
+                                    ) : faceDetected ? (
+                                        language === 'en' ? 'Hold still! Verifying...' : 'स्थिर रहनुहोस्! प्रमाणीकरण हुँदैछ...'
+                                    ) : (
+                                        language === 'en' ? 'Look straight at the camera' : 'क्यामेरामा सिधा हेर्नुहोस्'
+                                    )}
                                 </div>
-                                <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
-                                    {faceDetected ? 'Verifying identity shortly...' : 'Position your face in the circular scan ring'}
+                                <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 6, lineHeight: 1.4 }}>
+                                    {faceDetected ? (
+                                        language === 'en' ? 'Don\'t move. Checking database...' : 'हल्लाउनु नलगाउनुहोस्, जाँच भइरहेको छ...'
+                                    ) : (
+                                        language === 'en' ? 'Place your face inside the glowing circle' : 'आफ्नो अनुहारलाई उज्यालो गोलो घेरा भित्र राख्नुहोस्'
+                                    )}
                                 </div>
                             </div>
 
                             <button
                                 onClick={resetToStart}
                                 style={{
-                                    background: 'none',
-                                    border: 'none',
-                                    color: '#64748b',
-                                    fontSize: 13,
+                                    background: 'rgba(255,255,255,0.05)',
+                                    border: '1px solid rgba(255,255,255,0.1)',
+                                    color: '#94a3b8',
+                                    padding: '10px 24px',
+                                    borderRadius: 12,
+                                    fontSize: 14,
                                     fontWeight: 700,
                                     cursor: 'pointer',
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '0.05em'
+                                    transition: 'all 0.2s'
                                 }}
                             >
-                                Cancel
+                                {language === 'ne' ? 'रद्द गर्नुहोस् (Cancel)' : language === 'en' ? 'Cancel' : 'रद्द गर्नुहोस् / Cancel'}
                             </button>
                         </div>
                     )}
@@ -520,41 +666,51 @@ export default function AttendanceBiometricKiosk() {
                     {kioskStatus === 'success' && checkInResult && (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20, width: '100%', textAlign: 'center', padding: '10px 0' }}>
                             <div style={{
-                                width: 90,
-                                height: 90,
-                                borderRadius: 45,
+                                width: 100,
+                                height: 100,
+                                borderRadius: 50,
                                 background: 'rgba(16,185,129,0.1)',
-                                border: '1px solid #10b981',
+                                border: '2px solid #10b981',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                color: '#10b981'
+                                color: '#10b981',
+                                animation: 'pulse 1.5s infinite'
                             }}>
-                                <UserCheck size={40} />
+                                <UserCheck size={48} />
                             </div>
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                <div style={{ fontSize: 13, color: '#10b981', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                                    {checkInResult.action === 'CHECK_IN' ? '✅ Checked In' : '📤 Checked Out'}
+                                <div style={{ fontSize: 15, color: '#10b981', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                                    {checkInResult.action === 'CHECK_IN' ? (
+                                        language === 'en' ? '✅ Checked In Successfully' : '✅ हाजिर सफल भयो (Checked In)'
+                                    ) : (
+                                        language === 'en' ? '📤 Checked Out Successfully' : '📤 प्रस्थान सफल भयो (Checked Out)'
+                                    )}
                                 </div>
-                                <h3 style={{ margin: 0, fontSize: 26, fontWeight: 900 }}>{checkInResult.worker?.name}</h3>
-                                <p style={{ margin: 0, fontSize: 14, color: '#94a3b8', fontWeight: 600 }}>
+                                <h3 style={{ margin: 0, fontSize: 28, fontWeight: 900, color: '#f8fafc' }}>{checkInResult.worker?.name}</h3>
+                                <p style={{ margin: 0, fontSize: 14, color: '#94a3b8', fontWeight: 700 }}>
                                     {checkInResult.worker?.trade} • {checkInResult.worker?.worker_type}
                                 </p>
                             </div>
 
                             <div style={{
                                 width: '100%',
-                                padding: '16px',
-                                borderRadius: 16,
-                                background: 'rgba(16, 185, 129, 0.05)',
-                                border: '1px solid rgba(16, 185, 129, 0.15)',
+                                padding: '18px',
+                                borderRadius: 18,
+                                background: 'rgba(16, 185, 129, 0.08)',
+                                border: '1px solid rgba(16, 185, 129, 0.25)',
                                 color: '#34d399',
-                                fontSize: 14,
-                                fontWeight: 600
+                                fontSize: 16,
+                                fontWeight: 800,
+                                lineHeight: 1.4
                             }}>
                                 {checkInResult.message}
                             </div>
+
+                            <span style={{ fontSize: 12, color: '#64748b' }}>
+                                {language === 'ne' ? '५ सेकेन्ड पछि आफै सुरुवाती स्क्रिनमा जानेछ...' : 'Returning to start screen in 5s...'}
+                            </span>
                         </div>
                     )}
 
@@ -562,45 +718,65 @@ export default function AttendanceBiometricKiosk() {
                     {kioskStatus === 'error' && (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20, width: '100%', textAlign: 'center', padding: '10px 0' }}>
                             <div style={{
-                                width: 90,
-                                height: 90,
-                                borderRadius: 45,
+                                width: 100,
+                                height: 100,
+                                borderRadius: 50,
                                 background: 'rgba(239,68,68,0.1)',
-                                border: '1px solid #ef4444',
+                                border: '2px solid #ef4444',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 color: '#ef4444'
                             }}>
-                                <ShieldAlert size={40} />
+                                <ShieldAlert size={48} />
                             </div>
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                <div style={{ fontSize: 13, color: '#ef4444', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                                    Verification Failed
+                                <div style={{ fontSize: 15, color: '#ef4444', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                                    {language === 'en' ? 'Verification Failed' : 'पहिचान हुन सकेन (Failed)'}
                                 </div>
-                                <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>Not Recognized</h3>
-                                <p style={{ margin: 0, fontSize: 13, color: '#ef4444', lineHeight: 1.5, maxWidth: 300, alignSelf: 'center' }}>
+                                <h3 style={{ margin: 0, fontSize: 22, fontWeight: 900 }}>
+                                    {language === 'en' ? 'Not Recognized' : 'अनुहार चिन्न सकिएन'}
+                                </h3>
+                                <p style={{ margin: 0, fontSize: 14, color: '#ef4444', lineHeight: 1.5, maxWidth: 320, alignSelf: 'center', fontWeight: 600 }}>
                                     {scanError}
                                 </p>
                             </div>
 
-                            <button
-                                onClick={resetToStart}
-                                style={{
-                                    padding: '12px 24px',
-                                    borderRadius: 12,
-                                    border: '1px solid rgba(255,255,255,0.1)',
-                                    background: 'rgba(255,255,255,0.04)',
-                                    color: '#fff',
-                                    fontSize: 14,
-                                    fontWeight: 700,
-                                    cursor: 'pointer',
-                                    marginTop: 10
-                                }}
-                            >
-                                Try Again
-                            </button>
+                            <div style={{ display: 'flex', gap: 12, marginTop: 10, width: '100%' }}>
+                                <button
+                                    onClick={startScanning}
+                                    style={{
+                                        flex: 1,
+                                        padding: '14px 20px',
+                                        borderRadius: 14,
+                                        border: 'none',
+                                        background: 'linear-gradient(135deg, #f97316, #ea580c)',
+                                        color: '#fff',
+                                        fontSize: 14,
+                                        fontWeight: 800,
+                                        cursor: 'pointer',
+                                        boxShadow: '0 4px 12px rgba(249, 115, 22, 0.2)'
+                                    }}
+                                >
+                                    {language === 'en' ? 'Try Again' : 'पुनः प्रयास गर्नुहोस्'}
+                                </button>
+                                <button
+                                    onClick={resetToStart}
+                                    style={{
+                                        padding: '14px 20px',
+                                        borderRadius: 14,
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                        background: 'rgba(255,255,255,0.04)',
+                                        color: '#fff',
+                                        fontSize: 14,
+                                        fontWeight: 700,
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    {language === 'en' ? 'Go Back' : 'पछाडि जानुहोस्'}
+                                </button>
+                            </div>
                         </div>
                     )}
 
