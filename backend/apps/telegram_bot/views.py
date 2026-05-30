@@ -135,25 +135,93 @@ class TelegramWebhookView(APIView):
                             filename = f"telegram_{uuid.uuid4().hex[:8]}.{ext}"
                             media.file.save(filename, ContentFile(img_res.content))
                             
-                            # 4. Fetch Active Tasks for assignment
+                            # 4. Run AI Photo Analysis synchronously
+                            from apps.photo_intel.services.analyzer import analyze_task_media
+                            from apps.photo_intel.services.phase_mapper import resolve_task_phase_key
+                            from apps.photo_intel.constants import PHASE_UNKNOWN, PHASE_LABEL
+
+                            analysis = None
+                            detected_phase_key = PHASE_UNKNOWN
+                            detected_phase_label = ""
+                            phase_confidence = 0.0
+                            ai_tags = []
+
+                            if media_type == 'IMAGE':
+                                try:
+                                    analysis = analyze_task_media(media)
+                                    detected_phase_key = analysis.detected_phase_key or PHASE_UNKNOWN
+                                    detected_phase_label = analysis.detected_phase_label or ""
+                                    phase_confidence = analysis.phase_confidence or 0.0
+                                    ai_tags = analysis.tags[:5] if analysis.tags else []
+                                except Exception as ai_err:
+                                    print(f"AI analysis failed (non-fatal): {ai_err}")
+
+                            # 5. Fetch Active Tasks for assignment — AI-prioritized
                             from apps.tasks.models import Task
                             from django.core.cache import cache
-                            
-                            active_tasks = list(Task.objects.filter(status__in=['PENDING', 'IN_PROGRESS']).order_by('-updated_at')[:10])
-                            
+
+                            active_tasks = list(Task.objects.filter(
+                                status__in=['PENDING', 'IN_PROGRESS']
+                            ).select_related('phase').order_by('-updated_at')[:15])
+
                             if active_tasks:
-                                # Save state in cache for 15 minutes (900 seconds)
+                                # Sort: tasks matching AI-detected phase come first
+                                recommended = []
+                                others = []
+                                for t in active_tasks:
+                                    task_phase_key = resolve_task_phase_key(t)
+                                    if detected_phase_key != PHASE_UNKNOWN and task_phase_key == detected_phase_key:
+                                        recommended.append(t)
+                                    else:
+                                        others.append(t)
+
+                                # Ordered task list: recommended first, then others (max 10 total)
+                                ordered_tasks = (recommended + others)[:10]
+
+                                # Save ordered task IDs in cache for 15 minutes
                                 cache_key = f"telegram_pending_photo_{chat_id}"
                                 cache.set(cache_key, {
                                     'media_id': media.id,
-                                    'task_ids': [t.id for t in active_tasks]
+                                    'task_ids': [t.id for t in ordered_tasks]
                                 }, timeout=900)
-                                
-                                task_list_text = "\n".join([f"{i+1}. {t.title}" for i, t in enumerate(active_tasks)])
-                                
+
+                                # Build the AI analysis header
+                                ai_header = ""
+                                if detected_phase_key != PHASE_UNKNOWN and phase_confidence >= 0.3:
+                                    confidence_pct = int(phase_confidence * 100)
+                                    ai_header = (
+                                        f"🤖 AI Detected: {detected_phase_label} ({confidence_pct}% confidence)\n"
+                                    )
+                                    if ai_tags:
+                                        ai_header += f"🏷️ Tags: {', '.join(ai_tags)}\n"
+                                    ai_header += "\n"
+
+                                # Build task list sections
+                                task_lines = []
+                                num = 1
+                                if recommended:
+                                    task_lines.append("🌟 Recommended Tasks:")
+                                    for t in recommended:
+                                        task_lines.append(f"  {num}. ✅ {t.title}")
+                                        num += 1
+                                    if others[:10 - len(recommended)]:
+                                        task_lines.append("\nOther Active Tasks:")
+                                        for t in others[:10 - len(recommended)]:
+                                            task_lines.append(f"  {num}. {t.title}")
+                                            num += 1
+                                else:
+                                    task_lines.append("Active Tasks:")
+                                    for t in ordered_tasks:
+                                        task_lines.append(f"  {num}. {t.title}")
+                                        num += 1
+
+                                task_list_text = "\n".join(task_lines)
+
                                 reply_text = (
-                                    f"✅ {emoji} successfully saved!\n\n"
-                                    f"Which task is this for?\n\n{task_list_text}\n\n"
+                                    f"✅ {emoji} saved by {uploader_name}!\n\n"
+                                    f"{ai_header}"
+                                    f"Which task is this for?\n\n"
+                                    f"{task_list_text}\n\n"
                                     f"Reply with the number (or 0 for General Upload)."
                                 )
                             else:
