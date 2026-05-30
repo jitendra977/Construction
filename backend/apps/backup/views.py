@@ -70,7 +70,11 @@ class BackupAnalyticsView(APIView):
             'drive_quota': get_drive_quota(),
             'settings': {
                 'is_paused': settings.is_paused,
-                'schedule': settings.schedule_expression
+                'schedule': settings.schedule_expression,
+                'gdrive_client_id': settings.gdrive_client_id or '',
+                'gdrive_client_secret': settings.gdrive_client_secret or '',
+                'gdrive_refresh_token': settings.gdrive_refresh_token or '',
+                'gdrive_folder_id': settings.gdrive_folder_id or ''
             }
         })
 
@@ -118,5 +122,14 @@ class BackupControlView(APIView):
             settings_obj.save()
             sync_celery_beat_schedule()
             return Response({'message': 'Schedule updated successfully.'})
+            
+        elif action == 'save_credentials':
+            settings_obj = BackupSettings.get_settings()
+            settings_obj.gdrive_client_id = request.data.get('gdrive_client_id', settings_obj.gdrive_client_id)
+            settings_obj.gdrive_client_secret = request.data.get('gdrive_client_secret', settings_obj.gdrive_client_secret)
+            settings_obj.gdrive_refresh_token = request.data.get('gdrive_refresh_token', settings_obj.gdrive_refresh_token)
+            settings_obj.gdrive_folder_id = request.data.get('gdrive_folder_id', settings_obj.gdrive_folder_id)
+            settings_obj.save()
+            return Response({'message': 'Google Drive credentials saved successfully.'})
             
         return Response({'error': 'Invalid action'}, status=400)

@@ -45,6 +45,13 @@ class BackupLog(models.Model):
 class BackupSettings(models.Model):
     is_paused = models.BooleanField(default=False)
     schedule_expression = models.CharField(max_length=100, default='0 2 * * *', help_text="Cron expression for automated backups")
+    
+    # Dynamic Google Drive Credentials
+    gdrive_client_id = models.CharField(max_length=255, blank=True, null=True)
+    gdrive_client_secret = models.CharField(max_length=255, blank=True, null=True)
+    gdrive_refresh_token = models.TextField(blank=True, null=True)
+    gdrive_folder_id = models.CharField(max_length=255, blank=True, null=True)
+    
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:

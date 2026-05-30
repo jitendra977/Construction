@@ -66,13 +66,16 @@ def create_backup_zip(zip_path: Path, sql_path: Path):
                     arcname = Path('media') / file_path.relative_to(media_root)
                     zf.write(file_path, arcname=str(arcname))
 
-def upload_to_drive(file_path: Path, folder_id: str):
-    client_id = getattr(settings, 'GOOGLE_DRIVE_CLIENT_ID', '')
-    client_secret = getattr(settings, 'GOOGLE_DRIVE_CLIENT_SECRET', '')
-    refresh_token = getattr(settings, 'GOOGLE_DRIVE_REFRESH_TOKEN', '')
+def upload_to_drive(file_path: Path):
+    from .models import BackupSettings
+    backup_settings = BackupSettings.get_settings()
+    client_id = backup_settings.gdrive_client_id
+    client_secret = backup_settings.gdrive_client_secret
+    refresh_token = backup_settings.gdrive_refresh_token
+    folder_id = backup_settings.gdrive_folder_id
     
-    if not client_id or not client_secret or not refresh_token:
-        raise Exception("Missing OAuth2 credentials (Client ID, Secret, or Refresh Token).")
+    if not client_id or not client_secret or not refresh_token or not folder_id:
+        raise Exception("Missing OAuth2 credentials or Folder ID in Backup Settings.")
 
     creds = Credentials(
         token=None,
@@ -105,11 +108,11 @@ def run_backup(user_id=None, task_id=None):
         celery_task_id=task_id
     )
     
-    folder_id = getattr(settings, 'GOOGLE_DRIVE_FOLDER_ID', '')
-    client_id = getattr(settings, 'GOOGLE_DRIVE_CLIENT_ID', '')
+    from .models import BackupSettings
+    backup_settings = BackupSettings.get_settings()
     
-    if not folder_id or not client_id:
-        log.mark_failed("Missing Google Drive OAuth credentials or folder ID in settings.")
+    if not backup_settings.gdrive_folder_id or not backup_settings.gdrive_client_id:
+        log.mark_failed("Missing Google Drive OAuth credentials or folder ID in Backup Settings.")
         return log
         
     timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -123,7 +126,7 @@ def run_backup(user_id=None, task_id=None):
         generate_database_dump(sql_path)
         create_backup_zip(zip_path, sql_path)
         
-        drive_file_id = upload_to_drive(zip_path, folder_id)
+        drive_file_id = upload_to_drive(zip_path)
         
         size_mb = zip_path.stat().st_size / (1024 * 1024)
         log.mark_success(zip_path.name, size_mb, drive_file_id)

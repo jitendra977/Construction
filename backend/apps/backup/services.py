@@ -36,12 +36,13 @@ def get_unbacked_up_data_metrics():
     }
 
 def get_drive_quota():
-    client_id = getattr(settings, 'GOOGLE_DRIVE_CLIENT_ID', '')
-    client_secret = getattr(settings, 'GOOGLE_DRIVE_CLIENT_SECRET', '')
-    refresh_token = getattr(settings, 'GOOGLE_DRIVE_REFRESH_TOKEN', '')
+    backup_settings = BackupSettings.get_settings()
+    client_id = backup_settings.gdrive_client_id
+    client_secret = backup_settings.gdrive_client_secret
+    refresh_token = backup_settings.gdrive_refresh_token
     
     if not client_id or not client_secret or not refresh_token:
-        return {'error': 'Missing OAuth credentials'}
+        return {'error': 'Missing OAuth credentials in Backup Settings'}
         
     try:
         creds = Credentials(

@@ -74,6 +74,33 @@ export default function BackupSystemPage() {
     }
   };
 
+  const configureCredentials = async () => {
+    const clientId = window.prompt("Enter Google Drive Client ID:", settingsData.gdrive_client_id);
+    if (clientId === null) return;
+    
+    const clientSecret = window.prompt("Enter Google Drive Client Secret:", settingsData.gdrive_client_secret);
+    if (clientSecret === null) return;
+    
+    const refreshToken = window.prompt("Enter Google Drive Refresh Token:", settingsData.gdrive_refresh_token);
+    if (refreshToken === null) return;
+    
+    const folderId = window.prompt("Enter Google Drive Folder ID to upload into:", settingsData.gdrive_folder_id);
+    if (folderId === null) return;
+    
+    try {
+      const res = await api.post('/backup/control/save_credentials/', {
+        gdrive_client_id: clientId,
+        gdrive_client_secret: clientSecret,
+        gdrive_refresh_token: refreshToken,
+        gdrive_folder_id: folderId
+      });
+      setMessage(res.data.message);
+      fetchLogs();
+    } catch (err) {
+      alert('Failed to save credentials');
+    }
+  };
+
   const abortBackup = async (taskId) => {
     if (!window.confirm("Abort this running backup immediately?")) return;
     try {
@@ -165,6 +192,9 @@ export default function BackupSystemPage() {
              </button>
              <button onClick={updateSchedule} className="flex-1 py-1.5 px-3 text-xs font-semibold rounded bg-indigo-50 text-indigo-700 hover:bg-indigo-100">
                Edit Cron
+             </button>
+             <button onClick={configureCredentials} className="flex-1 py-1.5 px-3 text-xs font-semibold rounded bg-indigo-50 text-indigo-700 hover:bg-indigo-100" title="Configure Google Drive Credentials">
+               Setup API
              </button>
            </div>
         </div>
