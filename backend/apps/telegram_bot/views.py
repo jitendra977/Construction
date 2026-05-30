@@ -113,11 +113,34 @@ class TelegramWebhookView(APIView):
                             filename = f"telegram_{uuid.uuid4().hex[:8]}.jpg"
                             media.file.save(filename, ContentFile(img_res.content))
                             
-                            # 4. Send success reply
+                            # 4. Fetch Active Tasks for assignment
+                            from apps.tasks.models import Task
+                            from django.core.cache import cache
+                            
+                            active_tasks = list(Task.objects.filter(status__in=['PENDING', 'IN_PROGRESS']).order_by('-updated_at')[:10])
+                            
+                            if active_tasks:
+                                # Save state in cache for 15 minutes (900 seconds)
+                                cache_key = f"telegram_pending_photo_{chat_id}"
+                                cache.set(cache_key, {
+                                    'media_id': media.id,
+                                    'task_ids': [t.id for t in active_tasks]
+                                }, timeout=900)
+                                
+                                task_list_text = "\n".join([f"{i+1}. {t.title}" for i, t in enumerate(active_tasks)])
+                                
+                                reply_text = (
+                                    f"📸 Photo successfully saved!\n\n"
+                                    f"Which task is this for?\n\n{task_list_text}\n\n"
+                                    f"Reply with the number (or 0 for General Photo)."
+                                )
+                            else:
+                                reply_text = f"📸 Photo successfully saved to ConstructPro!\nID: {media.id}"
+
                             reply_url = f"https://api.telegram.org/bot{settings.bot_token}/sendMessage"
                             requests.post(reply_url, json={
                                 'chat_id': chat_id,
-                                'text': f"📸 Photo successfully saved to ConstructPro!\nID: {media.id}"
+                                'text': reply_text
                             })
                 except Exception as e:
                     print("Error downloading/saving telegram photo:", e)
@@ -126,6 +149,63 @@ class TelegramWebhookView(APIView):
                         'chat_id': chat_id,
                         'text': "❌ Failed to save photo to ConstructPro."
                     })
+            
+            # Handle text responses for pending photo assignments
+            elif text:
+                from django.core.cache import cache
+                from apps.tasks.models import TaskMedia, Task
+                
+                cache_key = f"telegram_pending_photo_{chat_id}"
+                pending_state = cache.get(cache_key)
+                
+                if pending_state:
+                    text_stripped = text.strip()
+                    if text_stripped.isdigit():
+                        choice = int(text_stripped)
+                        media_id = pending_state['media_id']
+                        task_ids = pending_state['task_ids']
+                        
+                        if choice == 0:
+                            # User wants it as general photo
+                            cache.delete(cache_key)
+                            reply_url = f"https://api.telegram.org/bot{settings.bot_token}/sendMessage"
+                            requests.post(reply_url, json={
+                                'chat_id': chat_id,
+                                'text': "✅ Saved as General Photo."
+                            })
+                        elif 1 <= choice <= len(task_ids):
+                            # User selected a valid task
+                            selected_task_id = task_ids[choice - 1]
+                            try:
+                                media = TaskMedia.objects.get(id=media_id)
+                                task = Task.objects.get(id=selected_task_id)
+                                media.task = task
+                                media.save(update_fields=['task'])
+                                
+                                cache.delete(cache_key)
+                                reply_url = f"https://api.telegram.org/bot{settings.bot_token}/sendMessage"
+                                requests.post(reply_url, json={
+                                    'chat_id': chat_id,
+                                    'text': f"✅ Photo successfully assigned to:\n👷‍♂️ {task.title}"
+                                })
+                            except Exception as e:
+                                print("Error updating media task:", e)
+                                reply_url = f"https://api.telegram.org/bot{settings.bot_token}/sendMessage"
+                                requests.post(reply_url, json={
+                                    'chat_id': chat_id,
+                                    'text': "❌ Error assigning photo to task."
+                                })
+                        else:
+                            # Invalid number
+                            reply_url = f"https://api.telegram.org/bot{settings.bot_token}/sendMessage"
+                            requests.post(reply_url, json={
+                                'chat_id': chat_id,
+                                'text': f"❌ Invalid number. Please reply with a number between 0 and {len(task_ids)}."
+                            })
+                    else:
+                        # They have a pending state but didn't send a number. Ignore or warn.
+                        # For simplicity, we just ignore standard chatter.
+                        pass
 
         return Response({"status": "ok"}, status=status.HTTP_200_OK)
 
