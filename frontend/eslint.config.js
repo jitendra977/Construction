@@ -72,8 +72,8 @@ export default defineConfig([
       // Missing deps are often intentional (run-once effects, stable refs).
       'react-hooks/exhaustive-deps': 'warn',
 
-      // ── set-state-in-effect: calling async fetchers in useEffect is normal ──
-      'react-hooks/set-state-in-effect': 'warn',
+      // ── Disable set-state-in-effect as async state synchronization during mounting is standard React architecture ──
+      'react-hooks/set-state-in-effect': 'off',
 
       // ── react-refresh: non-component exports in component files are common ──
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],

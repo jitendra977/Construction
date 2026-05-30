@@ -127,27 +127,8 @@ export default function AttendanceBiometricKiosk() {
     const stableCountRef = useRef(0);
     const resultTimerRef = useRef(null);
 
-    // Initial check for project
-    if (!projectId) {
-        return (
-            <div style={{
-                minHeight: '100vh',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: '#050508',
-                color: '#fff',
-                flexDirection: 'column',
-                gap: 12,
-            }}>
-                <div style={{ fontSize: 48 }}>📷</div>
-                <div style={{ fontSize: 18, fontWeight: 800 }}>Biometric Face Kiosk</div>
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
-                    Use /face-kiosk/&lt;projectId&gt;
-                </div>
-            </div>
-        );
-    }
+    // Initial check for project is moved below hooks definition to avoid conditional hook rendering rules violations.
+
 
     // Lazy load face-api neural weights
     const ensureModelsLoaded = async () => {
@@ -211,12 +192,57 @@ export default function AttendanceBiometricKiosk() {
         }
     };
 
+    const resetToStart = useCallback(() => {
+        stopCamera();
+        setCheckInResult(null);
+        setScanError(null);
+        setScanActive(false);
+        setKioskStatus('idle');
+    }, [stopCamera]);
+
+    // Handle check-in submission
+    const submitFaceSignature = useCallback(async (descriptor) => {
+        try {
+            const res = await axios.post(`${API_URL}/biometrics/kiosk-checkin/`, {
+                encoding: Array.from(descriptor),
+                project: Number(projectId)
+            });
+
+            playChime('success');
+            setKioskStatus('success');
+            setCheckInResult(res.data);
+            
+            // Clean up and display worker name card
+            stopCamera();
+            
+            // Auto reset back to welcome screen after 5 seconds
+            resultTimerRef.current = setTimeout(() => {
+                resetToStart();
+            }, 5000);
+
+        } catch (err) {
+            console.error('Face match error:', err);
+            playChime('error');
+            setKioskStatus('error');
+            setScanError(err.response?.data?.error || 'Verification failed. Worker not recognized.');
+            
+            stopCamera();
+            
+            // Auto reset back to welcome screen after 5 seconds
+            resultTimerRef.current = setTimeout(() => {
+                resetToStart();
+            }, 5000);
+        }
+    }, [projectId, stopCamera, resetToStart]);
+
     // Frame analyzer loop
+    const analyzeFrameRef = useRef();
+
     const analyzeFrame = useCallback(async () => {
         const video = videoRef.current;
         const canvas = canvasRef.current;
         if (!video || video.paused || video.ended || !canvas || busyRef.current) {
-            frameLoopRef.current = requestAnimationFrame(analyzeFrame);
+            frameLoopRef.current = requestAnimationFrame(analyzeFrameRef.current);
             return;
         }
 
@@ -260,52 +286,14 @@ export default function AttendanceBiometricKiosk() {
         }
 
         if (!busyRef.current) {
-            frameLoopRef.current = requestAnimationFrame(analyzeFrame);
+            frameLoopRef.current = requestAnimationFrame(analyzeFrameRef.current);
         }
-    }, [projectId]);
+    }, [projectId, submitFaceSignature]);
 
-    // Handle check-in submission
-    const submitFaceSignature = async (descriptor) => {
-        try {
-            const res = await axios.post(`${API_URL}/biometrics/kiosk-checkin/`, {
-                encoding: Array.from(descriptor),
-                project: Number(projectId)
-            });
-
-            playChime('success');
-            setKioskStatus('success');
-            setCheckInResult(res.data);
-            
-            // Clean up and display worker name card
-            stopCamera();
-            
-            // Auto reset back to welcome screen after 5 seconds
-            resultTimerRef.current = setTimeout(() => {
-                resetToStart();
-            }, 5000);
-
-        } catch (err) {
-            console.error('Face match error:', err);
-            playChime('error');
-            setKioskStatus('error');
-            setScanError(err.response?.data?.error || 'Verification failed. Worker not recognized.');
-            
-            stopCamera();
-            
-            // Auto reset back to welcome screen after 5 seconds
-            resultTimerRef.current = setTimeout(() => {
-                resetToStart();
-            }, 5000);
-        }
-    };
-
-    const resetToStart = () => {
-        stopCamera();
-        setCheckInResult(null);
-        setScanError(null);
-        setScanActive(false);
-        setKioskStatus('idle');
-    };
+    // Keep ref updated to bypass circular reference issues in requestAnimationFrame
+    useEffect(() => {
+        analyzeFrameRef.current = analyzeFrame;
+    }, [analyzeFrame]);
 
     // Attach stream to video tag and start RAF
     useEffect(() => {
@@ -331,6 +319,27 @@ export default function AttendanceBiometricKiosk() {
             if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
         };
     }, [stopCamera]);
+
+    if (!projectId) {
+        return (
+            <div style={{
+                minHeight: '100vh',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: '#050508',
+                color: '#fff',
+                flexDirection: 'column',
+                gap: 12,
+            }}>
+                <div style={{ fontSize: 48 }}>📷</div>
+                <div style={{ fontSize: 18, fontWeight: 800 }}>Biometric Face Kiosk</div>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
+                    Use /face-kiosk/&lt;projectId&gt;
+                </div>
+            </div>
+        );
+    }
 
     return (
         <KioskViewportShell title="ConstructPro Face ID Kiosk">
