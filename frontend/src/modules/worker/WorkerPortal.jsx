@@ -161,12 +161,12 @@ function LiveClock() {
   const [now, setNow] = useState(new Date());
   useEffect(()=>{ const id=setInterval(()=>setNow(new Date()),1000); return()=>clearInterval(id); },[]);
   return (
-    <div style={{textAlign:'center',lineHeight:1}}>
-      <div style={{fontSize:42,fontWeight:900,letterSpacing:'-1px',color:C.text,fontVariantNumeric:'tabular-nums'}}>
+    <div style={{textAlign:'right',lineHeight:1}}>
+      <div style={{fontSize:22,fontWeight:900,letterSpacing:'-0.5px',color:C.text,fontVariantNumeric:'tabular-nums'}}>
         {now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true})}
       </div>
-      <div style={{fontSize:12,color:C.muted,fontWeight:600,marginTop:4}}>
-        {now.toLocaleDateString('en-US',{weekday:'long',day:'numeric',month:'long'})}
+      <div style={{fontSize:10,color:C.muted,fontWeight:600,marginTop:4,textTransform:'uppercase'}}>
+        {now.toLocaleDateString('en-US',{weekday:'short',day:'numeric',month:'short'})}
       </div>
     </div>
   );
@@ -325,12 +325,12 @@ function FaceCheckin({ checkedIn, onSuccess, onError }) {
   useEffect(() => () => stopScan(), []);
 
   return (
-    <div className="wp-glass" style={{ borderRadius: 24, padding: 22, textAlign: 'center', marginBottom: 16, border: '1.5px solid rgba(255,255,255,.08)' }}>
-      <div style={{ fontSize: 32, marginBottom: 6 }}>👤</div>
+    <div className="wp-glass" style={{ borderRadius: 16, padding: 12, textAlign: 'center', marginBottom: 10, border: '1.5px solid rgba(255,255,255,.08)' }}>
+      <div style={{ fontSize: 24, marginBottom: 2 }}>👤</div>
       <div style={{ fontSize: 16, fontWeight: 900, color: '#fff' }}>
         {checkedIn ? 'फेस स्क्यान बहिर्गमन' : 'फेस स्क्यान आगमन'}
       </div>
-      <div style={{ fontSize: 12, color: '#64748b', marginTop: 4, marginBottom: 14 }}>
+      <div style={{ fontSize: 11, color: '#64748b', marginTop: 2, marginBottom: 8 }}>
         {checkedIn ? 'Face Check-Out (Buddy Punching Protection)' : 'Biometric Face Check-In'}
       </div>
 
@@ -391,7 +391,7 @@ function FaceCheckin({ checkedIn, onSuccess, onError }) {
       ) : (
         <button onClick={() => startScan()}
           style={{
-            width: '100%', padding: '16px', borderRadius: 16, border: 'none',
+            width: '100%', padding: '12px', borderRadius: 14, border: 'none',
             background: 'linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)',
             color: '#fff', fontSize: 14, fontWeight: 900, cursor: 'pointer',
             boxShadow: '0 6px 16px -4px rgba(14,165,233,.4)',
@@ -1434,11 +1434,12 @@ export default function WorkerPortal() {
         {tab==='home' && (
           <div className="wp-slide" style={{padding:'20px 16px 0'}}>
 
-            <div className="wp-glass" style={{borderRadius:20,padding:'12px 16px 14px',marginBottom:10,textAlign:'center'}}>
-              <div style={{fontSize:24,marginBottom:6}}>{g.icon}</div>
-              <div style={{fontSize:12,color:C.muted,fontWeight:600,marginBottom:2}}>{g.text},</div>
-              <div style={{fontSize:18,fontWeight:900,marginBottom:10}}>
-                {user.full_name.split(' ')[0]} 👋
+            <div className="wp-glass" style={{borderRadius:16,padding:'12px 16px',marginBottom:10,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <div>
+                <div style={{fontSize:12,color:C.muted,fontWeight:600,marginBottom:2}}>{g.icon} {g.text},</div>
+                <div style={{fontSize:18,fontWeight:900}}>
+                  {user.full_name.split(' ')[0]} 👋
+                </div>
               </div>
               <LiveClock/>
             </div>
