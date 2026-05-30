@@ -268,7 +268,7 @@ function FaceCheckin({ checkedIn, onSuccess, onError }) {
     }
 
     setActive(true);
-    setMsg('GPS स्थान र क्यामेरा सुरु गर्दै...'); // Initializing GPS location and camera...
+    setMsg('क्यामेरा सुरु गर्दै...'); // Initializing camera...
     
     let lat = null;
     let lng = null;
@@ -289,7 +289,7 @@ function FaceCheckin({ checkedIn, onSuccess, onError }) {
       }
     }
 
-    setMsg('तपाईंको अनुहार क्यामेराको अगाडि राख्नुहोस्...'); // Keep face in front of the camera...
+    setMsg('अनुहार क्यामेरामा देखाउनुहोस्...'); // Show face in camera...
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: mode, width: 400, height: 400 }
@@ -303,10 +303,10 @@ function FaceCheckin({ checkedIn, onSuccess, onError }) {
       // High-fidelity biometric scanning animation handshake
       setTimeout(async () => {
         setBusy(true);
-        setMsg('अनुहार पहिचान भयो! हाजिरी सुरक्षित गर्दै...'); // Face verified! Saving attendance...
+        setMsg('पहिचान भयो! सुरक्षित गर्दै...'); // Verified! Saving...
         try {
           const res = await (checkedIn ? workerPortalApi.checkOut(lat, lng) : workerPortalApi.checkIn(lat, lng));
-          setMsg(checkedIn ? '✅ बहिर्गमन सफल (Checked Out)!' : '✅ आगमन सफल (Checked In)!');
+          setMsg(checkedIn ? '✅ छुट्टी सफल (Checked Out)!' : '✅ हाजिरी सफल (Checked In)!');
           setTimeout(() => {
             stopScan();
             onSuccess(res);
@@ -328,10 +328,10 @@ function FaceCheckin({ checkedIn, onSuccess, onError }) {
     <div className="wp-glass" style={{ borderRadius: 16, padding: 12, textAlign: 'center', marginBottom: 10, border: '1.5px solid rgba(255,255,255,.08)' }}>
       <div style={{ fontSize: 24, marginBottom: 2 }}>👤</div>
       <div style={{ fontSize: 16, fontWeight: 900, color: '#fff' }}>
-        {checkedIn ? 'फेस स्क्यान बहिर्गमन' : 'फेस स्क्यान आगमन'}
+        {checkedIn ? 'अनुहार स्क्यान (छुट्टी)' : 'अनुहार स्क्यान (हाजिरी)'}
       </div>
       <div style={{ fontSize: 11, color: '#64748b', marginTop: 2, marginBottom: 8 }}>
-        {checkedIn ? 'Face Check-Out (Buddy Punching Protection)' : 'Biometric Face Check-In'}
+        {checkedIn ? 'Face Check-Out' : 'Face Check-In'}
       </div>
 
       {active ? (
@@ -399,7 +399,7 @@ function FaceCheckin({ checkedIn, onSuccess, onError }) {
           }}
           className="wp-btn"
         >
-          <span>📸</span> {checkedIn ? 'फेस स्क्यान आउट सुरु गर्नुहोस्' : 'फेस स्क्यान हाजिर सुरु गर्नुहोस्'}
+          <span>📸</span> {checkedIn ? 'स्क्यान गरेर छुट्टी गर्नुहोस' : 'स्क्यान गरेर हाजिरी गर्नुहोस'}
         </button>
       )}
     </div>
