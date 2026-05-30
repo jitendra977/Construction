@@ -47,22 +47,33 @@ class GalleryViewSet(viewsets.ViewSet):
         # B. Task Media (Updates)
         for tm in TaskMedia.objects.select_related('task', 'task__phase').all():
             if not tm.file: continue
-            if not tm.task: continue  # skip orphaned media (task FK is nullable)
-            phase_id = tm.task.phase.id if tm.task.phase else 0
-            phase_info = phase_map.get(phase_id, {'name': 'Unassigned', 'order': 99})
+            
+            if tm.task:
+                phase_id = tm.task.phase.id if tm.task.phase else 0
+                title = tm.task.title
+                status = tm.task.status
+                subtitle = f"Phase {phase_map.get(phase_id, {'order': 99})['order']}: {phase_map.get(phase_id, {'name': 'Unassigned'})['name']}"
+                category = 'Task Update'
+            else:
+                phase_id = 0
+                title = "Telegram Upload"
+                status = "N/A"
+                subtitle = "Direct from Bot"
+                category = 'Site Photo'
+
             items.append({
                 'id': f"task_{tm.id}",
                 'url': tm.file.url,
-                'title': tm.task.title,
-                'subtitle': f"Phase {phase_info['order']}: {phase_info['name']}",
-                'category': 'Task Update',
+                'title': title,
+                'subtitle': subtitle,
+                'category': category,
                 'uploaded_at': tm.created_at,
                 'source_type': 'TASK_MEDIA',
                 'media_type': tm.media_type, # IMAGE/VIDEO
                 'meta': {
-                    'task_id': tm.task.id,
+                    'task_id': tm.task.id if tm.task else None,
                     'phase_id': phase_id,
-                    'task_status': tm.task.status,
+                    'task_status': status,
                 }
             })
             
@@ -148,7 +159,7 @@ class GalleryViewSet(viewsets.ViewSet):
             # Includes: all task media + phase completion photos
             filtered = [
                 i for i in items
-                if i.get('meta', {}).get('phase_id')
+                if 'phase_id' in i.get('meta', {})
                 and i['media_type'] in ['IMAGE', 'VIDEO']
                 and i['source_type'] in ['TASK_MEDIA', 'PHASE_PHOTO']
             ]
