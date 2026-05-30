@@ -82,11 +82,27 @@ class TelegramWebhookView(APIView):
                 except Exception as e:
                     print("Error sending welcome message:", e)
 
-            # Handle incoming photos
-            elif 'photo' in message:
-                # The photo field is a list of different sizes. The last one is the largest.
-                photo_obj = message['photo'][-1]
-                file_id = photo_obj['file_id']
+            # Handle incoming media (photos, videos, documents)
+            elif any(k in message for k in ['photo', 'video', 'document']):
+                if 'photo' in message:
+                    file_id = message['photo'][-1]['file_id']
+                    media_type = 'IMAGE'
+                    ext = 'jpg'
+                    emoji = '📸 Photo'
+                elif 'video' in message:
+                    file_id = message['video']['file_id']
+                    media_type = 'VIDEO'
+                    ext = 'mp4'
+                    emoji = '🎥 Video'
+                else:
+                    file_id = message['document']['file_id']
+                    media_type = 'DOCUMENT'
+                    mime = message['document'].get('mime_type', '')
+                    ext = message['document'].get('file_name', 'file').split('.')[-1]
+                    emoji = '📄 Document'
+                    if 'image' in mime: media_type = 'IMAGE'
+                    if 'video' in mime: media_type = 'VIDEO'
+
                 caption = message.get('caption', 'Uploaded via Telegram')
                 
                 try:
@@ -107,10 +123,10 @@ class TelegramWebhookView(APIView):
                             import uuid
                             
                             media = TaskMedia.objects.create(
-                                media_type='IMAGE',
+                                media_type=media_type,
                                 description=caption
                             )
-                            filename = f"telegram_{uuid.uuid4().hex[:8]}.jpg"
+                            filename = f"telegram_{uuid.uuid4().hex[:8]}.{ext}"
                             media.file.save(filename, ContentFile(img_res.content))
                             
                             # 4. Fetch Active Tasks for assignment
@@ -130,12 +146,12 @@ class TelegramWebhookView(APIView):
                                 task_list_text = "\n".join([f"{i+1}. {t.title}" for i, t in enumerate(active_tasks)])
                                 
                                 reply_text = (
-                                    f"📸 Photo successfully saved!\n\n"
+                                    f"✅ {emoji} successfully saved!\n\n"
                                     f"Which task is this for?\n\n{task_list_text}\n\n"
-                                    f"Reply with the number (or 0 for General Photo)."
+                                    f"Reply with the number (or 0 for General Upload)."
                                 )
                             else:
-                                reply_text = f"📸 Photo successfully saved to ConstructPro!\nID: {media.id}"
+                                reply_text = f"✅ {emoji} successfully saved to ConstructPro!\nID: {media.id}"
 
                             reply_url = f"https://api.telegram.org/bot{settings.bot_token}/sendMessage"
                             requests.post(reply_url, json={
@@ -143,11 +159,11 @@ class TelegramWebhookView(APIView):
                                 'text': reply_text
                             })
                 except Exception as e:
-                    print("Error downloading/saving telegram photo:", e)
+                    print(f"Error downloading/saving telegram media: {e}")
                     error_url = f"https://api.telegram.org/bot{settings.bot_token}/sendMessage"
                     requests.post(error_url, json={
                         'chat_id': chat_id,
-                        'text': "❌ Failed to save photo to ConstructPro."
+                        'text': f"❌ Failed to save {emoji.lower()} to ConstructPro."
                     })
             
             # Handle text responses for pending photo assignments
@@ -171,7 +187,7 @@ class TelegramWebhookView(APIView):
                             reply_url = f"https://api.telegram.org/bot{settings.bot_token}/sendMessage"
                             requests.post(reply_url, json={
                                 'chat_id': chat_id,
-                                'text': "✅ Saved as General Photo."
+                                'text': "✅ Saved as General Upload."
                             })
                         elif 1 <= choice <= len(task_ids):
                             # User selected a valid task
@@ -186,14 +202,14 @@ class TelegramWebhookView(APIView):
                                 reply_url = f"https://api.telegram.org/bot{settings.bot_token}/sendMessage"
                                 requests.post(reply_url, json={
                                     'chat_id': chat_id,
-                                    'text': f"✅ Photo successfully assigned to:\n👷‍♂️ {task.title}"
+                                    'text': f"✅ Successfully assigned to:\n👷‍♂️ {task.title}"
                                 })
                             except Exception as e:
                                 print("Error updating media task:", e)
                                 reply_url = f"https://api.telegram.org/bot{settings.bot_token}/sendMessage"
                                 requests.post(reply_url, json={
                                     'chat_id': chat_id,
-                                    'text': "❌ Error assigning photo to task."
+                                    'text': "❌ Error assigning file to task."
                                 })
                         else:
                             # Invalid number
