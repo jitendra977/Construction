@@ -1443,6 +1443,32 @@ export default function WorkerPortal() {
               <LiveClock/>
             </div>
 
+            {/* Message banner */}
+            {message && (
+              <div className="wp-pop" style={{
+                marginBottom:14,padding:'12px 16px',borderRadius:14,fontWeight:700,fontSize:13,
+                background:messageType==='success'?'rgba(16,185,129,.15)':'rgba(239,68,68,.15)',
+                border:`1px solid ${messageType==='success'?'rgba(16,185,129,.3)':'rgba(239,68,68,.3)'}`,
+                color:messageType==='success'?C.green:C.red,
+              }}>{message}</div>
+            )}
+
+            {/* Biometric Face check-in/out */}
+            {!checkedOut && (
+              <FaceCheckin
+                checkedIn={checkedIn}
+                onSuccess={(res) => { showMsg(res.message, 'success'); vibrate(100); load(); }}
+                onError={(msg) => showMsg(msg, 'error')}
+              />
+            )}
+            {checkedOut && (
+              <div className="wp-glass" style={{borderRadius:20,padding:28,textAlign:'center',marginBottom:14}}>
+                <div style={{fontSize:40,marginBottom:12}}>🌅</div>
+                <div style={{fontSize:16,fontWeight:800,color:C.text}}>Great work today!</div>
+                <div style={{fontSize:13,color:C.muted,marginTop:4}}>You've completed your shift. See you tomorrow!</div>
+              </div>
+            )}
+
             <div style={{
               borderRadius:24,padding:'20px',marginBottom:14,
               background: checkedOut
@@ -1554,31 +1580,7 @@ export default function WorkerPortal() {
               </div>
             )}
 
-            {/* Message banner */}
-            {message && (
-              <div className="wp-pop" style={{
-                marginBottom:14,padding:'12px 16px',borderRadius:14,fontWeight:700,fontSize:13,
-                background:messageType==='success'?'rgba(16,185,129,.15)':'rgba(239,68,68,.15)',
-                border:`1px solid ${messageType==='success'?'rgba(16,185,129,.3)':'rgba(239,68,68,.3)'}`,
-                color:messageType==='success'?C.green:C.red,
-              }}>{message}</div>
-            )}
 
-            {/* Biometric Face check-in/out */}
-            {!checkedOut && (
-              <FaceCheckin
-                checkedIn={checkedIn}
-                onSuccess={(res) => { showMsg(res.message, 'success'); vibrate(100); load(); }}
-                onError={(msg) => showMsg(msg, 'error')}
-              />
-            )}
-            {checkedOut && (
-              <div className="wp-glass" style={{borderRadius:20,padding:28,textAlign:'center',marginBottom:8}}>
-                <div style={{fontSize:40,marginBottom:12}}>🌅</div>
-                <div style={{fontSize:16,fontWeight:800,color:C.text}}>Great work today!</div>
-                <div style={{fontSize:13,color:C.muted,marginTop:4}}>You've completed your shift. See you tomorrow!</div>
-              </div>
-            )}
 
             {/* Quick nav tiles */}
             <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginTop:8}}>
