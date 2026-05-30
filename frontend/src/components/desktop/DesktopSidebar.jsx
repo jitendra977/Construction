@@ -26,7 +26,7 @@ const CSS = `
     display: flex; align-items: center; gap: 10px;
     padding: 7px 10px; border-radius: 8px;
     font-size: 12.5px; font-weight: 600;
-    color: var(--t-text3); text-decoration: none;
+    color: var(--t-text2); text-decoration: none;
     transition: background 0.13s, color 0.13s, box-shadow 0.13s;
     position: relative; white-space: nowrap; overflow: hidden;
   }
@@ -49,7 +49,7 @@ const CSS = `
     display: flex; align-items: center; justify-content: center;
     width: 40px; height: 38px; margin: 1px auto;
     border-radius: 10px; font-size: 16px;
-    color: var(--t-text3); text-decoration: none;
+    color: var(--t-text2); text-decoration: none;
     transition: background 0.13s, color 0.13s, box-shadow 0.13s;
   }
   .sb-link-rail:hover {
@@ -68,7 +68,7 @@ const CSS = `
     background: transparent; border: none; cursor: pointer;
     transition: opacity 0.12s;
   }
-  .sb-section-btn:hover { opacity: 0.8; }
+  .sb-section-btn:hover { opacity: 0.9; }
 
   .sb-logout-btn {
     flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px;
@@ -101,11 +101,11 @@ const CSS = `
   .sb-toggle-btn {
     width: 26px; height: 26px; border-radius: 7px; border: none;
     display: flex; align-items: center; justify-content: center;
-    background: var(--t-surface2); color: var(--t-text3); cursor: pointer;
+    background: var(--t-surface2); color: var(--t-text2); cursor: pointer;
     transition: background 0.13s, color 0.13s; flex-shrink: 0;
     border: 1px solid var(--t-border);
   }
-  .sb-toggle-btn:hover { background: var(--t-surface3); color: var(--t-text2); }
+  .sb-toggle-btn:hover { background: var(--t-surface3); color: var(--t-text); }
 
   /* Custom scrollbar */
   .sb-nav::-webkit-scrollbar { width: 3px; }
@@ -122,14 +122,14 @@ const NAV_SECTIONS = [
     { id: 'overview',     label: 'Overview',      color: '#6366f1',          ids: ['home', 'analytics', 'estimator'],                                                     defaultOpen: true  },
     { id: 'construction', label: 'Construction',  color: '#f59e0b',          ids: ['permits', 'phases', 'manage', 'timeline', 'finance', 'resource', 'structure', 'photos', 'timelapse'], defaultOpen: true },
     { id: 'team',         label: 'Team & HR',     color: '#10b981',          ids: ['attendance', 'workforce', 'location'],                                         defaultOpen: true  },
-    { id: 'admin',        label: 'Admin & Config', color: 'var(--t-text3)',   ids: ['accounts', 'settings', 'guides', 'data-transfer', 'backups'],                           defaultOpen: false },
+    { id: 'admin',        label: 'Admin & Config', color: 'var(--t-text2)',   ids: ['accounts', 'settings', 'guides', 'data-transfer', 'backups'],                           defaultOpen: false },
 ];
 
 /* ── Chevron icon ─────────────────────────────────────────────── */
 function Chevron({ open }) {
     return (
         <svg width="9" height="9" viewBox="0 0 12 12" fill="none"
-            style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0, opacity: 0.3 }}>
+            style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0, opacity: 0.6 }}>
             <path d="M4 2.5L7.5 6L4 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
     );
@@ -151,14 +151,14 @@ function NavSection({ section, items }) {
                 <span style={{
                     width: 2, height: 12, borderRadius: 1,
                     background: section.color, flexShrink: 0,
-                    opacity: open ? 1 : 0.25,
+                    opacity: open ? 1 : 0.4,
                     transition: 'opacity 0.2s',
                 }} />
                 <span style={{
                     flex: 1, textAlign: 'left',
                     fontSize: 9, fontWeight: 800,
                     textTransform: 'uppercase', letterSpacing: '0.13em',
-                    color: open ? 'var(--t-text2)' : 'var(--t-surface3)',
+                    color: open ? 'var(--t-text)' : 'var(--t-text3)',
                     fontFamily: "'DM Mono', monospace",
                     transition: 'color 0.2s',
                 }}>
@@ -477,7 +477,7 @@ const DesktopSidebar = ({ user, onLogout, navItems, collapsed, onToggle }) => {
                 {!collapsed && (
                     <NavLink to="/about-developer" style={{ textAlign: 'center', paddingTop: 4, textDecoration: 'none', display: 'block' }}>
                         <p style={{
-                            fontSize: 8, color: 'var(--t-surface3)',
+                            fontSize: 8, color: 'var(--t-text3)',
                             fontFamily: "'DM Mono', monospace",
                         }}>© 2026 Jitendra Khadka</p>
                     </NavLink>

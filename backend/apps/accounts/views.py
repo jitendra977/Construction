@@ -216,6 +216,7 @@ def _issue_worker_portal_tokens(user):
             'full_name': member.full_name,
             'role': member.role.title if member.role else member.worker_type,
             'project_id': str(member.current_project_id) if member.current_project_id else None,
+            'has_face_id': hasattr(user, 'face_signature') and user.face_signature is not None,
         },
     }
 
@@ -839,10 +840,16 @@ class WorkerFaceLoginView(APIView):
         from django.db.models import Q
         
         encoding = request.data.get('encoding')
+        if isinstance(encoding, str):
+            import json
+            try: encoding = json.loads(encoding)
+            except: pass
+
         username_helper = request.data.get('username') or request.data.get('phone')
 
         if not encoding:
             return Response({'error': 'encoding is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
 
         # Threshold rules: Extremely strict verification
         SIMILARITY_THRESHOLD = 0.55
@@ -1040,6 +1047,7 @@ class WorkerMeView(APIView):
             'payroll':       payroll,
             'target_month':  f"{target_year}-{target_month:02d}",
             'teams':         teams,
+            'has_face_id':   hasattr(user, 'face_signature') and user.face_signature is not None,
         })
 
 

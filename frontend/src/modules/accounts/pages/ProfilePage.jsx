@@ -11,6 +11,35 @@ import { mediaUrl } from '../../../services/createApiClient';
 import Avatar from '../components/shared/Avatar';
 import Badge from '../components/shared/Badge';
 import SignaturePad from '../../../components/common/SignaturePad';
+import * as faceapi from '@vladmandic/face-api';
+
+function beep(type) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    if (type === 'tick') {
+      o.type = 'sine'; o.frequency.value = 880;
+      g.gain.setValueAtTime(0.08, ctx.currentTime);
+      g.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.1);
+      o.start(); o.stop(ctx.currentTime + 0.1);
+    } else if (type === 'success') {
+      o.type = 'sine';
+      o.frequency.setValueAtTime(523, ctx.currentTime);
+      o.frequency.setValueAtTime(783, ctx.currentTime + 0.12);
+      o.frequency.setValueAtTime(1046, ctx.currentTime + 0.24);
+      g.gain.setValueAtTime(0.1, ctx.currentTime);
+      g.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.5);
+      o.start(); o.stop(ctx.currentTime + 0.5);
+    } else if (type === 'error') {
+      o.type = 'sawtooth'; o.frequency.value = 120;
+      g.gain.setValueAtTime(0.1, ctx.currentTime);
+      g.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.3);
+      o.start(); o.stop(ctx.currentTime + 0.3);
+    }
+  } catch (_) {}
+}
 
 // ── Shared style constants ─────────────────────────────────────────────────────
 const inputStyle = {
@@ -234,6 +263,187 @@ function SecurityTab({ user, setUser }) {
     const [msg,  setMsg]  = useState(null);
     const [busy, setBusy] = useState(false);
 
+    // Face ID states
+    const [faceRegActive, setFaceRegActive] = useState(false);
+    const [modelReady, setModelReady] = useState(false);
+    const [modelLoading, setModelLoading] = useState(false);
+    const [camError, setCamError] = useState(null);
+    const [regCountdown, setRegCountdown] = useState(null);
+    const [regStatus, setRegStatus] = useState('idle'); // idle | detecting | countdown | saving | done | error
+    const [faceDetected, setFaceDetected] = useState(false);
+
+    const videoRef = useRef(null);
+    const canvasRef = useRef(null);
+    const streamRef = useRef(null);
+    const loopRef = useRef(null);
+    const busyRef = useRef(false);
+    const stableCount = useRef(0);
+    const countdownTimer = useRef(null);
+    const capturedDescRef = useRef(null);
+
+    const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+
+    const startFaceRegistration = async () => {
+        setFaceRegActive(true);
+        setRegStatus('idle');
+        setCamError(null);
+        busyRef.current = false;
+        stableCount.current = 0;
+        capturedDescRef.current = null;
+
+        if (!modelReady) {
+            setModelLoading(true);
+            try {
+                await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+                await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+                await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+                setModelReady(true);
+            } catch (e) {
+                setCamError('AI face models failed to load. Check your internet connection.');
+                setModelLoading(false);
+                return;
+            } finally {
+                setModelLoading(false);
+            }
+        }
+        setTimeout(() => startCamera(), 300);
+    };
+
+    const startCamera = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { width: 640, height: 480, facingMode: 'user' }
+            });
+            streamRef.current = stream;
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+                await videoRef.current.play();
+                loopRef.current = requestAnimationFrame(frameLoop);
+            }
+        } catch (e) {
+            setCamError('Camera permission denied or camera unavailable.');
+        }
+    };
+
+    const stopEverything = () => {
+        if (loopRef.current) { cancelAnimationFrame(loopRef.current); loopRef.current = null; }
+        if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null; }
+        if (countdownTimer.current) { clearInterval(countdownTimer.current); countdownTimer.current = null; }
+        busyRef.current = false;
+        stableCount.current = 0;
+        capturedDescRef.current = null;
+        setFaceDetected(false);
+        setRegCountdown(null);
+    };
+
+    const closeScanner = () => {
+        stopEverything();
+        setFaceRegActive(false);
+    };
+
+    const frameLoop = async () => {
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        if (!video || video.paused || video.ended || !canvas) {
+            loopRef.current = requestAnimationFrame(frameLoop);
+            return;
+        }
+
+        try {
+            const det = await faceapi
+                .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
+                .withFaceLandmarks()
+                .withFaceDescriptor();
+
+            const ctx = canvas.getContext('2d');
+            if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (det) {
+                setFaceDetected(true);
+                stableCount.current += 1;
+
+                if (ctx) {
+                    const dims = faceapi.matchDimensions(canvas, video, true);
+                    const resized = faceapi.resizeResults(det, dims);
+                    ctx.fillStyle = 'rgba(99,102,241,0.7)';
+                    resized.landmarks.positions.forEach(p => {
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, 1.5, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+                }
+
+                capturedDescRef.current = det.descriptor;
+                handleRegisterFrame();
+            } else {
+                setFaceDetected(false);
+                stableCount.current = 0;
+                capturedDescRef.current = null;
+                if (countdownTimer.current) {
+                    clearInterval(countdownTimer.current); countdownTimer.current = null;
+                    setRegCountdown(null);
+                    setRegStatus('detecting');
+                }
+            }
+        } catch (_) {}
+
+        loopRef.current = requestAnimationFrame(frameLoop);
+    };
+
+    const handleRegisterFrame = () => {
+        if (busyRef.current) return;
+
+        if (stableCount.current === 10 && !countdownTimer.current) {
+            setRegStatus('countdown');
+            setRegCountdown(3);
+            beep('tick');
+
+            let count = 3;
+            countdownTimer.current = setInterval(() => {
+                count -= 1;
+                if (count > 0) {
+                    setRegCountdown(count);
+                    beep('tick');
+                } else {
+                    clearInterval(countdownTimer.current);
+                    countdownTimer.current = null;
+                    setRegCountdown(0);
+                    if (capturedDescRef.current) {
+                        submitRegistration(Array.from(capturedDescRef.current));
+                    }
+                }
+            }, 1000);
+        }
+
+        if (stableCount.current < 10) {
+            setRegStatus('detecting');
+        }
+    };
+
+    const submitRegistration = async (encoding) => {
+        busyRef.current = true;
+        setRegStatus('saving');
+        stopEverything();
+        try {
+            await accountsApi.trainFace(encoding);
+            beep('success');
+            setRegStatus('done');
+            setUser({ ...user, has_face_id: true });
+            setMsg({ type: 'success', text: 'Face ID registered successfully!' });
+            setTimeout(() => setFaceRegActive(false), 2000);
+        } catch (e) {
+            beep('error');
+            setRegStatus('error');
+            const errMsg = e.response?.data?.error || 'Registration failed. Try again.';
+            setMsg({ type: 'error', text: errMsg });
+            busyRef.current = false;
+        }
+    };
+
+    useEffect(() => {
+        return () => stopEverything();
+    }, []);
+
     // Password form
     const [pwForm, setPwForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
     const setPw = (k, v) => setPwForm(p => ({ ...p, [k]: v }));
@@ -320,6 +530,101 @@ function SecurityTab({ user, setUser }) {
                         </div>
                     ))}
                 </div>
+            </div>
+
+            {/* 📸 Face ID Biometric Card */}
+            <div style={cardStyle}>
+                <p style={sectionTitle}>👤 Face ID Biometrics</p>
+                {faceRegActive ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+                        <div style={{ position: 'relative', width: 200, height: 200 }}>
+                            <svg width="200" height="200" style={{ position: 'absolute', inset: 0, transform: 'rotate(-90deg)', zIndex: 10, pointerEvents: 'none' }}>
+                                <circle cx="100" cy="100" r="92" fill="none" stroke="var(--t-border)" strokeWidth="4" />
+                                <circle
+                                    cx="100" cy="100" r="92" fill="none"
+                                    stroke="#6366f1" strokeWidth="4"
+                                    strokeDasharray={`${2 * Math.PI * 92}`}
+                                    strokeDashoffset={(() => {
+                                        const circ = 2 * Math.PI * 92;
+                                        let progress = 0;
+                                        if (regStatus === 'detecting') progress = Math.min((stableCount.current / 10) * 30, 30);
+                                        else if (regStatus === 'countdown' && regCountdown !== null) progress = 30 + ((3 - regCountdown) / 3) * 60;
+                                        else if (regStatus === 'saving') progress = 90;
+                                        else if (regStatus === 'done') progress = 100;
+                                        return circ - (circ * progress) / 100;
+                                    })()}
+                                    strokeLinecap="round"
+                                    style={{ transition: 'stroke-dashoffset 0.4s ease' }}
+                                />
+                            </svg>
+                            <div style={{
+                                position: 'absolute', inset: 8,
+                                borderRadius: '50%', overflow: 'hidden',
+                                background: '#0a0a0a',
+                                border: `2px solid ${faceDetected ? '#6366f1' : 'transparent'}`,
+                                boxShadow: faceDetected ? '0 0 15px rgba(99,102,241,0.3)' : 'none',
+                                transition: 'all 0.3s',
+                            }}>
+                                <video ref={videoRef} autoPlay muted playsInline width="640" height="480"
+                                    style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%) scaleX(-1)', height: '100%', width: 'auto', objectFit: 'cover' }}
+                                />
+                                <canvas ref={canvasRef} width="184" height="184"
+                                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 3, pointerEvents: 'none', transform: 'scaleX(-1)' }}
+                                />
+                                {regStatus === 'done' && (
+                                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(16,185,129,0.15)', zIndex: 8 }}>
+                                        <span style={{ fontSize: 48 }}>✅</span>
+                                    </div>
+                                )}
+                            </div>
+                            {regStatus === 'countdown' && regCountdown !== null && regCountdown > 0 && (
+                                <div style={{
+                                    position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    zIndex: 20, pointerEvents: 'none',
+                                }}>
+                                    <div style={{
+                                        width: 50, height: 50, borderRadius: '50%',
+                                        background: 'rgba(99,102,241,0.9)',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        fontSize: 22, fontWeight: 900, color: '#fff',
+                                        boxShadow: '0 0 15px rgba(99,102,241,0.5)',
+                                    }}>
+                                        {regCountdown}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                            <p style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 800, color: 'var(--t-text)' }}>
+                                {modelLoading ? 'Loading AI models...' : camError ? 'Camera Error' : regStatus === 'countdown' ? `Registering face in ${regCountdown}...` : regStatus === 'saving' ? 'Saving biometric Face ID...' : regStatus === 'done' ? 'Face ID Configured!' : faceDetected ? 'Hold still...' : 'Position your face in the circle'}
+                            </p>
+                            <p style={{ margin: 0, fontSize: 12, color: 'var(--t-text3)' }}>
+                                {camError ? camError : modelLoading ? 'Please wait a moment while models initialize' : 'Look directly at your camera'}
+                            </p>
+                        </div>
+                        <button type="button" onClick={closeScanner}
+                            style={{ padding: '8px 18px', borderRadius: 8, background: '#ef444415', border: '1px solid #ef444430', color: '#ef4444', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                            Cancel
+                        </button>
+                    </div>
+                ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+                        <div style={{ flex: 1 }}>
+                            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--t-text2)' }}>
+                                {user.has_face_id ? '✅ Face ID is active' : '⚠️ Face ID not registered'}
+                            </p>
+                            <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--t-text3)', lineHeight: 1.5 }}>
+                                {user.has_face_id 
+                                    ? 'Face ID is configured for your account. You can use biometric facial login to sign in instantly.' 
+                                    : 'Enable secure passwordless login by registering your face signature using your device camera.'}
+                            </p>
+                        </div>
+                        <button type="button" onClick={startFaceRegistration}
+                            style={{ padding: '10px 20px', borderRadius: 10, background: '#6366f1', color: '#fff', fontWeight: 900, fontSize: 13, border: 'none', cursor: 'pointer', flexShrink: 0 }}>
+                            {user.has_face_id ? '📷 Re-register Face ID' : '📷 Set Up Face ID'}
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Change Password */}

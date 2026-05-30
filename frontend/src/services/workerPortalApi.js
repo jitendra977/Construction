@@ -240,6 +240,17 @@ const workerPortalApi = {
             quantity,
             notes,
         }).then(r => r.data),
+
+    /**
+     * Train and register worker face signature.
+     * POST /api/v1/biometrics/train/
+     */
+    registerFace: (encoding) => {
+        const token = localStorage.getItem(PORTAL_ACCESS_KEY);
+        return axios.post(`${API_URL}/biometrics/train/`, { encoding }, {
+            headers: { Authorization: `Bearer ${token}` }
+        }).then(r => r.data);
+    },
 };
 
 export default workerPortalApi;

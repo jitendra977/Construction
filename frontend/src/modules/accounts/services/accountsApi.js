@@ -16,6 +16,8 @@ export const updateProfile       = (data)     => http.patch('auth/profile/', dat
 });
 export const changePassword      = (data)     => http.post('accounts/change-password/', data);
 export const changeEmail         = (data)     => http.post('accounts/change-email/', data);
+export const trainFace           = (encoding, userId = null) => http.post('biometrics/train/', { encoding, user_id: userId });
+export const deleteFace          = (userId = null) => http.post('biometrics/delete/', { user_id: userId });
 
 // ── Users ─────────────────────────────────────────────────────────────────────
 export const getUsers            = ()         => http.get('accounts/users/');
@@ -57,7 +59,7 @@ export const getActivityLogs     = (params={}) => {
 
 const accountsApi = {
     getStats,
-    getProfile, updateProfile, changePassword, changeEmail,
+    getProfile, updateProfile, changePassword, changeEmail, trainFace, deleteFace,
     getUsers, getUser, createUser, updateUser, deleteUser,
     activateUser, deactivateUser, resetUserPassword, inviteUser,
     getUserProjects, setUserProject,

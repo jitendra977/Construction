@@ -122,8 +122,7 @@ urlpatterns = [
     path('api/v1/telegram-bot/', include('apps.telegram_bot.urls')),
 ]
 
-# Serve media files in development
-if settings.DEBUG:
-    urlpatterns += [
-        path('media/<path:path>', xframe_options_exempt(serve), {'document_root': settings.MEDIA_ROOT}),
-    ]
+# Serve media files in all environments
+urlpatterns += [
+    path('media/<path:path>', xframe_options_exempt(serve), {'document_root': settings.MEDIA_ROOT}),
+]

@@ -22,7 +22,20 @@ def euclidean_distance(v1, v2):
     A distance of 0.0 means identical signatures. A lower distance indicates high similarity.
     Typically, a distance <= 0.55 guarantees an extremely secure match.
     """
-    return math.sqrt(sum((x - y) ** 2 for x, y in zip(v1, v2)))
+    import json
+    if isinstance(v1, str):
+        try: v1 = json.loads(v1)
+        except: pass
+    if isinstance(v2, str):
+        try: v2 = json.loads(v2)
+        except: pass
+    try:
+        v1_floats = [float(x) for x in v1]
+        v2_floats = [float(x) for x in v2]
+        return math.sqrt(sum((x - y) ** 2 for x, y in zip(v1_floats, v2_floats)))
+    except Exception:
+        return float('inf')
+
 
 class FaceTrainingView(APIView):
     """
@@ -112,6 +125,58 @@ class FaceTrainingView(APIView):
             logger.error("Failed to train biometric face signature for user %s: %s", target_user.username, e)
             return Response({
                 "error": "Failed to save biometric signature on the server."
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class FaceDeleteView(APIView):
+    """
+    Endpoint to remove Face ID biometrics signature for a user.
+    Path: /api/v1/biometrics/delete/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        target_user_id = request.data.get('user_id')
+        target_user = request.user
+
+        if target_user_id:
+            # Administrators can delete anyone's Face ID
+            if not (request.user.is_staff or request.user.is_superuser or getattr(request.user, 'is_system_admin', False)):
+                return Response({
+                    "error": "You do not have permission to remove biometrics for other users."
+                }, status=status.HTTP_403_FORBIDDEN)
+            try:
+                target_user = User.objects.get(id=target_user_id)
+            except User.DoesNotExist:
+                return Response({
+                    "error": f"Target user with ID {target_user_id} does not exist."
+                }, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            if hasattr(target_user, 'face_signature') and target_user.face_signature:
+                target_user.face_signature.delete()
+                
+                log_activity(
+                    request,
+                    request.user,
+                    'DELETE_BIOMETRIC',
+                    'UserFaceSignature',
+                    object_repr=target_user.email,
+                    description=f"Removed biometric face signature for user {target_user.username}."
+                )
+                
+                return Response({
+                    "status": "success",
+                    "message": "Biometric face signature removed successfully."
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    "error": "This user does not have a Face ID registered."
+                }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error("Failed to delete biometric face signature: %s", e)
+            return Response({
+                "error": "Failed to remove Face ID on the server."
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

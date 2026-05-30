@@ -19,6 +19,21 @@ function statusColor(p) {
     return             { bg: 'rgba(34,197,94,0.08)',     text: '#16a34a', bar: '#22c55e', border: 'rgba(34,197,94,0.25)'  };
 }
 
+function phaseColor(order) {
+    const colors = {
+        1: { bg: 'rgba(59,130,246,0.08)',   text: '#3b82f6', border: 'rgba(59,130,246,0.2)' },   // Blue
+        2: { bg: 'rgba(99,102,241,0.08)',  text: '#6366f1', border: 'rgba(99,102,241,0.2)' },  // Indigo
+        3: { bg: 'rgba(139,92,246,0.08)',  text: '#8b5cf6', border: 'rgba(139,92,246,0.2)' },  // Violet
+        4: { bg: 'rgba(168,85,247,0.08)',  text: '#a855f7', border: 'rgba(168,85,247,0.2)' },  // Purple
+        5: { bg: 'rgba(236,72,153,0.08)',  text: '#ec4899', border: 'rgba(236,72,153,0.2)' },  // Pink
+        6: { bg: 'rgba(16,185,129,0.08)',  text: '#10b981', border: 'rgba(16,185,129,0.2)' },  // Emerald
+        7: { bg: 'rgba(249,115,22,0.08)',  text: '#f97316', border: 'rgba(249,115,22,0.2)' },  // Orange
+        8: { bg: 'rgba(245,158,11,0.08)',  text: '#f59e0b', border: 'rgba(245,158,11,0.2)' },  // Amber
+    };
+    return colors[order] || { bg: 'rgba(107,114,128,0.08)', text: '#6b7280', border: 'rgba(107,114,128,0.2)' }; // Gray
+}
+
+
 /* ── slide-up sheet ───────────────────────────────────────────────────────── */
 function Sheet({ open, onClose, title, children }) {
     useEffect(() => {
@@ -469,160 +484,419 @@ function BudgetCard({ cat, onEdit }) {
 }
 
 /* ── budget table ─────────────────────────────────────────────────────────── */
-function BudgetTable({ categories, phases, onEdit, onDragReorder, onInlineSave }) {
-    const [draggedIdx, setDraggedIdx] = useState(null);
-    const [overIdx, setOverIdx] = useState(null);
+function BudgetTable({ categories, phases, onEdit, onInlineSave }) {
     const [editId, setEditId] = useState(null);
     const [editVal, setEditVal] = useState("");
 
-    const handleDragStart = (e, index) => {
-        setDraggedIdx(index);
-        e.dataTransfer.effectAllowed = 'move';
-        setTimeout(() => { if (e.target) e.target.style.opacity = '0.4'; }, 0);
-    };
+    // Dynamic grouping of categories by Phase
+    const grouped = useMemo(() => {
+        const map = {};
+        
+        // Pre-register active phases to maintain solid database order
+        phases.forEach(p => {
+            map[p.id] = {
+                phase: p,
+                items: []
+            };
+        });
+        
+        const unassignedKey = 'unassigned';
+        
+        categories.forEach(cat => {
+            const allocs = cat.phase_allocations || [];
+            if (allocs.length === 0) {
+                if (!map[unassignedKey]) {
+                    map[unassignedKey] = {
+                        phase: { id: unassignedKey, name: 'Unassigned / General', order: 99 },
+                        items: []
+                    };
+                }
+                map[unassignedKey].items.push(cat);
+            } else {
+                allocs.forEach(a => {
+                    const phaseId = a.phase;
+                    if (!map[phaseId]) {
+                        map[phaseId] = {
+                            phase: { id: phaseId, name: a.phase_name || 'Unknown Phase', order: 90 },
+                            items: []
+                        };
+                    }
+                    map[phaseId].items.push(cat);
+                });
+            }
+        });
+        
+        // Filter out empty groups and sort by phase order
+        return Object.values(map)
+            .filter(g => g.items.length > 0)
+            .sort((a, b) => (a.phase.order || 0) - (b.phase.order || 0));
+    }, [categories, phases]);
 
-    const handleDragEnter = (e, index) => {
-        e.preventDefault();
-        if (draggedIdx !== null && draggedIdx !== index) {
-            setOverIdx(index);
-        }
-    };
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24, marginBottom: 24 }}>
+            {grouped.map(({ phase, items }) => {
+                const order = phase.order || 99;
+                const pc = phaseColor(order);
+                const totalEst = items.reduce((s, c) => s + Number(c.allocation || 0), 0);
+                const totalSpent = items.reduce((s, c) => s + Number(c.total_spent || 0), 0);
+                const totalRem = totalEst - totalSpent;
 
-    const handleDragOver = (e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-    };
+                return (
+                    <div 
+                        key={phase.id} 
+                        style={{ 
+                            background: 'var(--t-surface)', 
+                            border: '1px solid var(--t-border)', 
+                            borderRadius: 16, 
+                            overflow: 'hidden', 
+                            boxShadow: '0 4px 20px rgba(0,0,0,0.02)' 
+                        }}
+                    >
+                        {/* Dynamic Phase Header Bar */}
+                        <div style={{ 
+                            padding: '12px 18px', 
+                            background: pc.bg, 
+                            borderBottom: '1px solid var(--t-border)', 
+                            borderLeft: `5px solid ${pc.text}`,
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: 12
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ 
+                                    fontSize: 9, 
+                                    padding: '2px 8px', 
+                                    borderRadius: 10, 
+                                    background: 'var(--t-surface)', 
+                                    border: `1px solid ${pc.border}`, 
+                                    color: pc.text, 
+                                    fontWeight: 900, 
+                                    textTransform: 'uppercase' 
+                                }}>
+                                    Phase {order}
+                                </span>
+                                <h3 style={{ margin: 0, fontSize: 14, fontWeight: 900, color: 'var(--t-text)' }}>
+                                    {phase.name}
+                                </h3>
+                            </div>
+                            
+                            {/* Phase Totals Summary */}
+                            <div style={{ display: 'flex', gap: 16, fontSize: 11, fontWeight: 800 }}>
+                                <span style={{ color: 'var(--t-text2)' }}>
+                                    Estimated: <span style={{ fontFamily: 'var(--f-mono)', color: 'var(--t-text)' }}>₨{fmt(totalEst)}</span>
+                                </span>
+                                <span style={{ color: pc.text }}>
+                                    Spent: <span style={{ fontFamily: 'var(--f-mono)' }}>₨{fmt(totalSpent)}</span>
+                                </span>
+                                <span style={{ color: totalRem < 0 ? '#ef4444' : '#16a34a' }}>
+                                    Remaining: <span style={{ fontFamily: 'var(--f-mono)' }}>₨{fmt(totalRem)}</span>
+                                </span>
+                            </div>
+                        </div>
 
-    const handleDrop = (e, index) => {
-        e.preventDefault();
-        if (draggedIdx !== null && draggedIdx !== index) {
-            onDragReorder(draggedIdx, index);
-        }
-        setDraggedIdx(null);
-        setOverIdx(null);
-        if (e.target.closest('tr')) e.target.closest('tr').style.opacity = '1';
-    };
+                        <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 600 }}>
+                                <thead>
+                                    <tr style={{ borderBottom: '1px solid var(--t-border)', background: 'var(--t-surface2)' }}>
+                                        <th style={{ padding: '10px 14px', fontSize: 10, fontWeight: 900, color: 'var(--t-text3)', textTransform: 'uppercase', letterSpacing: '0.05em', paddingLeft: 18 }}>Category</th>
+                                        <th style={{ padding: '10px 14px', fontSize: 10, fontWeight: 900, color: 'var(--t-text3)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Estimated</th>
+                                        <th style={{ padding: '10px 14px', fontSize: 10, fontWeight: 900, color: 'var(--t-text3)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Actual Spent</th>
+                                        <th style={{ padding: '10px 14px', fontSize: 10, fontWeight: 900, color: 'var(--t-text3)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Variance</th>
+                                        <th style={{ padding: '10px 14px', fontSize: 10, fontWeight: 900, color: 'var(--t-text3)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Status</th>
+                                        <th style={{ padding: '10px 14px', fontSize: 10, fontWeight: 900, color: 'var(--t-text3)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {items.map((cat) => {
+                                        const spent = Number(cat.total_spent || 0);
+                                        const alloc = Number(cat.allocation || 0);
+                                        const remaining = alloc - spent;
+                                        const p = pct(spent, alloc);
+                                        const sc = statusColor(p);
 
-    const handleDragEnd = (e) => {
-        if (e.target) e.target.style.opacity = '1';
-        setDraggedIdx(null);
-        setOverIdx(null);
+                                        return (
+                                            <tr key={cat.id} style={{ borderBottom: '1px solid var(--t-border)', background: 'transparent', transition: 'background 0.2s' }}>
+                                                <td style={{ padding: '12px 14px', paddingLeft: 18 }}>
+                                                    <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: 'var(--t-text)' }}>{cat.name}</p>
+                                                    {cat.description && (
+                                                        <p style={{ margin: '2px 0 0', fontSize: 10, color: 'var(--t-text3)' }}>{cat.description}</p>
+                                                    )}
+                                                </td>
+                                                <td 
+                                                    style={{ padding: '12px 14px', textAlign: 'right', cursor: 'text' }}
+                                                    onClick={() => {
+                                                        if (editId !== cat.id) {
+                                                            setEditId(cat.id);
+                                                            setEditVal(alloc.toString());
+                                                        }
+                                                    }}
+                                                >
+                                                    {editId === cat.id ? (
+                                                        <input 
+                                                            autoFocus
+                                                            type="number"
+                                                            value={editVal}
+                                                            onChange={e => setEditVal(e.target.value)}
+                                                            onBlur={() => {
+                                                                const amt = Number(editVal) || 0;
+                                                                if (amt !== alloc) onInlineSave(cat, amt);
+                                                                setEditId(null);
+                                                            }}
+                                                            onKeyDown={e => {
+                                                                if (e.key === 'Enter') {
+                                                                    const amt = Number(editVal) || 0;
+                                                                    if (amt !== alloc) onInlineSave(cat, amt);
+                                                                    setEditId(null);
+                                                                }
+                                                                if (e.key === 'Escape') setEditId(null);
+                                                            }}
+                                                            style={{ width: 80, padding: '4px 6px', textAlign: 'right', fontSize: 12, fontFamily: 'var(--f-mono)', border: '1px solid #3b82f6', borderRadius: 4, outline: 'none' }}
+                                                        />
+                                                    ) : (
+                                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }} title="Click to quick-edit">
+                                                            <span style={{ fontSize: 10, color: 'var(--t-text3)', opacity: 0.5 }}>✎</span>
+                                                            <p style={{ margin: 0, fontSize: 12, fontWeight: 800, color: 'var(--t-text2)', fontFamily: 'var(--f-mono)' }}>{fmt(alloc)}</p>
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                                                    <p style={{ margin: 0, fontSize: 12, fontWeight: 800, color: sc.text, fontFamily: 'var(--f-mono)' }}>{fmt(spent)}</p>
+                                                </td>
+                                                <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                                                    <p style={{ margin: 0, fontSize: 12, fontWeight: 900, color: remaining < 0 ? '#ef4444' : '#16a34a', fontFamily: 'var(--f-mono)' }}>
+                                                        {remaining < 0 ? '−' : '+'}{fmt(Math.abs(remaining))}
+                                                    </p>
+                                                </td>
+                                                <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                                                    {alloc > 0 ? (
+                                                        <span style={{ fontSize: 9, padding: '3px 8px', borderRadius: 20, background: sc.bg, color: sc.text, border: `1px solid ${sc.border}`, fontWeight: 900 }}>
+                                                            {p.toFixed(0)}%
+                                                        </span>
+                                                    ) : (
+                                                        <span style={{ fontSize: 9, color: '#d97706', fontWeight: 700 }}>⚠ Set Budget</span>
+                                                    )}
+                                                </td>
+                                                <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                                                    <button onClick={() => onEdit(cat)} style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid var(--t-border)', background: 'var(--t-surface2)', color: 'var(--t-text3)', fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>✏️</button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+/* ── phase-grouped budget view ────────────────────────────────────────────── */
+function PhaseGroupedView({ phaseGroups, onEditCategory }) {
+    const [expandedPhases, setExpandedPhases] = useState({});
+
+    const togglePhase = (phaseId) => {
+        setExpandedPhases(prev => ({
+            ...prev,
+            [phaseId]: !prev[phaseId]
+        }));
     };
 
     return (
-        <div style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)', borderRadius: 14, overflow: 'hidden', marginBottom: 14 }}>
-            <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 600 }}>
-                    <thead>
-                        <tr style={{ borderBottom: '1px solid var(--t-border)', background: 'var(--t-surface2)' }}>
-                            <th style={{ padding: '12px 14px', fontSize: 10, fontWeight: 900, color: 'var(--t-text3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Category</th>
-                            <th style={{ padding: '12px 14px', fontSize: 10, fontWeight: 900, color: 'var(--t-text3)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Estimated</th>
-                            <th style={{ padding: '12px 14px', fontSize: 10, fontWeight: 900, color: 'var(--t-text3)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Actual Spent</th>
-                            <th style={{ padding: '12px 14px', fontSize: 10, fontWeight: 900, color: 'var(--t-text3)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Variance</th>
-                            <th style={{ padding: '12px 14px', fontSize: 10, fontWeight: 900, color: 'var(--t-text3)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Status</th>
-                            <th style={{ padding: '12px 14px', width: 40, textAlign: 'center' }}></th>
-                            <th style={{ padding: '12px 14px', fontSize: 10, fontWeight: 900, color: 'var(--t-text3)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {categories.map((cat, index) => {
-                            const spent = Number(cat.total_spent || 0);
-                            const alloc = Number(cat.allocation || 0);
-                            const remaining = alloc - spent;
-                            const p = pct(spent, alloc);
-                            const sc = statusColor(p);
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 24 }}>
+            {phaseGroups.map(({ phase, categories, totalEst, totalSpent }) => {
+                const totalRem = totalEst - totalSpent;
+                const p = pct(totalSpent, totalEst);
+                const sc = statusColor(p);
+                const isExpanded = !!expandedPhases[phase.id];
 
-                            const isOver = overIdx === index;
-                            const isDragged = draggedIdx === index;
+                return (
+                    <div 
+                        key={phase.id} 
+                        style={{ 
+                            background: 'var(--t-surface)', 
+                            border: '1px solid var(--t-border)', 
+                            borderRadius: 16, 
+                            overflow: 'hidden', 
+                            boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
+                            transition: 'transform 0.2s, box-shadow 0.2s',
+                        }}
+                    >
+                        {/* Phase Header Section */}
+                        <div 
+                            onClick={() => togglePhase(phase.id)} 
+                            style={{ 
+                                padding: '16px 18px', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'space-between', 
+                                cursor: 'pointer',
+                                background: 'var(--t-surface2)',
+                                borderBottom: isExpanded ? '1px solid var(--t-border)' : 'none',
+                                userSelect: 'none'
+                            }}
+                        >
+                            <div style={{ flex: 1, minWidth: 0, marginRight: 16 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                    <span style={{ 
+                                        fontSize: 9, 
+                                        padding: '3px 8px', 
+                                        borderRadius: 20, 
+                                        background: 'rgba(59,130,246,0.08)', 
+                                        color: '#3b82f6', 
+                                        border: '1px solid rgba(59,130,246,0.2)', 
+                                        fontWeight: 900 
+                                    }}>
+                                        Phase {phase.order || 'General'}
+                                    </span>
+                                    {totalEst > 0 && (
+                                        <span style={{ 
+                                            fontSize: 9, 
+                                            padding: '3px 8px', 
+                                            borderRadius: 20, 
+                                            background: sc.bg, 
+                                            color: sc.text, 
+                                            border: `1px solid ${sc.border}`, 
+                                            fontWeight: 900 
+                                        }}>
+                                            {p.toFixed(0)}% utilised
+                                        </span>
+                                    )}
+                                </div>
+                                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 900, color: 'var(--t-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {phase.name}
+                                </h3>
+                                {phase.description && (
+                                    <p style={{ margin: '3px 0 0', fontSize: 11, color: 'var(--t-text3)' }}>
+                                        {phase.description}
+                                    </p>
+                                )}
+                            </div>
 
-                            return (
-                                <tr 
-                                    key={cat.id} 
-                                    draggable
-                                    onDragStart={(e) => handleDragStart(e, index)}
-                                    onDragEnter={(e) => handleDragEnter(e, index)}
-                                    onDragOver={handleDragOver}
-                                    onDrop={(e) => handleDrop(e, index)}
-                                    onDragEnd={handleDragEnd}
-                                    style={{
-                                        borderTop:    isOver && draggedIdx > index  ? '2px solid #3b82f6' : undefined,
-                                        borderBottom: isOver && draggedIdx < index  ? '2px solid #3b82f6' : '1px solid var(--t-border)',
-                                        background:   isDragged ? 'var(--t-surface2)' : isOver ? 'rgba(59,130,246,0.05)' : 'transparent',
-                                        transition:   'background 0.2s',
-                                        cursor:       'grab'
-                                    }}
-                                >
-                                    <td style={{ padding: '12px 14px' }}>
-                                        <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: 'var(--t-text)' }}>{cat.name}</p>
-                                    </td>
-                                    <td 
-                                        style={{ padding: '12px 14px', textAlign: 'right', cursor: 'text' }}
-                                        onClick={() => {
-                                            if (editId !== cat.id) {
-                                                setEditId(cat.id);
-                                                setEditVal(alloc.toString());
-                                            }
-                                        }}
-                                    >
-                                        {editId === cat.id ? (
-                                            <input 
-                                                autoFocus
-                                                type="number"
-                                                value={editVal}
-                                                onChange={e => setEditVal(e.target.value)}
-                                                onBlur={() => {
-                                                    const amt = Number(editVal) || 0;
-                                                    if (amt !== alloc) onInlineSave(cat, amt);
-                                                    setEditId(null);
-                                                }}
-                                                onKeyDown={e => {
-                                                    if (e.key === 'Enter') {
-                                                        const amt = Number(editVal) || 0;
-                                                        if (amt !== alloc) onInlineSave(cat, amt);
-                                                        setEditId(null);
-                                                    }
-                                                    if (e.key === 'Escape') setEditId(null);
-                                                }}
-                                                style={{ width: 80, padding: '4px 6px', textAlign: 'right', fontSize: 12, fontFamily: 'var(--f-mono)', border: '1px solid #3b82f6', borderRadius: 4, outline: 'none' }}
-                                            />
-                                        ) : (
-                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }} title="Click to quick-edit">
-                                                <span style={{ fontSize: 10, color: 'var(--t-text3)', opacity: 0.5 }}>✎</span>
-                                                <p style={{ margin: 0, fontSize: 12, fontWeight: 800, color: 'var(--t-text2)', fontFamily: 'var(--f-mono)' }}>{fmt(alloc)}</p>
-                                            </div>
-                                        )}
-                                    </td>
-                                    <td style={{ padding: '12px 14px', textAlign: 'right' }}>
-                                        <p style={{ margin: 0, fontSize: 12, fontWeight: 800, color: sc.text, fontFamily: 'var(--f-mono)' }}>{fmt(spent)}</p>
-                                    </td>
-                                    <td style={{ padding: '12px 14px', textAlign: 'right' }}>
-                                        <p style={{ margin: 0, fontSize: 12, fontWeight: 900, color: remaining < 0 ? '#ef4444' : '#16a34a', fontFamily: 'var(--f-mono)' }}>
-                                            {remaining < 0 ? '−' : '+'}{fmt(Math.abs(remaining))}
-                                        </p>
-                                    </td>
-                                    <td style={{ padding: '12px 14px', textAlign: 'center' }}>
-                                        {alloc > 0 ? (
-                                            <span style={{ fontSize: 9, padding: '3px 8px', borderRadius: 20, background: sc.bg, color: sc.text, border: `1px solid ${sc.border}`, fontWeight: 900 }}>
-                                                {p.toFixed(0)}%
-                                            </span>
-                                        ) : (
-                                            <span style={{ fontSize: 9, color: '#d97706', fontWeight: 700 }}>⚠ Set Budget</span>
-                                        )}
-                                    </td>
-                                    <td style={{ padding: '12px 14px', textAlign: 'center' }}>
-                                        <div style={{ color: 'var(--t-text3)', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                            <span style={{ cursor: 'grab' }}>⠿</span>
-                                        </div>
-                                    </td>
-                                    <td style={{ padding: '12px 14px', textAlign: 'center' }}>
-                                        <button onClick={() => onEdit(cat)} style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid var(--t-border)', background: 'var(--t-surface2)', color: 'var(--t-text3)', fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>✏️</button>
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
-            </div>
+                            {/* Phase Summary Figures */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+                                <div style={{ textAlign: 'right', display: 'none', '@media (min-width: 640px)': { display: 'block' } } /* inline fallback style */}>
+                                    <p style={{ margin: 0, fontSize: 8, fontWeight: 800, color: 'var(--t-text3)', textTransform: 'uppercase' }}>Estimated</p>
+                                    <p style={{ margin: 0, fontSize: 13, fontWeight: 900, color: 'var(--t-text)', fontFamily: 'var(--f-mono)' }}>₨{fmt(totalEst)}</p>
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                    <p style={{ margin: 0, fontSize: 8, fontWeight: 800, color: 'var(--t-text3)', textTransform: 'uppercase' }}>Spent</p>
+                                    <p style={{ margin: 0, fontSize: 13, fontWeight: 900, color: sc.text, fontFamily: 'var(--f-mono)' }}>₨{fmt(totalSpent)}</p>
+                                </div>
+                                <div style={{ 
+                                    width: 32, 
+                                    height: 32, 
+                                    borderRadius: '50%', 
+                                    background: 'var(--t-surface)', 
+                                    border: '1px solid var(--t-border)', 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justify: 'center', 
+                                    fontSize: 12, 
+                                    fontWeight: 900, 
+                                    color: 'var(--t-text2)',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    transform: isExpanded ? 'rotate(180deg)' : 'none',
+                                    transition: 'transform 0.2s'
+                                }}>
+                                    ▼
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Progress Bar under header */}
+                        {totalEst > 0 && (
+                            <div style={{ height: 4, background: 'var(--t-border)', position: 'relative' }}>
+                                <div style={{ height: '100%', width: `${p}%`, background: sc.bar, transition: 'width 0.4s' }} />
+                            </div>
+                        )}
+
+                        {/* Collapsible Categories Grid */}
+                        {isExpanded && (
+                            <div style={{ padding: '16px 18px', background: 'var(--t-surface)', borderTop: '1px solid var(--t-border)' }}>
+                                {categories.length === 0 ? (
+                                    <p style={{ margin: 0, fontSize: 12, color: 'var(--t-text3)', fontStyle: 'italic', textAlign: 'center', padding: '12px 0' }}>
+                                        No categories allocated to this phase.
+                                    </p>
+                                ) : (
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+                                        {categories.map(({ cat, amount, spent: catSpent }) => {
+                                            const remaining = amount - catSpent;
+                                            const catP = pct(catSpent, amount);
+                                            const catSc = statusColor(catP);
+
+                                            return (
+                                                <div 
+                                                    key={cat.id} 
+                                                    style={{ 
+                                                        background: 'var(--t-surface2)', 
+                                                        border: '1px solid var(--t-border)', 
+                                                        borderRadius: 12, 
+                                                        padding: 12,
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        justifyContent: 'space-between'
+                                                    }}
+                                                >
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+                                                        <div style={{ minWidth: 0 }}>
+                                                            <p style={{ margin: 0, fontSize: 13, fontWeight: 900, color: 'var(--t-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                {cat.name}
+                                                            </p>
+                                                            {cat.description && (
+                                                                <p style={{ margin: '2px 0 0', fontSize: 10, color: 'var(--t-text3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                    {cat.description}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); onEditCategory(cat); }} 
+                                                            style={{ 
+                                                                width: 24, 
+                                                                height: 24, 
+                                                                borderRadius: 6, 
+                                                                border: '1px solid var(--t-border)', 
+                                                                background: 'var(--t-surface)', 
+                                                                fontSize: 10, 
+                                                                cursor: 'pointer', 
+                                                                display: 'flex', 
+                                                                alignItems: 'center', 
+                                                                justifyContent: 'center' 
+                                                            }}
+                                                        >
+                                                            ✏️
+                                                        </button>
+                                                    </div>
+
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }}>
+                                                        <span style={{ color: 'var(--t-text3)' }}>Allocated: <b>₨{fmt(amount)}</b></span>
+                                                        <span style={{ color: catSc.text, fontWeight: 700 }}>Spent: ₨{fmt(catSpent)}</span>
+                                                    </div>
+
+                                                    <div style={{ height: 5, borderRadius: 2, background: 'var(--t-border)', overflow: 'hidden', marginBottom: 6 }}>
+                                                        <div style={{ height: '100%', width: `${catP}%`, background: catSc.bar }} />
+                                                    </div>
+
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 10 }}>
+                                                        <span style={{ color: 'var(--t-text3)' }}>Variance:</span>
+                                                        <span style={{ fontWeight: 800, color: remaining < 0 ? '#ef4444' : '#16a34a' }}>
+                                                            {remaining < 0 ? '−' : '+'}₨{fmt(Math.abs(remaining))}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
         </div>
     );
 }
@@ -682,7 +956,7 @@ export default function BudgetPage() {
     const [fetching,      setFetching]      = useState(false);
     const [sheetOpen,     setSheetOpen]     = useState(false);
     const [editing,       setEditing]       = useState(null);
-    const [viewMode,      setViewMode]      = useState('table');
+    const [viewMode,      setViewMode]      = useState('table'); // 'table', 'cards', 'phases'
 
     // Enrich categories with any legacy spent already present in dashboardData
     // so the page shows correct numbers even before the next backend aggregation.
@@ -705,6 +979,67 @@ export default function BudgetPage() {
             };
         });
     }, [rawCategories, dashboardData?.budgetCategories, dashboardData?.expenses]);
+
+    // Proportional Phase grouping computation
+    const phaseGroups = useMemo(() => {
+        const map = {};
+        
+        // Pre-initialize phases from DB to keep order solid
+        phases.forEach(p => {
+            map[p.id] = {
+                phase: p,
+                categories: [],
+                totalEst: 0,
+                totalSpent: 0
+            };
+        });
+
+        const unassignedKey = 'unassigned';
+
+        categories.forEach(cat => {
+            const allocs = cat.phase_allocations || [];
+            if (allocs.length === 0) {
+                if (!map[unassignedKey]) {
+                    map[unassignedKey] = {
+                        phase: { id: unassignedKey, name: 'Unassigned / General', order: 99 },
+                        categories: [],
+                        totalEst: 0,
+                        totalSpent: 0
+                    };
+                }
+                const spent = Number(cat.total_spent || 0);
+                const alloc = Number(cat.allocation || 0);
+                map[unassignedKey].categories.push({ cat, amount: alloc, spent });
+                map[unassignedKey].totalEst += alloc;
+                map[unassignedKey].totalSpent += spent;
+            } else {
+                allocs.forEach(a => {
+                    const phaseId = a.phase;
+                    if (!map[phaseId]) {
+                        map[phaseId] = {
+                            phase: { id: phaseId, name: a.phase_name || 'Unknown Phase', order: 90 },
+                            categories: [],
+                            totalEst: 0,
+                            totalSpent: 0
+                        };
+                    }
+
+                    const allocAmount = Number(a.amount || 0);
+                    const catTotalAlloc = Number(cat.allocation || 0);
+                    const proportion = catTotalAlloc > 0 ? (allocAmount / catTotalAlloc) : 1;
+                    const spentAmount = Number(cat.total_spent || 0) * proportion;
+
+                    map[phaseId].categories.push({ cat, amount: allocAmount, spent: spentAmount });
+                    map[phaseId].totalEst += allocAmount;
+                    map[phaseId].totalSpent += spentAmount;
+                });
+            }
+        });
+
+        return Object.values(map)
+            .filter(item => item.totalEst > 0 || item.categories.length > 0)
+            .sort((a, b) => (a.phase.order || 0) - (b.phase.order || 0));
+    }, [categories, phases]);
 
     const load = async () => {
         setFetching(true);
@@ -763,11 +1098,33 @@ export default function BudgetPage() {
                 subtitle="Category allocations & spend tracking"
                 actions={
                     <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={() => setViewMode(v => v === 'table' ? 'cards' : 'table')} style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid var(--t-border)', background: 'var(--t-surface2)', color: 'var(--t-text2)', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
-                            {viewMode === 'table' ? '📱 Card View' : '📋 Table View'}
-                        </button>
-                        <button onClick={openNew} style={{ padding: '8px 16px', borderRadius: 10, border: 'none', background: 'var(--t-text)', color: 'var(--t-bg)', fontSize: 12, fontWeight: 900, cursor: 'pointer' }}>
-                            🎯 Add Category
+                        <div style={{ display: 'flex', background: 'var(--t-surface2)', borderRadius: 10, padding: 3, border: '1px solid var(--t-border)' }}>
+                            {[
+                                { key: 'table', label: '📋 Table View' },
+                                { key: 'cards', label: '📱 Card View' }
+                            ].map(opt => (
+                                <button 
+                                    key={opt.key}
+                                    onClick={() => setViewMode(opt.key)}
+                                    style={{
+                                        padding: '6px 14px',
+                                        borderRadius: 8,
+                                        border: 'none',
+                                        background: viewMode === opt.key ? 'var(--t-surface)' : 'transparent',
+                                        color: viewMode === opt.key ? 'var(--t-text)' : 'var(--t-text2)',
+                                        fontSize: 11,
+                                        fontWeight: 800,
+                                        cursor: 'pointer',
+                                        boxShadow: viewMode === opt.key ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    {opt.label}
+                                </button>
+                            ))}
+                        </div>
+                        <button onClick={openNew} style={{ padding: '8px 16px', borderRadius: 10, border: 'none', background: 'var(--t-text)', color: 'var(--t-bg)', fontSize: 12, fontWeight: 900, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span>🎯</span> Add Category
                         </button>
                     </div>
                 }
@@ -789,7 +1146,7 @@ export default function BudgetPage() {
             ) : (
                 <>
                     <SummaryBar categories={categories} />
-                    {viewMode === 'table' ? (
+                    {viewMode === 'table' && (
                         <BudgetTable 
                             categories={categories} 
                             phases={phases}
@@ -797,7 +1154,8 @@ export default function BudgetPage() {
                             onDragReorder={handleMove}
                             onInlineSave={handleInlineSave}
                         />
-                    ) : (
+                    )}
+                    {viewMode === 'cards' && (
                         categories.map(cat => (
                             <BudgetCard key={cat.id} cat={cat} onEdit={openEdit} />
                         ))
@@ -819,3 +1177,4 @@ export default function BudgetPage() {
         </div>
     );
 }
+
