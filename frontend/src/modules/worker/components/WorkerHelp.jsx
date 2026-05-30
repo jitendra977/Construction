@@ -146,6 +146,7 @@ export default function WorkerHelp() {
                                         <p style={{ margin: 0, fontSize: 14, color: '#cbd5e1', lineHeight: 1.6 }}>
                                             यो तपाईंको मुख्य पृष्ठ हो। काममा आएपछि र फर्कने बेलामा <strong>'Clock In'</strong> र <strong>'Clock Out'</strong> बटन थिचेर दैनिक हाजिरी गर्नुहोस्।
                                         </p>
+                                        <img src="/images/worker_home_screen_nepali_1780138051410.png" alt="Home Screen" style={{ width: '100%', marginTop: 12, borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)' }} />
                                     </div>
                                 </div>
                             </div>
@@ -158,6 +159,7 @@ export default function WorkerHelp() {
                                         <p style={{ margin: 0, fontSize: 14, color: '#cbd5e1', lineHeight: 1.6 }}>
                                             सुपरभाइजरले तपाईंलाई दिएको आजको कामको सूची यहाँ देखिन्छ। काम सकिएपछि यसलाई <strong>'Complete'</strong> गर्न नभुल्नुहोला।
                                         </p>
+                                        <img src="/images/worker_tasks_screen_nepali_1780138066449.png" alt="Tasks Screen" style={{ width: '100%', marginTop: 12, borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)' }} />
                                     </div>
                                 </div>
                             </div>
@@ -170,6 +172,7 @@ export default function WorkerHelp() {
                                         <p style={{ margin: 0, fontSize: 14, color: '#cbd5e1', lineHeight: 1.6 }}>
                                             साइटमा भएको प्रगति र नयाँ कामको फोटो सीधै मोबाइलको क्यामेराबाट खिचेर सुरक्षित रूपमा पठाउन सकिन्छ।
                                         </p>
+                                        <img src="/images/worker_photos_screen_nepali_1780138097561.png" alt="Photos Screen" style={{ width: '100%', marginTop: 12, borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)' }} />
                                     </div>
                                 </div>
                             </div>
@@ -182,6 +185,7 @@ export default function WorkerHelp() {
                                         <p style={{ margin: 0, fontSize: 14, color: '#cbd5e1', lineHeight: 1.6 }}>
                                             आफ्नो परिचय पत्र (QR Badge), महिनाभरिको हाजिरीको विवरण (Attendance Log), र कुल तलब (Payroll) आफैंले हेर्न सक्नुहुन्छ।
                                         </p>
+                                        <img src="/images/worker_profile_screen_nepali_1780138113231.png" alt="Profile Screen" style={{ width: '100%', marginTop: 12, borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)' }} />
                                     </div>
                                 </div>
                             </div>
