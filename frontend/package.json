@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "lint": "eslint . --max-warnings -1",
-    "lint:ci": "eslint . --max-warnings -1",
+    "lint": "eslint .",
+    "lint:ci": "eslint .",
     "lint:strict": "eslint . --max-warnings 0",
     "preview": "vite preview",
     "test": "vitest run",
