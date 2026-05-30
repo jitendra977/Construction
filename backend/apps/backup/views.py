@@ -185,10 +185,10 @@ class BackupControlView(APIView):
 
         elif action == 'test_connection':
             settings_obj = BackupSettings.get_settings()
-            client_id = settings_obj.gdrive_client_id
-            client_secret = settings_obj.gdrive_client_secret
-            refresh_token = settings_obj.gdrive_refresh_token
-            folder_id = settings_obj.gdrive_folder_id
+            client_id = request.data.get('gdrive_client_id') or settings_obj.gdrive_client_id
+            client_secret = request.data.get('gdrive_client_secret') or settings_obj.gdrive_client_secret
+            refresh_token = request.data.get('gdrive_refresh_token') or settings_obj.gdrive_refresh_token
+            folder_id = request.data.get('gdrive_folder_id') or settings_obj.gdrive_folder_id
 
             if not all([client_id, client_secret, refresh_token, folder_id]):
                 return Response({'success': False, 'message': 'Credentials are incomplete. Please fill in all four fields first.'}, status=400)

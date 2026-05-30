@@ -179,10 +179,10 @@ export default function BackupSystemPage() {
     setTesting(true);
     setTestResult(null);
     try {
-      const res = await api.post('/backup/control/test_connection/');
+      const res = await api.post('/backup/control/test_connection/', formData);
       setTestResult({ success: true, message: res.data.message });
     } catch (err) {
-      setTestResult({ success: false, message: err.response?.data?.message || 'Connection test failed.' });
+      setTestResult({ success: false, message: err.response?.data?.message || err.response?.data?.error || 'Connection test failed.' });
     } finally {
       setTesting(false);
     }
@@ -311,7 +311,7 @@ export default function BackupSystemPage() {
                 <p className="text-xl font-bold text-slate-800 mt-1">{analytics.drive_quota.usage_gb} GB / {analytics.drive_quota.limit_gb} GB</p>
                 <div className="w-full bg-slate-200 h-1.5 rounded-full mt-2">
                    <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: `${analytics.drive_quota.usage_percent}%` }}></div>
-                </div>
+                 </div>
               </div>
            </div>
         </div>
@@ -497,9 +497,25 @@ export default function BackupSystemPage() {
                 Example: https://drive.google.com/drive/folders/<b>1Ab2Cd3Ef4Gh5Ij6Kl7Mn8Op9Qr0St</b>
               </p>
             </div>
+
+            {testResult && (
+              <div className={`p-4 rounded-lg text-sm font-medium flex items-center gap-3 border ${testResult.success ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
+                {testResult.success ? <CheckCircle className="w-5 h-5 flex-shrink-0 text-emerald-600" /> : <XCircle className="w-5 h-5 flex-shrink-0 text-red-500" />}
+                <span>{testResult.message}</span>
+              </div>
+            )}
           </div>
 
-          <div className="bg-slate-50 border-t border-slate-200 p-5 flex justify-end">
+          <div className="bg-slate-50 border-t border-slate-200 p-5 flex justify-between items-center">
+            <button
+              type="button"
+              onClick={handleTestConnection}
+              disabled={testing || loading}
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg shadow-sm disabled:opacity-50 transition-colors"
+            >
+              {testing ? <Clock className="w-4 h-4 animate-spin text-slate-500" /> : <Cloud className="w-4 h-4 text-slate-500" />}
+              {testing ? 'Testing Connection...' : 'Test Connection'}
+            </button>
             <button
               type="submit"
               disabled={loading || savingSettings}
