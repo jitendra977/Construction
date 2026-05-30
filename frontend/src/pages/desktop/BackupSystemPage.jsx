@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Play, Database, Cloud, Clock, CheckCircle, XCircle, HardDrive } from 'lucide-react';
+import { Play, Database, Cloud, Clock, CheckCircle, XCircle, HardDrive, Key, Folder, Save, Settings } from 'lucide-react';
 import api from '../../services/api';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import Modal from '../../components/common/Modal';
 
 export default function BackupSystemPage() {
-  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('overview');
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [triggering, setTriggering] = useState(false);
@@ -14,6 +13,14 @@ export default function BackupSystemPage() {
 
   const [settingsData, setSettingsData] = useState({ is_paused: false, schedule: '0 2 * * *' });
   const [analytics, setAnalytics] = useState({ unbacked_up: { count: 0, size_mb: 0 }, drive_quota: { limit_gb: 0, usage_gb: 0, usage_percent: 0 } });
+  
+  const [formData, setFormData] = useState({
+    gdrive_client_id: '',
+    gdrive_client_secret: '',
+    gdrive_refresh_token: '',
+    gdrive_folder_id: ''
+  });
+  const [savingSettings, setSavingSettings] = useState(false);
   
   const [confirmConfig, setConfirmConfig] = useState({ isOpen: false });
   const [scheduleModal, setScheduleModal] = useState({ isOpen: false, cron: '' });
@@ -33,6 +40,12 @@ export default function BackupSystemPage() {
         drive_quota: statRes.data.drive_quota
       });
       setSettingsData(statRes.data.settings);
+      setFormData({
+        gdrive_client_id: statRes.data.settings?.gdrive_client_id || '',
+        gdrive_client_secret: statRes.data.settings?.gdrive_client_secret || '',
+        gdrive_refresh_token: statRes.data.settings?.gdrive_refresh_token || '',
+        gdrive_folder_id: statRes.data.settings?.gdrive_folder_id || ''
+      });
     } catch (err) {
       console.error(err);
       setMessage(err.response?.data?.error || 'Failed to fetch backup logs');
@@ -119,10 +132,24 @@ export default function BackupSystemPage() {
     });
   };
 
+  const handleSettingsSubmit = async (e) => {
+    e.preventDefault();
+    setSavingSettings(true);
+    setMessage('');
+    try {
+      const res = await api.post('/backup/control/save_credentials/', formData);
+      setMessage(res.data.message || 'Settings saved successfully');
+    } catch (err) {
+      setMessage(err.response?.data?.error || 'Failed to save settings');
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-8">
+    <div className="p-8 max-w-6xl mx-auto space-y-6">
       
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-200 pb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-2xl font-semibold text-slate-800 flex items-center gap-3">
             <Cloud className="w-6 h-6 text-emerald-600" />
@@ -132,14 +159,42 @@ export default function BackupSystemPage() {
             Manage your automated Google Drive snapshots and view backup history.
           </p>
         </div>
-        <button
-          onClick={triggerBackup}
-          disabled={triggering}
-          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium text-sm rounded-lg shadow-sm transition-colors"
-        >
-          {triggering ? <Clock className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-          {triggering ? 'Backing up...' : 'Start Backup Now'}
-        </button>
+        {activeTab === 'overview' && (
+          <button
+            onClick={triggerBackup}
+            disabled={triggering}
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium text-sm rounded-lg shadow-sm transition-colors"
+          >
+            {triggering ? <Clock className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+            {triggering ? 'Backing up...' : 'Start Backup Now'}
+          </button>
+        )}
+      </div>
+
+      <div className="border-b border-slate-200">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'overview'
+                ? 'border-emerald-500 text-emerald-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+            }`}
+          >
+            Overview & History
+          </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+              activeTab === 'settings'
+                ? 'border-emerald-500 text-emerald-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+            }`}
+          >
+            <Settings className="w-4 h-4" />
+            Drive Connection
+          </button>
+        </nav>
       </div>
 
       {message && (
@@ -149,7 +204,9 @@ export default function BackupSystemPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      {activeTab === 'overview' && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="col-span-1 md:col-span-3 bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
            <div className="flex items-center justify-between mb-4">
              <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
@@ -205,7 +262,7 @@ export default function BackupSystemPage() {
              <button onClick={openScheduleModal} className="flex-1 py-1.5 px-3 text-xs font-semibold rounded bg-indigo-50 text-indigo-700 hover:bg-indigo-100">
                Change Schedule
              </button>
-             <button onClick={() => navigate('/dashboard/desktop/backups/settings')} className="flex-1 py-1.5 px-3 text-xs font-semibold rounded bg-indigo-50 text-indigo-700 hover:bg-indigo-100" title="Configure Google Drive API Connection">
+             <button onClick={() => setActiveTab('settings')} className="flex-1 py-1.5 px-3 text-xs font-semibold rounded bg-indigo-50 text-indigo-700 hover:bg-indigo-100">
                Drive Setup
              </button>
            </div>
@@ -285,6 +342,89 @@ export default function BackupSystemPage() {
           </table>
         </div>
       </div>
+        </>
+      )}
+
+      {activeTab === 'settings' && (
+        <form onSubmit={handleSettingsSubmit} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden max-w-3xl">
+          <div className="p-6 space-y-6">
+            <h2 className="text-lg font-semibold text-slate-800">Google Drive API Connection</h2>
+            <p className="text-sm text-slate-500 mb-6">
+              To allow the system to automatically upload backup files to Google Drive, you must provide your Google Cloud OAuth credentials.
+            </p>
+            
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                <Key className="w-4 h-4 text-slate-400" />
+                Google Drive Client ID
+              </label>
+              <input 
+                type="text" 
+                value={formData.gdrive_client_id}
+                onChange={(e) => setFormData({ ...formData, gdrive_client_id: e.target.value })}
+                className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                placeholder="e.g. 123456789-abcdefg.apps.googleusercontent.com"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                <Key className="w-4 h-4 text-slate-400" />
+                Google Drive Client Secret
+              </label>
+              <input 
+                type="password" 
+                value={formData.gdrive_client_secret}
+                onChange={(e) => setFormData({ ...formData, gdrive_client_secret: e.target.value })}
+                className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                placeholder="e.g. GOCSPX-abcdefghijklmnopqrstuvwxyz"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                <Key className="w-4 h-4 text-slate-400" />
+                Google Drive Refresh Token
+              </label>
+              <input 
+                type="password" 
+                value={formData.gdrive_refresh_token}
+                onChange={(e) => setFormData({ ...formData, gdrive_refresh_token: e.target.value })}
+                className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                placeholder="1//0gXXXXXXXXXXXXX..."
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                <Folder className="w-4 h-4 text-slate-400" />
+                Google Drive Folder ID
+              </label>
+              <input 
+                type="text" 
+                value={formData.gdrive_folder_id}
+                onChange={(e) => setFormData({ ...formData, gdrive_folder_id: e.target.value })}
+                className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                placeholder="The 33-character folder ID from your Drive URL"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Example: https://drive.google.com/drive/folders/<b>1Ab2Cd3Ef4Gh5Ij6Kl7Mn8Op9Qr0St</b>
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-slate-50 border-t border-slate-200 p-5 flex justify-end">
+            <button
+              type="submit"
+              disabled={loading || savingSettings}
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 border border-transparent rounded-lg shadow-sm disabled:opacity-50 transition-colors"
+            >
+              <Save className="w-4 h-4" />
+              {savingSettings ? 'Saving...' : 'Save Configuration'}
+            </button>
+          </div>
+        </form>
+      )}
 
       <ConfirmModal
         isOpen={confirmConfig.isOpen}
