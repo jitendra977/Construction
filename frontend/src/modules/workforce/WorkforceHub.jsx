@@ -20,6 +20,7 @@ import TeamManagementPage from '../../pages/desktop/TeamManagementPage';
 import ManpowerTab from '../attendance/ManpowerTab';
 import SettingsTab from '../attendance/SettingsTab';
 import { MqttProvider } from '../attendance/MqttContext';
+import WorkforceHelp from './components/WorkforceHelp';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 // Tab order: Members first (most-used), Teams second, then operational tabs, Setup last.
@@ -1054,6 +1055,9 @@ export default function WorkforceHub({ forcedTab = null, mobileRouteBase = null 
                         </p>
                     </div>
                 </div>
+
+                {/* Floating Help Dialog */}
+                <WorkforceHelp />
             </div>
         );
     }
@@ -1137,6 +1141,9 @@ export default function WorkforceHub({ forcedTab = null, mobileRouteBase = null 
                     <li><strong>प्रमाणपत्र:</strong> कामदारको 'ID Card' र अन्य कागजातहरू यहाँबाट प्रिन्ट गर्न सकिन्छ।</li>
                 </ul>
             </div>
+            
+            {/* Floating Help Dialog */}
+            <WorkforceHelp />
         </div>
     );
 }
