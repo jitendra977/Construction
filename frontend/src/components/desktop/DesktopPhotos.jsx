@@ -50,11 +50,16 @@ const normalizeItem = (item) => {
     const safeType = TYPE_META[type] ? type : 'FILE';
     const uploadedAt = item.uploaded_at ? new Date(item.uploaded_at) : null;
 
+    const baseSubtitle = item.subtitle || item.category || TYPE_META[safeType].label;
+    const finalSubtitle = item.telegram_uploader_name 
+        ? `${baseSubtitle} • By ${item.telegram_uploader_name}` 
+        : baseSubtitle;
+
     return {
         ...item,
         url: getMediaUrl(item.url),
         type: safeType,
-        subtitle: item.subtitle || item.category || TYPE_META[safeType].label,
+        subtitle: finalSubtitle,
         uploadedAt,
         uploadedLabel: uploadedAt && !Number.isNaN(uploadedAt.getTime())
             ? uploadedAt.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })

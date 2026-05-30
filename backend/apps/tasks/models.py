@@ -93,9 +93,10 @@ class TaskMedia(models.Model):
     media_type = models.CharField(max_length=10, choices=MEDIA_TYPES, default='IMAGE')
     created_at = models.DateTimeField(auto_now_add=True)
     description = models.TextField(blank=True, null=True)
+    telegram_uploader_name = models.CharField(max_length=150, blank=True, null=True, help_text="Name of the Telegram user who uploaded this media")
 
     def __str__(self):
-        return f"Media for {self.task.title} - {self.id}"
+        return f"Media for {self.task.title if self.task else 'General Upload'} - {self.id}"
 
 class TaskUpdate(models.Model):
     """

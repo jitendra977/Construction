@@ -70,6 +70,8 @@ class GalleryViewSet(viewsets.ViewSet):
                 'uploaded_at': tm.created_at,
                 'source_type': 'TASK_MEDIA',
                 'media_type': tm.media_type, # IMAGE/VIDEO
+                'telegram_uploader_name': getattr(tm, 'telegram_uploader_name', None),
+                'description': tm.description,
                 'meta': {
                     'task_id': tm.task.id if tm.task else None,
                     'phase_id': phase_id,

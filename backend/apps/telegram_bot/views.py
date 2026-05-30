@@ -122,9 +122,15 @@ class TelegramWebhookView(APIView):
                             from apps.tasks.models import TaskMedia
                             import uuid
                             
+                            from_user = message.get('from', {})
+                            first_name = from_user.get('first_name', '')
+                            last_name = from_user.get('last_name', '')
+                            uploader_name = f"{first_name} {last_name}".strip() or "Telegram User"
+
                             media = TaskMedia.objects.create(
                                 media_type=media_type,
-                                description=caption
+                                description=caption,
+                                telegram_uploader_name=uploader_name
                             )
                             filename = f"telegram_{uuid.uuid4().hex[:8]}.{ext}"
                             media.file.save(filename, ContentFile(img_res.content))

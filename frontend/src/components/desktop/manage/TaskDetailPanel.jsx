@@ -751,7 +751,21 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                         </div>
                     ) : (
                         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: 16 }}>
-                            {task.media.map(m => <MediaItem key={m.id} m={m} onPreview={setPreviewDoc} />)}
+                            {task.media.map(m => (
+                                <div key={m.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    <MediaItem m={m} onPreview={setPreviewDoc} />
+                                    {m.telegram_uploader_name && (
+                                        <div style={{ fontSize: 9, color: 'var(--t-text3)', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: 4, paddingLeft: 4 }}>
+                                            <span>💬 Bot: {m.telegram_uploader_name}</span>
+                                        </div>
+                                    )}
+                                    {m.description && m.description !== 'Uploaded via Telegram' && (
+                                        <div style={{ fontSize: 10, color: 'var(--t-text2)', fontWeight: 600, paddingLeft: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={m.description}>
+                                            {m.description}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
                         </div>
                     )}
                 </div>
