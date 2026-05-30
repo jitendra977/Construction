@@ -14,6 +14,7 @@ import ConcreteCalculator  from '../../pages/estimator/ConcreteCalculator';
 import PlasterCalculator   from '../../pages/estimator/PlasterCalculator';
 import FlooringCalculator  from '../../pages/estimator/FlooringCalculator';
 import { WorkerUploadProvider } from '../../context/WorkerUploadContext';
+import WorkerHelp          from './components/WorkerHelp';
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const STYLES = `
@@ -1811,6 +1812,9 @@ export default function WorkerPortal() {
         )}
       </div>
 
+      {/* ── Help Guide ── */}
+      <WorkerHelp />
+      
       {/* ── Bottom nav ── */}
       <div style={{
         position:'fixed',bottom:0,left:0,right:0,zIndex:200,
