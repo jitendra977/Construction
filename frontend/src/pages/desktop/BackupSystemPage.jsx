@@ -21,6 +21,8 @@ export default function BackupSystemPage() {
     gdrive_folder_id: ''
   });
   const [savingSettings, setSavingSettings] = useState(false);
+  const [testResult, setTestResult] = useState(null); // { success, message }
+  const [testing, setTesting] = useState(false);
   
   const [confirmConfig, setConfirmConfig] = useState({ isOpen: false });
   const [scheduleModal, setScheduleModal] = useState({ isOpen: false, cron: '' });
@@ -162,6 +164,7 @@ export default function BackupSystemPage() {
     e.preventDefault();
     setSavingSettings(true);
     setMessage('');
+    setTestResult(null);
     try {
       const res = await api.post('/backup/control/save_credentials/', formData);
       setMessage(res.data.message || 'Settings saved successfully');
@@ -169,6 +172,19 @@ export default function BackupSystemPage() {
       setMessage(err.response?.data?.error || 'Failed to save settings');
     } finally {
       setSavingSettings(false);
+    }
+  };
+
+  const handleTestConnection = async () => {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const res = await api.post('/backup/control/test_connection/');
+      setTestResult({ success: true, message: res.data.message });
+    } catch (err) {
+      setTestResult({ success: false, message: err.response?.data?.message || 'Connection test failed.' });
+    } finally {
+      setTesting(false);
     }
   };
 

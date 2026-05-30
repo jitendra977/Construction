@@ -46,15 +46,33 @@ class TriggerBackupView(APIView):
         from .models import BackupSettings
         if BackupSettings.get_settings().is_paused:
             return Response({'error': 'Backup system is currently paused.'}, status=400)
-            
-        # Trigger the celery task asynchronously
-        task = run_automated_backup_task.delay(user_id=request.user.id)
-        
-        return Response({
-            'success': True,
-            'message': 'Backup job has been queued and will run in the background.',
-            'task_id': task.id
-        })
+
+        # Try Celery first; if no broker/workers available fall back to a background thread
+        try:
+            task = run_automated_backup_task.apply_async(
+                kwargs={'user_id': request.user.id},
+                expires=3600
+            )
+            return Response({
+                'success': True,
+                'message': 'Backup job has been queued and will run in the background.',
+                'task_id': task.id
+            })
+        except Exception:
+            # No Celery broker — run directly in a daemon thread so the request returns immediately
+            import threading
+            from .engine import run_backup
+
+            def _run():
+                run_backup(user_id=request.user.id, task_id=None)
+
+            t = threading.Thread(target=_run, daemon=True)
+            t.start()
+            return Response({
+                'success': True,
+                'message': 'Backup started in the background (direct mode).',
+                'task_id': None
+            })
 
 class BackupAnalyticsView(APIView):
     permission_classes = [IsAuthenticated]
@@ -134,7 +152,35 @@ class BackupControlView(APIView):
             settings_obj.gdrive_folder_id = request.data.get('gdrive_folder_id', settings_obj.gdrive_folder_id)
             settings_obj.save()
             return Response({'message': 'Google Drive credentials saved successfully.'})
-            
+
+        elif action == 'test_connection':
+            settings_obj = BackupSettings.get_settings()
+            client_id = settings_obj.gdrive_client_id
+            client_secret = settings_obj.gdrive_client_secret
+            refresh_token = settings_obj.gdrive_refresh_token
+            folder_id = settings_obj.gdrive_folder_id
+
+            if not all([client_id, client_secret, refresh_token, folder_id]):
+                return Response({'success': False, 'message': 'Credentials are incomplete. Please fill in all four fields first.'}, status=400)
+
+            try:
+                from google.oauth2.credentials import Credentials
+                from googleapiclient.discovery import build
+
+                creds = Credentials(
+                    token=None,
+                    refresh_token=refresh_token,
+                    token_uri='https://oauth2.googleapis.com/token',
+                    client_id=client_id,
+                    client_secret=client_secret,
+                )
+                service = build('drive', 'v3', credentials=creds)
+                # Try to fetch the target folder to validate both auth and folder access
+                folder = service.files().get(fileId=folder_id, fields='id,name').execute()
+                return Response({'success': True, 'message': f'Connection successful! Backup folder: "{folder.get("name", folder_id)}"'})
+            except Exception as e:
+                return Response({'success': False, 'message': f'Connection failed: {str(e)}'}, status=400)
+
         return Response({'error': 'Invalid action'}, status=400)
 
 
