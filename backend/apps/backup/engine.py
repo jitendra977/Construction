@@ -105,7 +105,9 @@ def run_backup(user_id=None, task_id=None):
     log = BackupLog.objects.create(
         created_by=user, 
         status='in_progress',
-        celery_task_id=task_id
+        celery_task_id=task_id,
+        progress_percent=0,
+        current_stage='Initializing...'
     )
     
     from .models import BackupSettings
@@ -123,11 +125,16 @@ def run_backup(user_id=None, task_id=None):
     zip_path = temp_dir / f"ConstructPro_Backup_{timestamp}.zip"
     
     try:
+        log.update_progress(10, 'Dumping database...')
         generate_database_dump(sql_path)
+        
+        log.update_progress(40, 'Compressing files...')
         create_backup_zip(zip_path, sql_path)
         
+        log.update_progress(70, 'Uploading to Google Drive...')
         drive_file_id = upload_to_drive(zip_path)
         
+        log.update_progress(95, 'Finalizing...')
         size_mb = zip_path.stat().st_size / (1024 * 1024)
         log.mark_success(zip_path.name, size_mb, drive_file_id)
         

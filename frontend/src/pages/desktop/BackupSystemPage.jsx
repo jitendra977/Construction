@@ -24,9 +24,34 @@ export default function BackupSystemPage() {
   
   const [confirmConfig, setConfirmConfig] = useState({ isOpen: false });
   const [scheduleModal, setScheduleModal] = useState({ isOpen: false, cron: '' });
+  const [activeBackup, setActiveBackup] = useState(null);
+  const pollRef = React.useRef(null);
 
   const showConfirm = (config) => setConfirmConfig({ ...config, isOpen: true });
   const closeConfirm = () => setConfirmConfig({ ...confirmConfig, isOpen: false });
+
+  const startProgressPolling = () => {
+    if (pollRef.current) return;
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await api.get('/backup/progress/');
+        const data = res.data;
+        setActiveBackup(data);
+        if (!data.active) {
+          clearInterval(pollRef.current);
+          pollRef.current = null;
+          setTriggering(false);
+          fetchLogs();
+        }
+      } catch {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+        setTriggering(false);
+      }
+    }, 1000);
+  };
+
+  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
   
   const fetchLogs = async () => {
     try {
@@ -71,13 +96,14 @@ export default function BackupSystemPage() {
         try {
           setTriggering(true);
           setMessage('');
+          setActiveBackup({ active: true, progress_percent: 0, current_stage: 'Queuing backup job...' });
           const res = await api.post('/backup/trigger/');
           setMessage(res.data.message || 'Backup triggered successfully.');
-          fetchLogs();
+          startProgressPolling();
         } catch (err) {
           setMessage(err.response?.data?.error || 'Failed to trigger backup');
-        } finally {
           setTriggering(false);
+          setActiveBackup(null);
         }
       }
     });
@@ -206,6 +232,50 @@ export default function BackupSystemPage() {
 
       {activeTab === 'overview' && (
         <>
+          {activeBackup?.active && (
+            <div className="bg-white border border-emerald-200 rounded-xl p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                  </span>
+                  <span className="text-sm font-semibold text-emerald-800">Backup In Progress</span>
+                </div>
+                <span className="text-sm font-bold text-emerald-700">{activeBackup.progress_percent ?? 0}%</span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                <div
+                  className="h-3 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all duration-700 ease-out"
+                  style={{ width: `${activeBackup.progress_percent ?? 0}%` }}
+                />
+              </div>
+              <p className="text-xs text-slate-500 mt-2 font-medium">
+                {activeBackup.current_stage || 'Working...'}
+              </p>
+            </div>
+          )}
+
+          {activeBackup && !activeBackup.active && activeBackup.status === 'success' && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 flex items-center gap-4">
+              <CheckCircle className="w-6 h-6 text-emerald-600 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-emerald-800">Backup completed successfully</p>
+                <p className="text-xs text-emerald-600 mt-0.5">{activeBackup.file_name} · {activeBackup.file_size_mb?.toFixed(2)} MB uploaded to Google Drive</p>
+              </div>
+            </div>
+          )}
+
+          {activeBackup && !activeBackup.active && activeBackup.status === 'failed' && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-5 flex items-center gap-4">
+              <XCircle className="w-6 h-6 text-red-500 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-red-800">Backup failed</p>
+                <p className="text-xs text-red-600 mt-0.5">{activeBackup.error_message}</p>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="col-span-1 md:col-span-3 bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
            <div className="flex items-center justify-between mb-4">

@@ -16,12 +16,19 @@ class BackupLog(models.Model):
     google_drive_file_id = models.CharField(max_length=255, null=True, blank=True)
     error_message = models.TextField(null=True, blank=True)
     celery_task_id = models.CharField(max_length=255, null=True, blank=True)
+    progress_percent = models.IntegerField(default=0)
+    current_stage = models.CharField(max_length=100, default='', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     completed_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         ordering = ['-created_at']
+
+    def update_progress(self, percent: int, stage: str):
+        self.progress_percent = percent
+        self.current_stage = stage
+        self.save(update_fields=['progress_percent', 'current_stage', 'updated_at'])
 
     def mark_failed(self, error: str):
         from django.utils import timezone

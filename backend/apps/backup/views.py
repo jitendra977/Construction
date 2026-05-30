@@ -24,6 +24,9 @@ class BackupLogListView(APIView):
                 'file_size_mb': log.file_size_mb,
                 'google_drive_file_id': log.google_drive_file_id,
                 'error_message': log.error_message,
+                'celery_task_id': log.celery_task_id,
+                'progress_percent': log.progress_percent,
+                'current_stage': log.current_stage,
                 'created_by': log.created_by.get_full_name() if log.created_by else 'System',
                 'created_at': log.created_at.isoformat(),
                 'completed_at': log.completed_at.isoformat() if log.completed_at else None,
@@ -133,3 +136,31 @@ class BackupControlView(APIView):
             return Response({'message': 'Google Drive credentials saved successfully.'})
             
         return Response({'error': 'Invalid action'}, status=400)
+
+
+class BackupProgressView(APIView):
+    """Lightweight polling endpoint — returns the most recent in-progress or latest backup log."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not _is_admin(request.user):
+            return Response({'error': 'Admin access required.'}, status=status.HTTP_403_FORBIDDEN)
+
+        # Active backup first
+        log = BackupLog.objects.filter(status='in_progress').order_by('-created_at').first()
+        if not log:
+            log = BackupLog.objects.order_by('-created_at').first()
+
+        if not log:
+            return Response({'active': False})
+
+        return Response({
+            'active': log.status == 'in_progress',
+            'id': log.id,
+            'status': log.status,
+            'progress_percent': log.progress_percent,
+            'current_stage': log.current_stage,
+            'error_message': log.error_message,
+            'file_name': log.file_name,
+            'file_size_mb': log.file_size_mb,
+        })
