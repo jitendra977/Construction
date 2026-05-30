@@ -61,25 +61,71 @@ class TelegramWebhookView(APIView):
             message = data['message']
             chat_id = message.get('chat', {}).get('id')
             text = message.get('text', '')
+            settings = TelegramSettings.get_settings()
             
+            if not settings.is_active or not settings.bot_token:
+                return Response({"status": "ok"}, status=status.HTTP_200_OK)
+
             # Handle /start command
             if text.startswith('/start'):
-                settings = TelegramSettings.get_settings()
-                if settings.is_active:
-                    settings.notification_chat_id = str(chat_id)
-                    settings.save(update_fields=['notification_chat_id'])
+                settings.notification_chat_id = str(chat_id)
+                settings.save(update_fields=['notification_chat_id'])
+                
+                # Send a welcome message back to the chat
+                telegram_api_url = f"https://api.telegram.org/bot{settings.bot_token}/sendMessage"
+                payload = {
+                    'chat_id': chat_id,
+                    'text': "✅ ConstructPro: Successfully connected! You will now receive notifications here."
+                }
+                try:
+                    requests.post(telegram_api_url, json=payload)
+                except Exception as e:
+                    print("Error sending welcome message:", e)
+
+            # Handle incoming photos
+            elif 'photo' in message:
+                # The photo field is a list of different sizes. The last one is the largest.
+                photo_obj = message['photo'][-1]
+                file_id = photo_obj['file_id']
+                caption = message.get('caption', 'Uploaded via Telegram')
+                
+                try:
+                    # 1. Get file path from Telegram API
+                    get_file_url = f"https://api.telegram.org/bot{settings.bot_token}/getFile?file_id={file_id}"
+                    file_res = requests.get(get_file_url).json()
                     
-                    # Send a welcome message back to the chat
-                    if settings.bot_token:
-                        telegram_api_url = f"https://api.telegram.org/bot{settings.bot_token}/sendMessage"
-                        payload = {
-                            'chat_id': chat_id,
-                            'text': "✅ ConstructPro: Successfully connected! You will now receive notifications here."
-                        }
-                        try:
-                            requests.post(telegram_api_url, json=payload)
-                        except Exception as e:
-                            print("Error sending welcome message:", e)
-        
+                    if file_res.get('ok'):
+                        file_path = file_res['result']['file_path']
+                        # 2. Download the actual file
+                        download_url = f"https://api.telegram.org/file/bot{settings.bot_token}/{file_path}"
+                        img_res = requests.get(download_url)
+                        
+                        if img_res.status_code == 200:
+                            # 3. Save it to TaskMedia
+                            from django.core.files.base import ContentFile
+                            from apps.tasks.models import TaskMedia
+                            import uuid
+                            
+                            media = TaskMedia.objects.create(
+                                media_type='IMAGE',
+                                description=caption
+                            )
+                            filename = f"telegram_{uuid.uuid4().hex[:8]}.jpg"
+                            media.file.save(filename, ContentFile(img_res.content))
+                            
+                            # 4. Send success reply
+                            reply_url = f"https://api.telegram.org/bot{settings.bot_token}/sendMessage"
+                            requests.post(reply_url, json={
+                                'chat_id': chat_id,
+                                'text': f"📸 Photo successfully saved to ConstructPro!\nID: {media.id}"
+                            })
+                except Exception as e:
+                    print("Error downloading/saving telegram photo:", e)
+                    error_url = f"https://api.telegram.org/bot{settings.bot_token}/sendMessage"
+                    requests.post(error_url, json={
+                        'chat_id': chat_id,
+                        'text': "❌ Failed to save photo to ConstructPro."
+                    })
+
         return Response({"status": "ok"}, status=status.HTTP_200_OK)
 
