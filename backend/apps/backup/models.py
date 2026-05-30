@@ -11,11 +11,13 @@ class BackupLog(models.Model):
 
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    file_name = models.CharField(max_length=255, blank=True, null=True)
-    file_size_mb = models.FloatField(blank=True, null=True)
-    google_drive_file_id = models.CharField(max_length=255, blank=True, null=True)
-    error_message = models.TextField(blank=True, null=True)
+    file_name = models.CharField(max_length=255, null=True, blank=True)
+    file_size_mb = models.FloatField(null=True, blank=True)
+    google_drive_file_id = models.CharField(max_length=255, null=True, blank=True)
+    error_message = models.TextField(null=True, blank=True)
+    celery_task_id = models.CharField(max_length=255, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     completed_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
@@ -39,3 +41,16 @@ class BackupLog(models.Model):
 
     def __str__(self):
         return f"Backup {self.id} - {self.status}"
+
+class BackupSettings(models.Model):
+    is_paused = models.BooleanField(default=False)
+    schedule_expression = models.CharField(max_length=100, default='0 2 * * *', help_text="Cron expression for automated backups")
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name_plural = "Backup Settings"
+        
+    @classmethod
+    def get_settings(cls):
+        obj, created = cls.objects.get_or_create(id=1)
+        return obj

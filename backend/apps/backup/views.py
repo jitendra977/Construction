@@ -39,10 +39,84 @@ class TriggerBackupView(APIView):
         if not _is_admin(request.user):
             return Response({'error': 'Admin access required.'}, status=status.HTTP_403_FORBIDDEN)
             
+        # Check if system is paused
+        from .models import BackupSettings
+        if BackupSettings.get_settings().is_paused:
+            return Response({'error': 'Backup system is currently paused.'}, status=400)
+            
         # Trigger the celery task asynchronously
-        run_automated_backup_task.delay(user_id=request.user.id)
+        task = run_automated_backup_task.delay(user_id=request.user.id)
         
         return Response({
             'success': True,
-            'message': 'Backup job has been queued and will run in the background.'
+            'message': 'Backup job has been queued and will run in the background.',
+            'task_id': task.id
         })
+
+class BackupAnalyticsView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        if not _is_admin(request.user):
+            return Response({'error': 'Admin access required.'}, status=status.HTTP_403_FORBIDDEN)
+            
+        from .services import get_unbacked_up_data_metrics, get_drive_quota
+        from .models import BackupSettings
+        
+        settings = BackupSettings.get_settings()
+        
+        return Response({
+            'unbacked_up': get_unbacked_up_data_metrics(),
+            'drive_quota': get_drive_quota(),
+            'settings': {
+                'is_paused': settings.is_paused,
+                'schedule': settings.schedule_expression
+            }
+        })
+
+class BackupControlView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, action):
+        if not _is_admin(request.user):
+            return Response({'error': 'Admin access required.'}, status=status.HTTP_403_FORBIDDEN)
+            
+        from .models import BackupLog, BackupSettings
+        from .services import sync_celery_beat_schedule
+        from celery.app.control import Control
+        from config.celery import app as celery_app
+        
+        if action == 'abort':
+            task_id = request.data.get('task_id')
+            if not task_id:
+                return Response({'error': 'Task ID required'}, status=400)
+                
+            celery_control = Control(app=celery_app)
+            celery_control.revoke(task_id, terminate=True)
+            
+            # Update log
+            log = BackupLog.objects.filter(celery_task_id=task_id).first()
+            if log:
+                log.mark_failed("Aborted by user.")
+                
+            return Response({'message': 'Task aborted successfully.'})
+            
+        elif action == 'toggle_pause':
+            settings_obj = BackupSettings.get_settings()
+            settings_obj.is_paused = not settings_obj.is_paused
+            settings_obj.save()
+            sync_celery_beat_schedule()
+            return Response({'message': f'System {"paused" if settings_obj.is_paused else "resumed"}.'})
+            
+        elif action == 'update_schedule':
+            cron_expr = request.data.get('cron_expr')
+            if not cron_expr:
+                return Response({'error': 'Cron expression required'}, status=400)
+                
+            settings_obj = BackupSettings.get_settings()
+            settings_obj.schedule_expression = cron_expr
+            settings_obj.save()
+            sync_celery_beat_schedule()
+            return Response({'message': 'Schedule updated successfully.'})
+            
+        return Response({'error': 'Invalid action'}, status=400)

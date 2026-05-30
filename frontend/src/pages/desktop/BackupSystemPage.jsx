@@ -8,11 +8,21 @@ export default function BackupSystemPage() {
   const [triggering, setTriggering] = useState(false);
   const [message, setMessage] = useState('');
 
+  const [settingsData, setSettingsData] = useState({ is_paused: false, schedule: '0 2 * * *' });
+  const [analytics, setAnalytics] = useState({ unbacked_up: { count: 0, size_mb: 0 }, drive_quota: { limit_gb: 0, usage_gb: 0, usage_percent: 0 } });
+  
   const fetchLogs = async () => {
     try {
       setLoading(true);
       const res = await api.get('/backup/logs/');
       setLogs(res.data.logs || []);
+      
+      const statRes = await api.get('/backup/analytics/');
+      setAnalytics({
+        unbacked_up: statRes.data.unbacked_up,
+        drive_quota: statRes.data.drive_quota
+      });
+      setSettingsData(statRes.data.settings);
     } catch (err) {
       console.error(err);
       setMessage(err.response?.data?.error || 'Failed to fetch backup logs');
@@ -39,6 +49,39 @@ export default function BackupSystemPage() {
       setMessage(err.response?.data?.error || 'Failed to trigger backup');
     } finally {
       setTriggering(false);
+    }
+  };
+
+  const togglePause = async () => {
+    try {
+      const res = await api.post('/backup/control/toggle_pause/');
+      setMessage(res.data.message);
+      fetchLogs();
+    } catch (err) {
+      alert('Failed to toggle system status');
+    }
+  };
+
+  const updateSchedule = async () => {
+    const cron = window.prompt("Enter Cron Expression (e.g., '0 2 * * *' for daily at 2AM):", settingsData.schedule);
+    if (!cron) return;
+    try {
+      const res = await api.post('/backup/control/update_schedule/', { cron_expr: cron });
+      setMessage(res.data.message);
+      fetchLogs();
+    } catch (err) {
+      alert('Failed to update schedule');
+    }
+  };
+
+  const abortBackup = async (taskId) => {
+    if (!window.confirm("Abort this running backup immediately?")) return;
+    try {
+      const res = await api.post('/backup/control/abort/', { task_id: taskId });
+      setMessage(res.data.message);
+      fetchLogs();
+    } catch (err) {
+      alert('Failed to abort task');
     }
   };
 
@@ -72,29 +115,58 @@ export default function BackupSystemPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col justify-center shadow-sm">
-          <div className="flex items-center gap-4 text-slate-500 mb-2">
-            <HardDrive className="w-5 h-5" />
-            <h3 className="text-sm font-medium">Storage Target</h3>
-          </div>
-          <p className="text-lg font-semibold text-slate-800">Google Drive</p>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="col-span-1 md:col-span-3 bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+           <div className="flex items-center justify-between mb-4">
+             <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+               <Database className="w-5 h-5 text-emerald-600" />
+               Storage Analytics
+             </h2>
+           </div>
+           <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 bg-slate-50 rounded-lg border border-slate-100">
+                <p className="text-xs text-slate-500 font-medium">Unbacked-Up Data</p>
+                <p className="text-xl font-bold text-slate-800 mt-1">{analytics.unbacked_up.count} files</p>
+                <p className="text-xs text-orange-600 font-medium mt-1">Pending: {analytics.unbacked_up.size_mb} MB</p>
+              </div>
+              <div className="p-4 bg-slate-50 rounded-lg border border-slate-100">
+                <p className="text-xs text-slate-500 font-medium">Google Drive Quota</p>
+                <p className="text-xl font-bold text-slate-800 mt-1">{analytics.drive_quota.usage_gb} GB / {analytics.drive_quota.limit_gb} GB</p>
+                <div className="w-full bg-slate-200 h-1.5 rounded-full mt-2">
+                   <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: `${analytics.drive_quota.usage_percent}%` }}></div>
+                </div>
+              </div>
+           </div>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col justify-center shadow-sm">
-          <div className="flex items-center gap-4 text-slate-500 mb-2">
-            <Database className="w-5 h-5" />
-            <h3 className="text-sm font-medium">Backup Scope</h3>
-          </div>
-          <p className="text-lg font-semibold text-slate-800">Full Database & Media</p>
-        </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col justify-center shadow-sm">
-          <div className="flex items-center gap-4 text-slate-500 mb-2">
-            <Clock className="w-5 h-5" />
-            <h3 className="text-sm font-medium">Last Run</h3>
-          </div>
-          <p className="text-lg font-semibold text-slate-800">
-            {logs.length > 0 ? new Date(logs[0].created_at).toLocaleString() : 'Never'}
-          </p>
+        
+        <div className="col-span-1 bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col justify-between">
+           <div>
+             <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2 mb-4">
+               <Clock className="w-5 h-5 text-indigo-600" />
+               Scheduling
+             </h2>
+             <div className="space-y-3">
+               <div>
+                 <p className="text-xs text-slate-500">Status</p>
+                 <p className={`text-sm font-bold mt-0.5 ${settingsData.is_paused ? 'text-orange-500' : 'text-emerald-600'}`}>
+                   {settingsData.is_paused ? 'Paused' : 'Active'}
+                 </p>
+               </div>
+               <div>
+                 <p className="text-xs text-slate-500">Cron Schedule</p>
+                 <p className="text-sm font-mono font-medium text-slate-700 mt-0.5">{settingsData.schedule}</p>
+               </div>
+             </div>
+           </div>
+           
+           <div className="flex gap-2 mt-4">
+             <button onClick={togglePause} className="flex-1 py-1.5 px-3 text-xs font-semibold rounded bg-slate-100 text-slate-700 hover:bg-slate-200">
+               {settingsData.is_paused ? 'Resume' : 'Pause'}
+             </button>
+             <button onClick={updateSchedule} className="flex-1 py-1.5 px-3 text-xs font-semibold rounded bg-indigo-50 text-indigo-700 hover:bg-indigo-100">
+               Edit Cron
+             </button>
+           </div>
         </div>
       </div>
 
@@ -117,7 +189,7 @@ export default function BackupSystemPage() {
                 <th className="px-6 py-4 font-medium">Archive Identifier</th>
                 <th className="px-6 py-4 font-medium">Size</th>
                 <th className="px-6 py-4 font-medium">Timestamp</th>
-                <th className="px-6 py-4 font-medium">Initiated By</th>
+                <th className="px-6 py-4 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
@@ -156,8 +228,14 @@ export default function BackupSystemPage() {
                       hour: '2-digit', minute: '2-digit'
                     })}
                   </td>
-                  <td className="px-6 py-4 text-slate-500 text-xs">
-                    {log.created_by || 'System'}
+                  <td className="px-6 py-4 text-right">
+                    {log.status === 'in_progress' ? (
+                      <button onClick={() => abortBackup(log.celery_task_id)} className="text-xs px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 font-semibold transition-colors">
+                        Abort
+                      </button>
+                    ) : (
+                      <span className="text-slate-400 text-xs">{log.created_by || 'System'}</span>
+                    )}
                   </td>
                 </tr>
               ))}

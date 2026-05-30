@@ -94,12 +94,16 @@ def upload_to_drive(file_path: Path, folder_id: str):
     
     return uploaded_file.get('id')
 
-def run_backup(user_id=None):
+def run_backup(user_id=None, task_id=None):
     from django.contrib.auth import get_user_model
     User = get_user_model()
     user = User.objects.filter(id=user_id).first() if user_id else None
     
-    log = BackupLog.objects.create(created_by=user, status='in_progress')
+    log = BackupLog.objects.create(
+        created_by=user, 
+        status='in_progress',
+        celery_task_id=task_id
+    )
     
     folder_id = getattr(settings, 'GOOGLE_DRIVE_FOLDER_ID', '')
     client_id = getattr(settings, 'GOOGLE_DRIVE_CLIENT_ID', '')
