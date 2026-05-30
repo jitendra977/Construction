@@ -80,9 +80,14 @@ services:
     volumes:
       - media_data:/app/media
       - static_data:/app/staticfiles
+    ports:
+      - "127.0.0.1:8001:8000"
     networks:
-      - internal
-      - app_network
+      internal:
+      app_network:
+        aliases:
+          - backend
+          - construction_backend
     depends_on:
       db:
         condition: service_healthy
@@ -214,9 +219,14 @@ services:
     volumes:
       - media_data:/usr/share/nginx/html/media:ro
       - static_data:/usr/share/nginx/html/static:ro
+    ports:
+      - "127.0.0.1:8080:80"
     networks:
-      - internal
-      - app_network
+      internal:
+      app_network:
+        aliases:
+          - frontend
+          - construction_frontend
     depends_on:
       backend:
         condition: service_healthy
