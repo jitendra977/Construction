@@ -1581,27 +1581,6 @@ export default function WorkerPortal() {
             )}
 
 
-
-            {/* Quick nav tiles */}
-            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginTop:8}}>
-              {[
-                {icon:'📋',label:'Tasks',     t:'tasks',    color:'#a78bfa'},
-                {icon:'📸',label:'Photos',    t:'photos',   color:'#f472b6', highlight: true},
-                {icon:'🧱',label:'Resources', t:'resources',color:'#fb923c'},
-              ].map(q=>(
-                <button key={q.t} onClick={()=>setTab(q.t)} className="wp-btn" style={{
-                  background: q.highlight ? `${q.color}22` : `${q.color}12`,
-                  border: q.highlight ? `2.5px solid ${q.color}` : `1.5px solid ${q.color}30`,
-                  borderRadius:20,padding:'18px 0',cursor:'pointer',
-                  display:'flex',flexDirection:'column',alignItems:'center',gap:7,
-                  animation: q.highlight ? 'navPhotoPulse 2s infinite ease-in-out' : 'none',
-                  boxShadow: q.highlight ? `0 0 16px ${q.color}50` : 'none',
-                }}>
-                  <span style={{fontSize:28}}>{q.icon}</span>
-                  <span style={{fontSize:10,fontWeight:900,color:q.color,textTransform:'uppercase',letterSpacing:'.06em'}}>{q.label}</span>
-                </button>
-              ))}
-            </div>
           </div>
         )}
 
