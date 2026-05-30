@@ -65,6 +65,11 @@ help: ## Show this help message
 deploy: ## Deploy — push code to origin/main (server untouched — then run make server-deploy)
 	@bash scripts/deploy.sh
 
+# Interactive development pipeline: test compilation, add, commit and push beautifully in one step
+.PHONY: push
+push: ## Dev — Interactive compilation verification + git add + commit + push pipeline
+	@chmod +x scripts/interactive_push.sh && ./scripts/interactive_push.sh
+
 # Server side — SSH in, pull, build, migrate, restart
 .PHONY: server-deploy
 server-deploy: ## Deploy — build + migrate + restart on VPS (SSH)
