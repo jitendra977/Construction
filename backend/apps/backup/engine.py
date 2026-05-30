@@ -66,15 +66,15 @@ def create_backup_zip(zip_path: Path, sql_path: Path):
                     arcname = Path('media') / file_path.relative_to(media_root)
                     zf.write(file_path, arcname=str(arcname))
 
-def upload_to_drive(file_path: Path):
+def upload_to_drive(file_path: Path, project_name: str):
     from .models import BackupSettings
     backup_settings = BackupSettings.get_settings()
     client_id = backup_settings.gdrive_client_id
     client_secret = backup_settings.gdrive_client_secret
     refresh_token = backup_settings.gdrive_refresh_token
-    folder_id = backup_settings.gdrive_folder_id
+    parent_folder_id = backup_settings.gdrive_folder_id
     
-    if not client_id or not client_secret or not refresh_token or not folder_id:
+    if not client_id or not client_secret or not refresh_token or not parent_folder_id:
         raise Exception("Missing OAuth2 credentials or Folder ID in Backup Settings.")
 
     creds = Credentials(
@@ -87,9 +87,30 @@ def upload_to_drive(file_path: Path):
     
     service = build('drive', 'v3', credentials=creds)
     
+    # Get or create project folder under the main backup folder
+    folder_name = project_name.strip()
+    # Escape single quotes in folder name just in case
+    escaped_folder_name = folder_name.replace("'", "\\'")
+    query = f"name = '{escaped_folder_name}' and '{parent_folder_id}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+    
+    results = service.files().list(q=query, fields="files(id)").execute()
+    files = results.get('files', [])
+    
+    if files:
+        project_folder_id = files[0]['id']
+    else:
+        # Create folder
+        folder_metadata = {
+            'name': folder_name,
+            'mimeType': 'application/vnd.google-apps.folder',
+            'parents': [parent_folder_id]
+        }
+        folder = service.files().create(body=folder_metadata, fields='id').execute()
+        project_folder_id = folder.get('id')
+    
     file_metadata = {
         'name': file_path.name,
-        'parents': [folder_id]
+        'parents': [project_folder_id]
     }
     
     media = MediaFileUpload(str(file_path), mimetype='application/zip', resumable=True)
@@ -117,12 +138,21 @@ def run_backup(user_id=None, task_id=None):
         log.mark_failed("Missing Google Drive OAuth credentials or folder ID in Backup Settings.")
         return log
         
+    from apps.core.models import HouseProject
+    project = HouseProject.objects.first()
+    project_name = project.name if project else "ConstructPro"
+    
+    import re
+    # Slugify project name for zip filename, keeping letters/numbers/underscores
+    project_slug = re.sub(r'[^a-zA-Z0-9_]', '_', project_name.replace(' ', '_'))
+    project_slug = re.sub(r'_+', '_', project_slug).strip('_')
+    
     timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
     temp_dir = Path(settings.BASE_DIR) / 'scratch'
     temp_dir.mkdir(exist_ok=True)
     
     sql_path = temp_dir / f"db_dump_{timestamp}.sql"
-    zip_path = temp_dir / f"ConstructPro_Backup_{timestamp}.zip"
+    zip_path = temp_dir / f"{project_slug}_backup_{timestamp}_{log.id}.zip"
     
     try:
         log.update_progress(10, 'Dumping database...')
@@ -132,7 +162,7 @@ def run_backup(user_id=None, task_id=None):
         create_backup_zip(zip_path, sql_path)
         
         log.update_progress(70, 'Uploading to Google Drive...')
-        drive_file_id = upload_to_drive(zip_path)
+        drive_file_id = upload_to_drive(zip_path, project_name)
         
         log.update_progress(95, 'Finalizing...')
         size_mb = zip_path.stat().st_size / (1024 * 1024)
@@ -149,3 +179,4 @@ def run_backup(user_id=None, task_id=None):
             zip_path.unlink()
             
     return log
+

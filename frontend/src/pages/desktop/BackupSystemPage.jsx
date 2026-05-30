@@ -83,8 +83,27 @@ export default function BackupSystemPage() {
 
   useEffect(() => {
     fetchLogs();
+    
+    // Check if a backup is already running in the background when page loads
+    const checkActiveBackup = async () => {
+      try {
+        const res = await api.get('/backup/progress/');
+        if (res.data && res.data.active) {
+          setActiveBackup(res.data);
+          setTriggering(true);
+          startProgressPolling();
+        }
+      } catch (err) {
+        console.error("Failed to check active backup status", err);
+      }
+    };
+    checkActiveBackup();
+
     const interval = setInterval(fetchLogs, 10000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
   }, []);
 
   const triggerBackup = () => {
