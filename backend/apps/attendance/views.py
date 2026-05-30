@@ -235,6 +235,31 @@ def _auto_calc_overtime(record, today, time_out):
         record.save(update_fields=update_fields)
 
 
+def _send_telegram_notification(worker, action, time_now, scan_source=""):
+    try:
+        from apps.telegram_bot.models import TelegramSettings
+        import requests
+        settings = TelegramSettings.get_settings()
+        if settings.is_active and settings.bot_token and settings.notification_chat_id:
+            action_str = "🟢 IN" if action == "CHECK_IN" else "🔴 OUT"
+            source_str = f" <i>({scan_source})</i>" if scan_source else ""
+            text = (f"👷 <b>Attendance Alert</b>{source_str}\n\n"
+                    f"<b>Worker:</b> {worker.name} ({worker.get_trade_display()})\n"
+                    f"<b>Action:</b> {action_str}\n"
+                    f"<b>Time:</b> {time_now.strftime('%I:%M %p')}\n"
+                    f"<b>Project:</b> {worker.project.name}")
+            
+            url = f"https://api.telegram.org/bot{settings.bot_token}/sendMessage"
+            requests.post(url, json={
+                "chat_id": settings.notification_chat_id,
+                "text": text,
+                "parse_mode": "HTML"
+            }, timeout=2)
+    except Exception as e:
+        logger.error("Failed to send telegram notification: %s", e)
+
+
+
 def _process_attendance_scan(worker, request=None, scan_source="QR", scan_time=None):
     """
     Unified logic for processing a scan (QR or NFC).
@@ -406,14 +431,16 @@ def _process_attendance_scan(worker, request=None, scan_source="QR", scan_time=N
             status="PRESENT", check_in=time_now, recorded_by=scanned_by
         )
         msg = f"Checked in at {time_now.strftime('%I:%M %p')}" + (" (LATE)" if is_late else "")
-        _log("CHECK_IN", "VALID", attendance=record, is_late=is_late, note=f"NFC/QR Scan: {msg}")
+        _log("CHECK_IN", "VALID", attendance=record, is_late=is_late, note=f"{scan_source} Scan: {msg}")
+        _send_telegram_notification(worker, "CHECK_IN", time_now, scan_source)
     else:
         today_record.check_out = time_now
         today_record.save(update_fields=["check_out"])
         _auto_calc_overtime(today_record, today, time_now)
         record = today_record
         msg = f"Checked out at {time_now.strftime('%I:%M %p')}" + (" (EARLY)" if is_early else "")
-        _log("CHECK_OUT", "VALID", attendance=record, is_early=is_early, note=f"NFC/QR Scan: {msg}")
+        _log("CHECK_OUT", "VALID", attendance=record, is_early=is_early, note=f"{scan_source} Scan: {msg}")
+        _send_telegram_notification(worker, "CHECK_OUT", time_now, scan_source)
 
     return {
         "success": True,

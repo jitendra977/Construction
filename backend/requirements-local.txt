@@ -28,3 +28,5 @@ paho-mqtt==1.6.1
 
 # NOTE: psycopg2, mysqlclient, redis, django-redis are intentionally
 # omitted — not needed when using SQLite + DummyCache locally.
+
+python-telegram-bot==20.8

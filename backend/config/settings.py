@@ -140,6 +140,9 @@ INSTALLED_APPS = [
 
     # ── Auto Backup System ────────────────────────────────────────────────────
     'apps.backup',
+
+    # ── Telegram Bot Integration ──────────────────────────────────────────────
+    'apps.telegram_bot',
 ]
 
 # Explicitly map migration folders for nested apps to prevent loader errors
@@ -162,6 +165,7 @@ MIGRATION_MODULES = {
     'worker': 'apps.worker.migrations',
     'biometrics': 'apps.biometrics.migrations',
     'backup': 'apps.backup.migrations',
+    'telegram_bot': 'apps.telegram_bot.migrations',
 }
 
 # ─── Photo Intelligence (HCMS-2) ──────────────────────────────────────

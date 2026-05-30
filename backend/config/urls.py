@@ -117,6 +117,9 @@ urlpatterns = [
 
     # ── Auto Backup System ────────────────────────────────────────────────────
     path('api/v1/backup/', include('apps.backup.urls')),
+
+    # ── Telegram Bot Integration ──────────────────────────────────────────────
+    path('api/v1/telegram-bot/', include('apps.telegram_bot.urls')),
 ]
 
 # Serve media files in development

@@ -505,6 +505,102 @@ function DataSection({ user }) {
     );
 }
 
+// ── 7. Telegram Bot Integration ───────────────────────────────────────────────
+function TelegramBotSection() {
+    const [token, setToken] = useState('');
+    const [isActive, setIsActive] = useState(false);
+    const [webhookUrl, setWebhookUrl] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [msg, setMsg] = useState(null);
+
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+
+    useEffect(() => {
+        // Fetch existing settings
+        fetch(`${API_URL}/telegram-bot/settings/`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.bot_token) setToken(data.bot_token);
+            if (data.is_active) setIsActive(data.is_active);
+            if (data.webhook_url) setWebhookUrl(data.webhook_url);
+        })
+        .catch(() => {});
+    }, [API_URL]);
+
+    const handleSave = async () => {
+        setBusy(true);
+        setMsg(null);
+        try {
+            const res = await fetch(`${API_URL}/telegram-bot/settings/`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                },
+                body: JSON.stringify({ bot_token: token, is_active: isActive })
+            });
+            if (res.ok) {
+                setMsg({ type: 'success', text: 'Telegram Bot settings saved successfully.' });
+            } else {
+                setMsg({ type: 'error', text: 'Failed to save settings.' });
+            }
+        } catch (e) {
+            setMsg({ type: 'error', text: 'Network error saving settings.' });
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <div style={card}>
+            <p style={sectionTitle}>🤖 Telegram Integration</p>
+            <p style={sectionSub}>Connect your construction app to a Telegram bot for notifications and commands.</p>
+            <Feedback msg={msg} />
+
+            <div style={row}>
+                <div style={{ flex: 1, marginRight: 20 }}>
+                    <p style={rowLabel}>Bot API Token</p>
+                    <p style={rowSub}>Obtained from @BotFather on Telegram.</p>
+                </div>
+                <input
+                    type="text"
+                    value={token}
+                    onChange={(e) => setToken(e.target.value)}
+                    placeholder="e.g. 123456789:ABCdefGHIjklmNOPqrstUVwxyZ"
+                    style={{ ...inputStyle, width: 300 }}
+                />
+            </div>
+
+            <div style={row}>
+                <div>
+                    <p style={rowLabel}>Enable Bot Integration</p>
+                    <p style={rowSub}>Turn on to activate Webhook and notifications.</p>
+                </div>
+                <Toggle checked={isActive} onChange={setIsActive} disabled={busy} />
+            </div>
+
+            {webhookUrl && (
+                <div style={row}>
+                    <div>
+                        <p style={rowLabel}>Webhook URL</p>
+                        <p style={rowSub}>Auto-generated when the bot is active.</p>
+                    </div>
+                    <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--t-text2)' }}>{webhookUrl}</span>
+                </div>
+            )}
+
+            <div style={{ marginTop: 20, textAlign: 'right' }}>
+                <button onClick={handleSave} disabled={busy}
+                    style={{ padding: '8px 16px', borderRadius: 10, background: '#10b981', color: '#fff', fontWeight: 800, fontSize: 13, border: 'none', cursor: busy ? 'not-allowed' : 'pointer', opacity: busy ? 0.6 : 1 }}>
+                    {busy ? 'Saving...' : 'Save Settings'}
+                </button>
+            </div>
+        </div>
+    );
+}
+
 // ── Main SettingsPage ──────────────────────────────────────────────────────────
 const SECTION_TABS = [
     { key: 'appearance',    icon: '🎨', label: 'Appearance'    },
@@ -512,6 +608,7 @@ const SECTION_TABS = [
     { key: 'language',      icon: '🌐', label: 'Language'      },
     { key: 'security',      icon: '🔒', label: 'Security'      },
     { key: 'system',        icon: 'ℹ️', label: 'System Info'   },
+    { key: 'telegram',      icon: '🤖', label: 'Telegram Bot'  },
     { key: 'data',          icon: '🗄️', label: 'Data & Cache'  },
 ];
 
@@ -570,6 +667,7 @@ export default function SettingsPage() {
                     {activeSection === 'language'      && <LanguageSection user={user} updateProfile={updateProfile} />}
                     {activeSection === 'security'      && <SecuritySection user={user} />}
                     {activeSection === 'system'        && <SystemInfoSection />}
+                    {activeSection === 'telegram'      && <TelegramBotSection />}
                     {activeSection === 'data'          && <DataSection user={user} />}
                 </div>
             </div>
