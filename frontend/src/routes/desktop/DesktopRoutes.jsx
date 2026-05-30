@@ -21,6 +21,7 @@ import TeamManagementPage from '../../pages/desktop/TeamManagementPage';
 import SettingsPage       from '../../pages/desktop/SettingsPage';
 import BiometricsPortalPage from '../../pages/desktop/BiometricsPortalPage';
 import BackupSystemPage   from '../../pages/desktop/BackupSystemPage';
+import BackupSettingsPage from '../../pages/desktop/BackupSettingsPage';
 
 // Self-contained modules
 import FinanceRoutes   from '../../modules/finance';
@@ -86,6 +87,7 @@ const DesktopRoutes = () => {
             <Route path="settings"   element={<RequirePermission permission="can_manage_settings"><SettingsPage /></RequirePermission>}      />
             <Route path="biometrics" element={<BiometricsPortalPage />} />
             <Route path="backups"    element={<RequirePermission permission="can_manage_admin_config"><BackupSystemPage /></RequirePermission>} />
+            <Route path="backups/settings" element={<RequirePermission permission="can_manage_admin_config"><BackupSettingsPage /></RequirePermission>} />
 
             {/* Self-contained modules */}
             <Route path="projects/*"  element={<RequirePermission permission="can_view_projects"><ProjectsRoutes /></RequirePermission>} />
