@@ -944,8 +944,8 @@ class GitHubActionsDeployView(APIView):
     GITHUB_WORKFLOW = 'deploy.yml'
 
     def _get_headers(self):
-        import os
-        token = os.getenv('GITHUB_DEPLOY_TOKEN') or os.getenv('GITHUB_TOKEN')
+        from django.conf import settings
+        token = getattr(settings, 'GITHUB_DEPLOY_TOKEN', '') or getattr(settings, 'GITHUB_TOKEN', '')
         headers = {
             'Accept': 'application/vnd.github.v3+json',
         }

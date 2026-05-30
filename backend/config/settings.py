@@ -179,6 +179,10 @@ ELEVENLABS_API_KEY  = config('ELEVENLABS_API_KEY',  default='')
 ELEVENLABS_VOICE_ID = config('ELEVENLABS_VOICE_ID', default='pNInz6obpgDQGcFmaJgB')
 OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
 
+# ── GitHub Actions CI/CD Deployment Token ──────────────────────────────────────
+GITHUB_DEPLOY_TOKEN = config('GITHUB_DEPLOY_TOKEN', default='')
+
+
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
