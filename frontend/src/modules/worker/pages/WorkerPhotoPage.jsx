@@ -122,9 +122,9 @@ function getPalette(theme) {
         };
     }
     return {
-        bg: '#020617',
+        bg: '#0f172a',
         surface: '#0f172a',
-        card: '#0d1826',
+        card: 'rgba(30,41,59,0.5)',
         border: '#1e293b',
         text: '#f1f5f9',
         muted: '#64748b',
@@ -137,7 +137,7 @@ function getPalette(theme) {
         red: '#f87171',
         purple: '#a78bfa',
         shadow: '0 24px 60px rgba(2,6,23,0.32)',
-        overlay: 'rgba(2,6,23,0.96)',
+        overlay: 'rgba(15,23,42,0.96)',
     };
 }
 
@@ -271,7 +271,7 @@ function PhotoThumb({ photo, onClick, c }) {
 function themeAwareGradient(c) {
     return c.bg === '#f8fafc'
         ? 'linear-gradient(transparent, rgba(15,23,42,.76))'
-        : 'linear-gradient(transparent, rgba(2,6,23,.88))';
+        : 'linear-gradient(transparent, rgba(15,23,42,.88))';
 }
 
 function Lightbox({ photo, onClose, onPrev, onNext, c }) {
@@ -746,9 +746,9 @@ export default function WorkerPhotoPage() {
                             {/* Live Photo */}
                             <button onClick={() => cameraRef.current?.click()}
                                 style={{
-                                    padding: '20px 14px 18px', borderRadius: 22, border: `1px solid ${c.border}`, cursor: 'pointer',
-                                    background: c.surface,
-                                    boxShadow: c.shadow,
+                                    padding: '20px 14px 18px', borderRadius: 22, border: `1px solid rgba(255,255,255,0.1)`, cursor: 'pointer',
+                                    background: 'rgba(255,255,255,0.03)', backdropFilter: 'blur(10px)',
+                                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
                                     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
                                     transition: 'transform .1s',
                                     textAlign: 'center'
@@ -765,9 +765,9 @@ export default function WorkerPhotoPage() {
                             {/* Gallery / Video */}
                             <button onClick={() => fileInputRef.current?.click()}
                                 style={{
-                                    padding: '20px 14px 18px', borderRadius: 22, border: `1px solid ${c.border}`, cursor: 'pointer',
-                                    background: c.surface,
-                                    boxShadow: c.shadow,
+                                    padding: '20px 14px 18px', borderRadius: 22, border: `1px solid rgba(255,255,255,0.1)`, cursor: 'pointer',
+                                    background: 'rgba(255,255,255,0.03)', backdropFilter: 'blur(10px)',
+                                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
                                     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
                                     transition: 'transform .1s',
                                     textAlign: 'center'

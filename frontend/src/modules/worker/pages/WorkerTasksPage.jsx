@@ -23,7 +23,7 @@ import workerPortalApi from '../../../services/workerPortalApi';
 
 // ─── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
-    bg:      '#020617',
+    bg:      '#0f172a',
     surface: '#0f172a',
     card:    '#0d1826',
     border:  '#1e293b',
@@ -69,10 +69,10 @@ function injectStyles() {
 
 // ─── Status metadata ───────────────────────────────────────────────────────────
 const STATUS_META = {
-    PENDING:     { label: 'Pending',     color: C.muted,  glow: 'none',          icon: '⏳', gradient: 'linear-gradient(135deg,#334155,#1e293b)' },
-    IN_PROGRESS: { label: 'In Progress', color: C.amber,  glow: '0 0 12px rgba(251,191,36,.35)', icon: '🔨', gradient: 'linear-gradient(135deg,#451a03,#78350f)' },
-    COMPLETED:   { label: 'Completed',   color: C.green,  glow: '0 0 12px rgba(74,222,128,.3)',  icon: '✅', gradient: 'linear-gradient(135deg,#052e16,#14532d)' },
-    BLOCKED:     { label: 'Blocked',     color: C.red,    glow: '0 0 14px rgba(248,113,113,.4)', icon: '🚫', gradient: 'linear-gradient(135deg,#450a0a,#7f1d1d)' },
+    PENDING:     { label: 'बाँकी (Pending)',     color: C.muted,  glow: 'none',          icon: '⏳', gradient: 'linear-gradient(135deg,#334155,#1e293b)' },
+    IN_PROGRESS: { label: 'सुरु (In Progress)', color: C.amber,  glow: '0 0 12px rgba(251,191,36,.35)', icon: '🔨', gradient: 'linear-gradient(135deg,#451a03,#78350f)' },
+    COMPLETED:   { label: 'सम्पन्न (Done)',   color: C.green,  glow: '0 0 12px rgba(74,222,128,.3)',  icon: '✅', gradient: 'linear-gradient(135deg,#052e16,#14532d)' },
+    BLOCKED:     { label: 'अवरुद्ध (Blocked)',     color: C.red,    glow: '0 0 14px rgba(248,113,113,.4)', icon: '🚫', gradient: 'linear-gradient(135deg,#450a0a,#7f1d1d)' },
 };
 
 const PRIORITY_META = {
@@ -284,11 +284,12 @@ function TaskCard({ task, onUpdate, readOnly = false }) {
     return (
         <>
             <div className="wt-card" style={{
-                background: C.card,
-                borderRadius: 16, marginBottom: 10,
-                border: `1px solid ${task.status === 'BLOCKED' ? `${C.red}40` : task.status === 'COMPLETED' ? `${C.green}30` : C.border}`,
+                background: 'rgba(30,41,59,0.5)',
+                backdropFilter: 'blur(12px)',
+                borderRadius: 16, marginBottom: 14,
+                border: `1px solid ${task.status === 'BLOCKED' ? `${C.red}40` : task.status === 'COMPLETED' ? `${C.green}30` : 'rgba(255,255,255,0.1)'}`,
                 overflow: 'hidden',
-                boxShadow: task.status === 'BLOCKED' ? `0 0 16px rgba(248,113,113,.12)` : 'none',
+                boxShadow: task.status === 'BLOCKED' ? `0 0 16px rgba(248,113,113,.12)` : 'inset 0 1px 0 rgba(255,255,255,0.05)',
             }}>
                 {/* Left accent bar */}
                 <div style={{
@@ -404,11 +405,11 @@ function TaskCard({ task, onUpdate, readOnly = false }) {
                                     marginTop: 14, width: '100%', padding: '12px',
                                     borderRadius: 12, border: 'none',
                                     background: `linear-gradient(135deg, ${C.blueD}, ${C.blue})`,
-                                    color: '#000', fontSize: 13, fontWeight: 800,
+                                    color: '#fff', fontSize: 13, fontWeight: 800,
                                     cursor: 'pointer',
                                     boxShadow: `0 4px 16px ${C.blue}40`,
                                 }}>
-                                Update Status →
+                                स्थिति अपडेट गर्नुहोस् (Update Status) →
                             </button>
                         )}
                         {readOnly && (
@@ -564,12 +565,12 @@ export default function WorkerTasksPage() {
                 {/* Page title */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                     <div>
-                        <h2 style={{ fontSize: 20, fontWeight: 900, margin: 0, color: C.text }}>Tasks</h2>
+                        <h2 style={{ fontSize: 20, fontWeight: 900, margin: 0, color: C.text }}>दैनिक कार्यसूची</h2>
                         <p style={{ fontSize: 11, color: C.muted, margin: '2px 0 0' }}>
-                            {counts.active} active · {counts.done} done{counts.blocked > 0 ? ` · ${counts.blocked} blocked` : ''}
+                            {counts.active} सुरु · {counts.done} सम्पन्न{counts.blocked > 0 ? ` · ${counts.blocked} अवरुद्ध` : ''}
                         </p>
                     </div>
-                    <button onClick={load} style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 8, color: C.muted, padding: '6px 10px', fontSize: 12, cursor: 'pointer' }}>
+                    <button onClick={load} style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, padding: '6px 10px', fontSize: 12, cursor: 'pointer' }}>
                         ↻ Refresh
                     </button>
                 </div>
@@ -577,14 +578,14 @@ export default function WorkerTasksPage() {
                 {/* Section tabs: My Tasks / Project Tasks */}
                 <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
                     {[
-                        { key: 'mine',    label: '👤 My Tasks',      count: counts.total },
-                        { key: 'project', label: '🏗️ Project Tasks', count: allTasks.length },
+                        { key: 'mine',    label: '👤 मेरो कार्यसूची',      count: counts.total },
+                        { key: 'project', label: '🏗️ प्रोजेक्ट स्थिति', count: allTasks.length },
                     ].map(t => (
                         <button key={t.key} className="wt-chip" onClick={() => { setTab(t.key); setSearch(''); }}
                             style={{
                                 flex: 1, padding: '9px 4px', borderRadius: 10, border: 'none',
-                                background: tab === t.key ? `linear-gradient(135deg,${C.blueD},${C.blue})` : C.card,
-                                color: tab === t.key ? '#000' : C.muted,
+                                background: tab === t.key ? `linear-gradient(135deg,${C.blueD},${C.blue})` : 'rgba(30,41,59,0.5)',
+                                color: tab === t.key ? '#fff' : C.muted,
                                 fontSize: 12, fontWeight: 800, cursor: 'pointer',
                                 boxShadow: tab === t.key ? `0 4px 14px ${C.blue}40` : 'none',
                             }}>

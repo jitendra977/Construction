@@ -100,7 +100,7 @@ input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0 }
 
 // ── Palette / constants ───────────────────────────────────────────────────────
 const C = {
-  bg:      '#020617',
+  bg:      '#0f172a',
   surface: 'rgba(15,23,42,.8)',
   border:  'rgba(255,255,255,.08)',
   text:    '#f1f5f9',
@@ -147,9 +147,9 @@ function npr(v) {
 
 function greeting() {
   const h = new Date().getHours();
-  if (h < 12) return { text:'Good Morning', icon:'🌅' };
-  if (h < 17) return { text:'Good Afternoon', icon:'☀️' };
-  return { text:'Good Evening', icon:'🌙' };
+  if (h < 12) return { text:'शुभ प्रभात (Good Morning)', icon:'🌅' };
+  if (h < 17) return { text:'शुभ दिउँसो (Good Afternoon)', icon:'☀️' };
+  return { text:'शुभ साँझ (Good Evening)', icon:'🌙' };
 }
 
 function initials(name='') {
@@ -1297,6 +1297,14 @@ export default function WorkerPortal() {
   const [messageType,setMessageType]=useState('success'); // success | error
   const [taskCounts,setTaskCounts]=useState(null); // { total, active, blocked, done }
 
+  const NAV_ITEMS = [
+    { id:'home',      icon:'🏠', label:'गृहपृष्ठ',    color:C.green },
+    { id:'tasks',     icon:'📋', label:'कार्य',       color:C.amber },
+    { id:'photos',    icon:'📸', label:'फोटोहरू',     color:C.purple },
+    { id:'resources', icon:'🛠️', label:'स्रोतहरू',    color:C.red },
+    { id:'profile',   icon:'👤', label:'प्रोफाइल',   color:C.blue },
+  ];
+
   useGPSBackgroundTracker(!!user,'worker_access_token');
 
   const load=useCallback(async()=>{
@@ -1331,7 +1339,7 @@ export default function WorkerPortal() {
         },
         (err) => {
           console.warn("Location access denied or failed:", err);
-          showMsg("❌ Cannot check in: Location services are disabled. Please enable GPS/Location in your browser to check in.", "error");
+          showMsg("❌ हाजिरी गर्न सकिएन: स्थान सेवाहरू असक्षम छन्। कृपया GPS/स्थान सक्रिय गर्नुहोस्।", "error");
         },
         { enableHighAccuracy: true }
       );
@@ -1340,7 +1348,6 @@ export default function WorkerPortal() {
 
   const showMsg=(text,type='success')=>{
     setMessage(text); setMessageType(type);
-    // Errors stay longer so workers can read them
     setTimeout(()=>setMessage(''), type==='error' ? 8000 : 4000);
   };
 
@@ -1353,23 +1360,13 @@ export default function WorkerPortal() {
   const checkedIn  = !!today.check_in && !today.check_out;
   const checkedOut = !!today.check_out;
 
-  // stats
   const payroll    = profile?.payroll||{};
   const history    = profile?.history||[];
-  const thisMonth  = history.length;
   const presentDays= history.filter(r=>r.status==='PRESENT').length;
-
-  const NAV_ITEMS=[
-    {id:'home',  icon:'🏠', label:'Home',    color:'#38bdf8'},
-    {id:'tasks', icon:'📋', label:'Tasks',   color:'#a78bfa'},
-    {id:'photos',icon:'📸', label:'Photos',  color:'#f472b6'},
-    {id:'resources',icon:'🧱',label:'Stock', color:'#fb923c'},
-    {id:'profile',icon:'👤',label:'Profile', color:'#60a5fa'},
-  ];
 
   return (
     <WorkerUploadProvider>
-    <div className="wp wp-fade" style={{minHeight:'100dvh',background:C.bg,color:C.text,overflowX:'hidden'}}>
+    <div className="wp wp-fade" style={{minHeight:'100dvh',background:'#0f172a',color:C.text,overflowX:'hidden'}}>
       <style>{STYLES}</style>
 
       {/* ── Top bar ── */}
@@ -1384,7 +1381,6 @@ export default function WorkerPortal() {
           <div style={{fontWeight:800,fontSize:17,marginTop:1}}>{user.full_name}</div>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:10}}>
-          {/* Attendance dot */}
           <div style={{
             width:10,height:10,borderRadius:'50%',
             background: checkedOut?C.muted : checkedIn?C.green:'#64748b',
@@ -1392,7 +1388,7 @@ export default function WorkerPortal() {
             animation: checkedIn?'pulseGreen 2s infinite':undefined,
           }}/>
           <button onClick={handleLogout} style={{padding:'7px 14px',borderRadius:10,border:`1px solid rgba(255,255,255,.1)`,background:'rgba(255,255,255,.05)',color:'#fff',fontSize:12,fontWeight:700,cursor:'pointer'}}>
-            Logout
+            लगआउट
           </button>
         </div>
       </div>
@@ -1403,15 +1399,15 @@ export default function WorkerPortal() {
       {tab==='resources' && <WorkerResourcesPage/>}
 
       {tab==='estimator' && (
-        <div style={{minHeight:'100vh',background:C.bg,paddingBottom:100}}>
+        <div style={{minHeight:'100vh',background:'#0f172a',paddingBottom:100}}>
           <div style={{
             padding:'18px 20px 0',
             background:C.surface,borderBottom:`1px solid ${C.border}`,
             position:'sticky',top:0,zIndex:50,
           }}>
-            <h2 style={{fontSize:20,fontWeight:900,margin:'0 0 12px',color:C.text}}>📐 Field Calculator</h2>
+            <h2 style={{fontSize:20,fontWeight:900,margin:'0 0 12px',color:C.text}}>📐 क्यालकुलेटर</h2>
             <div className="wp-scroll" style={{display:'flex',gap:8,overflowX:'auto',paddingBottom:12}}>
-              {[['wall','🧱 Wall'],['concrete','🏗️ Concrete'],['plaster','🪄 Plaster'],['flooring','🧊 Flooring']].map(([k,l])=>(
+              {[['wall','🧱 पर्खाल'],['concrete','🏗️ कङ्क्रिट'],['plaster','🪄 प्लास्टर'],['flooring','🧊 फर्श']].map(([k,l])=>(
                 <button key={k} onClick={()=>setEstimatorTab(k)} style={{
                   padding:'8px 16px',borderRadius:20,fontSize:12,fontWeight:700,flexShrink:0,
                   border:`1.5px solid ${estimatorTab===k?C.blue:C.border}`,
@@ -1437,7 +1433,6 @@ export default function WorkerPortal() {
         {tab==='home' && (
           <div className="wp-slide" style={{padding:'20px 16px 0'}}>
 
-            {/* Greeting + clock */}
             <div className="wp-glass" style={{borderRadius:24,padding:'20px 20px 24px',marginBottom:14,textAlign:'center'}}>
               <div style={{fontSize:28,marginBottom:8}}>{g.icon}</div>
               <div style={{fontSize:13,color:C.muted,fontWeight:600,marginBottom:4}}>{g.text},</div>
@@ -1447,7 +1442,6 @@ export default function WorkerPortal() {
               <LiveClock/>
             </div>
 
-            {/* Today status card */}
             <div style={{
               borderRadius:24,padding:'20px',marginBottom:14,
               background: checkedOut
@@ -1459,37 +1453,35 @@ export default function WorkerPortal() {
             }}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
                 <div>
-                  <div style={{fontSize:10,fontWeight:800,textTransform:'uppercase',letterSpacing:'.08em',color:C.muted,marginBottom:6}}>Today's Status</div>
+                  <div style={{fontSize:10,fontWeight:800,textTransform:'uppercase',letterSpacing:'.08em',color:C.muted,marginBottom:6}}>आजको स्थिति</div>
                   <div style={{fontSize:26,fontWeight:900,color: checkedOut?C.muted:checkedIn?C.green:C.blue}}>
-                    {ATTEND_ICON[today.status]||'⏳'} {today.status?.replace('_',' ')||'NOT MARKED'}
+                    {ATTEND_ICON[today.status]||'⏳'} {today.status?.replace('_',' ')||'अनिश्चित'}
                   </div>
                   <div style={{fontSize:13,color:C.muted,marginTop:6}}>
-                    {today.check_in ? `In: ${fmt(today.check_in)}` : 'Awaiting check-in'}
-                    {today.check_out && ` · Out: ${fmt(today.check_out)}`}
+                    {today.check_in ? `भित्र: ${fmt(today.check_in)}` : 'हाजिरी पर्खिँदै'}
+                    {today.check_out && ` · बाहिर: ${fmt(today.check_out)}`}
                   </div>
                 </div>
                 <div style={{textAlign:'right'}}>
-                  <div style={{fontSize:11,color:C.muted,marginBottom:4}}>This month</div>
+                  <div style={{fontSize:11,color:C.muted,marginBottom:4}}>यस महिना</div>
                   <div style={{fontSize:20,fontWeight:900,color:C.green}}>{presentDays}</div>
-                  <div style={{fontSize:10,color:C.muted}}>days present</div>
+                  <div style={{fontSize:10,color:C.muted}}>दिन उपस्थित</div>
                 </div>
               </div>
             </div>
 
-            {/* Quick stat chips */}
             <div style={{display:'flex',gap:10,marginBottom:14}}>
-              <StatChip icon="📋" label="Tasks"
-                value={taskCounts ? (taskCounts.active > 0 ? `${taskCounts.active} active` : taskCounts.total || '—') : '…'}
+              <StatChip icon="📋" label="कार्यहरू"
+                value={taskCounts ? (taskCounts.active > 0 ? `${taskCounts.active} जारी` : taskCounts.total || '—') : '…'}
                 color={taskCounts?.blocked>0?C.red:C.blue} onClick={()=>setTab('tasks')}/>
-              <StatChip icon="💰" label="Earnings"
+              <StatChip icon="💰" label="कमाई"
                 value={payroll.total_wage?npr(payroll.total_wage):'—'} color={C.green}
                 onClick={()=>setTab('payroll')}/>
-              <StatChip icon="📅" label="Days"
+              <StatChip icon="📅" label="दिन"
                 value={payroll.total_days??'—'} color={C.amber}
                 onClick={()=>setTab('logs')}/>
             </div>
 
-            {/* 7-day attendance mini-calendar */}
             {history.length > 0 && (() => {
               const STATUS_DOT = {
                 PRESENT:'#4ade80', HALF_DAY:'#fbbf24', ABSENT:'#f87171',
@@ -1508,7 +1500,7 @@ export default function WorkerPortal() {
                   background:'rgba(255,255,255,.03)',border:`1px solid ${C.border}`,
                 }}>
                   <div style={{fontSize:10,fontWeight:800,color:C.muted,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:10}}>
-                    This Week
+                    यो हप्ता
                   </div>
                   <div style={{display:'flex',justifyContent:'space-between'}}>
                     {days.map(({iso,d,rec})=>{
@@ -1535,19 +1527,10 @@ export default function WorkerPortal() {
                       );
                     })}
                   </div>
-                  <div style={{display:'flex',gap:10,marginTop:12,flexWrap:'wrap'}}>
-                    {Object.entries(STATUS_DOT).map(([k,v])=>(
-                      <div key={k} style={{display:'flex',alignItems:'center',gap:4}}>
-                        <div style={{width:6,height:6,borderRadius:'50%',background:v}}/>
-                        <span style={{fontSize:9,color:C.muted,fontWeight:700}}>{k}</span>
-                      </div>
-                    ))}
-                  </div>
                 </div>
               );
             })()}
 
-            {/* Project + role info */}
             {(user.project || user.role) && (
               <div style={{
                 borderRadius:18,padding:'14px 16px',marginBottom:14,
@@ -1564,7 +1547,7 @@ export default function WorkerPortal() {
                     background:'rgba(248,113,113,.15)',border:`1px solid ${C.red}40`,
                     borderRadius:10,padding:'4px 10px',fontSize:11,fontWeight:800,color:C.red,flexShrink:0,
                   }}>
-                    {taskCounts.blocked} blocked
+                    {taskCounts.blocked} अवरुद्ध
                   </div>
                 )}
               </div>
@@ -1733,7 +1716,7 @@ export default function WorkerPortal() {
         {/* ════ PROFILE ════ */}
         {tab==='profile' && (
           <div className="wp-slide" style={{padding:'20px 16px 0'}}>
-            <h2 style={{fontSize:20,fontWeight:900,marginBottom:20}}>👤 My Profile</h2>
+            <h2 style={{fontSize:20,fontWeight:900,marginBottom:20}}>👤 मेरो प्रोफाइल (My Profile)</h2>
 
             {/* Avatar card */}
             <div style={{
@@ -1772,15 +1755,16 @@ export default function WorkerPortal() {
             {/* Stats grid */}
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}}>
               {[
-                {label:'Days This Month', value:payroll.total_days??'—', color:C.blue, icon:'📅'},
-                {label:'Overtime Hours',  value:payroll.total_ot!=null?`${payroll.total_ot}h`:'—', color:C.amber, icon:'⏰'},
-                {label:'Total Earnings',  value:payroll.total_wage?npr(payroll.total_wage):'—', color:C.green, icon:'💰'},
-                {label:'Present Rate',    value:thisMonth?`${Math.round(presentDays/thisMonth*100)}%`:'—', color:C.purple, icon:'📊'},
+                {label:'Days This Month', valLabel: 'हाजिरी दिन', value:payroll.total_days??'—', color:C.blue, icon:'📅'},
+                {label:'Overtime Hours',  valLabel: 'काम गरेको घण्टा', value:payroll.total_ot!=null?`${payroll.total_ot}h`:'—', color:C.amber, icon:'⏰'},
+                {label:'Total Earnings',  valLabel: 'कुल तलब', value:payroll.total_wage?npr(payroll.total_wage):'—', color:C.green, icon:'💰'},
+                {label:'Present Rate',    valLabel: 'उपस्थिति दर', value:thisMonth?`${Math.round(presentDays/thisMonth*100)}%`:'—', color:C.purple, icon:'📊'},
               ].map(s=>(
-                <div key={s.label} className="wp-glass" style={{borderRadius:18,padding:'16px'}}>
+                <div key={s.label} className="wp-glass" style={{borderRadius:18,padding:'16px', background:'rgba(30,41,59,.6)'}}>
                   <div style={{fontSize:18,marginBottom:6}}>{s.icon}</div>
                   <div style={{fontSize:20,fontWeight:900,color:s.color}}>{s.value}</div>
-                  <div style={{fontSize:10,color:C.muted,fontWeight:700,textTransform:'uppercase',marginTop:4}}>{s.label}</div>
+                  <div style={{fontSize:11,color:C.text,fontWeight:800,marginTop:4}}>{s.valLabel}</div>
+                  <div style={{fontSize:10,color:C.muted,fontWeight:700,textTransform:'uppercase',marginTop:2}}>{s.label}</div>
                 </div>
               ))}
             </div>
@@ -1788,26 +1772,26 @@ export default function WorkerPortal() {
             {/* Quick actions */}
             <button onClick={()=>setTab('badge')} className="wp-btn" style={{
               width:'100%',padding:14,borderRadius:16,border:'none',marginBottom:10,
-              background:'rgba(56,189,248,.1)',color:C.blue,fontSize:13,fontWeight:800,cursor:'pointer',
-            }}>🆔 View My QR Badge</button>
+              background:'rgba(56,189,248,.1)',color:C.blue,fontSize:14,fontWeight:800,cursor:'pointer',
+            }}>🆔 मेरो परिचय पत्र (ID Badge)</button>
             <button onClick={()=>setTab('logs')} className="wp-btn" style={{
               width:'100%',padding:14,borderRadius:16,border:'none',marginBottom:10,
-              background:'rgba(167,139,250,.1)',color:C.purple,fontSize:13,fontWeight:800,cursor:'pointer',
-            }}>📅 Attendance Log</button>
+              background:'rgba(167,139,250,.1)',color:C.purple,fontSize:14,fontWeight:800,cursor:'pointer',
+            }}>📅 हाजिरी विवरण (Attendance Log)</button>
             <button onClick={()=>setTab('payroll')} className="wp-btn" style={{
               width:'100%',padding:14,borderRadius:16,border:'none',marginBottom:10,
-              background:'rgba(16,185,129,.1)',color:C.green,fontSize:13,fontWeight:800,cursor:'pointer',
-            }}>💰 Earnings & Payroll</button>
+              background:'rgba(16,185,129,.1)',color:C.green,fontSize:14,fontWeight:800,cursor:'pointer',
+            }}>💰 कुल तलब (Earnings)</button>
             <button onClick={()=>setTab('team')} className="wp-btn" style={{
               width:'100%',padding:14,borderRadius:16,border:'none',marginBottom:20,
-              background:'rgba(255,255,255,.05)',color:C.muted,fontSize:13,fontWeight:800,cursor:'pointer',
-            }}>👥 My Teams</button>
+              background:'rgba(255,255,255,.05)',color:C.muted,fontSize:14,fontWeight:800,cursor:'pointer',
+            }}>👥 मेरो टोली (My Teams)</button>
 
             <button onClick={handleLogout} className="wp-btn" style={{
               width:'100%',padding:14,borderRadius:16,
               border:'1px solid rgba(248,113,113,.2)',background:'rgba(248,113,113,.06)',
-              color:'#fb7185',fontSize:13,fontWeight:800,cursor:'pointer',
-            }}>🚪 Logout</button>
+              color:'#fb7185',fontSize:14,fontWeight:800,cursor:'pointer',
+            }}>🚪 बाहिर निस्कनुहोस् (Logout)</button>
           </div>
         )}
       </div>
