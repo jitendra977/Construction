@@ -80,6 +80,19 @@ const workerPortalApi = {
     },
 
     /**
+     * Login via biometric face ID.
+     * POST /api/v1/worker/face-login/
+     * Body: { encoding, username }
+     */
+    faceLogin: async (encoding, username = '') => {
+        const { data } = await axios.post(`${API_URL}/worker/face-login/`, { encoding, username });
+        localStorage.setItem(PORTAL_ACCESS_KEY,  data.access);
+        localStorage.setItem(PORTAL_REFRESH_KEY, data.refresh);
+        localStorage.setItem(PORTAL_USER_KEY,    JSON.stringify(data.worker));
+        return data;
+    },
+
+    /**
      * Launch the worker portal from the admin dashboard without re-entering PIN.
      * Requires the currently authenticated admin user to already have a workforce profile.
      */

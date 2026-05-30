@@ -825,6 +825,88 @@ class WorkerLoginView(APIView):
         return Response(token_data)
 
 
+class WorkerFaceLoginView(APIView):
+    """
+    POST /api/v1/worker/face-login/
+    Body: { "encoding": [float, ...], "username": "98XXXXXXXX" }
+    """
+    permission_classes = [AllowAny]
+    throttle_classes = [LoginRateThrottle]
+
+    def post(self, request):
+        from apps.biometrics.models import UserFaceSignature
+        from apps.biometrics.views import euclidean_distance
+        from django.db.models import Q
+        
+        encoding = request.data.get('encoding')
+        username_helper = request.data.get('username') or request.data.get('phone')
+
+        if not encoding:
+            return Response({'error': 'encoding is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Threshold rules: Extremely strict verification
+        SIMILARITY_THRESHOLD = 0.55
+        matched_user = None
+        min_distance = float('inf')
+
+        # Flow A: User provided a phone/username -> 1:1 validation
+        if username_helper:
+            username_helper = username_helper.strip()
+            try:
+                user = User.objects.filter(
+                    Q(username__iexact=username_helper) | 
+                    Q(email__iexact=username_helper)
+                ).first()
+
+                if user and hasattr(user, 'face_signature') and user.face_signature:
+                    db_vector = user.face_signature.get_encoding()
+                    if db_vector:
+                        distance = euclidean_distance(encoding, db_vector)
+                        if distance < SIMILARITY_THRESHOLD:
+                            matched_user = user
+                            min_distance = distance
+            except Exception as e:
+                logger.error("Error during worker face 1:1 lookup: %s", e)
+
+        # Flow B: 1:N database-wide identification
+        if not matched_user:
+            try:
+                signatures = UserFaceSignature.objects.select_related('user').all()
+                for sig in signatures:
+                    db_vector = sig.get_encoding()
+                    if db_vector:
+                        distance = euclidean_distance(encoding, db_vector)
+                        if distance < min_distance and distance < SIMILARITY_THRESHOLD:
+                            min_distance = distance
+                            matched_user = sig.user
+            except Exception as e:
+                logger.error("Error during worker face 1:N lookup: %s", e)
+
+        if matched_user:
+            if not matched_user.is_active:
+                return Response({'error': 'This user account is inactive. Please contact support.'}, status=status.HTTP_403_FORBIDDEN)
+
+            if not hasattr(matched_user, 'workforce_profile'):
+                return Response({'error': 'This account is not linked to a workforce profile.'}, status=status.HTTP_403_FORBIDDEN)
+
+            token_data = _issue_worker_portal_tokens(matched_user)
+            if not token_data:
+                return Response({'error': 'This account is not linked to a workforce profile.'}, status=status.HTTP_403_FORBIDDEN)
+
+            log_activity(
+                request,
+                matched_user,
+                'LOGIN_BIOMETRIC_WORKER',
+                'UserFaceSignature',
+                object_id=matched_user.id,
+                object_repr=matched_user.email,
+                description=f"Worker logged in successfully via biometric face scan. Match confidence distance: {min_distance:.4f}"
+            )
+            return Response(token_data)
+
+        return Response({'error': 'Face verification failed. Please try again or use Phone & PIN login.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+
 class WorkerMeView(APIView):
     """
     GET /api/v1/worker/me/

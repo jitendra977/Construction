@@ -3,6 +3,7 @@
  * Full-screen PWA-style shell for field workers.
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import * as faceapi from '@vladmandic/face-api';
 import workerPortalApi from '../../services/workerPortalApi';
 import useGPSBackgroundTracker from '../../modules/location/hooks/useGPSBackgroundTracker';
 import WorkerTasksPage     from './pages/WorkerTasksPage';
@@ -353,6 +354,23 @@ function LoginScreen({ onLogin }) {
   const [qrMsg,setQrMsg]=useState('Scan your QR Badge');
   const [showPin,setShowPin]=useState(false);
 
+  // Face ID Login States
+  const [faceModelReady, setFaceModelReady]     = useState(false);
+  const [faceModelLoading, setFaceModelLoading] = useState(false);
+  const [faceCamError, setFaceCamError]         = useState(null);
+  const [faceDetected, setFaceDetected]         = useState(false);
+  const [faceLoginStatus, setFaceLoginStatus]   = useState('idle'); // 'idle' | 'detecting' | 'verifying' | 'done' | 'error'
+
+  const faceVideoRef = useRef(null);
+  const faceCanvasRef = useRef(null);
+  const faceStreamRef = useRef(null);
+  const faceLoopRef = useRef(null);
+  const faceBusyRef = useRef(false);
+  const faceStableCount = useRef(0);
+  const faceCapturedDescRef = useRef(null);
+
+  const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+
   const handlePinLogin=async(e)=>{
     e.preventDefault();
     if(!phone||!pin) return setError('Enter phone and PIN');
@@ -373,11 +391,163 @@ function LoginScreen({ onLogin }) {
     }
   };
 
-  const videoRef=useQRScanner(handleQRLogin, mode==='qr'&&!loading);
+  const loadFaceModels = async () => {
+    if (faceModelReady) {
+      startFaceCamera();
+      return;
+    }
+    setFaceModelLoading(true);
+    setFaceLoginStatus('idle');
+    setFaceCamError(null);
+    try {
+      await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+      await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+      await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+      setFaceModelReady(true);
+    } catch (e) {
+      setError('AI models failed to load — check internet connection.');
+      setFaceCamError('Failed to load AI face recognition models.');
+    } finally {
+      setFaceModelLoading(false);
+    }
+  };
+
+  const startFaceCamera = async () => {
+    setFaceCamError(null);
+    setFaceLoginStatus('idle');
+    faceBusyRef.current = false;
+    faceStableCount.current = 0;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 640, height: 480, facingMode: 'user' }
+      });
+      faceStreamRef.current = stream;
+      if (faceVideoRef.current) {
+        faceVideoRef.current.srcObject = stream;
+        await faceVideoRef.current.play();
+        faceLoopRef.current = requestAnimationFrame(faceFrameLoop);
+      }
+    } catch (e) {
+      setFaceCamError('Camera permission denied. Please allow camera access.');
+    }
+  };
+
+  const stopFaceEverything = () => {
+    if (faceLoopRef.current) {
+      cancelAnimationFrame(faceLoopRef.current);
+      faceLoopRef.current = null;
+    }
+    if (faceStreamRef.current) {
+      faceStreamRef.current.getTracks().forEach(t => t.stop());
+      faceStreamRef.current = null;
+    }
+    faceBusyRef.current = false;
+    faceStableCount.current = 0;
+    faceCapturedDescRef.current = null;
+  };
+
+  useEffect(() => {
+    if (mode === 'face' && faceModelReady) {
+      startFaceCamera();
+    }
+    return () => stopFaceEverything();
+  }, [mode, faceModelReady]);
+
+  useEffect(() => {
+    if (mode === 'face' && !faceModelReady && !faceModelLoading) {
+      loadFaceModels();
+    }
+  }, [mode, faceModelReady, faceModelLoading]);
+
+  const faceFrameLoop = async () => {
+    const video = faceVideoRef.current;
+    const canvas = faceCanvasRef.current;
+    if (!video || video.paused || video.ended || !canvas) {
+      faceLoopRef.current = requestAnimationFrame(faceFrameLoop);
+      return;
+    }
+
+    try {
+      const det = await faceapi
+        .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (det) {
+          setFaceDetected(true);
+          faceStableCount.current += 1;
+
+          const dims = faceapi.matchDimensions(canvas, video, true);
+          const resized = faceapi.resizeResults(det, dims);
+          ctx.fillStyle = 'rgba(56,189,248,0.7)';
+          resized.landmarks.positions.forEach(p => {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 1.5, 0, Math.PI * 2);
+            ctx.fill();
+          });
+
+          faceCapturedDescRef.current = det.descriptor;
+          handleFaceLoginFrame(det.descriptor);
+        } else {
+          setFaceDetected(false);
+          faceStableCount.current = 0;
+          faceCapturedDescRef.current = null;
+        }
+      }
+    } catch (_) {}
+
+    faceLoopRef.current = requestAnimationFrame(faceFrameLoop);
+  };
+
+  const handleFaceLoginFrame = async (descriptor) => {
+    if (faceBusyRef.current) return;
+    if (faceStableCount.current < 15) {
+      setFaceLoginStatus('detecting');
+      return;
+    }
+
+    faceBusyRef.current = true;
+    setFaceLoginStatus('verifying');
+    
+    if (faceStreamRef.current) {
+      faceStreamRef.current.getTracks().forEach(t => t.stop());
+      faceStreamRef.current = null;
+    }
+
+    try {
+      const d = await workerPortalApi.faceLogin(Array.from(descriptor), phone || '');
+      setFaceLoginStatus('done');
+      onLogin(d.worker);
+    } catch (e) {
+      setFaceLoginStatus('error');
+      const errMsg = e.response?.data?.error || 'Face not recognised. Try again or use PIN login.';
+      setError(errMsg);
+      faceBusyRef.current = false;
+
+      setTimeout(() => {
+        if (mode === 'face') {
+          startFaceCamera();
+        }
+      }, 2500);
+    }
+  };
+
+  const qrVideoRef=useQRScanner(handleQRLogin, mode==='qr'&&!loading);
 
   return (
     <div className="wp wp-fade" style={{minHeight:'100dvh',background:C.bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'24px 20px'}}>
       <style>{STYLES}</style>
+      <style>{`
+        @keyframes sweep {
+          0%   { top: 5%; }
+          50%  { top: 90%; }
+          100% { top: 5%; }
+        }
+      `}</style>
 
       {/* Logo area */}
       <div style={{textAlign:'center',marginBottom:36}}>
@@ -394,9 +564,9 @@ function LoginScreen({ onLogin }) {
 
       {/* Mode tabs */}
       <div style={{display:'flex',gap:6,marginBottom:24,background:'rgba(255,255,255,.05)',padding:5,borderRadius:16,width:'100%',maxWidth:380}}>
-        {[['pin','🔑 PIN Login'],['qr','📷 QR Badge']].map(([k,l])=>(
-          <button key={k} onClick={()=>setMode(k)} style={{
-            flex:1,padding:'11px',borderRadius:12,border:'none',cursor:'pointer',fontWeight:800,fontSize:13,
+        {[['pin','🔑 PIN'],['qr','📷 QR Badge'],['face','👤 Face ID']].map(([k,l])=>(
+          <button key={k} onClick={()=>{ setError(''); setMode(k); }} style={{
+            flex:1,padding:'11px 8px',borderRadius:12,border:'none',cursor:'pointer',fontWeight:800,fontSize:13,
             background:mode===k?'linear-gradient(135deg,#0ea5e9,#3b82f6)':'transparent',
             color:mode===k?'#fff':C.muted,
             transition:'all .2s',
@@ -453,7 +623,7 @@ function LoginScreen({ onLogin }) {
         <div className="wp-pop" style={{width:'100%',maxWidth:380}}>
           <div className="wp-glass-dark" style={{borderRadius:24,padding:24}}>
             <div style={{position:'relative',borderRadius:20,overflow:'hidden',background:'#000',aspectRatio:'1',marginBottom:14,boxShadow:`0 0 0 2px ${C.blue}`}}>
-              <video ref={videoRef} style={{width:'100%',height:'100%',objectFit:'cover'}} playsInline muted />
+              <video ref={qrVideoRef} style={{width:'100%',height:'100%',objectFit:'cover'}} playsInline muted />
               <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',pointerEvents:'none'}}>
                 <div style={{width:'64%',height:'64%',border:`2px solid rgba(56,189,248,.35)`,borderRadius:20,position:'relative'}}>
                   <div style={{position:'absolute',inset:0,border:`2px solid ${C.blue}`,borderRadius:20,animation:'pulseBlue 2s infinite'}}/>
@@ -462,6 +632,130 @@ function LoginScreen({ onLogin }) {
             </div>
             <p style={{textAlign:'center',color:'#fff',fontWeight:700,fontSize:14,margin:0}}>{qrMsg}</p>
             {loading && <p style={{textAlign:'center',color:C.blue,fontSize:12,marginTop:8}}>Verifying credentials…</p>}
+          </div>
+        </div>
+      )}
+
+      {/* Face ID mode */}
+      {mode==='face' && (
+        <div className="wp-pop" style={{width:'100%',maxWidth:380}}>
+          <div className="wp-glass-dark" style={{borderRadius:24,padding:24,display:'flex',flexDirection:'column',alignItems:'center',gap:20}}>
+            {/* Optional Phone/username pre-filtering */}
+            <div style={{width:'100%'}}>
+              <label style={{display:'block',fontSize:10,fontWeight:800,color:C.muted,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6}}>Phone Number (Optional for faster 1:1 scan)</label>
+              <input type="tel" value={phone} onChange={e=>setPhone(e.target.value.replace(/\D/g,''))}
+                placeholder="98XXXXXXXX"
+                style={{width:'100%',padding:'10px 12px',borderRadius:10,border:`1.5px solid ${phone?C.blue:'rgba(255,255,255,.06)'}`,background:'rgba(0,0,0,.3)',color:'#fff',fontSize:13,outline:'none',boxSizing:'border-box',fontFamily:'Outfit,sans-serif'}}
+              />
+            </div>
+
+            {/* Circular camera viewport */}
+            <div style={{ position: 'relative', width: 200, height: 200 }}>
+                {/* Progress ring SVG */}
+                <svg width="200" height="200" style={{ position: 'absolute', inset: 0, transform: 'rotate(-90deg)', zIndex: 10, pointerEvents: 'none' }}>
+                    <circle cx="100" cy="100" r="88" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="4" />
+                    <circle
+                        cx="100" cy="100" r="88" fill="none"
+                        stroke={
+                            faceLoginStatus === 'done' ? '#10b981'
+                            : faceLoginStatus === 'error' ? '#ef4444'
+                            : '#38bdf8'
+                        }
+                        strokeWidth="4"
+                        strokeDasharray={`${2 * Math.PI * 88}`}
+                        strokeDashoffset={(() => {
+                            const circ = 2 * Math.PI * 88;
+                            let progress = 0;
+                            if (faceLoginStatus === 'detecting') {
+                                progress = Math.min((faceStableCount.current / 15) * 50, 50);
+                            } else if (faceLoginStatus === 'verifying') {
+                                progress = 80;
+                            } else if (faceLoginStatus === 'done') {
+                                progress = 100;
+                            }
+                            return circ - (circ * progress) / 100;
+                        })()}
+                        strokeLinecap="round"
+                        style={{ transition: 'stroke-dashoffset 0.3s ease, stroke 0.3s' }}
+                    />
+                </svg>
+
+                {/* Circular camera viewport */}
+                <div style={{
+                    position: 'absolute', inset: 10,
+                    borderRadius: '50%', overflow: 'hidden',
+                    background: '#000',
+                    boxShadow: faceDetected
+                        ? `0 0 0 2px ${faceLoginStatus === 'done' ? '#10b981' : faceLoginStatus === 'error' ? '#ef4444' : '#38bdf8'}, 0 0 30px ${faceLoginStatus === 'done' ? '#10b981' : faceLoginStatus === 'error' ? '#ef4444' : '#38bdf8'}44`
+                        : '0 0 0 1px rgba(255,255,255,0.05)',
+                    transition: 'box-shadow 0.3s',
+                }}>
+                    <video ref={faceVideoRef} autoPlay muted playsInline width="640" height="480"
+                        style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%) scaleX(-1)', height: '100%', width: 'auto', objectFit: 'cover' }}
+                    />
+                    <canvas ref={faceCanvasRef} width="180" height="180"
+                        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 3, pointerEvents: 'none', transform: 'scaleX(-1)' }}
+                    />
+
+                    {/* Scan sweep line */}
+                    {faceLoginStatus !== 'done' && faceLoginStatus !== 'error' && faceDetected && (
+                        <div style={{
+                            position: 'absolute', left: 0, right: 0, height: 2,
+                            background: 'linear-gradient(90deg, transparent, #38bdf8, transparent)',
+                            boxShadow: '0 0 8px #38bdf8',
+                            animation: 'sweep 2.5s ease-in-out infinite',
+                            zIndex: 5,
+                        }} />
+                    )}
+
+                    {/* Done overlay */}
+                    {faceLoginStatus === 'done' && (
+                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(16,185,129,0.15)', zIndex: 8 }}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="1.5" style={{ width: 44, height: 44 }}>
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" strokeLinecap="round" strokeLinejoin="round" />
+                                <path d="M22 4L12 14.01l-3-3" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Status text */}
+            <div style={{ textAlign: 'center', maxWidth: 300 }}>
+                <p style={{
+                    margin: '0 0 4px',
+                    fontSize: 14,
+                    fontWeight: 800,
+                    color: faceLoginStatus === 'done' ? '#10b981' : faceLoginStatus === 'error' ? '#ef4444' : '#fff',
+                    transition: 'color 0.3s',
+                }}>
+                    {(() => {
+                        if (faceCamError) return 'Camera Error';
+                        if (faceModelLoading) return 'Loading Face AI…';
+                        if (!faceModelReady) return 'Initialising…';
+                        if (faceLoginStatus === 'idle' || faceLoginStatus === 'detecting') {
+                            return faceDetected ? 'Recognising…' : 'Look at the camera';
+                        }
+                        if (faceLoginStatus === 'verifying') return 'Verifying identity…';
+                        if (faceLoginStatus === 'done') return 'Welcome back!';
+                        if (faceLoginStatus === 'error') return 'Face not recognised';
+                        return '';
+                    })()}
+                </p>
+                <p style={{ margin: 0, fontSize: 11, color: C.muted, lineHeight: 1.5 }}>
+                    {(() => {
+                        if (faceCamError) return faceCamError;
+                        if (faceModelLoading) return 'Loading recognition models...';
+                        if (!faceModelReady) return 'Please wait...';
+                        if (faceLoginStatus === 'idle') return 'Hold still to match biometric face ID.';
+                        if (faceLoginStatus === 'detecting') return 'Matching coordinates...';
+                        if (faceLoginStatus === 'verifying') return 'Performing security handshake...';
+                        if (faceLoginStatus === 'done') return 'Redirecting...';
+                        if (faceLoginStatus === 'error') return error || 'Verification failed';
+                        return '';
+                    })()}
+                </p>
+            </div>
           </div>
         </div>
       )}
