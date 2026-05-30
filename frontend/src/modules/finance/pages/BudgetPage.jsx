@@ -794,12 +794,10 @@ function PhaseGroupedView({ phaseGroups, onEditCategory }) {
                                     border: '1px solid var(--t-border)', 
                                     display: 'flex', 
                                     alignItems: 'center', 
-                                    justify: 'center', 
+                                    justifyContent: 'center', 
                                     fontSize: 12, 
                                     fontWeight: 900, 
                                     color: 'var(--t-text2)',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
                                     transform: isExpanded ? 'rotate(180deg)' : 'none',
                                     transition: 'transform 0.2s'
                                 }}>
