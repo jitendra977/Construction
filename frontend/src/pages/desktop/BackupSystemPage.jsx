@@ -46,13 +46,13 @@ export default function BackupSystemPage() {
     <div className="p-8 max-w-6xl mx-auto space-y-8">
       
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-700/50 pb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-blue-700/50 pb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-100 flex items-center gap-3">
+          <h1 className="text-2xl font-semibold text-blue-100 flex items-center gap-3">
             <Cloud className="w-6 h-6 text-indigo-400" />
             System Auto Backup
           </h1>
-          <p className="text-sm text-slate-400 mt-1.5">
+          <p className="text-sm text-blue-400 mt-1.5">
             Manage your automated Google Drive snapshots and view backup history.
           </p>
         </div>
@@ -75,46 +75,46 @@ export default function BackupSystemPage() {
 
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-6 flex flex-col justify-center">
-          <div className="flex items-center gap-4 text-slate-400 mb-2">
+        <div className="bg-blue-800/40 border border-blue-700/50 rounded-xl p-6 flex flex-col justify-center">
+          <div className="flex items-center gap-4 text-blue-400 mb-2">
             <HardDrive className="w-5 h-5" />
             <h3 className="text-sm font-medium">Storage Target</h3>
           </div>
-          <p className="text-lg font-semibold text-slate-100">Google Drive</p>
+          <p className="text-lg font-semibold text-blue-100">Google Drive</p>
         </div>
-        <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-6 flex flex-col justify-center">
-          <div className="flex items-center gap-4 text-slate-400 mb-2">
+        <div className="bg-blue-800/40 border border-blue-700/50 rounded-xl p-6 flex flex-col justify-center">
+          <div className="flex items-center gap-4 text-blue-400 mb-2">
             <Database className="w-5 h-5" />
             <h3 className="text-sm font-medium">Backup Scope</h3>
           </div>
-          <p className="text-lg font-semibold text-slate-100">Full Database & Media</p>
+          <p className="text-lg font-semibold text-blue-100">Full Database & Media</p>
         </div>
-        <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-6 flex flex-col justify-center">
-          <div className="flex items-center gap-4 text-slate-400 mb-2">
+        <div className="bg-blue-800/40 border border-blue-700/50 rounded-xl p-6 flex flex-col justify-center">
+          <div className="flex items-center gap-4 text-blue-400 mb-2">
             <Clock className="w-5 h-5" />
             <h3 className="text-sm font-medium">Last Run</h3>
           </div>
-          <p className="text-lg font-semibold text-slate-100">
+          <p className="text-lg font-semibold text-blue-100">
             {logs.length > 0 ? new Date(logs[0].created_at).toLocaleString() : 'Never'}
           </p>
         </div>
       </div>
 
       {/* History Table Section */}
-      <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl overflow-hidden">
-        <div className="p-5 border-b border-slate-700/50 flex items-center justify-between bg-slate-800/60">
-          <h2 className="text-sm font-semibold text-slate-200">Execution History</h2>
+      <div className="bg-blue-800/40 border border-blue-700/50 rounded-xl overflow-hidden">
+        <div className="p-5 border-b border-blue-700/50 flex items-center justify-between bg-blue-800/60">
+          <h2 className="text-sm font-semibold text-blue-200">Execution History</h2>
           <button 
             onClick={fetchLogs} 
-            className="text-xs font-medium text-slate-400 hover:text-indigo-400 transition-colors flex items-center gap-1.5"
+            className="text-xs font-medium text-blue-400 hover:text-indigo-400 transition-colors flex items-center gap-1.5"
           >
             Refresh List
           </button>
         </div>
         
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-300">
-            <thead className="bg-slate-900/50 text-slate-400 text-xs font-medium">
+          <table className="w-full text-left text-sm text-blue-300">
+            <thead className="bg-blue-900/50 text-blue-400 text-xs font-medium">
               <tr>
                 <th className="px-6 py-4 font-medium">Status</th>
                 <th className="px-6 py-4 font-medium">Archive Identifier</th>
@@ -123,26 +123,26 @@ export default function BackupSystemPage() {
                 <th className="px-6 py-4 font-medium">Initiated By</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-700/50">
+            <tbody className="divide-y divide-blue-700/50">
               {loading && logs.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-6 py-8 text-center text-slate-500">Retrieving logs...</td>
+                  <td colSpan="5" className="px-6 py-8 text-center text-blue-500">Retrieving logs...</td>
                 </tr>
               ) : logs.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-6 py-8 text-center text-slate-500">No backup records found.</td>
+                  <td colSpan="5" className="px-6 py-8 text-center text-blue-500">No backup records found.</td>
                 </tr>
               ) : logs.map((log) => (
-                <tr key={log.id} className="hover:bg-slate-800/60 transition-colors group">
+                <tr key={log.id} className="hover:bg-blue-800/60 transition-colors group">
                   <td className="px-6 py-4">
                     {log.status === 'success' && <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold tracking-wide uppercase bg-emerald-500/10 text-emerald-400"><CheckCircle className="w-3.5 h-3.5" /> Success</span>}
                     {log.status === 'failed' && <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold tracking-wide uppercase bg-red-500/10 text-red-400"><XCircle className="w-3.5 h-3.5" /> Failed</span>}
                     {log.status === 'in_progress' && <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold tracking-wide uppercase bg-blue-500/10 text-blue-400"><Clock className="w-3.5 h-3.5 animate-spin" /> In Progress</span>}
-                    {log.status === 'pending' && <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold tracking-wide uppercase bg-slate-500/10 text-slate-400"><Clock className="w-3.5 h-3.5" /> Pending</span>}
+                    {log.status === 'pending' && <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold tracking-wide uppercase bg-blue-500/10 text-blue-400"><Clock className="w-3.5 h-3.5" /> Pending</span>}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col gap-1">
-                      <span className="font-mono text-xs text-slate-300">{log.file_name || '—'}</span>
+                      <span className="font-mono text-xs text-blue-300">{log.file_name || '—'}</span>
                       {log.error_message && (
                         <span className="text-red-400 text-xs truncate max-w-sm" title={log.error_message}>
                           Error: {log.error_message}
@@ -150,16 +150,16 @@ export default function BackupSystemPage() {
                       )}
                     </div>
                   </td>
-                  <td className="px-6 py-4 font-mono text-xs text-slate-400">
+                  <td className="px-6 py-4 font-mono text-xs text-blue-400">
                     {log.file_size_mb ? `${log.file_size_mb.toFixed(2)} MB` : '—'}
                   </td>
-                  <td className="px-6 py-4 text-slate-400 whitespace-nowrap text-xs">
+                  <td className="px-6 py-4 text-blue-400 whitespace-nowrap text-xs">
                     {new Date(log.created_at).toLocaleString(undefined, {
                       year: 'numeric', month: 'short', day: 'numeric',
                       hour: '2-digit', minute: '2-digit'
                     })}
                   </td>
-                  <td className="px-6 py-4 text-slate-400 text-xs">
+                  <td className="px-6 py-4 text-blue-400 text-xs">
                     {log.created_by || 'System'}
                   </td>
                 </tr>
