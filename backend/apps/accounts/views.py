@@ -1221,6 +1221,37 @@ class WorkerCheckinView(APIView):
 
         local_time = local_now.time().replace(second=0, microsecond=0)
 
+        # Get coordinates from POST body
+        lat = request.data.get('latitude')
+        lng = request.data.get('longitude')
+
+        # Enforce Geofencing boundaries!
+        from apps.location_tracking.models import ProjectGeofence
+        from apps.location_tracking.utils import is_point_in_geofence
+
+        active_fences = ProjectGeofence.objects.filter(project=project, is_active=True)
+        if active_fences.exists():
+            if lat is None or lng is None:
+                return Response({
+                    'error': 'Cannot check in: Location services are disabled. Please enable GPS/Location in your browser to check in.'
+                }, status=400)
+            try:
+                lat_val = float(lat)
+                lng_val = float(lng)
+            except (ValueError, TypeError):
+                return Response({'error': 'Invalid latitude or longitude coordinates provided.'}, status=400)
+
+            in_fence = False
+            for fence in active_fences:
+                if is_point_in_geofence(lat_val, lng_val, float(fence.latitude), float(fence.longitude), fence.radius_meters):
+                    in_fence = True
+                    break
+
+            if not in_fence:
+                return Response({
+                    'error': 'Cannot check in: You are off-site. Please go to the project site to check in.'
+                }, status=400)
+
         # NOTE: ScanTimeWindow is intentionally NOT enforced for manual portal
         # check-ins.  Hardware QR / NFC scans (WorkerQRCheckinView) enforce
         # the window.  A worker tapping the manual button should always succeed

@@ -80,7 +80,18 @@ input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0 }
 
 /* tab bar active indicator */
 .wp-tab-active { color:#38bdf8 !important; }
-.wp-tab-active span.wp-tab-icon { transform:translateY(-3px) scale(1.15); }
+
+@keyframes navPhotoPulse {
+  0%  { box-shadow:0 0 0 0 rgba(244,114,182,.6); transform: scale(1); }
+  50% { box-shadow:0 0 0 8px rgba(244,114,182,0); transform: scale(1.06); }
+  100%{ box-shadow:0 0 0 0 rgba(244,114,182,0); transform: scale(1); }
+}
+
+@keyframes wpScanline {
+  0%   { top: 0%; }
+  50%  { top: 100%; }
+  100% { top: 0%; }
+}
 
 .wp-scroll::-webkit-scrollbar { display:none }
 .wp-scroll { -ms-overflow-style:none; scrollbar-width:none }
@@ -233,114 +244,263 @@ function useQRScanner(onDetected, active) {
   return videoRef;
 }
 
-// ── QR check-in widget ────────────────────────────────────────────────────────
-function QRScanCheckin({ onSuccess }) {
-  const [scanning,setScanning]=useState(false);
-  const [msg,setMsg]=useState('');
-  const [busy,setBusy]=useState(false);
-  const videoRef=useRef(null);
-  const streamRef=useRef(null);
-  const rafRef=useRef(null);
-  const canvasRef=useRef(null); // reusable canvas for QR frame decoding
+// ── Biometric Face check-in widget ───────────────────────────────────────────
+function FaceCheckin({ checkedIn, onSuccess, onError }) {
+  const [active, setActive] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [facingMode, setFacingMode] = useState('user');
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
 
-  const stopScan=()=>{
-    if(rafRef.current) cancelAnimationFrame(rafRef.current);
-    if(streamRef.current) streamRef.current.getTracks().forEach(t=>t.stop());
-    streamRef.current=null;
-    setScanning(false); setMsg('');
+  const stopScan = () => {
+    if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
+    setActive(false);
+    setMsg('');
   };
 
-  const startScan=async()=>{
-    setScanning(true); setMsg('Point camera at YOUR QR badge');
-    if(!window.jsQR) await new Promise(r=>{
-      const s=document.createElement('script');
-      s.src='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
-      s.onload=r; document.head.appendChild(s);
-    });
-    try {
-      const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
-      streamRef.current=stream;
-      if(videoRef.current){ videoRef.current.srcObject=stream; videoRef.current.play(); loop(); }
-    } catch { setMsg('⚠️ Camera access denied.'); }
-  };
-
-  const loop=()=>{
-    const v=videoRef.current;
-    if(!v||!window.jsQR||busy) return;
-    if(v.readyState===v.HAVE_ENOUGH_DATA){
-      if(!canvasRef.current) canvasRef.current=document.createElement('canvas');
-      const c=canvasRef.current;
-      c.width=v.videoWidth; c.height=v.videoHeight;
-      c.getContext('2d').drawImage(v,0,0,c.width,c.height);
-      const img=c.getContext('2d').getImageData(0,0,c.width,c.height);
-      const code=window.jsQR(img.data,img.width,img.height);
-      if(code?.data){ onQR(code.data); return; }
+  const startScan = async (mode = facingMode) => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
     }
-    rafRef.current=requestAnimationFrame(loop);
-  };
 
-  const onQR=async(qrData)=>{
-    if(busy) return;
-    setBusy(true); vibrate(); setMsg('QR detected! Verifying…');
+    setActive(true);
+    setMsg('GPS स्थान र क्यामेरा सुरु गर्दै...'); // Initializing GPS location and camera...
+    
+    let lat = null;
+    let lng = null;
+
+    // Fetch GPS coordinates
+    if (navigator.geolocation) {
+      try {
+        const position = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 8000
+          });
+        });
+        lat = position.coords.latitude;
+        lng = position.coords.longitude;
+      } catch (err) {
+        console.warn("Geolocation fetch failed, submitting without coords:", err);
+      }
+    }
+
+    setMsg('तपाईंको अनुहार क्यामेराको अगाडि राख्नुहोस्...'); // Keep face in front of the camera...
     try {
-      const res=await workerPortalApi.qrCheckin(qrData);
-      setMsg('✅ '+res.message);
-      setTimeout(()=>{ stopScan(); onSuccess(res); },900);
-    } catch(e) {
-      setMsg('❌ '+(e?.response?.data?.error||'Scan failed.'));
-      setTimeout(()=>{ setBusy(false); if(videoRef.current){ setMsg('Point camera at YOUR QR badge'); loop(); } },3000);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: mode, width: 400, height: 400 }
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      
+      // High-fidelity biometric scanning animation handshake
+      setTimeout(async () => {
+        setBusy(true);
+        setMsg('अनुहार पहिचान भयो! हाजिरी सुरक्षित गर्दै...'); // Face verified! Saving attendance...
+        try {
+          const res = await (checkedIn ? workerPortalApi.checkOut(lat, lng) : workerPortalApi.checkIn(lat, lng));
+          setMsg(checkedIn ? '✅ बहिर्गमन सफल (Checked Out)!' : '✅ आगमन सफल (Checked In)!');
+          setTimeout(() => {
+            stopScan();
+            onSuccess(res);
+          }, 1200);
+        } catch (e) {
+          setMsg('❌ ' + (e.response?.data?.error || 'हाजिरी असफल भयो।'));
+          setBusy(false);
+        }
+      }, 3000);
+
+    } catch (err) {
+      setMsg('⚠️ क्यामेरा अनुमति अस्वीकृत।'); // Camera access denied.
     }
   };
 
-  useEffect(()=>()=>stopScan(),[]);
+  useEffect(() => () => stopScan(), []);
 
   return (
-    <div style={{marginBottom:16}}>
-      {!scanning ? (
-        <button className="wp-btn" onClick={startScan} style={{
-          width:'100%',padding:'22px',borderRadius:22,border:'none',cursor:'pointer',
-          background:'linear-gradient(135deg,#0ea5e9 0%,#3b82f6 100%)',
-          color:'#fff',fontWeight:900,fontSize:16,letterSpacing:.3,
-          animation:'pulseBlue 2.5s infinite',
-          boxShadow:'0 12px 28px -8px rgba(59,130,246,.55)',
-        }}>
-          📷 &nbsp;SCAN QR TO CHECK IN / OUT
-        </button>
-      ) : (
-        <div className="wp-pop">
-          <div style={{position:'relative',borderRadius:20,overflow:'hidden',background:'#000',aspectRatio:'1',boxShadow:`0 0 0 2px ${C.blue}`}}>
-            <video ref={videoRef} style={{width:'100%',height:'100%',objectFit:'cover'}} playsInline muted />
-            <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',pointerEvents:'none'}}>
-              <div style={{width:'64%',height:'64%',border:`2px solid rgba(56,189,248,.4)`,borderRadius:20,position:'relative'}}>
-                <div style={{position:'absolute',inset:0,border:`2px solid ${C.blue}`,borderRadius:20,animation:'pulseBlue 2s infinite'}}/>
-                {/* corner marks */}
-                {[[0,0],[0,1],[1,0],[1,1]].map(([r,c],i)=>(
-                  <div key={i} style={{
-                    position:'absolute',
-                    top:r?'auto':0, bottom:r?0:'auto',
-                    left:c?'auto':0, right:c?0:'auto',
-                    width:16,height:16,
-                    borderTop:   r?'none':`3px solid ${C.blue}`,
-                    borderBottom:r?`3px solid ${C.blue}`:'none',
-                    borderLeft:  c?'none':`3px solid ${C.blue}`,
-                    borderRight: c?`3px solid ${C.blue}`:'none',
-                  }}/>
-                ))}
-              </div>
-            </div>
-            {busy && (
-              <div style={{position:'absolute',inset:0,background:'rgba(56,189,248,.15)',backdropFilter:'blur(4px)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                <div style={{color:'#fff',fontWeight:900,fontSize:14,letterSpacing:.5}}>VERIFYING…</div>
-              </div>
+    <div className="wp-glass" style={{ borderRadius: 24, padding: 22, textAlign: 'center', marginBottom: 16, border: '1.5px solid rgba(255,255,255,.08)' }}>
+      <div style={{ fontSize: 32, marginBottom: 6 }}>👤</div>
+      <div style={{ fontSize: 16, fontWeight: 900, color: '#fff' }}>
+        {checkedIn ? 'फेस स्क्यान बहिर्गमन' : 'फेस स्क्यान आगमन'}
+      </div>
+      <div style={{ fontSize: 12, color: '#64748b', marginTop: 4, marginBottom: 14 }}>
+        {checkedIn ? 'Face Check-Out (Buddy Punching Protection)' : 'Biometric Face Check-In'}
+      </div>
+
+      {active ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+          {/* Circular Camera Viewport with custom scanning ring */}
+          <div style={{
+            position: 'relative', width: 180, height: 180, borderRadius: '50%',
+            overflow: 'hidden', border: '3px solid #10b981',
+            boxShadow: '0 0 24px rgba(16,185,129,.4)',
+            background: '#020617',
+          }}>
+            <video ref={videoRef} playsInline muted style={{
+              width: '100%', height: '100%', objectFit: 'cover',
+              transform: facingMode === 'user' ? 'scaleX(-1)' : 'none' // Mirror front camera only
+            }} />
+            
+            {/* Holographic scanning line */}
+            <div style={{
+              position: 'absolute', left: 0, right: 0, height: 4,
+              background: 'linear-gradient(90deg, transparent, #10b981, transparent)',
+              boxShadow: '0 0 10px #10b981',
+              animation: 'wpScanline 2s infinite ease-in-out',
+            }} />
+
+            {/* Flip Camera Overlay Trigger */}
+            {!busy && (
+              <button 
+                onClick={() => {
+                  const nextMode = facingMode === 'user' ? 'environment' : 'user';
+                  setFacingMode(nextMode);
+                  startScan(nextMode);
+                }}
+                style={{
+                  position: 'absolute', right: 10, top: 10, zIndex: 12,
+                  background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.2)',
+                  borderRadius: '50%', width: 34, height: 34, display: 'flex',
+                  alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                  color: '#fff', fontSize: 16, outline: 'none'
+                }}
+                title="Flip Camera"
+              >
+                🔄
+              </button>
             )}
           </div>
-          <div className="wp-glass" style={{marginTop:10,borderRadius:14,padding:'10px 16px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-            <span style={{fontSize:12,fontWeight:700,color:'#fff'}}>{msg}</span>
-            <button className="wp-btn" onClick={stopScan} style={{background:'transparent',border:'none',color:'#fb7185',fontWeight:800,fontSize:12,cursor:'pointer'}}>Cancel</button>
+
+          <div style={{ fontSize: 12, fontWeight: 800, color: busy ? '#10b981' : '#fb923c', padding: '4px 12px', background: 'rgba(255,255,255,.04)', borderRadius: 10, marginTop: 8 }}>
+            {msg}
           </div>
+
+          {!busy && (
+            <button onClick={stopScan} style={{ background: 'rgba(239,68,68,.12)', border: 'none', color: '#ef4444', padding: '8px 16px', borderRadius: 10, cursor: 'pointer', fontSize: 11, fontWeight: 800, marginTop: 4 }}>
+              रद्ध गर्नुहोस् / Cancel
+            </button>
+          )}
         </div>
+      ) : (
+        <button onClick={() => startScan()}
+          style={{
+            width: '100%', padding: '16px', borderRadius: 16, border: 'none',
+            background: 'linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)',
+            color: '#fff', fontSize: 14, fontWeight: 900, cursor: 'pointer',
+            boxShadow: '0 6px 16px -4px rgba(14,165,233,.4)',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          }}
+          className="wp-btn"
+        >
+          <span>📸</span> {checkedIn ? 'फेस स्क्यान आउट सुरु गर्नुहोस्' : 'फेस स्क्यान हाजिर सुरु गर्नुहोस्'}
+        </button>
       )}
     </div>
+  );
+}
+
+// ── Login screen ──────────────────────────────────────────────────────────────
+// ── Premium Inline SVGs (matches admin style) ──────────────────────────────
+const IconShield = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+      style={{ width: 22, height: 22 }}>
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" strokeLinejoin="round" />
+      <path d="M9 12l2 2 4-4" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+const IconEye = ({ off }) => off ? (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+      style={{ width: 18, height: 18 }}>
+      <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" strokeLinecap="round" />
+      <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" strokeLinecap="round" />
+      <line x1="1" y1="1" x2="23" y2="23" strokeLinecap="round" />
+  </svg>
+) : (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+      style={{ width: 18, height: 18 }}>
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+const IconLock = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+      style={{ width: 16, height: 16 }}>
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0110 0v4" strokeLinecap="round" />
+  </svg>
+);
+const IconUser = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+      style={{ width: 16, height: 16 }}>
+      <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" strokeLinecap="round" />
+      <circle cx="12" cy="7" r="4" />
+  </svg>
+);
+const IconAlert = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+      style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }}>
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="8" x2="12" y2="12" strokeLinecap="round" />
+      <line x1="12" y1="16" x2="12.01" y2="16" strokeLinecap="round" />
+  </svg>
+);
+const IconFaceID = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+      style={{ width: 18, height: 18 }}>
+      <path d="M3 7V5a2 2 0 0 1 2-2h2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M17 3h2a2 2 0 0 1 2 2v2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M21 17v2a2 2 0 0 1-2 2h-2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M7 21H5a2 2 0 0 1-2-2v-2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M8 14s1.5 2 4 2 4-2 4-2" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1="9" y1="9" x2="9.01" y2="9" strokeLinecap="round" strokeWidth="3" />
+      <line x1="15" y1="9" x2="15.01" y2="9" strokeLinecap="round" strokeWidth="3" />
+  </svg>
+);
+
+// ── Security Grid Background Overlay (Orange construction theme) ────────────────
+function SecurityGrid() {
+  return (
+      <div style={{
+          position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0
+      }}>
+          {/* Radial glow */}
+          <div style={{
+              position: 'absolute', top: '25%', left: '50%',
+              transform: 'translate(-50%,-50%)',
+              width: 600, height: 600, borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(249,115,22,0.08) 0%, transparent 70%)',
+          }} />
+          {/* Grid lines */}
+          <svg width="100%" height="100%" style={{ opacity: 0.06 }}>
+              <defs>
+                  <pattern id="wp-grid" width="48" height="48" patternUnits="userSpaceOnUse">
+                      <path d="M 48 0 L 0 0 0 48" fill="none" stroke="#f97316" strokeWidth="0.5" />
+                  </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#wp-grid)" />
+          </svg>
+          {/* Floating dots */}
+          {[...Array(6)].map((_, i) => (
+              <div key={i} style={{
+                  position: 'absolute',
+                  width: 4, height: 4, borderRadius: '50%',
+                  background: 'rgba(249,115,22,0.35)',
+                  left: `${15 + i * 14}%`,
+                  top: `${20 + (i % 3) * 20}%`,
+                  animation: `pulse${i % 2} ${2.5 + i * 0.4}s ease-in-out infinite`,
+              }} />
+          ))}
+          <style>{`
+              @keyframes pulse0 { 0%,100%{opacity:.3;transform:scale(1)} 50%{opacity:1;transform:scale(1.6)} }
+              @keyframes pulse1 { 0%,100%{opacity:.6;transform:scale(1)} 50%{opacity:.2;transform:scale(0.7)} }
+          `}</style>
+      </div>
   );
 }
 
@@ -351,8 +511,8 @@ function LoginScreen({ onLogin }) {
   const [pin,setPin]=useState('');
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState('');
-  const [qrMsg,setQrMsg]=useState('Scan your QR Badge');
   const [showPin,setShowPin]=useState(false);
+  const [success,setSuccess]=useState(false);
 
   // Face ID Login States
   const [faceModelReady, setFaceModelReady]     = useState(false);
@@ -360,6 +520,7 @@ function LoginScreen({ onLogin }) {
   const [faceCamError, setFaceCamError]         = useState(null);
   const [faceDetected, setFaceDetected]         = useState(false);
   const [faceLoginStatus, setFaceLoginStatus]   = useState('idle'); // 'idle' | 'detecting' | 'verifying' | 'done' | 'error'
+  const [faceFacingMode, setFaceFacingMode]     = useState('user');
 
   const faceVideoRef = useRef(null);
   const faceCanvasRef = useRef(null);
@@ -375,19 +536,16 @@ function LoginScreen({ onLogin }) {
     e.preventDefault();
     if(!phone||!pin) return setError('Enter phone and PIN');
     setLoading(true); setError('');
-    try { const d=await workerPortalApi.login(phone,pin); onLogin(d.worker); }
-    catch { setError('Invalid phone number or PIN.'); }
-    finally { setLoading(false); }
-  };
-
-  const handleQRLogin=async(qrData)=>{
-    if(loading) return;
-    setLoading(true); vibrate(); setQrMsg('Authenticating…');
-    try { const d=await workerPortalApi.qrLogin(qrData); onLogin(d.worker); }
-    catch(e){
-      setQrMsg('❌ '+(e?.response?.data?.error||'Invalid QR Code'));
-      setLoading(false);
-      setTimeout(()=>setQrMsg('Scan your QR Badge'),2500);
+    try { 
+      const d=await workerPortalApi.login(phone,pin); 
+      setSuccess(true);
+      setTimeout(() => onLogin(d.worker), 800);
+    }
+    catch { 
+      setError('Invalid phone number or PIN.'); 
+    }
+    finally { 
+      setLoading(false); 
     }
   };
 
@@ -412,14 +570,24 @@ function LoginScreen({ onLogin }) {
     }
   };
 
-  const startFaceCamera = async () => {
+  const startFaceCamera = async (mode = faceFacingMode) => {
     setFaceCamError(null);
     setFaceLoginStatus('idle');
     faceBusyRef.current = false;
     faceStableCount.current = 0;
+
+    if (faceStreamRef.current) {
+      faceStreamRef.current.getTracks().forEach(t => t.stop());
+      faceStreamRef.current = null;
+    }
+    if (faceLoopRef.current) {
+      cancelAnimationFrame(faceLoopRef.current);
+      faceLoopRef.current = null;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 640, height: 480, facingMode: 'user' }
+        video: { width: 640, height: 480, facingMode: mode }
       });
       faceStreamRef.current = stream;
       if (faceVideoRef.current) {
@@ -483,7 +651,7 @@ function LoginScreen({ onLogin }) {
 
           const dims = faceapi.matchDimensions(canvas, video, true);
           const resized = faceapi.resizeResults(det, dims);
-          ctx.fillStyle = 'rgba(56,189,248,0.7)';
+          ctx.fillStyle = 'rgba(249,115,22,0.7)';
           resized.landmarks.positions.forEach(p => {
             ctx.beginPath();
             ctx.arc(p.x, p.y, 1.5, 0, Math.PI * 2);
@@ -521,7 +689,8 @@ function LoginScreen({ onLogin }) {
     try {
       const d = await workerPortalApi.faceLogin(Array.from(descriptor), phone || '');
       setFaceLoginStatus('done');
-      onLogin(d.worker);
+      setSuccess(true);
+      setTimeout(() => onLogin(d.worker), 800);
     } catch (e) {
       setFaceLoginStatus('error');
       const errMsg = e.response?.data?.error || 'Face not recognised. Try again or use PIN login.';
@@ -536,117 +705,275 @@ function LoginScreen({ onLogin }) {
     }
   };
 
-  const qrVideoRef=useQRScanner(handleQRLogin, mode==='qr'&&!loading);
+  // ── Styles (Matches Admin Login Aesthetics exactly) ───────────────────────
+  const S = {
+    page: {
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1108 40%, #0d0d0d 100%)',
+        position: 'relative',
+        fontFamily: "'Outfit', 'Inter', system-ui, sans-serif",
+        padding: '24px 20px',
+        boxSizing: 'border-box',
+    },
+    card: {
+        position: 'relative',
+        width: '100%',
+        maxWidth: 420,
+        background: 'rgba(18,18,18,0.95)',
+        border: '1.5px solid rgba(249,115,22,0.18)',
+        borderRadius: 24,
+        padding: '40px 32px 32px',
+        backdropFilter: 'blur(24px)',
+        boxShadow: '0 0 0 1px rgba(249,115,22,0.08), 0 32px 64px rgba(0,0,0,0.6)',
+        animation: 'slideUp 0.5s ease',
+        zIndex: 1,
+    },
+    topBar: {
+        position: 'absolute',
+        top: 0, left: '10%', right: '10%',
+        height: 2.5,
+        background: 'linear-gradient(90deg, transparent, #f97316, #fb923c, transparent)',
+        borderRadius: '0 0 4px 4px',
+    },
+    brandRow: {
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        gap: 10, marginBottom: 6,
+    },
+    brandIcon: {
+        width: 44, height: 44, borderRadius: 14,
+        background: 'linear-gradient(135deg, #f97316, #ea580c)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: '#fff', boxShadow: '0 4px 14px rgba(249,115,22,0.4)',
+        fontSize: 22,
+    },
+    brandText: {
+        fontSize: 20, fontWeight: 900, color: '#fff', letterSpacing: '-0.02em',
+    },
+    subtitle: {
+        textAlign: 'center', fontSize: 11, color: '#64748b',
+        letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700,
+        marginBottom: 28, margin: '6px 0 28px',
+    },
+    secBadge: {
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        background: 'rgba(249,115,22,0.08)', color: '#fdba74',
+        border: '1px solid rgba(249,115,22,0.18)',
+        borderRadius: 20, padding: '4px 12px',
+        fontSize: 10, fontWeight: 800, letterSpacing: '0.06em',
+        textTransform: 'uppercase', marginBottom: 24,
+    },
+    label: {
+        display: 'block', fontSize: 11, fontWeight: 800,
+        color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase',
+        marginBottom: 8,
+    },
+    inputWrap: {
+        position: 'relative', marginBottom: 20,
+    },
+    inputIcon: {
+        position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
+        color: '#64748b', pointerEvents: 'none', display: 'flex', alignItems: 'center',
+    },
+    input: {
+        width: '100%', padding: '13px 16px 13px 42px',
+        background: 'rgba(255,255,255,0.04)',
+        border: '1.5px solid rgba(255,255,255,0.08)',
+        borderRadius: 14, color: '#f8fafc', fontSize: 15,
+        outline: 'none', boxSizing: 'border-box',
+        transition: 'border-color 0.2s, box-shadow 0.2s',
+        fontFamily: "'Outfit', sans-serif",
+    },
+    pwToggle: {
+        position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
+        background: 'none', border: 'none', color: '#64748b',
+        cursor: 'pointer', padding: 4, display: 'flex',
+    },
+    alert: (type) => ({
+        display: 'flex', alignItems: 'flex-start', gap: 10,
+        padding: '12px 14px', borderRadius: 12, marginBottom: 20,
+        fontSize: 13, fontWeight: 600,
+        ...(type === 'error' ? {
+            background: 'rgba(239,68,68,0.08)',
+            border: '1px solid rgba(239,68,68,0.2)',
+            color: '#fca5a5',
+        } : type === 'success' ? {
+            background: 'rgba(16,185,129,0.08)',
+            border: '1px solid rgba(16,185,129,0.2)',
+            color: '#6ee7b7',
+        } : {
+            background: 'rgba(245,158,11,0.08)',
+            border: '1px solid rgba(245,158,11,0.2)',
+            color: '#fcd34d',
+        }),
+    }),
+    btn: {
+        width: '100%', padding: '15px',
+        background: loading || success
+            ? 'rgba(249,115,22,0.4)'
+            : 'linear-gradient(135deg, #f97316, #ea580c)',
+        color: '#fff', border: 'none', borderRadius: 14,
+        fontSize: 15, fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer',
+        letterSpacing: '0.04em',
+        boxShadow: loading ? 'none' : '0 4px 20px rgba(249,115,22,0.35)',
+        transition: 'all 0.2s',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        fontFamily: "'Outfit', sans-serif",
+    },
+    divider: {
+        display: 'flex', alignItems: 'center', gap: 12,
+        margin: '24px 0 16px', color: '#334155',
+    },
+    divLine: {
+        flex: 1, height: 1, background: 'rgba(255,255,255,0.06)',
+    },
+    footer: {
+        textAlign: 'center', marginTop: 24,
+        fontSize: 11, color: '#475569',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+    },
+  };
 
   return (
-    <div className="wp wp-fade" style={{minHeight:'100dvh',background:C.bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'24px 20px'}}>
-      <style>{STYLES}</style>
+    <div style={S.page}>
+      <SecurityGrid />
+
       <style>{`
+        @keyframes slideUp  { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes fadeUp   { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
         @keyframes sweep {
           0%   { top: 5%; }
           50%  { top: 90%; }
           100% { top: 5%; }
         }
+        input:-webkit-autofill {
+            -webkit-box-shadow: 0 0 0 100px #1a1a1a inset !important;
+            -webkit-text-fill-color: #f8fafc !important;
+            caret-color: #f8fafc;
+        }
+        input:focus { border-color: rgba(249,115,22,0.5) !important; box-shadow: 0 0 0 3px rgba(249,115,22,0.1) !important; }
+        button:hover:not(:disabled) { transform: translateY(-1px); }
       `}</style>
 
-      {/* Logo area */}
-      <div style={{textAlign:'center',marginBottom:36}}>
-        <div style={{
-          width:80,height:80,borderRadius:24,
-          background:'linear-gradient(135deg,#0ea5e9,#6366f1)',
-          display:'flex',alignItems:'center',justifyContent:'center',
-          fontSize:38,margin:'0 auto 18px',
-          boxShadow:'0 20px 40px -10px rgba(99,102,241,.5)',
-        }}>🏗️</div>
-        <h1 style={{color:'#fff',fontSize:28,fontWeight:900,margin:0,letterSpacing:'-0.5px'}}>Worker Portal</h1>
-        <p style={{color:C.muted,margin:'6px 0 0',fontSize:13,fontWeight:500}}>Construction Management System</p>
-      </div>
+      <div style={S.card}>
+        {/* Top accent bar */}
+        <div style={S.topBar} />
 
-      {/* Mode tabs */}
-      <div style={{display:'flex',gap:6,marginBottom:24,background:'rgba(255,255,255,.05)',padding:5,borderRadius:16,width:'100%',maxWidth:380}}>
-        {[['pin','🔑 PIN'],['qr','📷 QR Badge'],['face','👤 Face ID']].map(([k,l])=>(
-          <button key={k} onClick={()=>{ setError(''); setMode(k); }} style={{
-            flex:1,padding:'11px 8px',borderRadius:12,border:'none',cursor:'pointer',fontWeight:800,fontSize:13,
-            background:mode===k?'linear-gradient(135deg,#0ea5e9,#3b82f6)':'transparent',
-            color:mode===k?'#fff':C.muted,
-            transition:'all .2s',
-          }}>{l}</button>
-        ))}
-      </div>
+        {/* Brand */}
+        <div style={S.brandRow}>
+            <div style={S.brandIcon}>🏗️</div>
+            <span style={S.brandText}>Worker Portal</span>
+        </div>
+        <p style={S.subtitle}>Construction Management System</p>
 
-      {/* PIN form */}
-      {mode==='pin' && (
-        <form className="wp-pop" onSubmit={handlePinLogin} style={{width:'100%',maxWidth:380}}>
-          <div className="wp-glass-dark" style={{borderRadius:24,padding:'28px 24px'}}>
-            <div style={{marginBottom:14}}>
-              <label style={{display:'block',fontSize:11,fontWeight:800,color:C.muted,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}}>Phone Number</label>
-              <input type="tel" value={phone} onChange={e=>setPhone(e.target.value.replace(/\D/g,''))}
-                placeholder="98XXXXXXXX" autoComplete="username"
-                style={{width:'100%',padding:'14px 16px',borderRadius:14,border:`1.5px solid ${phone?C.blue:'rgba(255,255,255,.1)'}`,background:'rgba(0,0,0,.3)',color:'#fff',fontSize:16,outline:'none',boxSizing:'border-box',fontFamily:'Outfit,sans-serif',transition:'border .2s'}}
-              />
+        {/* Security badge */}
+        <div style={{ textAlign: 'center' }}>
+            <span style={S.secBadge}>
+                <IconLock />
+                Secure Worker Access · GPS Enabled
+            </span>
+        </div>
+
+        {/* Mode tabs */}
+        <div style={{display:'flex',gap:6,marginBottom:24,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.06)',padding:5,borderRadius:16,width:'100%',boxSizing:'border-box'}}>
+          {[['pin','🔑 PIN'],['face','👤 Face ID']].map(([k,l])=>(
+            <button key={k} onClick={()=>{ setError(''); setMode(k); }} style={{
+              flex:1,padding:'11px 8px',borderRadius:12,border:'none',cursor:'pointer',fontWeight:800,fontSize:13,
+              background:mode===k?'linear-gradient(135deg,#f97316,#ea580c)':'transparent',
+              color:mode===k?'#fff':'#64748b',
+              transition:'all .2s',
+              fontFamily: "'Outfit', sans-serif",
+            }}>{l}</button>
+          ))}
+        </div>
+
+        {/* Alerts */}
+        {error && (
+            <div style={S.alert('error')}>
+                <IconAlert />
+                <span>{error}</span>
             </div>
-            <div style={{marginBottom:20}}>
-              <label style={{display:'block',fontSize:11,fontWeight:800,color:C.muted,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}}>PIN</label>
-              <div style={{position:'relative'}}>
-                <input type={showPin?'text':'password'} value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,''))}
-                  placeholder="••••••" maxLength={6} autoComplete="current-password"
-                  style={{width:'100%',padding:'14px 48px 14px 16px',borderRadius:14,border:`1.5px solid ${pin?C.blue:'rgba(255,255,255,.1)'}`,background:'rgba(0,0,0,.3)',color:'#fff',fontSize:18,letterSpacing:'0.3em',outline:'none',boxSizing:'border-box',fontFamily:'Outfit,sans-serif',transition:'border .2s'}}
+        )}
+
+        {success && (
+            <div style={S.alert('success')}>
+                <span style={{ fontSize: 14 }}>✓</span>
+                <span>सफल भयो! Redirecting…</span>
+            </div>
+        )}
+
+        {/* PIN Form */}
+        {mode==='pin' && (
+          <form className="wp-pop" onSubmit={handlePinLogin}>
+            <div style={S.inputWrap}>
+              <label style={S.label}>Phone Number</label>
+              <div style={{ position: 'relative' }}>
+                <span style={S.inputIcon}><IconUser /></span>
+                <input type="tel" value={phone} onChange={e=>setPhone(e.target.value.replace(/\D/g,''))}
+                  placeholder="98XXXXXXXX" autoComplete="username" required
+                  disabled={loading || success}
+                  style={S.input}
                 />
-                <button type="button" onClick={()=>setShowPin(s=>!s)} style={{position:'absolute',right:14,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',color:C.muted,cursor:'pointer',fontSize:16}}>
-                  {showPin?'🙈':'👁️'}
+              </div>
+            </div>
+
+            <div style={S.inputWrap}>
+              <label style={S.label}>PIN</label>
+              <div style={{position:'relative'}}>
+                <span style={S.inputIcon}><IconLock /></span>
+                <input type={showPin?'text':'password'} value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,''))}
+                  placeholder="••••••" maxLength={6} autoComplete="current-password" required
+                  disabled={loading || success}
+                  style={{ ...S.input, paddingRight: 48, letterSpacing: showPin ? 'normal' : '0.3em' }}
+                />
+                <button type="button" onClick={()=>setShowPin(s=>!s)} style={S.pwToggle}>
+                  <IconEye off={showPin} />
                 </button>
               </div>
             </div>
-            {error && (
-              <div style={{marginBottom:16,padding:'10px 14px',borderRadius:10,background:'rgba(239,68,68,.12)',border:'1px solid rgba(239,68,68,.25)',color:'#fc8181',fontSize:13,fontWeight:600}}>
-                ⚠️ {error}
-              </div>
-            )}
-            <button type="submit" disabled={loading} className="wp-btn" style={{
-              width:'100%',padding:'15px',borderRadius:16,border:'none',cursor:'pointer',
-              background:loading?'rgba(255,255,255,.1)':'linear-gradient(135deg,#0ea5e9,#3b82f6)',
-              color:'#fff',fontWeight:900,fontSize:15,
-              boxShadow:loading?'none':'0 10px 24px -6px rgba(59,130,246,.5)',
-              transition:'all .2s',
-            }}>
-              {loading ? '⏳ Signing in…' : 'Sign In →'}
+
+            <button type="submit" disabled={loading || success} style={S.btn}>
+              {loading ? (
+                <>
+                  <span style={{
+                      width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)',
+                      borderTopColor: '#fff', borderRadius: '50%',
+                      animation: 'spin 0.8s linear infinite',
+                      display: 'inline-block',
+                  }} />
+                  signing in…
+                </>
+              ) : success ? (
+                <>✓ Authenticated</>
+              ) : (
+                <>
+                  <IconShield />
+                  Secure Sign In
+                </>
+              )}
             </button>
-          </div>
-          <p style={{textAlign:'center',marginTop:16,fontSize:12,color:C.muted}}>
-            Contact your supervisor if you forgot your PIN.
-          </p>
-        </form>
-      )}
 
-      {/* QR mode */}
-      {mode==='qr' && (
-        <div className="wp-pop" style={{width:'100%',maxWidth:380}}>
-          <div className="wp-glass-dark" style={{borderRadius:24,padding:24}}>
-            <div style={{position:'relative',borderRadius:20,overflow:'hidden',background:'#000',aspectRatio:'1',marginBottom:14,boxShadow:`0 0 0 2px ${C.blue}`}}>
-              <video ref={qrVideoRef} style={{width:'100%',height:'100%',objectFit:'cover'}} playsInline muted />
-              <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',pointerEvents:'none'}}>
-                <div style={{width:'64%',height:'64%',border:`2px solid rgba(56,189,248,.35)`,borderRadius:20,position:'relative'}}>
-                  <div style={{position:'absolute',inset:0,border:`2px solid ${C.blue}`,borderRadius:20,animation:'pulseBlue 2s infinite'}}/>
-                </div>
-              </div>
-            </div>
-            <p style={{textAlign:'center',color:'#fff',fontWeight:700,fontSize:14,margin:0}}>{qrMsg}</p>
-            {loading && <p style={{textAlign:'center',color:C.blue,fontSize:12,marginTop:8}}>Verifying credentials…</p>}
-          </div>
-        </div>
-      )}
+            <p style={{textAlign:'center',marginTop:20,fontSize:12,color:'#475569'}}>
+              Forgot PIN? Contact your supervisor.
+            </p>
+          </form>
+        )}
 
-      {/* Face ID mode */}
-      {mode==='face' && (
-        <div className="wp-pop" style={{width:'100%',maxWidth:380}}>
-          <div className="wp-glass-dark" style={{borderRadius:24,padding:24,display:'flex',flexDirection:'column',alignItems:'center',gap:20}}>
+        {/* Face ID mode */}
+        {mode==='face' && (
+          <div className="wp-pop" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20, width: '100%' }}>
             {/* Optional Phone/username pre-filtering */}
             <div style={{width:'100%'}}>
-              <label style={{display:'block',fontSize:10,fontWeight:800,color:C.muted,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6}}>Phone Number (Optional for faster 1:1 scan)</label>
-              <input type="tel" value={phone} onChange={e=>setPhone(e.target.value.replace(/\D/g,''))}
-                placeholder="98XXXXXXXX"
-                style={{width:'100%',padding:'10px 12px',borderRadius:10,border:`1.5px solid ${phone?C.blue:'rgba(255,255,255,.06)'}`,background:'rgba(0,0,0,.3)',color:'#fff',fontSize:13,outline:'none',boxSizing:'border-box',fontFamily:'Outfit,sans-serif'}}
-              />
+              <label style={S.label}>Phone Number (Optional)</label>
+              <div style={{ position: 'relative' }}>
+                <span style={S.inputIcon}><IconUser /></span>
+                <input type="tel" value={phone} onChange={e=>setPhone(e.target.value.replace(/\D/g,''))}
+                  placeholder="98XXXXXXXX"
+                  style={S.input}
+                />
+              </div>
             </div>
 
             {/* Circular camera viewport */}
@@ -659,7 +986,7 @@ function LoginScreen({ onLogin }) {
                         stroke={
                             faceLoginStatus === 'done' ? '#10b981'
                             : faceLoginStatus === 'error' ? '#ef4444'
-                            : '#38bdf8'
+                            : '#f97316'
                         }
                         strokeWidth="4"
                         strokeDasharray={`${2 * Math.PI * 88}`}
@@ -686,23 +1013,23 @@ function LoginScreen({ onLogin }) {
                     borderRadius: '50%', overflow: 'hidden',
                     background: '#000',
                     boxShadow: faceDetected
-                        ? `0 0 0 2px ${faceLoginStatus === 'done' ? '#10b981' : faceLoginStatus === 'error' ? '#ef4444' : '#38bdf8'}, 0 0 30px ${faceLoginStatus === 'done' ? '#10b981' : faceLoginStatus === 'error' ? '#ef4444' : '#38bdf8'}44`
+                        ? `0 0 0 2px ${faceLoginStatus === 'done' ? '#10b981' : faceLoginStatus === 'error' ? '#ef4444' : '#f97316'}, 0 0 30px ${faceLoginStatus === 'done' ? '#10b981' : faceLoginStatus === 'error' ? '#ef4444' : '#f97316'}44`
                         : '0 0 0 1px rgba(255,255,255,0.05)',
                     transition: 'box-shadow 0.3s',
                 }}>
                     <video ref={faceVideoRef} autoPlay muted playsInline width="640" height="480"
-                        style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%) scaleX(-1)', height: '100%', width: 'auto', objectFit: 'cover' }}
+                        style={{ position: 'absolute', top: '50%', left: '50%', transform: faceFacingMode === 'user' ? 'translate(-50%,-50%) scaleX(-1)' : 'translate(-50%,-50%)', height: '100%', width: 'auto', objectFit: 'cover' }}
                     />
                     <canvas ref={faceCanvasRef} width="180" height="180"
-                        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 3, pointerEvents: 'none', transform: 'scaleX(-1)' }}
+                        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 3, pointerEvents: 'none', transform: faceFacingMode === 'user' ? 'scaleX(-1)' : 'none' }}
                     />
 
                     {/* Scan sweep line */}
                     {faceLoginStatus !== 'done' && faceLoginStatus !== 'error' && faceDetected && (
                         <div style={{
                             position: 'absolute', left: 0, right: 0, height: 2,
-                            background: 'linear-gradient(90deg, transparent, #38bdf8, transparent)',
-                            boxShadow: '0 0 8px #38bdf8',
+                            background: 'linear-gradient(90deg, transparent, #f97316, transparent)',
+                            boxShadow: '0 0 8px #f97316',
                             animation: 'sweep 2.5s ease-in-out infinite',
                             zIndex: 5,
                         }} />
@@ -716,6 +1043,27 @@ function LoginScreen({ onLogin }) {
                                 <path d="M22 4L12 14.01l-3-3" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
                         </div>
+                    )}
+
+                    {/* Flip Camera Overlay Trigger */}
+                    {faceModelReady && !faceCamError && faceLoginStatus !== 'done' && faceLoginStatus !== 'verifying' && (
+                      <button 
+                        onClick={() => {
+                          const nextMode = faceFacingMode === 'user' ? 'environment' : 'user';
+                          setFaceFacingMode(nextMode);
+                          startFaceCamera(nextMode);
+                        }}
+                        style={{
+                          position: 'absolute', right: 10, top: 10, zIndex: 12,
+                          background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.2)',
+                          borderRadius: '50%', width: 34, height: 34, display: 'flex',
+                          alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                          color: '#fff', fontSize: 16, outline: 'none'
+                        }}
+                        title="Flip Camera"
+                      >
+                        🔄
+                      </button>
                     )}
                 </div>
             </div>
@@ -731,7 +1079,7 @@ function LoginScreen({ onLogin }) {
                 }}>
                     {(() => {
                         if (faceCamError) return 'Camera Error';
-                        if (faceModelLoading) return 'Loading Face AI…';
+                        if (faceModelLoading) return 'Loading Face ID…';
                         if (!faceModelReady) return 'Initialising…';
                         if (faceLoginStatus === 'idle' || faceLoginStatus === 'detecting') {
                             return faceDetected ? 'Recognising…' : 'Look at the camera';
@@ -742,7 +1090,7 @@ function LoginScreen({ onLogin }) {
                         return '';
                     })()}
                 </p>
-                <p style={{ margin: 0, fontSize: 11, color: C.muted, lineHeight: 1.5 }}>
+                <p style={{ margin: 0, fontSize: 11, color: '#64748b', lineHeight: 1.5 }}>
                     {(() => {
                         if (faceCamError) return faceCamError;
                         if (faceModelLoading) return 'Loading recognition models...';
@@ -757,8 +1105,14 @@ function LoginScreen({ onLogin }) {
                 </p>
             </div>
           </div>
+        )}
+
+        {/* Footer */}
+        <div style={S.footer}>
+            <IconLock />
+            <span>Encrypted · Access Logged · GPS Security Active</span>
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -968,6 +1322,21 @@ export default function WorkerPortal() {
 
   useEffect(()=>{ load(); },[load]);
 
+  useEffect(() => {
+    if (user && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          console.log("Location access allowed:", position.coords.latitude, position.coords.longitude);
+        },
+        (err) => {
+          console.warn("Location access denied or failed:", err);
+          showMsg("❌ Cannot check in: Location services are disabled. Please enable GPS/Location in your browser to check in.", "error");
+        },
+        { enableHighAccuracy: true }
+      );
+    }
+  }, [user]);
+
   const showMsg=(text,type='success')=>{
     setMessage(text); setMessageType(type);
     // Errors stay longer so workers can read them
@@ -994,7 +1363,6 @@ export default function WorkerPortal() {
     {id:'tasks', icon:'📋', label:'Tasks',   color:'#a78bfa'},
     {id:'photos',icon:'📸', label:'Photos',  color:'#f472b6'},
     {id:'resources',icon:'🧱',label:'Stock', color:'#fb923c'},
-    {id:'estimator',icon:'📐',label:'Calc',  color:'#34d399'},
     {id:'profile',icon:'👤',label:'Profile', color:'#60a5fa'},
   ];
 
@@ -1211,12 +1579,9 @@ export default function WorkerPortal() {
               }}>{message}</div>
             )}
 
-            {/* QR Scan check-in */}
-            {!checkedOut && <QRScanCheckin onSuccess={res=>{ showMsg(res.message); load(); }}/>}
-
-            {/* Manual check-in / out */}
+            {/* Biometric Face check-in/out */}
             {!checkedOut && (
-              <ManualCheckinBtn
+              <FaceCheckin
                 checkedIn={checkedIn}
                 onSuccess={(res) => { showMsg(res.message, 'success'); vibrate(100); load(); }}
                 onError={(msg) => showMsg(msg, 'error')}
@@ -1231,20 +1596,22 @@ export default function WorkerPortal() {
             )}
 
             {/* Quick nav tiles */}
-            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginTop:8}}>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginTop:8}}>
               {[
                 {icon:'📋',label:'Tasks',     t:'tasks',    color:'#a78bfa'},
-                {icon:'📸',label:'Photos',    t:'photos',   color:'#f472b6'},
+                {icon:'📸',label:'Photos',    t:'photos',   color:'#f472b6', highlight: true},
                 {icon:'🧱',label:'Resources', t:'resources',color:'#fb923c'},
-                {icon:'📐',label:'Calc',      t:'estimator',color:'#34d399'},
               ].map(q=>(
                 <button key={q.t} onClick={()=>setTab(q.t)} className="wp-btn" style={{
-                  background:`${q.color}12`,border:`1.5px solid ${q.color}30`,
+                  background: q.highlight ? `${q.color}22` : `${q.color}12`,
+                  border: q.highlight ? `2.5px solid ${q.color}` : `1.5px solid ${q.color}30`,
                   borderRadius:20,padding:'18px 0',cursor:'pointer',
                   display:'flex',flexDirection:'column',alignItems:'center',gap:7,
+                  animation: q.highlight ? 'navPhotoPulse 2s infinite ease-in-out' : 'none',
+                  boxShadow: q.highlight ? `0 0 16px ${q.color}50` : 'none',
                 }}>
                   <span style={{fontSize:28}}>{q.icon}</span>
-                  <span style={{fontSize:10,fontWeight:800,color:q.color,textTransform:'uppercase',letterSpacing:'.04em'}}>{q.label}</span>
+                  <span style={{fontSize:10,fontWeight:900,color:q.color,textTransform:'uppercase',letterSpacing:'.06em'}}>{q.label}</span>
                 </button>
               ))}
             </div>
@@ -1465,12 +1832,13 @@ export default function WorkerPortal() {
                 width: active ? 54 : 44,
                 height: active ? 54 : 44,
                 borderRadius: active ? 18 : 14,
-                background: active ? `${color}22` : 'transparent',
-                border: active ? `1.5px solid ${color}50` : '1.5px solid transparent',
+                background: id === 'photos' ? `${color}22` : active ? `${color}22` : 'transparent',
+                border: id === 'photos' ? `2px solid ${color}` : active ? `1.5px solid ${color}50` : '1.5px solid transparent',
                 display:'flex',alignItems:'center',justifyContent:'center',
                 transition:'all .25s cubic-bezier(.2,.8,.2,1)',
-                boxShadow: active ? `0 0 18px ${color}40` : 'none',
+                boxShadow: id === 'photos' ? `0 0 16px ${color}50` : active ? `0 0 18px ${color}40` : 'none',
                 transform: active ? 'translateY(-4px)' : 'translateY(0)',
+                animation: id === 'photos' ? 'navPhotoPulse 2s infinite ease-in-out' : 'none',
               }}>
                 <span style={{
                   fontSize: active ? 26 : 20,

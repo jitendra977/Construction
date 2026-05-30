@@ -148,8 +148,8 @@ const workerPortalApi = {
      * Body: { type: 'CHECK_IN' | 'CHECK_OUT' }
      * Returns: { status, time, log_id }
      */
-    checkIn:  () => portalApi.post('checkin/', { type: 'CHECK_IN'  }).then(r => r.data),
-    checkOut: () => portalApi.post('checkin/', { type: 'CHECK_OUT' }).then(r => r.data),
+    checkIn:  (latitude = null, longitude = null) => portalApi.post('checkin/', { type: 'CHECK_IN', latitude, longitude }).then(r => r.data),
+    checkOut: (latitude = null, longitude = null) => portalApi.post('checkin/', { type: 'CHECK_OUT', latitude, longitude }).then(r => r.data),
 
     /**
      * GET /api/v1/worker/my-team/

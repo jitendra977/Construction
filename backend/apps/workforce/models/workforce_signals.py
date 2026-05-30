@@ -69,17 +69,27 @@ def sync_user_username_on_phone_change(sender, instance, **kwargs):
     """
     if instance.account and instance.phone:
         import re
+        from django.contrib.auth import get_user_model
+        
         clean_phone = re.sub(r'[^\d\+]', '', instance.phone)
         user = instance.account
+        User = get_user_model()
         
         # Only save if different to prevent infinite recursion loop
         changed = False
-        if user.username != clean_phone:
-            user.username = clean_phone
-            changed = True
+        
+        # 1. Update username if different AND user is a non-staff worker portal user
+        # AND the phone number is not already taken by another user's username.
+        if user.username != clean_phone and not (user.is_staff or user.is_superuser):
+            if not User.objects.filter(username=clean_phone).exclude(pk=user.pk).exists():
+                user.username = clean_phone
+                changed = True
+                
+        # 2. Update phone_number field if the User model has it and it's different.
         if hasattr(user, 'phone_number') and user.phone_number != clean_phone:
             user.phone_number = clean_phone
             changed = True
             
         if changed:
             user.save(update_fields=['username', 'phone_number'] if hasattr(user, 'phone_number') else ['username'])
+
