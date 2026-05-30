@@ -240,6 +240,15 @@ ssh_exec "
   echo '==> Waiting 20s for containers to start...'
   sleep 20
 
+  echo '==> Clear Nginx Proxy Manager DNS Cache'
+  NPM_CONTAINER=\$(docker ps --filter "name=nginx" --format "{{.Names}}" | grep -i proxy || true)
+  if [ ! -z "\$NPM_CONTAINER" ]; then
+    echo "Restarting Nginx Proxy Manager (\$NPM_CONTAINER) to refresh IP addresses..."
+    docker restart \$NPM_CONTAINER
+  else
+    echo "Nginx Proxy Manager not found, skipping."
+  fi
+
   echo '==> Service status'
   docker compose -f '${COMPOSE_FILE}' ps
 
