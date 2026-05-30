@@ -776,6 +776,7 @@ class WorkerLoginView(APIView):
     a JWT pair identical to the main login — same tokens, different UI.
     """
     permission_classes = [AllowAny]
+    throttle_classes = [LoginRateThrottle]
 
     def post(self, request):
         from rest_framework_simplejwt.tokens import RefreshToken
@@ -1018,6 +1019,7 @@ class WorkerQRLoginView(APIView):
     tokens so the worker is logged in without typing a phone/PIN.
     """
     permission_classes = [AllowAny]
+    throttle_classes = [LoginRateThrottle]
 
     def post(self, request):
         import json
