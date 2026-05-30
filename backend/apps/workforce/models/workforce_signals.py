@@ -58,3 +58,28 @@ def sync_attendance_worker_active_status(sender, instance, **kwargs):
     if aw.is_active != should_be_active:
         aw.is_active = should_be_active
         aw.save(update_fields=['is_active', 'updated_at'])
+
+
+@receiver(post_save, sender='workforce.WorkforceMember')
+def sync_user_username_on_phone_change(sender, instance, **kwargs):
+    """
+    When a WorkforceMember's phone is changed, ensure the linked User's
+    username (which stores the login phone number) and phone_number field
+    are kept fully in sync.
+    """
+    if instance.account and instance.phone:
+        import re
+        clean_phone = re.sub(r'[^\d\+]', '', instance.phone)
+        user = instance.account
+        
+        # Only save if different to prevent infinite recursion loop
+        changed = False
+        if user.username != clean_phone:
+            user.username = clean_phone
+            changed = True
+        if hasattr(user, 'phone_number') and user.phone_number != clean_phone:
+            user.phone_number = clean_phone
+            changed = True
+            
+        if changed:
+            user.save(update_fields=['username', 'phone_number'] if hasattr(user, 'phone_number') else ['username'])
