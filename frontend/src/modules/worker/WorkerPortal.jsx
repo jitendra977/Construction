@@ -978,21 +978,21 @@ function LoginScreen({ onLogin }) {
             </div>
 
             {/* Circular camera viewport */}
-            <div style={{ position: 'relative', width: 200, height: 200 }}>
+            <div style={{ position: 'relative', width: 150, height: 150 }}>
                 {/* Progress ring SVG */}
-                <svg width="200" height="200" style={{ position: 'absolute', inset: 0, transform: 'rotate(-90deg)', zIndex: 10, pointerEvents: 'none' }}>
-                    <circle cx="100" cy="100" r="88" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="4" />
+                <svg width="150" height="150" style={{ position: 'absolute', inset: 0, transform: 'rotate(-90deg)', zIndex: 10, pointerEvents: 'none' }}>
+                    <circle cx="75" cy="75" r="66" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="4" />
                     <circle
-                        cx="100" cy="100" r="88" fill="none"
+                        cx="75" cy="75" r="66" fill="none"
                         stroke={
                             faceLoginStatus === 'done' ? '#10b981'
                             : faceLoginStatus === 'error' ? '#ef4444'
                             : '#f97316'
                         }
                         strokeWidth="4"
-                        strokeDasharray={`${2 * Math.PI * 88}`}
+                        strokeDasharray={`${2 * Math.PI * 66}`}
                         strokeDashoffset={(() => {
-                            const circ = 2 * Math.PI * 88;
+                            const circ = 2 * Math.PI * 66;
                             let progress = 0;
                             if (faceLoginStatus === 'detecting') {
                                 progress = Math.min((faceStableCount.current / 15) * 50, 50);
@@ -1021,7 +1021,7 @@ function LoginScreen({ onLogin }) {
                     <video ref={faceVideoRef} autoPlay muted playsInline width="640" height="480"
                         style={{ position: 'absolute', top: '50%', left: '50%', transform: faceFacingMode === 'user' ? 'translate(-50%,-50%) scaleX(-1)' : 'translate(-50%,-50%)', height: '100%', width: 'auto', objectFit: 'cover' }}
                     />
-                    <canvas ref={faceCanvasRef} width="180" height="180"
+                    <canvas ref={faceCanvasRef} width="130" height="130"
                         style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 3, pointerEvents: 'none', transform: faceFacingMode === 'user' ? 'scaleX(-1)' : 'none' }}
                     />
 
@@ -1434,10 +1434,10 @@ export default function WorkerPortal() {
         {tab==='home' && (
           <div className="wp-slide" style={{padding:'20px 16px 0'}}>
 
-            <div className="wp-glass" style={{borderRadius:24,padding:'20px 20px 24px',marginBottom:14,textAlign:'center'}}>
-              <div style={{fontSize:28,marginBottom:8}}>{g.icon}</div>
-              <div style={{fontSize:13,color:C.muted,fontWeight:600,marginBottom:4}}>{g.text},</div>
-              <div style={{fontSize:22,fontWeight:900,marginBottom:16}}>
+            <div className="wp-glass" style={{borderRadius:20,padding:'12px 16px 14px',marginBottom:10,textAlign:'center'}}>
+              <div style={{fontSize:24,marginBottom:6}}>{g.icon}</div>
+              <div style={{fontSize:12,color:C.muted,fontWeight:600,marginBottom:2}}>{g.text},</div>
+              <div style={{fontSize:18,fontWeight:900,marginBottom:10}}>
                 {user.full_name.split(' ')[0]} 👋
               </div>
               <LiveClock/>
@@ -1470,7 +1470,7 @@ export default function WorkerPortal() {
             )}
 
             <div style={{
-              borderRadius:24,padding:'20px',marginBottom:14,
+              borderRadius:20,padding:'12px 16px',marginBottom:10,
               background: checkedOut
                 ? `linear-gradient(135deg,${C.muted}33,${C.muted}11)`
                 : checkedIn
@@ -1497,7 +1497,7 @@ export default function WorkerPortal() {
               </div>
             </div>
 
-            <div style={{display:'flex',gap:10,marginBottom:14}}>
+            <div style={{display:'flex',gap:10,marginBottom:10}}>
               <StatChip icon="📋" label="कार्यहरू"
                 value={taskCounts ? (taskCounts.active > 0 ? `${taskCounts.active} जारी` : taskCounts.total || '—') : '…'}
                 color={taskCounts?.blocked>0?C.red:C.blue} onClick={()=>setTab('tasks')}/>
@@ -1523,7 +1523,7 @@ export default function WorkerPortal() {
               });
               return (
                 <div style={{
-                  borderRadius:20,padding:'14px 16px',marginBottom:14,
+                  borderRadius:16,padding:'10px 14px',marginBottom:10,
                   background:'rgba(255,255,255,.03)',border:`1px solid ${C.border}`,
                 }}>
                   <div style={{fontSize:10,fontWeight:800,color:C.muted,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:10}}>
@@ -1560,7 +1560,7 @@ export default function WorkerPortal() {
 
             {(user.project || user.role) && (
               <div style={{
-                borderRadius:18,padding:'14px 16px',marginBottom:14,
+                borderRadius:16,padding:'10px 14px',marginBottom:10,
                 background:'rgba(56,189,248,.05)',border:`1px solid ${C.blue}20`,
                 display:'flex',alignItems:'center',gap:12,
               }}>
