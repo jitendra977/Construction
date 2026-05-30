@@ -144,7 +144,7 @@ export default function WorkerHelp() {
                                     <div>
                                         <h3 style={{ margin: '0 0 6px', color: '#38bdf8', fontSize: 17, fontWeight: 900 }}>१. गृहपृष्ठ (Home)</h3>
                                         <p style={{ margin: 0, fontSize: 14, color: '#cbd5e1', lineHeight: 1.6 }}>
-                                            यो तपाईंको मुख्य पृष्ठ हो। काममा आएपछि र फर्कने बेलामा <strong>'Clock In'</strong> र <strong>'Clock Out'</strong> बटन थिचेर दैनिक हाजिरी गर्नुहोस्।
+                                            यो तपाईंको मुख्य पृष्ठ हो। काम सुरु गर्दा हरियो <strong>'हाजिरी गर्ने (Clock In)'</strong> बटन थिच्नुहोस्। काम सकिएपछि रातो <strong>'हाजिरी बन्द गर्ने (Clock Out)'</strong> बटन थिचेर आफ्नो हाजिरी पूरा गर्नुहोस्।
                                         </p>
                                         <img src="/images/worker_home_screen_nepali_1780138051410.png" alt="Home Screen" style={{ width: '100%', marginTop: 12, borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)' }} />
                                     </div>
@@ -157,7 +157,7 @@ export default function WorkerHelp() {
                                     <div>
                                         <h3 style={{ margin: '0 0 6px', color: '#f59e0b', fontSize: 17, fontWeight: 900 }}>२. कामहरू (Tasks)</h3>
                                         <p style={{ margin: 0, fontSize: 14, color: '#cbd5e1', lineHeight: 1.6 }}>
-                                            सुपरभाइजरले तपाईंलाई दिएको आजको कामको सूची यहाँ देखिन्छ। काम सकिएपछि यसलाई <strong>'Complete'</strong> गर्न नभुल्नुहोला।
+                                            सुपरभाइजरले तपाईंलाई दिएको आजको कामको सूची यहाँ देखिन्छ। काम सकिएपछि स्थिति अपडेट गरेर <strong>'सम्पन्न (Done)'</strong> गर्न नभुल्नुहोला।
                                         </p>
                                         <img src="/images/worker_tasks_screen_nepali_1780138066449.png" alt="Tasks Screen" style={{ width: '100%', marginTop: 12, borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)' }} />
                                     </div>
@@ -170,7 +170,7 @@ export default function WorkerHelp() {
                                     <div>
                                         <h3 style={{ margin: '0 0 6px', color: '#f472b6', fontSize: 17, fontWeight: 900 }}>३. फोटोहरू (Photos)</h3>
                                         <p style={{ margin: 0, fontSize: 14, color: '#cbd5e1', lineHeight: 1.6 }}>
-                                            साइटमा भएको प्रगति र नयाँ कामको फोटो सीधै मोबाइलको क्यामेराबाट खिचेर सुरक्षित रूपमा पठाउन सकिन्छ।
+                                            साइटमा भएको प्रगति र नयाँ कामको फोटो <strong>'लाइभ फोटो'</strong> वा <strong>'ग्यालरी'</strong> मार्फत खिचेर सुरक्षित रूपमा पठाउन सकिन्छ।
                                         </p>
                                         <img src="/images/worker_photos_screen_nepali_1780138097561.png" alt="Photos Screen" style={{ width: '100%', marginTop: 12, borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)' }} />
                                     </div>
@@ -183,7 +183,7 @@ export default function WorkerHelp() {
                                     <div>
                                         <h3 style={{ margin: '0 0 6px', color: '#a78bfa', fontSize: 17, fontWeight: 900 }}>४. प्रोफाइल (Profile)</h3>
                                         <p style={{ margin: 0, fontSize: 14, color: '#cbd5e1', lineHeight: 1.6 }}>
-                                            आफ्नो परिचय पत्र (QR Badge), महिनाभरिको हाजिरीको विवरण (Attendance Log), र कुल तलब (Payroll) आफैंले हेर्न सक्नुहुन्छ।
+                                            आफ्नो <strong>'मेरो परिचय पत्र (ID Badge)'</strong>, महिनाभरिको <strong>'हाजिरी विवरण (Attendance Log)'</strong>, र <strong>'कुल तलब (Earnings)'</strong> आफैंले हेर्न सक्नुहुन्छ।
                                         </p>
                                         <img src="/images/worker_profile_screen_nepali_1780138113231.png" alt="Profile Screen" style={{ width: '100%', marginTop: 12, borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)' }} />
                                     </div>
