@@ -122,7 +122,7 @@ const NAV_SECTIONS = [
     { id: 'overview',     label: 'Overview',      color: '#6366f1',          ids: ['home', 'analytics', 'estimator'],                                                     defaultOpen: true  },
     { id: 'construction', label: 'Construction',  color: '#f59e0b',          ids: ['permits', 'phases', 'manage', 'timeline', 'finance', 'resource', 'structure', 'photos', 'timelapse'], defaultOpen: true },
     { id: 'team',         label: 'Team & HR',     color: '#10b981',          ids: ['attendance', 'workforce', 'location'],                                         defaultOpen: true  },
-    { id: 'admin',        label: 'Admin & Config', color: 'var(--t-text3)',   ids: ['accounts', 'settings', 'guides', 'data-transfer'],                           defaultOpen: false },
+    { id: 'admin',        label: 'Admin & Config', color: 'var(--t-text3)',   ids: ['accounts', 'settings', 'guides', 'data-transfer', 'backups'],                           defaultOpen: false },
 ];
 
 /* ── Chevron icon ─────────────────────────────────────────────── */

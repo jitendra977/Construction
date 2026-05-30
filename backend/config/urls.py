@@ -114,6 +114,9 @@ urlpatterns = [
 
     # ── Biometrics Face Authentication ────────────────────────────────────────
     path('api/v1/biometrics/', include('apps.biometrics.urls')),
+
+    # ── Auto Backup System ────────────────────────────────────────────────────
+    path('api/v1/backup/', include('apps.backup.urls')),
 ]
 
 # Serve media files in development

@@ -137,6 +137,9 @@ INSTALLED_APPS = [
 
     # ── Biometric Face Authentication ─────────────────────────────────────────
     'apps.biometrics',
+
+    # ── Auto Backup System ────────────────────────────────────────────────────
+    'apps.backup',
 ]
 
 # Explicitly map migration folders for nested apps to prevent loader errors
@@ -158,6 +161,7 @@ MIGRATION_MODULES = {
     'location_tracking': 'apps.location_tracking.migrations',
     'worker': 'apps.worker.migrations',
     'biometrics': 'apps.biometrics.migrations',
+    'backup': 'apps.backup.migrations',
 }
 
 # ─── Photo Intelligence (HCMS-2) ──────────────────────────────────────
@@ -181,6 +185,12 @@ OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
 
 # ── GitHub Actions CI/CD Deployment Token ──────────────────────────────────────
 GITHUB_DEPLOY_TOKEN = config('GITHUB_DEPLOY_TOKEN', default='')
+
+# ── Google Drive Auto Backup ───────────────────────────────────────────────────
+GOOGLE_DRIVE_CLIENT_ID = config('GOOGLE_DRIVE_CLIENT_ID', default='')
+GOOGLE_DRIVE_CLIENT_SECRET = config('GOOGLE_DRIVE_CLIENT_SECRET', default='')
+GOOGLE_DRIVE_REFRESH_TOKEN = config('GOOGLE_DRIVE_REFRESH_TOKEN', default='')
+GOOGLE_DRIVE_FOLDER_ID = config('GOOGLE_DRIVE_FOLDER_ID', default='')
 
 
 MIDDLEWARE = [

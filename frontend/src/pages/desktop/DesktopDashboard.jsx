@@ -105,6 +105,7 @@ function DesktopDashboard() {
         { id: 'settings',      icon: '⚙️',  label: 'Settings (सेटिङ)', permission: 'can_manage_settings' },
         { id: 'guides',        icon: '📚',  label: 'User Guide (मद्दत निर्देशिका)', permission: 'can_view_dashboard' },
         { id: 'data-transfer', icon: '🔄',  label: 'Data Transfer (डाटा स्थानान्तरण)', permission: 'can_manage_data_transfer' },
+        { id: 'backups',       icon: '☁️',  label: 'System Backups (ब्याकअप)', permission: 'can_manage_admin_config' },
     ].filter(item => can(item.permission));
 
     const sidebarW = collapsed ? SIDEBAR_COLLAPSED : SIDEBAR_EXPANDED;
