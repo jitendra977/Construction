@@ -202,7 +202,7 @@ export default function AccountsLayout({ children }) {
         ...(canViewProfile ? [{ to: `${BASE}/profile`, icon: '👤', label: 'My Profile' }] : []),
         ...(canManageAdminConfig ? [
             { to: `${BASE}/users`, icon: '👥', label: 'Users & Access' },
-            { to: `${BASE}/roles`, icon: '🛡️', label: 'System Roles' },
+            { to: `${BASE}/roles`, icon: '🛡️', label: 'Roles' },
             { to: `${BASE}/activity`, icon: '📋', label: 'Activity Log' },
         ] : []),
     ];
@@ -217,9 +217,7 @@ export default function AccountsLayout({ children }) {
         ] : []),
         ...(canManageAdminConfig ? [
             { to: `${BASE}/users`, icon: '👥', label: 'Users', desc: 'User accounts and access' },
-            { to: `${BASE}/roles/guide`, icon: '📘', label: 'Role Guide', desc: 'How the role system works' },
-            { to: `${BASE}/roles/system`, icon: '🛡️', label: 'System Roles', desc: 'Global app permissions' },
-            { to: `${BASE}/roles/project`, icon: '🗂️', label: 'Project Roles', desc: 'Per-project role templates' },
+            { to: `${BASE}/roles`, icon: '🛡️', label: 'Roles', desc: 'System roles, project roles & guide' },
             { to: `${BASE}/activity`, icon: '📋', label: 'Audit Log', desc: 'Global account activity' },
         ] : []),
     ];

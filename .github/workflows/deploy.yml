@@ -27,7 +27,7 @@ jobs:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         env:
-          REMOTE_PROJECT_DIR: ${{ secrets.REMOTE_PROJECT_DIR || '/home/nishanaweb/project/Construction' }}
+          REMOTE_PROJECT_DIR: ${{ secrets.REMOTE_PROJECT_DIR }} 
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
@@ -54,16 +54,21 @@ jobs:
 
       - name: Verify deployment health
         env:
-          HEALTHCHECK_URL: ${{ secrets.HEALTHCHECK_URL || 'https://api.construction.nishanaweb.cloud/api/v1/health/' }}
+          HEALTHCHECK_URL: ${{ secrets.HEALTHCHECK_URL }}
         run: |
+          HEALTHCHECK_URL="${HEALTHCHECK_URL:-https://api.construction.nishanaweb.cloud/api/v1/health/}"
+
           sleep 15
           STATUS=$(curl -sS -o /dev/null -w "%{http_code}" \
             "$HEALTHCHECK_URL" \
             --max-time 30) || STATUS="000"
+
           echo "Health check URL: $HEALTHCHECK_URL"
           echo "Health check HTTP status: $STATUS"
+
           if [ "$STATUS" != "200" ]; then
             echo "❌ Health check failed (HTTP $STATUS) — deployment may be broken"
             exit 1
           fi
+
           echo "✅ Deployment healthy"

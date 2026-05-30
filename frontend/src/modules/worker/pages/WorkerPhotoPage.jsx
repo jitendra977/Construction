@@ -421,215 +421,314 @@ export default function WorkerPhotoPage() {
 
             {/* ── Header ── */}
             <div style={{
-                padding: '20px 20px 0',
                 background: c.surface,
                 borderBottom: `1px solid ${c.border}`,
                 position: 'sticky', top: 0, zIndex: 50,
                 boxShadow: c.shadow,
+                overflow: 'hidden',
             }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                    <div>
-                        <h2 style={{ fontSize: 22, fontWeight: 900, margin: 0, color: c.text }}>Site Photos</h2>
-                        <p style={{ fontSize: 11, color: c.muted, margin: '2px 0 0' }}>
-                            {photos.length > 0 ? `${photos.length} photos uploaded` : 'Document your work'}
-                        </p>
+                {/* Hero strip */}
+                <div style={{
+                    padding: '18px 20px 0',
+                    background: `linear-gradient(135deg, rgba(56,189,248,.12) 0%, rgba(167,139,250,.08) 100%)`,
+                    borderBottom: `1px solid ${c.border}`,
+                }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                        <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 3 }}>
+                                <div style={{
+                                    width: 36, height: 36, borderRadius: 12,
+                                    background: 'linear-gradient(135deg,#0ea5e9,#6366f1)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    fontSize: 18, boxShadow: '0 4px 12px rgba(99,102,241,.4)',
+                                }}>📸</div>
+                                <div>
+                                    <h2 style={{ fontSize: 18, fontWeight: 900, margin: 0, color: c.text, lineHeight: 1 }}>Live site photo upload</h2>
+                                    <p style={{ fontSize: 10, color: c.muted, margin: '2px 0 0', fontWeight: 600 }}>
+                                        Saves photo with user, time, page, and current GPS context.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        {tab === 'gallery' && (
+                            <button onClick={loadPhotos} style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', background: c.card, border: `1px solid ${c.border}`, borderRadius: 12, color: c.muted, width: 38, height: 38, cursor: 'pointer' }}>
+                                <RefreshCw size={15} />
+                            </button>
+                        )}
+                        {tab === 'upload' && photos.length > 0 && (
+                            <div style={{ textAlign: 'right' }}>
+                                <div style={{ fontSize: 20, fontWeight: 900, color: c.blue, lineHeight: 1 }}>{photos.length}</div>
+                                <div style={{ fontSize: 9, color: c.muted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em' }}>uploaded</div>
+                            </div>
+                        )}
                     </div>
-                    {tab === 'gallery' && (
-                        <button onClick={loadPhotos} style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', background: c.card, border: `1px solid ${c.border}`, borderRadius: 12, color: c.muted, width: 40, height: 40, cursor: 'pointer' }}>
-                            <RefreshCw size={16} />
-                        </button>
-                    )}
-                </div>
 
-                {/* Tabs */}
-                <div style={{ display: 'flex', gap: 4, marginBottom: 14 }}>
-                    {[
-                        { key: 'upload',  label: 'Upload' },
-                        { key: 'gallery', label: `Gallery (${photos.length})` },
-                    ].map(t => (
-                        <button key={t.key} className="wp-tab-btn" onClick={() => setTab(t.key)}
-                            style={{
-                                flex: 1, padding: '11px 6px', borderRadius: 14, border: 'none',
-                                background: tab === t.key
-                                    ? `linear-gradient(135deg,${c.blueD},${c.blue})`
-                                    : c.card,
-                                color: tab === t.key ? '#fff' : c.muted,
-                                fontSize: 12, fontWeight: 800, cursor: 'pointer',
-                                boxShadow: tab === t.key ? `0 4px 14px ${c.blue}40` : 'none',
-                            }}>
-                            {t.label}
-                        </button>
-                    ))}
+                    {/* Tabs */}
+                    <div style={{ display: 'flex', gap: 0, background: `${c.border}40`, borderRadius: 14, padding: 3, marginBottom: 16 }}>
+                        {[
+                            { key: 'upload',  icon: '📤', label: 'Upload' },
+                            { key: 'gallery', icon: '🖼️', label: `Gallery${photos.length > 0 ? ` (${photos.length})` : ''}` },
+                        ].map(t => (
+                            <button key={t.key} className="wp-tab-btn" onClick={() => setTab(t.key)}
+                                style={{
+                                    flex: 1, padding: '10px 6px', borderRadius: 11, border: 'none',
+                                    background: tab === t.key
+                                        ? `linear-gradient(135deg,${c.blueD},${c.blue})`
+                                        : 'transparent',
+                                    color: tab === t.key ? '#fff' : c.muted,
+                                    fontSize: 12, fontWeight: 800, cursor: 'pointer',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                    boxShadow: tab === t.key ? `0 4px 14px ${c.blue}40` : 'none',
+                                    transition: 'all .2s',
+                                }}>
+                                <span>{t.icon}</span> {t.label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
             </div>
 
             {/* ── UPLOAD tab ── */}
             {tab === 'upload' && (
-                <div style={{ padding: '16px 16px' }}>
+                <div style={{ padding: '18px 16px' }}>
 
-                    {/* Task picker — optional */}
-                    <div style={{ marginBottom: 14 }}>
-                        <label style={{ fontSize: 11, fontWeight: 700, color: c.muted, display: 'block', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.06em' }}>
-                            Tag to task <span style={{ color: c.muted, fontWeight: 500, textTransform: 'none' }}>(optional)</span>
-                        </label>
-                        <select value={selectedTask} onChange={e => setTask(e.target.value)}
-                            style={{
-                                width: '100%', padding: '12px 14px', borderRadius: 12,
-                                border: `1.5px solid ${c.border}`,
-                                fontSize: 13, fontWeight: 600,
-                                color: selectedTask ? c.text : c.muted,
-                                background: c.card, outline: 'none',
-                            }}>
-                            <option value="">No task — general site photo</option>
-                            {/* Group by phase for easier navigation */}
-                            {Object.entries(
-                                tasks.reduce((acc, t) => {
-                                    const phase = t.phase_name || 'Other';
-                                    if (!acc[phase]) acc[phase] = [];
-                                    acc[phase].push(t);
-                                    return acc;
-                                }, {})
-                            ).map(([phase, phaseTasks]) => (
-                                <optgroup key={phase} label={phase}>
-                                    {phaseTasks.map(t => (
-                                        <option key={t.id} value={t.id}>
-                                            {t.title}{t.assigned_to_name ? ` (${t.assigned_to_name})` : ''}
-                                        </option>
-                                    ))}
-                                </optgroup>
-                            ))}
-                        </select>
-                        <p style={{ fontSize: 11, color: c.muted, margin: '5px 0 0' }}>
-                            Tag a task for better tracking, or leave it blank for general site photos.
-                        </p>
-                    </div>
-
-                    {/* Caption */}
-                    <div style={{ marginBottom: 16 }}>
-                        <label style={{ fontSize: 11, fontWeight: 700, color: c.muted, display: 'block', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.06em' }}>
-                            Caption (optional)
-                        </label>
-                        <VoiceNoteInput
-                            value={description}
-                            onChange={setDesc}
-                            rows={3}
-                            placeholder="e.g. Foundation pour — Level 1 complete"
-                            textareaStyle={{
-                                width: '100%',
-                                padding: '12px 14px',
-                                borderRadius: 12,
-                                border: `1px solid ${c.border}`,
-                                fontSize: 13,
-                                background: c.card,
-                                color: c.text,
-                                outline: 'none',
-                                boxSizing: 'border-box',
-                                resize: 'vertical',
-                                minHeight: 96,
-                            }}
-                        />
-                    </div>
-
-                    {/* Capture buttons */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
+                    {/* ── Hero capture buttons ── */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+                        {/* Live Camera */}
                         <button onClick={() => cameraRef.current?.click()}
                             style={{
-                                padding: '18px 14px', borderRadius: 18,
-                                border: `1px solid ${c.border}`,
-                                background: 'rgba(56,189,248,.06)',
-                                color: c.text, fontSize: 14, fontWeight: 800, cursor: 'pointer',
-                                display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8,
-                            }}>
-                            <span style={{ width: 40, height: 40, borderRadius: 12, display:'grid', placeItems:'center', background: `${c.blue}18`, color: c.blue }}>
-                                <Camera size={20} />
-                            </span>
-                            <span style={{ fontSize: 14 }}>Live photo</span>
-                            <span style={{ fontSize: 11, fontWeight: 600, color: c.muted }}>Open camera and capture directly</span>
+                                padding: '0', borderRadius: 22, border: 'none', cursor: 'pointer',
+                                background: 'linear-gradient(135deg,#0ea5e9 0%,#2563eb 100%)',
+                                boxShadow: '0 8px 24px -6px rgba(14,165,233,.55)',
+                                overflow: 'hidden', position: 'relative',
+                                display: 'flex', flexDirection: 'column', alignItems: 'stretch',
+                                transition: 'transform .15s, box-shadow .15s',
+                            }}
+                            onMouseDown={e => e.currentTarget.style.transform = 'scale(.97)'}
+                            onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+                            onTouchStart={e => e.currentTarget.style.transform = 'scale(.97)'}
+                            onTouchEnd={e => e.currentTarget.style.transform = 'scale(1)'}
+                        >
+                            <div style={{ padding: '22px 16px 18px', textAlign: 'left' }}>
+                                <div style={{
+                                    width: 52, height: 52, borderRadius: 16,
+                                    background: 'rgba(255,255,255,.2)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    marginBottom: 14, fontSize: 26,
+                                    backdropFilter: 'blur(8px)',
+                                    border: '1px solid rgba(255,255,255,.25)',
+                                }}>📷</div>
+                                <div style={{ fontSize: 16, fontWeight: 900, color: '#fff', marginBottom: 4 }}>Live Photo</div>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.75)', lineHeight: 1.4 }}>
+                                    Open camera and capture directly
+                                </div>
+                            </div>
+                            {/* Decorative circle */}
+                            <div style={{ position: 'absolute', bottom: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: 'rgba(255,255,255,.1)' }} />
                         </button>
+
+                        {/* Gallery / Video */}
                         <button onClick={() => fileInputRef.current?.click()}
                             style={{
-                                padding: '18px 14px', borderRadius: 18,
-                                border: `1px solid ${c.border}`,
-                                background: 'rgba(167,139,250,.06)',
-                                color: c.text, fontSize: 14, fontWeight: 800, cursor: 'pointer',
-                                display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8,
-                            }}>
-                            <span style={{ width: 40, height: 40, borderRadius: 12, display:'grid', placeItems:'center', background: `${c.purple}18`, color: c.purple }}>
-                                <FolderOpen size={20} />
-                            </span>
-                            <span style={{ fontSize: 14 }}>Gallery</span>
-                            <span style={{ fontSize: 11, fontWeight: 600, color: c.muted }}>Pick existing photos from device</span>
+                                padding: '0', borderRadius: 22, border: 'none', cursor: 'pointer',
+                                background: 'linear-gradient(135deg,#7c3aed 0%,#a78bfa 100%)',
+                                boxShadow: '0 8px 24px -6px rgba(124,58,237,.55)',
+                                overflow: 'hidden', position: 'relative',
+                                display: 'flex', flexDirection: 'column', alignItems: 'stretch',
+                                transition: 'transform .15s',
+                            }}
+                            onMouseDown={e => e.currentTarget.style.transform = 'scale(.97)'}
+                            onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+                            onTouchStart={e => e.currentTarget.style.transform = 'scale(.97)'}
+                            onTouchEnd={e => e.currentTarget.style.transform = 'scale(1)'}
+                        >
+                            <div style={{ padding: '22px 16px 18px', textAlign: 'left' }}>
+                                <div style={{
+                                    width: 52, height: 52, borderRadius: 16,
+                                    background: 'rgba(255,255,255,.2)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    marginBottom: 14, fontSize: 26,
+                                    backdropFilter: 'blur(8px)',
+                                    border: '1px solid rgba(255,255,255,.25)',
+                                }}>🖼️</div>
+                                <div style={{ fontSize: 16, fontWeight: 900, color: '#fff', marginBottom: 4 }}>Gallery / Video</div>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.75)', lineHeight: 1.4 }}>
+                                    Pick photos or video from device
+                                </div>
+                            </div>
+                            <div style={{ position: 'absolute', bottom: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: 'rgba(255,255,255,.1)' }} />
                         </button>
                     </div>
 
                     {/* Hidden inputs */}
-                    <input ref={cameraRef}    type="file" accept="image/*" capture="environment" multiple onChange={onFilePick} style={{ display: 'none' }} />
-                    <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={onFilePick} style={{ display: 'none' }} />
+                    <input ref={cameraRef}    type="file" accept="image/*,video/*" capture="environment" multiple onChange={onFilePick} style={{ display: 'none' }} />
+                    <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple onChange={onFilePick} style={{ display: 'none' }} />
 
-                    {/* Queue */}
-                    {queue.length > 0 && (
-                        <div style={{ marginBottom: 14 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                                <p style={{ fontSize: 12, fontWeight: 700, color: c.dim, margin: 0 }}>
-                                    {queue.length} photo{queue.length !== 1 ? 's' : ''} selected
-                                    {doneCount > 0 && <span style={{ color: c.green }}> · {doneCount} uploaded</span>}
+                    {/* ── Attach to task card ── */}
+                    <div style={{
+                        borderRadius: 20, border: `1.5px solid ${c.border}`,
+                        background: c.surface, marginBottom: 14, overflow: 'hidden',
+                    }}>
+                        <div style={{
+                            padding: '12px 16px', background: `${c.border}50`,
+                            borderBottom: `1px solid ${c.border}`,
+                            display: 'flex', alignItems: 'center', gap: 8,
+                        }}>
+                            <span style={{ fontSize: 14 }}>📎</span>
+                            <span style={{ fontSize: 12, fontWeight: 800, color: c.text }}>Attach to task</span>
+                            <span style={{ fontSize: 10, color: c.muted, fontWeight: 600, marginLeft: 4 }}>optional</span>
+                        </div>
+                        <div style={{ padding: '12px 16px' }}>
+                            <select value={selectedTask} onChange={e => setTask(e.target.value)}
+                                style={{
+                                    width: '100%', padding: '11px 14px', borderRadius: 12,
+                                    border: `1.5px solid ${selectedTask ? c.blue : c.border}`,
+                                    fontSize: 13, fontWeight: 600,
+                                    color: selectedTask ? c.text : c.muted,
+                                    background: c.card, outline: 'none',
+                                    transition: 'border .2s',
+                                }}>
+                                <option value="">— No task —</option>
+                                {Object.entries(
+                                    tasks.reduce((acc, t) => {
+                                        const phase = t.phase_name || 'Other';
+                                        if (!acc[phase]) acc[phase] = [];
+                                        acc[phase].push(t);
+                                        return acc;
+                                    }, {})
+                                ).map(([phase, phaseTasks]) => (
+                                    <optgroup key={phase} label={phase}>
+                                        {phaseTasks.map(t => (
+                                            <option key={t.id} value={t.id}>
+                                                {t.title}{t.assigned_to_name ? ` · ${t.assigned_to_name}` : ''}
+                                            </option>
+                                        ))}
+                                    </optgroup>
+                                ))}
+                            </select>
+                            {!selectedTask && (
+                                <p style={{ fontSize: 10, color: c.muted, margin: '6px 0 0', lineHeight: 1.5 }}>
+                                    Select a task first, then take or upload photo/video.
                                 </p>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* ── Note / caption card ── */}
+                    <div style={{
+                        borderRadius: 20, border: `1.5px solid ${c.border}`,
+                        background: c.surface, marginBottom: 16, overflow: 'hidden',
+                    }}>
+                        <div style={{
+                            padding: '12px 16px', background: `${c.border}50`,
+                            borderBottom: `1px solid ${c.border}`,
+                            display: 'flex', alignItems: 'center', gap: 8,
+                        }}>
+                            <span style={{ fontSize: 14 }}>📝</span>
+                            <span style={{ fontSize: 12, fontWeight: 800, color: c.text }}>Note</span>
+                            <span style={{ fontSize: 10, color: c.muted, fontWeight: 600, marginLeft: 4 }}>optional</span>
+                        </div>
+                        <div style={{ padding: '12px 16px' }}>
+                            <VoiceNoteInput
+                                value={description}
+                                onChange={setDesc}
+                                rows={3}
+                                placeholder="What is being captured?"
+                                textareaStyle={{
+                                    width: '100%',
+                                    padding: '10px 12px',
+                                    borderRadius: 12,
+                                    border: `1px solid ${description ? c.blue : c.border}`,
+                                    fontSize: 13,
+                                    background: c.card,
+                                    color: c.text,
+                                    outline: 'none',
+                                    boxSizing: 'border-box',
+                                    resize: 'vertical',
+                                    minHeight: 76,
+                                    transition: 'border .2s',
+                                }}
+                            />
+                        </div>
+                    </div>
+
+                    {/* ── Upload queue ── */}
+                    {queue.length > 0 && (
+                        <div style={{
+                            borderRadius: 20, border: `1.5px solid ${c.border}`,
+                            background: c.surface, marginBottom: 14, overflow: 'hidden',
+                        }}>
+                            <div style={{
+                                padding: '12px 16px', background: `${c.border}50`,
+                                borderBottom: `1px solid ${c.border}`,
+                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <span style={{ fontSize: 14 }}>📦</span>
+                                    <span style={{ fontSize: 12, fontWeight: 800, color: c.text }}>
+                                        {queue.length} file{queue.length !== 1 ? 's' : ''} ready
+                                    </span>
+                                    {doneCount > 0 && (
+                                        <span style={{ fontSize: 10, color: c.green, fontWeight: 700 }}>· {doneCount} uploaded</span>
+                                    )}
+                                </div>
                                 {doneCount === queue.length && queue.length > 0 && (
                                     <button onClick={() => setQueue([])}
                                         style={{ fontSize: 11, color: c.muted, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>
-                                        Clear all
+                                        Clear
                                     </button>
                                 )}
                             </div>
-                            {queue.map(item => (
-                                <UploadItem key={item.id} item={item} onRemove={removeFromQueue} c={c} />
-                            ))}
+                            <div style={{ padding: '8px 12px' }}>
+                                {queue.map(item => (
+                                    <UploadItem key={item.id} item={item} onRemove={removeFromQueue} c={c} />
+                                ))}
+                            </div>
                         </div>
                     )}
 
-                    {/* Upload button */}
+                    {/* ── Upload button ── */}
                     <button onClick={uploadAll} disabled={!canUpload}
                         style={{
-                            width: '100%', padding: '15px', borderRadius: 14, border: 'none',
+                            width: '100%', padding: '16px', borderRadius: 18, border: 'none',
                             background: canUpload
-                                ? `linear-gradient(135deg,${c.blueD},${c.blue})`
+                                ? `linear-gradient(135deg,#0ea5e9,#2563eb)`
                                 : c.border,
                             color: canUpload ? '#fff' : c.muted,
-                            fontSize: 14, fontWeight: 800,
+                            fontSize: 15, fontWeight: 900,
                             cursor: canUpload ? 'pointer' : 'default',
-                            boxShadow: canUpload ? `0 4px 20px ${c.blue}40` : 'none',
+                            boxShadow: canUpload ? '0 8px 24px -6px rgba(14,165,233,.5)' : 'none',
                             transition: 'all .2s',
                             display: 'inline-flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             gap: 10,
+                            letterSpacing: '.02em',
                         }}>
-                        <UploadCloud size={17} />
+                        <UploadCloud size={18} />
                         {uploading
                             ? 'Uploading…'
                             : pendingCount > 0
-                                ? `Upload ${pendingCount} Photo${pendingCount !== 1 ? 's' : ''}`
+                                ? `Upload ${pendingCount} File${pendingCount !== 1 ? 's' : ''}`
                                 : doneCount > 0
-                                    ? 'All Uploaded'
-                                    : 'Select Photos First'}
+                                    ? '✓ All Uploaded'
+                                    : 'Select a photo first'}
                     </button>
 
-                    {/* Hint when queue is empty */}
+                    {/* Empty state */}
                     {queue.length === 0 && (
                         <div style={{
-                            marginTop: 20, padding: '30px 20px', borderRadius: 16,
+                            marginTop: 18, padding: '28px 20px', borderRadius: 20,
                             border: `1.5px dashed ${c.border}`,
-                            background: 'rgba(255,255,255,.01)',
+                            background: 'rgba(56,189,248,.02)',
                             textAlign: 'center',
                         }}>
-                            <div style={{ width: 56, height: 56, margin:'0 auto 14px', borderRadius: 18, display:'grid', placeItems:'center', background: c.card, border:`1px solid ${c.border}`, color:c.blue }}>
-                                <Camera size={24} />
-                            </div>
-                            <p style={{ fontSize: 13, color: c.muted, margin: 0 }}>
-                                Choose live camera or gallery to add progress photos.
+                            <div style={{ fontSize: 36, marginBottom: 10 }}>📡</div>
+                            <p style={{ fontSize: 13, fontWeight: 700, color: c.dim, margin: '0 0 4px' }}>
+                                Ready to capture
                             </p>
-                            <p style={{ fontSize: 11, color: c.muted, margin: '6px 0 0', opacity: .7 }}>
-                                Task tagging is optional.
+                            <p style={{ fontSize: 11, color: c.muted, margin: 0, lineHeight: 1.5 }}>
+                                Tap <strong>Live Photo</strong> to open camera or <strong>Gallery</strong> to pick from your device.
                             </p>
                         </div>
                     )}

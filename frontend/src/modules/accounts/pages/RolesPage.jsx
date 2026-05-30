@@ -379,11 +379,11 @@ const PAGE_CSS = `
       align-items: stretch;
     }
     .roles-panel-head {
-      align-items: flex-start;
-      flex-direction: column;
+      align-items: center;
+      flex-direction: row;
     }
     .roles-summary-grid {
-      grid-template-columns: 1fr;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
     }
     .roles-role-list {
       max-height: none;
@@ -817,26 +817,31 @@ function FilterChip({ active, label, onClick }) {
     );
 }
 
-function SectionTab({ active, label, detail, onClick, color }) {
+function SectionTab({ active, label, onClick, color }) {
     return (
         <button
             type="button"
             onClick={onClick}
             style={{
-                flex: 1,
-                minWidth: 220,
-                textAlign: 'left',
-                padding: '14px 16px',
-                borderRadius: 14,
-                border: active ? `1px solid ${color}` : '1px solid var(--t-border)',
+                flex: '1 1 auto',
+                minWidth: 120,
+                padding: '10px 16px',
+                borderRadius: 10,
+                border: active ? `1.5px solid ${color}` : '1px solid var(--t-border)',
                 background: active ? `color-mix(in srgb, ${color} 10%, var(--t-surface))` : 'var(--t-surface)',
-                color: 'var(--t-text)',
+                color: active ? color : 'var(--t-text)',
                 cursor: 'pointer',
-                boxShadow: active ? `inset 0 0 0 1px color-mix(in srgb, ${color} 16%, transparent)` : 'none',
+                fontWeight: 800,
+                fontSize: 12.5,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                transition: 'all 0.15s ease',
+                whiteSpace: 'nowrap',
             }}
         >
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 900, color: active ? color : 'var(--t-text)' }}>{label}</p>
-            <p style={{ margin: '4px 0 0', fontSize: 11, lineHeight: 1.55, color: 'var(--t-text3)' }}>{detail}</p>
+            {label}
         </button>
     );
 }
@@ -844,6 +849,15 @@ function SectionTab({ active, label, detail, onClick, color }) {
 function RoleManager({ roles, onEdit, onDelete }) {
     const [selectedId, setSelectedId] = useState(null);
     const [query, setQuery] = useState('');
+    const [mobileDetailView, setMobileDetailView] = useState(false);
+    const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth <= 720 : false);
+
+    useEffect(() => {
+        const check = () => setIsMobile(window.innerWidth <= 720);
+        window.addEventListener('resize', check);
+        return () => window.removeEventListener('resize', check);
+    }, []);
+
     const SYSTEM_CODES = ['SUPER_ADMIN','HOME_OWNER','LEAD_ENGINEER','CONTRACTOR','VIEWER'];
 
     const filteredRoles = useMemo(() => {
@@ -866,169 +880,204 @@ function RoleManager({ roles, onEdit, onDelete }) {
 
     return (
         <div className="roles-manager">
-            <div className="roles-panel">
-                <div className="roles-panel-head">
-                    <div>
-                        <p style={{ margin:0, fontSize:15, fontWeight:900, color:'var(--t-text)' }}>System roles</p>
-                        <p style={{ margin:'4px 0 0', fontSize:12, color:'var(--t-text3)' }}>Select a global role to review app access.</p>
+            {(!isMobile || !mobileDetailView) && (
+                <div className="roles-panel">
+                    <div className="roles-panel-head">
+                        <div>
+                            <p style={{ margin:0, fontSize:15, fontWeight:900, color:'var(--t-text)' }}>System roles</p>
+                            <p style={{ margin:'4px 0 0', fontSize:12, color:'var(--t-text3)' }}>Select a global role to review app access.</p>
+                        </div>
+                        <span className="roles-count-pill">{roles.length}</span>
                     </div>
-                    <span className="roles-count-pill">{roles.length}</span>
-                </div>
 
-                <div className="roles-summary-grid">
-                    <div className="roles-summary-card">
-                        <div className="roles-summary-label">System</div>
-                        <div className="roles-summary-value">{roles.filter(role => SYSTEM_CODES.includes(role.code)).length}</div>
+                    <div className="roles-summary-grid">
+                        <div className="roles-summary-card">
+                            <div className="roles-summary-label">System</div>
+                            <div className="roles-summary-value">{roles.filter(role => SYSTEM_CODES.includes(role.code)).length}</div>
+                        </div>
+                        <div className="roles-summary-card">
+                            <div className="roles-summary-label">Custom</div>
+                            <div className="roles-summary-value">{roles.filter(role => !SYSTEM_CODES.includes(role.code)).length}</div>
+                        </div>
+                        <div className="roles-summary-card">
+                            <div className="roles-summary-label">Users</div>
+                            <div className="roles-summary-value">{roles.reduce((sum, role) => sum + (role.user_count || 0), 0)}</div>
+                        </div>
                     </div>
-                    <div className="roles-summary-card">
-                        <div className="roles-summary-label">Custom</div>
-                        <div className="roles-summary-value">{roles.filter(role => !SYSTEM_CODES.includes(role.code)).length}</div>
+
+                    <div className="roles-filter-box">
+                        <label className="roles-search" style={{
+                            display:'flex', alignItems:'center', gap:8, padding:'9px 10px',
+                            borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-bg)',
+                        }}>
+                            <SearchIcon />
+                            <input
+                                value={query}
+                                onChange={e => setQuery(e.target.value)}
+                                placeholder="Search roles"
+                                style={{ border:'none', outline:'none', background:'transparent', color:'var(--t-text)', width:'100%', fontSize:12 }}
+                            />
+                        </label>
                     </div>
-                    <div className="roles-summary-card">
-                        <div className="roles-summary-label">Users</div>
-                        <div className="roles-summary-value">{roles.reduce((sum, role) => sum + (role.user_count || 0), 0)}</div>
-                    </div>
-                </div>
 
-                <div className="roles-filter-box">
-                    <label className="roles-search" style={{
-                        display:'flex', alignItems:'center', gap:8, padding:'9px 10px',
-                        borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-bg)',
-                    }}>
-                        <SearchIcon />
-                        <input
-                            value={query}
-                            onChange={e => setQuery(e.target.value)}
-                            placeholder="Search roles"
-                            style={{ border:'none', outline:'none', background:'transparent', color:'var(--t-text)', width:'100%', fontSize:12 }}
-                        />
-                    </label>
-                </div>
-
-                <div className="roles-role-list">
-                    {filteredRoles.map(role => {
-                        const roleColor = ROLE_COLORS[role.code] || '#2563eb';
-                        const active = selectedRole?.id === role.id;
-                        const count = PERMISSIONS.filter(p => role[p.key]).length;
-                        return (
-                            <button
-                                key={role.id}
-                                type="button"
-                                className={`roles-role-item${active ? ' active' : ''}`}
-                                onClick={() => setSelectedId(role.id)}
-                            >
-                                <div style={{ width:36, height:36, borderRadius:10, background:`${roleColor}14`, border:`1px solid ${roleColor}30`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:17, flexShrink:0 }}>🛡️</div>
-                                <div style={{ minWidth:0, flex:1 }}>
-                                    <p style={{ margin:0, fontSize:13, fontWeight:900, color:'var(--t-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{role.name}</p>
-                                    <p style={{ margin:'2px 0 0', fontSize:10, fontWeight:700, color:'var(--t-text3)', fontFamily:'monospace', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{role.code}</p>
-                                </div>
-                                <div style={{ textAlign:'right', flexShrink:0 }}>
-                                    <p style={{ margin:0, fontSize:12, fontWeight:900, color:roleColor }}>{count}</p>
-                                    <p style={{ margin:'2px 0 0', fontSize:10, color:'var(--t-text3)' }}>perms</p>
-                                </div>
-                            </button>
-                        );
-                    })}
-                    {filteredRoles.length === 0 && <div className="roles-empty-state">No roles match this search.</div>}
-                </div>
-            </div>
-
-            <div className="roles-panel">
-                {!selectedRole ? (
-                    <div className="roles-empty-state">No roles yet.</div>
-                ) : (
-                    <>
-                        <div className="roles-panel-head">
-                            <div className="roles-role-name">
-                                <div style={{ width:44, height:44, borderRadius:12, background:`${color}14`, border:`1px solid ${color}30`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:21, flexShrink:0 }}>🛡️</div>
-                                <div className="roles-role-meta">
-                                    <p style={{ margin:0, fontSize:18, fontWeight:900, color:'var(--t-text)' }}>{selectedRole.name}</p>
-                                    <p style={{ margin:'3px 0 0', fontSize:11, fontWeight:800, color:'var(--t-text3)', fontFamily:'monospace' }}>{selectedRole.code}</p>
-                                </div>
-                            </div>
-                            <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap', justifyContent:'flex-end' }}>
-                                <span className="roles-type-pill">{selectedRole.user_count ?? 0} user{(selectedRole.user_count ?? 0) !== 1 ? 's' : ''}</span>
-                                {isSystem ? <Badge label="System" color="#6b7280" /> : <span className="roles-type-pill" style={{ color:'#10b981', borderColor:'rgba(16,185,129,0.25)', background:'rgba(16,185,129,0.08)' }}>Custom</span>}
-                                <button onClick={() => onEdit(selectedRole)}
-                                    style={{ width:36, height:36, display:'inline-flex', alignItems:'center', justifyContent:'center', borderRadius:10, background:`${color}12`, color, fontSize:14, fontWeight:900, border:`1px solid ${color}25`, cursor:'pointer' }}
-                                    title="Edit role">
-                                    ✏️
+                    <div className="roles-role-list">
+                        {filteredRoles.map(role => {
+                            const roleColor = ROLE_COLORS[role.code] || '#2563eb';
+                            const active = selectedRole?.id === role.id;
+                            const count = PERMISSIONS.filter(p => role[p.key]).length;
+                            return (
+                                <button
+                                    key={role.id}
+                                    type="button"
+                                    className={`roles-role-item${active ? ' active' : ''}`}
+                                    onClick={() => {
+                                        setSelectedId(role.id);
+                                        setMobileDetailView(true);
+                                    }}
+                                >
+                                    <div style={{ width:36, height:36, borderRadius:10, background:`${roleColor}14`, border:`1px solid ${roleColor}30`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:17, flexShrink:0 }}>🛡️</div>
+                                    <div style={{ minWidth:0, flex:1 }}>
+                                        <p style={{ margin:0, fontSize:13, fontWeight:900, color:'var(--t-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{role.name}</p>
+                                        <p style={{ margin:'2px 0 0', fontSize:10, fontWeight:700, color:'var(--t-text3)', fontFamily:'monospace', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{role.code}</p>
+                                    </div>
+                                    <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
+                                        <div style={{ textAlign:'right' }}>
+                                            <p style={{ margin:0, fontSize:12, fontWeight:900, color:roleColor }}>{count}</p>
+                                            <p style={{ margin:'2px 0 0', fontSize:10, color:'var(--t-text3)' }}>perms</p>
+                                        </div>
+                                        {isMobile && <span style={{ fontSize:16, color:'var(--t-text3)' }}>›</span>}
+                                    </div>
                                 </button>
-                                {!isSystem && (
-                                    <button onClick={() => onDelete(selectedRole)}
-                                        style={{ width:36, height:36, display:'inline-flex', alignItems:'center', justifyContent:'center', borderRadius:10, background:'rgba(239,68,68,0.08)', color:'#ef4444', fontSize:14, fontWeight:900, border:'1px solid rgba(239,68,68,0.2)', cursor:'pointer' }}
-                                        title="Delete role">
-                                        🗑️
+                            );
+                        })}
+                        {filteredRoles.length === 0 && <div className="roles-empty-state">No roles match this search.</div>}
+                    </div>
+                </div>
+            )}
+
+            {(!isMobile || mobileDetailView) && (
+                <div className="roles-panel">
+                    {!selectedRole ? (
+                        <div className="roles-empty-state">No roles yet.</div>
+                    ) : (
+                        <>
+                            <div className="roles-panel-head" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 12 }}>
+                                {isMobile && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setMobileDetailView(false)}
+                                        style={{
+                                            alignSelf: 'flex-start',
+                                            padding: '6px 12px',
+                                            borderRadius: 8,
+                                            border: '1px solid var(--t-border)',
+                                            background: 'var(--t-surface)',
+                                            color: 'var(--t-text)',
+                                            fontSize: 12,
+                                            fontWeight: 800,
+                                            cursor: 'pointer',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: 4,
+                                            marginBottom: 4
+                                        }}
+                                    >
+                                        ← Back to System Roles
                                     </button>
                                 )}
-                            </div>
-                        </div>
-
-                        <div className="roles-detail-body">
-                            <div className="roles-detail-grid">
-                                <div>
-                                    <div className="roles-section-label">Permission coverage</div>
-                                    <div style={{ padding:14, borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-bg)', marginBottom:14 }}>
-                                        <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', gap:10 }}>
-                                            <p style={{ margin:0, fontSize:18, fontWeight:900, color:'var(--t-text)' }}>{enabledPerms.length} of {PERMISSIONS.length}</p>
-                                            <p style={{ margin:0, fontSize:11, color:'var(--t-text3)' }}>{enabledGroups.length} active group{enabledGroups.length !== 1 ? 's' : ''}</p>
-                                        </div>
-                                        <div className="roles-mini-bar" aria-hidden="true">
-                                            <span style={{ width:`${accessPct}%`, background:color }} />
-                                        </div>
-                                        <p style={{ margin:'10px 0 0', fontSize:11, color:'var(--t-text3)', lineHeight:1.6 }}>
-                                            This role affects app-wide access only. Project team role is managed from the user’s Projects tab.
-                                        </p>
-                                    </div>
-
-                                    <div className="roles-section-label">Enabled permissions</div>
-                                    <div className="roles-permission-grid">
-                                        {PERMISSION_GROUPS.map(group => {
-                                            const groupPerms = PERMISSIONS_BY_GROUP[group.key] || [];
-                                            const activePerms = groupPerms.filter(p => selectedRole[p.key]);
-                                            return (
-                                                <div key={group.key} className="roles-permission-group" style={{ opacity: activePerms.length ? 1 : 0.58 }}>
-                                                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
-                                                        <p style={{ margin:0, fontSize:13, fontWeight:900, color:'var(--t-text)' }}>{group.icon} {group.label}</p>
-                                                        <span style={{ fontSize:11, fontWeight:900, color:activePerms.length ? color : 'var(--t-text3)' }}>{activePerms.length}/{groupPerms.length}</span>
-                                                    </div>
-                                                    {groupPerms.map(p => (
-                                                        <div key={p.key} className="roles-permission-line">
-                                                            <span style={{ width:8, height:8, borderRadius:999, background:selectedRole[p.key] ? '#10b981' : 'var(--t-border)', flexShrink:0 }} />
-                                                            <span style={{ color:selectedRole[p.key] ? 'var(--t-text)' : 'var(--t-text3)', fontWeight:selectedRole[p.key] ? 800 : 500 }}>{p.label}</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-
-                                <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-                                    <div style={{ padding:14, borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-bg)' }}>
-                                        <div className="roles-section-label">Active groups</div>
-                                        <div className="roles-chip-list">
-                                            {enabledGroups.map(group => (
-                                                <span key={group.key} style={{ padding:'5px 9px', borderRadius:999, background:`${color}12`, color, fontSize:10, fontWeight:900, border:`1px solid ${color}22` }}>
-                                                    {group.icon} {group.label}
-                                                </span>
-                                            ))}
-                                            {enabledGroups.length === 0 && <span style={{ fontSize:12, color:'var(--t-text3)' }}>No access enabled</span>}
+                                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', width:'100%', gap:12 }}>
+                                    <div className="roles-role-name">
+                                        <div style={{ width:44, height:44, borderRadius:12, background:`${color}14`, border:`1px solid ${color}30`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:21, flexShrink:0 }}>🛡️</div>
+                                        <div className="roles-role-meta">
+                                            <p style={{ margin:0, fontSize:18, fontWeight:900, color:'var(--t-text)' }}>{selectedRole.name}</p>
+                                            <p style={{ margin:'3px 0 0', fontSize:11, fontWeight:800, color:'var(--t-text3)', fontFamily:'monospace' }}>{selectedRole.code}</p>
                                         </div>
                                     </div>
-                                    <div style={{ padding:14, borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-bg)' }}>
-                                        <div className="roles-section-label">Role actions</div>
+                                    <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap', justifyContent:'flex-end' }}>
+                                        <span className="roles-type-pill">{selectedRole.user_count ?? 0} user{(selectedRole.user_count ?? 0) !== 1 ? 's' : ''}</span>
+                                        {isSystem ? <Badge label="System" color="#6b7280" /> : <span className="roles-type-pill" style={{ color:'#10b981', borderColor:'rgba(16,185,129,0.25)', background:'rgba(16,185,129,0.08)' }}>Custom</span>}
                                         <button onClick={() => onEdit(selectedRole)}
-                                            style={{ width:'100%', padding:'10px 0', borderRadius:10, background:color, color:'#fff', fontSize:12, fontWeight:900, border:'none', cursor:'pointer' }}>
-                                            Edit permissions
+                                            style={{ width:36, height:36, display:'inline-flex', alignItems:'center', justifyContent:'center', borderRadius:10, background:`${color}12`, color, fontSize:14, fontWeight:900, border:`1px solid ${color}25`, cursor:'pointer' }}
+                                            title="Edit role">
+                                            ✏️
                                         </button>
+                                        {!isSystem && (
+                                            <button onClick={() => onDelete(selectedRole)}
+                                                style={{ width:36, height:36, display:'inline-flex', alignItems:'center', justifyContent:'center', borderRadius:10, background:'rgba(239,68,68,0.08)', color:'#ef4444', fontSize:14, fontWeight:900, border:'1px solid rgba(239,68,68,0.2)', cursor:'pointer' }}
+                                                title="Delete role">
+                                                🗑️
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </>
-                )}
-            </div>
+
+                            <div className="roles-detail-body">
+                                <div className="roles-detail-grid">
+                                    <div>
+                                        <div className="roles-section-label">Permission coverage</div>
+                                        <div style={{ padding:14, borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-bg)', marginBottom:14 }}>
+                                            <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', gap:10 }}>
+                                                <p style={{ margin:0, fontSize:18, fontWeight:900, color:'var(--t-text)' }}>{enabledPerms.length} of {PERMISSIONS.length}</p>
+                                                <p style={{ margin:0, fontSize:11, color:'var(--t-text3)' }}>{enabledGroups.length} active group{enabledGroups.length !== 1 ? 's' : ''}</p>
+                                            </div>
+                                            <div className="roles-mini-bar" aria-hidden="true">
+                                                <span style={{ width:`${accessPct}%`, background:color }} />
+                                            </div>
+                                            <p style={{ margin:'10px 0 0', fontSize:11, color:'var(--t-text3)', lineHeight:1.6 }}>
+                                                This role affects app-wide access only. Project team role is managed from the user’s Projects tab.
+                                            </p>
+                                        </div>
+
+                                        <div className="roles-section-label">Enabled permissions</div>
+                                        <div className="roles-permission-grid">
+                                            {PERMISSION_GROUPS.map(group => {
+                                                const groupPerms = PERMISSIONS_BY_GROUP[group.key] || [];
+                                                const activePerms = groupPerms.filter(p => selectedRole[p.key]);
+                                                return (
+                                                    <div key={group.key} className="roles-permission-group" style={{ opacity: activePerms.length ? 1 : 0.58 }}>
+                                                        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
+                                                            <p style={{ margin:0, fontSize:13, fontWeight:900, color:'var(--t-text)' }}>{group.icon} {group.label}</p>
+                                                            <span style={{ fontSize:11, fontWeight:900, color:activePerms.length ? color : 'var(--t-text3)' }}>{activePerms.length}/{groupPerms.length}</span>
+                                                        </div>
+                                                        {groupPerms.map(p => (
+                                                            <div key={p.key} className="roles-permission-line">
+                                                                <span style={{ width:8, height:8, borderRadius:999, background:selectedRole[p.key] ? '#10b981' : 'var(--t-border)', flexShrink:0 }} />
+                                                                <span style={{ color:selectedRole[p.key] ? 'var(--t-text)' : 'var(--t-text3)', fontWeight:selectedRole[p.key] ? 800 : 500 }}>{p.label}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                                        <div style={{ padding:14, borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-bg)' }}>
+                                            <div className="roles-section-label">Active groups</div>
+                                            <div className="roles-chip-list">
+                                                {enabledGroups.map(group => (
+                                                    <span key={group.key} style={{ padding:'5px 9px', borderRadius:999, background:`${color}12`, color, fontSize:10, fontWeight:900, border:`1px solid ${color}22` }}>
+                                                        {group.icon} {group.label}
+                                                    </span>
+                                                ))}
+                                                {enabledGroups.length === 0 && <span style={{ fontSize:12, color:'var(--t-text3)' }}>No access enabled</span>}
+                                            </div>
+                                        </div>
+                                        <div style={{ padding:14, borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-bg)' }}>
+                                            <div className="roles-section-label">Role actions</div>
+                                            <button onClick={() => onEdit(selectedRole)}
+                                                style={{ width:'100%', padding:'10px 0', borderRadius:10, background:color, color:'#fff', fontSize:12, fontWeight:900, border:'none', cursor:'pointer' }}>
+                                                Edit permissions
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+            )}
         </div>
     );
 }
@@ -1187,6 +1236,14 @@ export function ProjectRoleManager({
 }) {
     const [selectedId, setSelectedId] = useState(null);
     const [query, setQuery] = useState('');
+    const [mobileDetailView, setMobileDetailView] = useState(false);
+    const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth <= 720 : false);
+
+    useEffect(() => {
+        const check = () => setIsMobile(window.innerWidth <= 720);
+        window.addEventListener('resize', check);
+        return () => window.removeEventListener('resize', check);
+    }, []);
 
     const normalizedRoles = useMemo(() => normalizeProjectRoles(roles), [roles]);
     const filteredRoles = useMemo(() => {
@@ -1202,101 +1259,136 @@ export function ProjectRoleManager({
 
     return (
         <div className="roles-manager" style={{ marginTop: embedded ? 0 : 24 }}>
-            <div className="roles-panel">
-                <div className="roles-panel-head">
-                    <div>
-                        <p style={{ margin:0, fontSize:15, fontWeight:900, color:'var(--t-text)' }}>{title}</p>
-                        <p style={{ margin:'4px 0 0', fontSize:12, color:'var(--t-text3)' }}>{subtitle}</p>
+            {(!isMobile || !mobileDetailView) && (
+                <div className="roles-panel">
+                    <div className="roles-panel-head">
+                        <div>
+                            <p style={{ margin:0, fontSize:15, fontWeight:900, color:'var(--t-text)' }}>{title}</p>
+                            <p style={{ margin:'4px 0 0', fontSize:12, color:'var(--t-text3)' }}>{subtitle}</p>
+                        </div>
+                        <span className="roles-count-pill">{normalizedRoles.length}</span>
                     </div>
-                    <span className="roles-count-pill">{normalizedRoles.length}</span>
+                    <div className="roles-filter-box">
+                        <label className="roles-search" style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 10px', borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-bg)' }}>
+                            <SearchIcon />
+                            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search project roles" style={{ border:'none', outline:'none', background:'transparent', color:'var(--t-text)', width:'100%', fontSize:12 }} />
+                        </label>
+                    </div>
+                    <div className="roles-role-list">
+                        {filteredRoles.map(role => (
+                            (() => {
+                                const rolePermCount = PROJECT_PERMISSION_META.filter(perm => role.permissions?.[perm.key] || role[perm.key]).length;
+                                return (
+                                    <button
+                                        key={role.code}
+                                        type="button"
+                                        className={`roles-role-item${selectedRole?.code === role.code ? ' active' : ''}`}
+                                        onClick={() => {
+                                            setSelectedId(role.id);
+                                            setMobileDetailView(true);
+                                        }}
+                                    >
+                                        <div style={{ width:36, height:36, borderRadius:10, background:`${role.color}14`, border:`1px solid ${role.color}30`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:17, flexShrink:0 }}>{role.icon}</div>
+                                        <div style={{ minWidth:0, flex:1 }}>
+                                            <p style={{ margin:0, fontSize:13, fontWeight:900, color:'var(--t-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{role.name}</p>
+                                            <p style={{ margin:'2px 0 0', fontSize:10, fontWeight:700, color:'var(--t-text3)', fontFamily:'monospace', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{role.code}</p>
+                                        </div>
+                                        <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
+                                            <div style={{ textAlign:'right' }}>
+                                                <p style={{ margin:0, fontSize:12, fontWeight:900, color:role.color }}>{rolePermCount}</p>
+                                                <p style={{ margin:'2px 0 0', fontSize:10, color:'var(--t-text3)' }}>perms</p>
+                                            </div>
+                                            {isMobile && <span style={{ fontSize:16, color:'var(--t-text3)' }}>›</span>}
+                                        </div>
+                                    </button>
+                                );
+                            })()
+                        ))}
+                        {filteredRoles.length === 0 && <div className="roles-empty-state">No project roles match this search.</div>}
+                    </div>
                 </div>
-                <div className="roles-filter-box">
-                    <label className="roles-search" style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 10px', borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-bg)' }}>
-                        <SearchIcon />
-                        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search project roles" style={{ border:'none', outline:'none', background:'transparent', color:'var(--t-text)', width:'100%', fontSize:12 }} />
-                    </label>
-                </div>
-                <div className="roles-role-list">
-                    {filteredRoles.map(role => (
-                        (() => {
-                            const rolePermCount = PROJECT_PERMISSION_META.filter(perm => role.permissions?.[perm.key] || role[perm.key]).length;
-                            return (
-                                <button
-                                    key={role.code}
-                                    type="button"
-                                    className={`roles-role-item${selectedRole?.code === role.code ? ' active' : ''}`}
-                                    onClick={() => setSelectedId(role.id)}
-                                >
-                                    <div style={{ width:36, height:36, borderRadius:10, background:`${role.color}14`, border:`1px solid ${role.color}30`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:17, flexShrink:0 }}>{role.icon}</div>
-                                    <div style={{ minWidth:0, flex:1 }}>
-                                        <p style={{ margin:0, fontSize:13, fontWeight:900, color:'var(--t-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{role.name}</p>
-                                        <p style={{ margin:'2px 0 0', fontSize:10, fontWeight:700, color:'var(--t-text3)', fontFamily:'monospace', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{role.code}</p>
-                                    </div>
-                                    <div style={{ textAlign:'right', flexShrink:0 }}>
-                                        <p style={{ margin:0, fontSize:12, fontWeight:900, color:role.color }}>{rolePermCount}</p>
-                                        <p style={{ margin:'2px 0 0', fontSize:10, color:'var(--t-text3)' }}>perms</p>
-                                    </div>
-                                </button>
-                            );
-                        })()
-                    ))}
-                    {filteredRoles.length === 0 && <div className="roles-empty-state">No project roles match this search.</div>}
-                </div>
-            </div>
+            )}
 
-            <div className="roles-panel">
-                {!selectedRole ? (
-                    <div className="roles-empty-state">No project roles yet.</div>
-                ) : (
-                    <>
-                        <div className="roles-panel-head">
-                            <div className="roles-role-name">
-                                <div style={{ width:44, height:44, borderRadius:12, background:`${selectedRole.color}14`, border:`1px solid ${selectedRole.color}30`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:21, flexShrink:0 }}>{selectedRole.icon}</div>
-                                <div className="roles-role-meta">
-                                    <p style={{ margin:0, fontSize:18, fontWeight:900, color:'var(--t-text)' }}>{selectedRole.name}</p>
-                                    <p style={{ margin:'3px 0 0', fontSize:11, fontWeight:800, color:'var(--t-text3)', fontFamily:'monospace' }}>{selectedRole.code}</p>
-                                </div>
-                            </div>
-                            <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap', justifyContent:'flex-end' }}>
-                                {selectedRole.is_system ? <Badge label="Default" color="#6b7280" /> : <span className="roles-type-pill" style={{ color:'#10b981', borderColor:'rgba(16,185,129,0.25)', background:'rgba(16,185,129,0.08)' }}>Custom</span>}
-                                <button onClick={() => onEdit(selectedRole)}
-                                    disabled={!selectedRole.id}
-                                    style={{ width:36, height:36, display:'inline-flex', alignItems:'center', justifyContent:'center', borderRadius:10, background:`${selectedRole.color}12`, color:selectedRole.color, fontSize:14, fontWeight:900, border:`1px solid ${selectedRole.color}25`, cursor:'pointer' }}
-                                    title="Edit project role">
-                                    ✏️
-                                </button>
-                                {!selectedRole.is_system && selectedRole.id && (
-                                    <button onClick={() => onDelete(selectedRole)}
-                                        style={{ width:36, height:36, display:'inline-flex', alignItems:'center', justifyContent:'center', borderRadius:10, background:'rgba(239,68,68,0.08)', color:'#ef4444', fontSize:14, fontWeight:900, border:'1px solid rgba(239,68,68,0.2)', cursor:'pointer' }}
-                                        title="Delete project role">
-                                        🗑️
+            {(!isMobile || mobileDetailView) && (
+                <div className="roles-panel">
+                    {!selectedRole ? (
+                        <div className="roles-empty-state">No project roles yet.</div>
+                    ) : (
+                        <>
+                            <div className="roles-panel-head" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 12 }}>
+                                {isMobile && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setMobileDetailView(false)}
+                                        style={{
+                                            alignSelf: 'flex-start',
+                                            padding: '6px 12px',
+                                            borderRadius: 8,
+                                            border: '1px solid var(--t-border)',
+                                            background: 'var(--t-surface)',
+                                            color: 'var(--t-text)',
+                                            fontSize: 12,
+                                            fontWeight: 800,
+                                            cursor: 'pointer',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: 4,
+                                            marginBottom: 4
+                                        }}
+                                    >
+                                        ← Back to Project Roles
                                     </button>
                                 )}
-                            </div>
-                        </div>
-                        <div className="roles-detail-body">
-                            <div style={{ padding:14, borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-bg)', marginBottom:14 }}>
-                                <p style={{ margin:0, fontSize:12, fontWeight:800, color:'var(--t-text)' }}>{selectedRole.description || 'No description yet.'}</p>
-                                {selectedRole.description_ne && (
-                                    <p style={{ margin:'5px 0 0', fontSize:11, color:'var(--t-text3)' }}>{selectedRole.description_ne}</p>
-                                )}
-                            </div>
-                            <div className="roles-permission-grid">
-                                {PROJECT_PERMISSION_META.map(perm => {
-                                    const on = !!(selectedRole.permissions?.[perm.key] || selectedRole[perm.key]);
-                                    return (
-                                        <div key={perm.key} className="roles-permission-group" style={{ opacity: on ? 1 : 0.58 }}>
-                                            <p style={{ margin:0, fontSize:12, fontWeight:900, color:'var(--t-text)' }}>{perm.icon} {perm.label}</p>
-                                            <p style={{ margin:'4px 0 0', fontSize:11, color:'var(--t-text3)' }}>{perm.detail}</p>
-                                            <div style={{ marginTop:10, fontSize:11, fontWeight:900, color:on ? '#10b981' : 'var(--t-text3)' }}>{on ? 'Enabled' : 'Disabled'}</div>
+                                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', width:'100%', gap:12 }}>
+                                    <div className="roles-role-name">
+                                        <div style={{ width:44, height:44, borderRadius:12, background:`${selectedRole.color}14`, border:`1px solid ${selectedRole.color}30`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:21, flexShrink:0 }}>{selectedRole.icon}</div>
+                                        <div className="roles-role-meta">
+                                            <p style={{ margin:0, fontSize:18, fontWeight:900, color:'var(--t-text)' }}>{selectedRole.name}</p>
+                                            <p style={{ margin:'3px 0 0', fontSize:11, fontWeight:800, color:'var(--t-text3)', fontFamily:'monospace' }}>{selectedRole.code}</p>
                                         </div>
-                                    );
-                                })}
+                                    </div>
+                                    <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap', justifyContent:'flex-end' }}>
+                                        {selectedRole.is_system ? <Badge label="Default" color="#6b7280" /> : <span className="roles-type-pill" style={{ color:'#10b981', borderColor:'rgba(16,185,129,0.25)', background:'rgba(16,185,129,0.08)' }}>Custom</span>}
+                                        <button onClick={() => onEdit(selectedRole)}
+                                            disabled={!selectedRole.id}
+                                            style={{ width:36, height:36, display:'inline-flex', alignItems:'center', justifyContent:'center', borderRadius:10, background:`${selectedRole.color}12`, color:selectedRole.color, fontSize:14, fontWeight:900, border:`1px solid ${selectedRole.color}25`, cursor:'pointer' }}
+                                            title="Edit project role">
+                                            ✏️
+                                        </button>
+                                        {!selectedRole.is_system && selectedRole.id && (
+                                            <button onClick={() => onDelete(selectedRole)}
+                                                style={{ width:36, height:36, display:'inline-flex', alignItems:'center', justifyContent:'center', borderRadius:10, background:'rgba(239,68,68,0.08)', color:'#ef4444', fontSize:14, fontWeight:900, border:'1px solid rgba(239,68,68,0.2)', cursor:'pointer' }}
+                                                title="Delete project role">
+                                                🗑️
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </>
-                )}
-            </div>
+                            <div className="roles-detail-body">
+                                <div style={{ padding:14, borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-bg)', marginBottom:14 }}>
+                                    <p style={{ margin:0, fontSize:12, fontWeight:800, color:'var(--t-text)' }}>{selectedRole.description || 'No description yet.'}</p>
+                                    {selectedRole.description_ne && (
+                                        <p style={{ margin:'5px 0 0', fontSize:11, color:'var(--t-text3)' }}>{selectedRole.description_ne}</p>
+                                    )}
+                                </div>
+                                <div className="roles-permission-grid">
+                                    {PROJECT_PERMISSION_META.map(perm => {
+                                        const on = !!(selectedRole.permissions?.[perm.key] || selectedRole[perm.key]);
+                                        return (
+                                            <div key={perm.key} className="roles-permission-group" style={{ opacity: on ? 1 : 0.58 }}>
+                                                <p style={{ margin:0, fontSize:12, fontWeight:900, color:'var(--t-text)' }}>{perm.icon} {perm.label}</p>
+                                                <p style={{ margin:'4px 0 0', fontSize:11, color:'var(--t-text3)' }}>{perm.detail}</p>
+                                                <div style={{ marginTop:10, fontSize:11, fontWeight:900, color:on ? '#10b981' : 'var(--t-text3)' }}>{on ? 'Enabled' : 'Disabled'}</div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+            )}
         </div>
     );
 }
@@ -1306,7 +1398,7 @@ export default function RolesPage({ forcedSection = null, hideSectionTabs = fals
     const { roles, loading, refreshRoles, refreshUsers } = useAccounts();
     const [searchParams, setSearchParams] = useSearchParams();
     const requestedTab = searchParams.get('tab');
-    const normalizedInitialTab = forcedSection || (requestedTab === 'system' || requestedTab === 'project' ? requestedTab : 'guide');
+    const normalizedInitialTab = forcedSection || (requestedTab === 'project' || requestedTab === 'guide' ? requestedTab : 'system');
     const [activeSection, setActiveSection] = useState(normalizedInitialTab);
     const [showCreate, setShowCreate] = useState(false);
     const [editing,    setEditing]    = useState(null);
@@ -1344,7 +1436,7 @@ export default function RolesPage({ forcedSection = null, hideSectionTabs = fals
             return;
         }
         const nextTab = searchParams.get('tab');
-        const normalized = nextTab === 'system' || nextTab === 'project' ? nextTab : 'guide';
+        const normalized = nextTab === 'project' || nextTab === 'guide' ? nextTab : 'system';
         if (normalized !== activeSection) {
             setActiveSection(normalized);
         }
@@ -1354,7 +1446,7 @@ export default function RolesPage({ forcedSection = null, hideSectionTabs = fals
         if (forcedSection) return;
         setActiveSection(section);
         const nextParams = new URLSearchParams(searchParams);
-        if (section === 'guide') nextParams.delete('tab');
+        if (section === 'system') nextParams.delete('tab');
         else nextParams.set('tab', section);
         setSearchParams(nextParams, { replace: true });
     };
@@ -1389,81 +1481,48 @@ export default function RolesPage({ forcedSection = null, hideSectionTabs = fals
             <style>{PAGE_CSS}</style>
 
             {!hideSectionTabs && (
-            <div style={{ display:'flex', gap:12, flexWrap:'wrap', marginBottom:20 }}>
-                <SectionTab
-                    active={activeSection === 'guide'}
-                    onClick={() => activateSection('guide')}
-                    color="#0ea5e9"
-                    label="📘 Guide / गाइड"
-                    detail="Read the role model first: what is global, what is per project, and when to override."
-                />
+            <div style={{ display:'flex', gap:10, flexWrap:'wrap', marginBottom:20 }}>
                 <SectionTab
                     active={activeSection === 'system'}
                     onClick={() => activateSection('system')}
                     color="#6366f1"
-                    label="🛡️ System Roles / सिस्टम रोल"
-                    detail="Global app/module access like dashboard, users, finance, workforce, settings."
+                    label="🛡️ System Roles"
                 />
                 <SectionTab
                     active={activeSection === 'project'}
                     onClick={() => activateSection('project')}
                     color="#10b981"
-                    label="🗂️ Project Roles / प्रोजेक्ट रोल"
-                    detail="Reusable templates like Manager, Engineer, Supervisor, or your own custom project role."
+                    label="🗂️ Project Roles"
+                />
+                <SectionTab
+                    active={activeSection === 'guide'}
+                    onClick={() => activateSection('guide')}
+                    color="#0ea5e9"
+                    label="📘 Role Guide"
                 />
             </div>
             )}
 
             {/* Toolbar */}
             <div className="roles-toolbar-row" style={{
-                display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:16,
-                marginBottom:20, padding:18, borderRadius:16, border:'1px solid var(--t-border)', background:'var(--t-surface)',
+                display:'flex', alignItems:'center', justifyContent:'space-between', gap:16,
+                marginBottom:20, padding:'14px 18px', borderRadius:16, border:'1px solid var(--t-border)', background:'var(--t-surface)',
             }}>
                 <div style={{ minWidth:0 }}>
-                    <p style={{ margin:0, fontSize:22, fontWeight:900, color:'var(--t-text)' }}>
+                    <p style={{ margin:0, fontSize:20, fontWeight:900, color:'var(--t-text)' }}>
                         {activeSection === 'guide'
-                            ? 'Role Guide / रोल गाइड'
+                            ? '📘 Role Guide'
                             : activeSection === 'system'
-                                ? 'System Roles / सिस्टम रोल'
-                                : 'Project Roles / प्रोजेक्ट रोल'}
+                                ? '🛡️ System Roles'
+                                : '🗂️ Project Roles'}
                     </p>
-                    <p style={{ margin:'6px 0 0', fontSize:12, color:'var(--t-text3)', maxWidth:720 }}>
+                    <p style={{ margin:'4px 0 0', fontSize:12, color:'var(--t-text3)', maxWidth:560 }}>
                         {activeSection === 'guide'
-                            ? 'Read this first if the role system feels confusing. It explains global access, project templates, and where assignment happens. Role system confusing छ भने पहिले यही पढ्नुहोस्।'
+                            ? 'Explains global access, project templates, and where assignment happens.'
                             : activeSection === 'system'
-                            ? 'Manage global app access here. This affects which modules and admin pages a user can open. यहाँ global app access manage हुन्छ। यसले कुन module र admin page खोल्न मिल्छ भन्ने नियन्त्रण गर्छ।'
-                            : 'Manage reusable project-role templates here. Assignment still happens from Users & Access → Projects tab or Project Team. यहाँ reusable project-role templates manage हुन्छन्। Assign भने Users & Access → Projects tab वा Project Team बाट हुन्छ।'}
+                            ? 'Control which modules and admin pages a user can open across the whole app.'
+                            : 'Manage reusable project-role templates. Assignment happens from Users & Access → Projects tab.'}
                     </p>
-                    <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginTop:12 }}>
-                        {activeSection === 'guide' ? (
-                            <>
-                                <span style={{ padding:'5px 10px', borderRadius:999, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text3)', fontSize:11, fontWeight:800 }}>
-                                    📘 Read first / पहिले पढ्नुहोस्
-                                </span>
-                                <span style={{ padding:'5px 10px', borderRadius:999, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text3)', fontSize:11, fontWeight:800 }}>
-                                    🧭 Global vs project access
-                                </span>
-                            </>
-                        ) : activeSection === 'system' ? (
-                            <>
-                                <span style={{ padding:'5px 10px', borderRadius:999, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text3)', fontSize:11, fontWeight:800 }}>
-                                    🛡️ Global modules / global module access
-                                </span>
-                                <span style={{ padding:'5px 10px', borderRadius:999, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text3)', fontSize:11, fontWeight:800 }}>
-                                    👤 Assigned to user account
-                                </span>
-                            </>
-                        ) : (
-                            <>
-                                <span style={{ padding:'5px 10px', borderRadius:999, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text3)', fontSize:11, fontWeight:800 }}>
-                                    🗂️ Template only / template मात्र
-                                </span>
-                                <span style={{ padding:'5px 10px', borderRadius:999, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text3)', fontSize:11, fontWeight:800 }}>
-                                    👥 Assigned per project member
-                                </span>
-                            </>
-                        )}
-                    </div>
                 </div>
                 {activeSection !== 'guide' && (
                     <button
@@ -1479,6 +1538,7 @@ export default function RolesPage({ forcedSection = null, hideSectionTabs = fals
                             border:'none',
                             cursor:'pointer',
                             flexShrink:0,
+                            whiteSpace:'nowrap',
                         }}>
                         {activeSection === 'system' ? '➕ New System Role' : '➕ New Project Role'}
                     </button>
@@ -1550,18 +1610,12 @@ export default function RolesPage({ forcedSection = null, hideSectionTabs = fals
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, marginBottom:showReference ? 12 : 0 }}>
                     <div>
                         <p style={{ margin:0, fontSize:11, fontWeight:900, color:'var(--t-text3)', textTransform:'uppercase', letterSpacing:'0.07em' }}>
-                            {activeSection === 'guide'
-                                ? '📖 Guide reference'
-                                : activeSection === 'system'
-                                    ? '📖 Permission reference'
-                                    : '📖 Project role reference'}
+                            📖 Role Guide & Reference
                         </p>
                         <p style={{ margin:'4px 0 0', fontSize:12, color:'var(--t-text3)' }}>
-                            {activeSection === 'guide'
-                                ? 'Open this for detailed field reference after reading the guide above. माथिको guide पढेपछि detailed field reference हेर्न यहाँ खोल्नुहोस्।'
-                                : activeSection === 'system'
-                                ? 'Open this only when you need detailed reference. चाहिएको बेला मात्र खोल्नुहोस्।'
-                                : 'Open this to review what each project-role permission means. Project-role permission को अर्थ हेर्न चाहिएको बेला खोल्नुहोस्।'}
+                            {activeSection === 'system'
+                                ? 'Open to read the full concept guide and review app permission meanings.'
+                                : 'Open to read the full concept guide and review project permission meanings.'}
                         </p>
                     </div>
                     <button
@@ -1569,67 +1623,56 @@ export default function RolesPage({ forcedSection = null, hideSectionTabs = fals
                         onClick={() => setShowReference(v => !v)}
                         style={{ padding:'8px 12px', borderRadius:10, border:'1px solid var(--t-border)', background:'var(--t-bg)', color:'var(--t-text)', fontSize:11, fontWeight:900, cursor:'pointer' }}
                     >
-                        {showReference ? 'Hide Reference / सन्दर्भ लुकाउनुहोस्' : 'Show Reference / सन्दर्भ खोल्नुहोस्'}
+                        {showReference ? 'Hide Guide' : 'Show Guide'}
                     </button>
                 </div>
                 {showReference && (
-                    activeSection === 'guide' ? (
-                        <div style={{ display:'grid', gap:12 }}>
-                            <div style={{ padding:16, borderRadius:14, border:'1px solid var(--t-border)', background:'var(--t-bg)' }}>
-                                <p style={{ margin:0, fontSize:12, fontWeight:900, color:'var(--t-text)' }}>System Role vs Project Role</p>
-                                <p style={{ margin:'6px 0 0', fontSize:11, lineHeight:1.7, color:'var(--t-text3)' }}>
-                                    System Role decides app-wide access. Project Role decides what that user can do inside one assigned project. System Role ले app-wide access तय गर्छ। Project Role ले एउटा project भित्र के गर्न मिल्छ तय गर्छ।
-                                </p>
-                            </div>
-                            <div style={{ padding:16, borderRadius:14, border:'1px solid var(--t-border)', background:'var(--t-bg)' }}>
-                                <p style={{ margin:0, fontSize:12, fontWeight:900, color:'var(--t-text)' }}>Where to Assign</p>
-                                <p style={{ margin:'6px 0 0', fontSize:11, lineHeight:1.7, color:'var(--t-text3)' }}>
-                                    Use this page to define templates. Use Users & Access → Projects tab or Project Team to actually assign the project role to a user. यहाँ template define हुन्छ, assign भने Users & Access → Projects tab वा Project Team बाट हुन्छ।
-                                </p>
-                            </div>
-                        </div>
-                    ) : activeSection === 'system' ? (
-                        <div className="roles-legend-grid" style={{ display:'grid', gap:12 }}>
-                            {PERMISSION_GROUPS.map(group => (
-                                <div key={group.key} style={{ padding:14, borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-bg)' }}>
-                                    <p style={{ margin:0, fontSize:12, fontWeight:900, color:'var(--t-text)' }}>
-                                        {group.icon} {group.label} / {PERMISSION_GROUP_NEPALI[group.key]?.label || group.label}
-                                    </p>
-                                    <p style={{ margin:'4px 0 10px', fontSize:10, color:'var(--t-text3)' }}>
-                                        {group.hint} | {PERMISSION_GROUP_NEPALI[group.key]?.hint || group.hint}
-                                    </p>
-                                    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                                        {(PERMISSIONS_BY_GROUP[group.key] || []).map(p => (
-                                            <div key={p.key} style={{ display:'flex', gap:8, alignItems:'flex-start' }}>
-                                                <span style={{ width:8, height:8, borderRadius:2, background:'#6366f1', marginTop:4, flexShrink:0 }} />
-                                                <div>
-                                                    <p style={{ margin:0, fontSize:11, fontWeight:700, color:'var(--t-text)' }}>
-                                                        {p.label} / {PERMISSION_NEPALI[p.key]?.label || p.label}
-                                                    </p>
-                                                    <p style={{ margin:'1px 0 0', fontSize:10, color:'var(--t-text3)' }}>
-                                                        {p.desc} | {PERMISSION_NEPALI[p.key]?.desc || p.desc}
-                                                    </p>
+                    <div style={{ display:'flex', flexDirection:'column', gap:20, marginTop:16 }}>
+                        <RoleConceptGuide />
+                        <div style={{ height:1, background:'var(--t-border)', margin:'10px 0' }} />
+                        {activeSection === 'system' ? (
+                            <div className="roles-legend-grid" style={{ display:'grid', gap:12 }}>
+                                {PERMISSION_GROUPS.map(group => (
+                                    <div key={group.key} style={{ padding:14, borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-bg)' }}>
+                                        <p style={{ margin:0, fontSize:12, fontWeight:900, color:'var(--t-text)' }}>
+                                            {group.icon} {group.label}
+                                        </p>
+                                        <p style={{ margin:'4px 0 10px', fontSize:10, color:'var(--t-text3)' }}>
+                                            {group.hint}
+                                        </p>
+                                        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                                            {(PERMISSIONS_BY_GROUP[group.key] || []).map(p => (
+                                                <div key={p.key} style={{ display:'flex', gap:8, alignItems:'flex-start' }}>
+                                                    <span style={{ width:8, height:8, borderRadius:2, background:'#6366f1', marginTop:4, flexShrink:0 }} />
+                                                    <div>
+                                                        <p style={{ margin:0, fontSize:11, fontWeight:700, color:'var(--t-text)' }}>
+                                                            {p.label}
+                                                        </p>
+                                                        <p style={{ margin:'1px 0 0', fontSize:10, color:'var(--t-text3)' }}>
+                                                            {p.desc}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="roles-legend-grid" style={{ display:'grid', gap:12 }}>
-                            {PROJECT_PERMISSION_META.map(perm => (
-                                <div key={perm.key} style={{ padding:14, borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-bg)' }}>
-                                    <p style={{ margin:0, fontSize:12, fontWeight:900, color:'var(--t-text)' }}>
-                                        {perm.icon} {perm.label}
-                                    </p>
-                                    <p style={{ margin:'4px 0 0', fontSize:10, color:'var(--t-text3)', lineHeight:1.6 }}>
-                                        {perm.detail}
-                                    </p>
-                                </div>
-                            ))}
-                        </div>
-                    )
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="roles-legend-grid" style={{ display:'grid', gap:12 }}>
+                                {PROJECT_PERMISSION_META.map(perm => (
+                                    <div key={perm.key} style={{ padding:14, borderRadius:12, border:'1px solid var(--t-border)', background:'var(--t-bg)' }}>
+                                        <p style={{ margin:0, fontSize:12, fontWeight:900, color:'var(--t-text)' }}>
+                                            {perm.icon} {perm.label}
+                                        </p>
+                                        <p style={{ margin:'4px 0 0', fontSize:10, color:'var(--t-text3)', lineHeight:1.6 }}>
+                                            {perm.detail}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 )}
             </div>
 

@@ -696,12 +696,12 @@ export default function WorkerPortal() {
   const presentDays= history.filter(r=>r.status==='PRESENT').length;
 
   const NAV_ITEMS=[
-    {id:'home',  icon:'🏠', label:'Home'},
-    {id:'tasks', icon:'📋', label:'Tasks'},
-    {id:'photos',icon:'📸', label:'Photos'},
-    {id:'resources',icon:'🧱',label:'Stock'},
-    {id:'estimator',icon:'📐',label:'Calc'},
-    {id:'profile',icon:'👤',label:'Profile'},
+    {id:'home',  icon:'🏠', label:'Home',    color:'#38bdf8'},
+    {id:'tasks', icon:'📋', label:'Tasks',   color:'#a78bfa'},
+    {id:'photos',icon:'📸', label:'Photos',  color:'#f472b6'},
+    {id:'resources',icon:'🧱',label:'Stock', color:'#fb923c'},
+    {id:'estimator',icon:'📐',label:'Calc',  color:'#34d399'},
+    {id:'profile',icon:'👤',label:'Profile', color:'#60a5fa'},
   ];
 
   return (
@@ -939,18 +939,18 @@ export default function WorkerPortal() {
             {/* Quick nav tiles */}
             <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginTop:8}}>
               {[
-                {icon:'📋',label:'Tasks',     t:'tasks'},
-                {icon:'📸',label:'Photos',    t:'photos'},
-                {icon:'🧱',label:'Resources', t:'resources'},
-                {icon:'📐',label:'Calc',      t:'estimator'},
+                {icon:'📋',label:'Tasks',     t:'tasks',    color:'#a78bfa'},
+                {icon:'📸',label:'Photos',    t:'photos',   color:'#f472b6'},
+                {icon:'🧱',label:'Resources', t:'resources',color:'#fb923c'},
+                {icon:'📐',label:'Calc',      t:'estimator',color:'#34d399'},
               ].map(q=>(
                 <button key={q.t} onClick={()=>setTab(q.t)} className="wp-btn" style={{
-                  background:'rgba(255,255,255,.04)',border:`1px solid ${C.border}`,
-                  borderRadius:18,padding:'14px 0',cursor:'pointer',
-                  display:'flex',flexDirection:'column',alignItems:'center',gap:5,
+                  background:`${q.color}12`,border:`1.5px solid ${q.color}30`,
+                  borderRadius:20,padding:'18px 0',cursor:'pointer',
+                  display:'flex',flexDirection:'column',alignItems:'center',gap:7,
                 }}>
-                  <span style={{fontSize:22}}>{q.icon}</span>
-                  <span style={{fontSize:9,fontWeight:700,color:C.muted,textTransform:'uppercase'}}>{q.label}</span>
+                  <span style={{fontSize:28}}>{q.icon}</span>
+                  <span style={{fontSize:10,fontWeight:800,color:q.color,textTransform:'uppercase',letterSpacing:'.04em'}}>{q.label}</span>
                 </button>
               ))}
             </div>
@@ -1075,25 +1075,33 @@ export default function WorkerPortal() {
 
             {/* Avatar card */}
             <div style={{
-              borderRadius:24,padding:'28px 24px',marginBottom:14,textAlign:'center',
-              background:'linear-gradient(135deg,rgba(99,102,241,.2),rgba(56,189,248,.1))',
-              border:'1px solid rgba(99,102,241,.25)',
+              borderRadius:28,padding:'32px 24px 24px',marginBottom:14,textAlign:'center',
+              background:'linear-gradient(135deg,rgba(99,102,241,.18),rgba(56,189,248,.08))',
+              border:'1px solid rgba(99,102,241,.3)',
+              position:'relative',overflow:'hidden',
             }}>
+              {/* Background glow */}
+              <div style={{position:'absolute',top:-40,left:'50%',transform:'translateX(-50%)',width:180,height:180,borderRadius:'50%',background:'radial-gradient(circle,rgba(99,102,241,.25) 0%,transparent 70%)',pointerEvents:'none'}}/>
+              {/* Avatar */}
               <div style={{
-                width:72,height:72,borderRadius:22,
+                width:96,height:96,borderRadius:'50%',
                 background:'linear-gradient(135deg,#6366f1,#38bdf8)',
                 display:'flex',alignItems:'center',justifyContent:'center',
-                fontSize:28,fontWeight:900,color:'#fff',
-                margin:'0 auto 16px',
-                boxShadow:'0 12px 24px -6px rgba(99,102,241,.5)',
+                fontSize:36,fontWeight:900,color:'#fff',
+                margin:'0 auto 18px',
+                boxShadow:'0 0 0 4px rgba(99,102,241,.3), 0 16px 32px -8px rgba(99,102,241,.6)',
+                position:'relative',
+                overflow: user.photo ? 'hidden' : 'visible',
               }}>
-                {initials(user.full_name)}
+                {user.photo
+                  ? <img src={user.photo} alt={user.full_name} style={{width:'100%',height:'100%',objectFit:'cover',borderRadius:'50%'}}/>
+                  : initials(user.full_name)}
               </div>
-              <div style={{fontSize:22,fontWeight:900}}>{user.full_name}</div>
-              <div style={{fontSize:13,color:C.blue,fontWeight:700,marginTop:4}}>{user.role}</div>
-              <div style={{fontSize:12,color:C.muted,marginTop:4}}>{user.employee_id}</div>
+              <div style={{fontSize:24,fontWeight:900,letterSpacing:'-0.3px'}}>{user.full_name}</div>
+              <div style={{fontSize:14,color:C.blue,fontWeight:800,marginTop:6,display:'inline-flex',alignItems:'center',gap:6,padding:'4px 12px',borderRadius:99,background:'rgba(56,189,248,.12)',border:'1px solid rgba(56,189,248,.2)'}}>{user.role}</div>
+              <div style={{fontSize:12,color:C.muted,marginTop:10,fontFamily:'monospace'}}>{user.employee_id}</div>
               {user.project_id && (
-                <div style={{marginTop:12,display:'inline-flex',alignItems:'center',gap:6,padding:'4px 14px',borderRadius:99,background:'rgba(16,185,129,.12)',border:'1px solid rgba(16,185,129,.2)',fontSize:12,fontWeight:700,color:C.green}}>
+                <div style={{marginTop:12,display:'inline-flex',alignItems:'center',gap:6,padding:'5px 14px',borderRadius:99,background:'rgba(16,185,129,.12)',border:'1px solid rgba(16,185,129,.2)',fontSize:12,fontWeight:700,color:C.green}}>
                   🏗️ Assigned to project
                 </div>
               )}
@@ -1145,32 +1153,45 @@ export default function WorkerPortal() {
       {/* ── Bottom nav ── */}
       <div style={{
         position:'fixed',bottom:0,left:0,right:0,zIndex:200,
-        background:'rgba(2,6,23,.96)',backdropFilter:'blur(20px)',
-        borderTop:`1px solid ${C.border}`,
-        display:'flex',padding:'6px 0 20px',
+        background:'rgba(2,6,23,.97)',backdropFilter:'blur(24px)',
+        borderTop:`1px solid rgba(255,255,255,.06)`,
+        display:'flex',alignItems:'flex-end',padding:'8px 4px 22px',
+        gap:2,
       }}>
-        {NAV_ITEMS.map(({id,icon,label})=>{
+        {NAV_ITEMS.map(({id,icon,label,color})=>{
           const active=tab===id;
           return (
-            <button key={id} onClick={()=>setTab(id)} style={{
+            <button key={id} onClick={()=>{vibrate(40);setTab(id);}} style={{
               flex:1,background:'none',border:'none',cursor:'pointer',
-              display:'flex',flexDirection:'column',alignItems:'center',gap:3,padding:'4px 0',
+              display:'flex',flexDirection:'column',alignItems:'center',gap:4,
+              padding:'2px 0',
             }}>
-              <span className="wp-tab-icon" style={{
-                fontSize: active?23:19,
-                transition:'all .2s cubic-bezier(.2,.8,.2,1)',
-                transform: active?'translateY(-3px) scale(1.15)':'translateY(0) scale(1)',
-                display:'block',
-              }}>{icon}</span>
+              {/* Icon container */}
+              <div style={{
+                width: active ? 54 : 44,
+                height: active ? 54 : 44,
+                borderRadius: active ? 18 : 14,
+                background: active ? `${color}22` : 'transparent',
+                border: active ? `1.5px solid ${color}50` : '1.5px solid transparent',
+                display:'flex',alignItems:'center',justifyContent:'center',
+                transition:'all .25s cubic-bezier(.2,.8,.2,1)',
+                boxShadow: active ? `0 0 18px ${color}40` : 'none',
+                transform: active ? 'translateY(-4px)' : 'translateY(0)',
+              }}>
+                <span style={{
+                  fontSize: active ? 26 : 20,
+                  transition:'all .25s cubic-bezier(.2,.8,.2,1)',
+                  display:'block',lineHeight:1,
+                  filter: active ? `drop-shadow(0 2px 8px ${color}80)` : 'none',
+                }}>{icon}</span>
+              </div>
               <span style={{
-                fontSize:9,fontWeight:active?800:600,
-                color:active?C.blue:C.muted,
-                textTransform:'uppercase',letterSpacing:'.04em',
-                transition:'color .2s',
+                fontSize:9,fontWeight:active?900:600,
+                color:active?color:'rgba(100,116,139,.7)',
+                textTransform:'uppercase',letterSpacing:'.05em',
+                transition:'all .2s',
+                lineHeight:1,
               }}>{label}</span>
-              {active && (
-                <div style={{width:18,height:2,borderRadius:2,background:C.blue,marginTop:1}}/>
-              )}
             </button>
           );
         })}
