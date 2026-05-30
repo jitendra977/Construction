@@ -1388,6 +1388,7 @@ export default function WorkerPortal() {
             boxShadow: checkedIn?`0 0 0 0 ${C.green}`:undefined,
             animation: checkedIn?'pulseGreen 2s infinite':undefined,
           }}/>
+          <WorkerHelp />
           <button onClick={handleLogout} style={{padding:'7px 14px',borderRadius:10,border:`1px solid rgba(255,255,255,.1)`,background:'rgba(255,255,255,.05)',color:'#fff',fontSize:12,fontWeight:700,cursor:'pointer'}}>
             लगआउट
           </button>
@@ -1725,7 +1726,7 @@ export default function WorkerPortal() {
                   ? <img src={user.photo} alt={user.full_name} style={{width:'100%',height:'100%',objectFit:'cover',borderRadius:'50%'}}/>
                   : initials(user.full_name)}
               </div>
-              <div style={{fontSize:24,fontWeight:900,letterSpacing:'-0.3px'}}>{user.full_name}</div>
+                  <div style={{fontSize:24,fontWeight:900,letterSpacing:'-0.3px'}}>{user.full_name}</div>
               <div style={{fontSize:14,color:C.blue,fontWeight:800,marginTop:6,display:'inline-flex',alignItems:'center',gap:6,padding:'4px 12px',borderRadius:99,background:'rgba(56,189,248,.12)',border:'1px solid rgba(56,189,248,.2)'}}>{user.role}</div>
               <div style={{fontSize:12,color:C.muted,marginTop:10,fontFamily:'monospace'}}>{user.employee_id}</div>
               {user.project_id && (
@@ -1780,8 +1781,7 @@ export default function WorkerPortal() {
       </div>
 
       {/* ── Help Guide ── */}
-      <WorkerHelp />
-      
+
       {/* ── Bottom nav ── */}
       <div style={{
         position:'fixed',bottom:0,left:0,right:0,zIndex:200,

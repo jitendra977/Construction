@@ -5,36 +5,28 @@ export default function WorkerHelp() {
 
     return (
         <>
-            {/* Floating Help Button for Worker Portal - Top Right */}
+            {/* Help Button for Worker Portal - Inline */}
             <button
                 onClick={() => setOpen(true)}
                 style={{
-                    position: 'fixed',
-                    top: 24,
-                    right: 24,
-                    width: 52,
-                    height: 52,
+                    width: 34,
+                    height: 34,
                     borderRadius: '50%',
-                    background: 'linear-gradient(135deg, rgba(255,255,255,0.15), rgba(255,255,255,0.05))',
-                    backdropFilter: 'blur(12px)',
-                    WebkitBackdropFilter: 'blur(12px)',
+                    background: 'rgba(255,255,255,0.05)',
                     color: '#fff',
-                    border: '1px solid rgba(255,255,255,0.3)',
-                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3), inset 0 0 0 1px rgba(255,255,255,0.2)',
+                    border: '1px solid rgba(255,255,255,0.2)',
                     cursor: 'pointer',
-                    zIndex: 900,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: 26,
-                    animation: 'worker-float 3s ease-in-out infinite, worker-pulse-glow 2s infinite',
-                    transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                    fontSize: 16,
+                    transition: 'transform 0.2s',
                 }}
-                onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.15)'}
+                onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
                 onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
                 title="मद्दत (Help)"
             >
-                <span style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }}>💡</span>
+                <span>💡</span>
             </button>
 
             <style>
