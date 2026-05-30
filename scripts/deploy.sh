@@ -241,12 +241,13 @@ ssh_exec "
   sleep 20
 
   echo '==> Clear Nginx Proxy Manager DNS Cache'
-  NPM_CONTAINER=\$(docker ps --filter "name=nginx" --format "{{.Names}}" | grep -i proxy || true)
+  # Search by image name (jc21/nginx-proxy-manager) or by container name containing npm/nginx
+  NPM_CONTAINER=\$(docker ps --format "{{.Names}} {{.Image}}" | grep -iE "jc21/nginx-proxy-manager|nginx-proxy|npm" | awk '{print \$1}' | head -n 1 || true)
   if [ ! -z "\$NPM_CONTAINER" ]; then
     echo "Restarting Nginx Proxy Manager (\$NPM_CONTAINER) to refresh IP addresses..."
     docker restart \$NPM_CONTAINER
   else
-    echo "Nginx Proxy Manager not found, skipping."
+    echo "Nginx Proxy Manager not found automatically, skipping."
   fi
 
   echo '==> Service status'
