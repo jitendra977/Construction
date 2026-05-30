@@ -1362,6 +1362,7 @@ export default function WorkerPortal() {
 
   const payroll    = profile?.payroll||{};
   const history    = profile?.history||[];
+  const thisMonth  = history.length;
   const presentDays= history.filter(r=>r.status==='PRESENT').length;
 
   return (
