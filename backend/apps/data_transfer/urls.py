@@ -2,13 +2,16 @@ from django.urls import path
 from .views import (
     ProjectListView, ExportProjectView, ExportStatsView,
     ImportSqlView, ExportSystemView, SqlTerminalView,
-    ImportProjectDataView,
+    ImportProjectDataView, GitHubActionsDeployView,
     # CSV/Excel (Phase 2)
     CsvExportView, CsvTemplateView, CsvDryRunView,
     CsvImportView, ImportJobListView,
 )
 
 urlpatterns = [
+    # ── Deploy system ─────────────────────────────────────────────────────────
+    path('deploy/',                          GitHubActionsDeployView.as_view(),name='dt-deploy'),
+
     # ── Project listing ───────────────────────────────────────────────────────
     path('projects/',                        ProjectListView.as_view(),        name='dt-projects'),
 

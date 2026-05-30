@@ -926,3 +926,115 @@ class ImportJobListView(APIView):
             for j in jobs
         ]
         return Response({'jobs': data, 'count': len(data)})
+
+
+class GitHubActionsDeployView(APIView):
+    """
+    POST /api/v1/data-transfer/deploy/
+    Trigger production deployment on GitHub Actions.
+    GET /api/v1/data-transfer/deploy/
+    Fetch real-time status of recent runs and deploy logs.
+    Superuser / staff / system-admin only.
+    """
+    permission_classes = [IsAuthenticated]
+
+    # Target repository details
+    GITHUB_OWNER = 'jitendra977'
+    GITHUB_REPO = 'Construction'
+    GITHUB_WORKFLOW = 'deploy.yml'
+
+    def _get_headers(self):
+        import os
+        token = os.getenv('GITHUB_DEPLOY_TOKEN') or os.getenv('GITHUB_TOKEN')
+        headers = {
+            'Accept': 'application/vnd.github.v3+json',
+        }
+        if token:
+            headers['Authorization'] = f'Bearer {token}'
+        return headers
+
+    def get(self, request):
+        if not _is_admin(request.user):
+            return Response({'error': 'Admin access required.'}, status=403)
+
+        import requests
+        headers = self._get_headers()
+        url = f"https://api.github.com/repos/{self.GITHUB_OWNER}/{self.GITHUB_REPO}/actions/runs"
+
+        try:
+            res = requests.get(url, headers=headers, timeout=10)
+            if res.status_code != 200:
+                return Response({
+                    'success': False,
+                    'error': f"GitHub API responded with HTTP {res.status_code}: {res.text}"
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            data = res.json()
+            runs = []
+            for r in data.get('workflow_runs', [])[:5]:
+                # We filter deploy/CI workflow runs
+                runs.append({
+                    'id': r.get('id'),
+                    'name': r.get('name'),
+                    'status': r.get('status'),
+                    'conclusion': r.get('conclusion'),
+                    'event': r.get('event'),
+                    'html_url': r.get('html_url'),
+                    'trigger_by': r.get('triggering_actor', {}).get('login', 'Unknown'),
+                    'commit_msg': r.get('head_commit', {}).get('message', ''),
+                    'created_at': r.get('created_at'),
+                    'updated_at': r.get('updated_at'),
+                })
+
+            return Response({
+                'success': True,
+                'runs': runs,
+                'configured': 'Authorization' in headers,
+            })
+
+        except Exception as e:
+            return Response({'success': False, 'error': str(e)}, status=500)
+
+    def post(self, request):
+        if not _is_admin(request.user):
+            return Response({'error': 'Admin access required.'}, status=403)
+
+        import requests
+        headers = self._get_headers()
+
+        # Check if token is available
+        token = headers.get('Authorization')
+        if not token:
+            return Response({
+                'success': False,
+                'error': '🚨 GitHub Token is missing! Please configure GITHUB_TOKEN or GITHUB_DEPLOY_TOKEN in your backend/.env file to allow one-click deployments. (कन्फिगरेशन बाँकी छ)'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Trigger deployment via workflow dispatch (GitHub's dispatch event API)
+        url = f"https://api.github.com/repos/{self.GITHUB_OWNER}/{self.GITHUB_REPO}/actions/workflows/{self.GITHUB_WORKFLOW}/dispatches"
+        
+        try:
+            # We target the main branch by default
+            payload = {"ref": "main"}
+            res = requests.post(url, headers=headers, json=payload, timeout=10)
+            
+            if res.status_code == 204:
+                return Response({
+                    'success': True,
+                    'message': '🚀 Production deployment triggered successfully on GitHub Actions! Check status below.',
+                })
+            
+            # If GitHub API fails, parse and return the message nicely
+            try:
+                err_detail = res.json().get('message', res.text)
+            except Exception:
+                err_detail = res.text
+
+            return Response({
+                'success': False,
+                'error': f"GitHub API rejected deployment: {err_detail} (Status: {res.status_code})"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({'success': False, 'error': str(e)}, status=500)
+

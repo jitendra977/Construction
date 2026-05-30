@@ -29,6 +29,8 @@ const icons = {
     copy:      'd="M8 16H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2M16 8h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2v-2"',
     plus:      'd="M12 5v14M5 12h14"',
     layers:    'd="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"',
+    rocket:    'd="M21 3l-6.5 18a.5.5 0 0 1-.9 0L10 14l-7-3.5a.5.5 0 0 1 0-.9z M21 3L10 14"',
+    deploy:    'd="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"',
 };
 
 const I = ({ name, size = 18, cls = '' }) => {
@@ -1370,6 +1372,216 @@ function CsvTab({ user }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// DEPLOY TAB  — GitOps production deployer & live monitor
+// ═══════════════════════════════════════════════════════════════════════════════
+function DeployTab({ user }) {
+    const [runs, setRuns] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [deploying, setDeploying] = useState(false);
+    const [configured, setConfigured] = useState(true);
+    const [feedback, setFeedback] = useState(null);
+    const [error, setError] = useState(null);
+
+    const loadRuns = useCallback(async (silent = false) => {
+        if (!silent) setLoading(true);
+        setError(null);
+        try {
+            const r = await dtSvc.getDeployStatus();
+            if (r.data?.success) {
+                setRuns(r.data.runs || []);
+                setConfigured(r.data.configured);
+            } else {
+                setError(r.data?.error || 'Failed to fetch deploy status.');
+            }
+        } catch (e) {
+            setError(e.response?.data?.error || 'Could not connect to deployment logs.');
+        } finally {
+            if (!silent) setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        loadRuns();
+        const interval = setInterval(() => {
+            loadRuns(true);
+        }, 8000); // Poll every 8 seconds
+        return () => clearInterval(interval);
+    }, [loadRuns]);
+
+    const handleDeploy = async () => {
+        if (!window.confirm("क्या तपाईं साच्चिकै यो भर्सन उत्पादन (Production) सर्भरमा पठाउन चाहनुहुन्छ? (Deploy to Production?)")) {
+            return;
+        }
+        setDeploying(true);
+        setFeedback(null);
+        setError(null);
+        try {
+            const r = await dtSvc.triggerDeploy();
+            if (r.data?.success) {
+                setFeedback({ type: 'success', msg: r.data.message });
+                loadRuns();
+            } else {
+                setError(r.data?.error || 'Failed to trigger deploy.');
+            }
+        } catch (e) {
+            setError(e.response?.data?.error || 'Failed to start deployment workflow.');
+        } finally {
+            setDeploying(false);
+        }
+    };
+
+    if (!isAdmin(user)) {
+        return (
+            <div className="py-12 flex flex-col items-center gap-4 text-center">
+                <div className="w-14 h-14 rounded-xl bg-slate-100 flex items-center justify-center">
+                    <I name="shield" size={26} cls="text-slate-300" />
+                </div>
+                <div>
+                    <p className="font-semibold text-slate-700 text-[14px]">Admin access required</p>
+                    <p className="text-slate-400 text-[12px] mt-1 max-w-xs leading-relaxed">
+                        Production deployments trigger GitHub Actions pipelines.<br />
+                        Only staff and system administrators can trigger builds.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-5">
+            <div>
+                <Label>ConstructPro Control Center — GitOps Deployer</Label>
+                <p className="text-[12px] text-slate-400 mb-4 leading-relaxed">
+                    यो प्रणालीले तपाईंको कोडलाई GitHub Actions मार्फत स्वतः कम्पाइल गरेर उत्पादन सर्भर (VPS) मा पुर्‍याउँछ।
+                    अहिलेको भर्सन लाइभ गर्न तलको <strong>"Deploy to Production"</strong> बटन थिच्नुहोस्।
+                </p>
+            </div>
+
+            {/* Config alert */}
+            {!configured && (
+                <Alert type="warn">
+                    <strong>GitHub Token Missing:</strong> <code>GITHUB_DEPLOY_TOKEN</code> is not set in the server environment variables.
+                    Deployments will fall back to public fetch, which may fail due to authentication/rate-limits. Please configure the token on the server.
+                </Alert>
+            )}
+
+            {/* Trigger Button */}
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-slate-800 text-white flex items-center justify-center animate-pulse">
+                        <I name="rocket" size={18} />
+                    </div>
+                    <div>
+                        <h4 className="text-[13px] font-bold text-slate-800">Production Deploy</h4>
+                        <p className="text-[11px] text-slate-400 mt-0.5">Build branch <strong>main</strong> & restart containers</p>
+                    </div>
+                </div>
+                <button
+                    onClick={handleDeploy}
+                    disabled={deploying}
+                    className="w-full sm:w-auto px-6 py-2.5 rounded-lg text-white font-bold text-[12px] uppercase tracking-wider transition-all disabled:opacity-40 flex items-center justify-center gap-2 active:scale-95 shadow-lg"
+                    style={{
+                        background: 'linear-gradient(135deg, #ea580c, #f97316)',
+                        boxShadow: '0 4px 14px rgba(249, 115, 22, 0.3)'
+                    }}
+                >
+                    {deploying ? (
+                        <>
+                            <I name="spin" size={12} cls="animate-spin" />
+                            Deploying...
+                        </>
+                    ) : (
+                        <>
+                            🚀 Deploy to Production
+                        </>
+                    )}
+                </button>
+            </div>
+
+            {feedback && <Alert type={feedback.type}>{feedback.msg}</Alert>}
+            {error && <Alert type="error">{error}</Alert>}
+
+            {/* Run history list */}
+            <div style={{ marginTop: 24 }}>
+                <div className="flex items-center justify-between mb-3">
+                    <Label>📡 GitHub Actions Run History (अहिलेको प्रगतिको इतिहास)</Label>
+                    <button
+                        onClick={() => loadRuns()}
+                        disabled={loading}
+                        className="text-[10px] text-slate-500 hover:text-slate-800 font-bold uppercase tracking-wider flex items-center gap-1"
+                    >
+                        <I name="spin" size={10} cls={loading ? 'animate-spin' : ''} />
+                        Refresh
+                    </button>
+                </div>
+
+                {loading && runs.length === 0 ? (
+                    <div className="flex items-center justify-center gap-2 py-8 text-slate-400 text-[12px]">
+                        <I name="spin" size={14} cls="animate-spin" /> Loading run history...
+                    </div>
+                ) : runs.length === 0 ? (
+                    <div className="py-8 text-center text-slate-400 text-[12px] border border-dashed border-slate-200 rounded-lg">
+                        No workflow runs detected on this branch.
+                    </div>
+                ) : (
+                    <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100 bg-white">
+                        {runs.map((run) => {
+                            const isRunning = run.status === 'in_progress' || run.status === 'queued';
+                            const isSuccess = run.conclusion === 'success';
+                            const isFailed = run.conclusion === 'failure' || run.conclusion === 'cancelled';
+                            
+                            const statusColor = isRunning ? 'amber'
+                                : isSuccess ? 'green'
+                                : isFailed ? 'red' : 'slate';
+
+                            const statusText = isRunning ? '🔄 ' + run.status.toUpperCase()
+                                : isSuccess ? '✅ SUCCESS'
+                                : isFailed ? '❌ ' + (run.conclusion || 'FAILED').toUpperCase()
+                                : '⚪ ' + run.status.toUpperCase();
+
+                            return (
+                                <div key={run.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
+                                    <div className="min-w-0 space-y-1">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-semibold text-[13px] text-slate-800 truncate block max-w-md">
+                                                {run.commit_msg || run.name || 'Workflow Trigger'}
+                                            </span>
+                                            <Badge color={statusColor}>{statusText}</Badge>
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-400">
+                                            <span>Actor: <strong className="text-slate-600">@{run.trigger_by}</strong></span>
+                                            <span>•</span>
+                                            <span>Event: <strong className="text-slate-600">{run.event}</strong></span>
+                                            <span>•</span>
+                                            <span>Created: <strong>{new Date(run.created_at).toLocaleTimeString()}</strong></span>
+                                        </div>
+                                    </div>
+                                    <div className="shrink-0 flex items-center gap-2">
+                                        <a
+                                            href={run.html_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="px-3.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-[11px] font-bold text-slate-600 flex items-center gap-1.5 shadow-sm transition-all"
+                                        >
+                                            👁️ View on GitHub
+                                        </a>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            <Alert type="info">
+                <strong>GitOps Deployment flow:</strong> यो ड्यासबोर्डले GitHub Actions मा रहेको <code>deploy.yml</code> पाइपलाइनलाई सक्रिय गर्छ।
+                पाइपलाइन चल्दा पहिले कोडको शुद्धता (Lint tests) जाँचिन्छ र सफल भएपछि मात्र नयाँ सर्भर कन्टेनर सुरु गरिन्छ।
+            </Alert>
+        </div>
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // MAIN PAGE
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function DataTransferPage() {
@@ -1382,6 +1594,7 @@ export default function DataTransferPage() {
         { id: 'import',   label: 'SQL Import',    icon: 'upload',   badge: admin ? null : 'Admin' },
         { id: 'csv',      label: 'CSV / Excel',   icon: 'table'    },
         { id: 'terminal', label: 'SQL Terminal',  icon: 'terminal', badge: admin ? null : 'Admin' },
+        { id: 'deploy',   label: 'Deploy System', icon: 'deploy',   badge: admin ? null : 'Admin' },
     ];
 
     return (
@@ -1413,7 +1626,7 @@ export default function DataTransferPage() {
                 {!admin && (
                     <div className="mb-5">
                         <Alert type="warn">
-                            You have <strong>export-only</strong> access. Import and SQL Terminal require admin privileges.
+                            You have <strong>export-only</strong> access. Import, SQL Terminal, and Deployments require admin privileges.
                         </Alert>
                     </div>
                 )}
@@ -1426,6 +1639,7 @@ export default function DataTransferPage() {
                     {tab === 'import'   && <ImportTab      user={user} />}
                     {tab === 'csv'      && <CsvTab         user={user} />}
                     {tab === 'terminal' && <SqlTerminalTab user={user} />}
+                    {tab === 'deploy'   && <DeployTab      user={user} />}
                 </div>
 
                 {/* Footer note */}

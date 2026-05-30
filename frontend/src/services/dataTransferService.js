@@ -79,4 +79,8 @@ export const dataTransferService = {
     // Import job history
     csvJobs: (projectId) =>
         api.get(`data-transfer/csv/jobs/${projectId}/`).then(r => r.data),
+
+    // ── GitHub Actions Deploy System ───────────────────────────────────────
+    getDeployStatus: () => api.get('data-transfer/deploy/'),
+    triggerDeploy: () => api.post('data-transfer/deploy/'),
 };
