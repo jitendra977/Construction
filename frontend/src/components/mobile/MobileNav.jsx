@@ -20,6 +20,7 @@ const PRIMARY = [
     { id: 'projects',   icon: '🗂️', label: 'Projects'  },
     { id: 'finance',    icon: '💰',  label: 'Finance'   },
     { id: 'attendance', icon: '👷',  label: 'Attend'    },
+    { id: 'team-chat',  icon: '💬',  label: 'Chat'      },
     { id: 'all',        icon: '⊞',   label: 'All'       },
 ];
 
@@ -59,6 +60,7 @@ const SECTIONS = [
         items: [
             { id: 'attendance', icon: '🕐', label: 'Attendance' },
             { id: 'workforce',  icon: '👷', label: 'Workforce'  },
+            { id: 'team-chat',  icon: '💬', label: 'Team Chat'  },
             { id: 'tracking',   icon: '📍', label: 'My GPS'     },
             { id: 'location',   icon: '🗺️', label: 'Site Map'  },
         ],
@@ -439,7 +441,7 @@ export default function MobileNav() {
                         </button>
                     </div>
 
-                    {PRIMARY.slice(3, 5).map(item => (
+                    {PRIMARY.filter(item => ['attendance', 'team-chat'].includes(item.id)).map(item => (
                         <BottomTab
                             key={item.id}
                             {...item}

@@ -9,6 +9,7 @@ import useGPSBackgroundTracker from '../../modules/location/hooks/useGPSBackgrou
 import WorkerTasksPage     from './pages/WorkerTasksPage';
 import WorkerPhotoPage     from './pages/WorkerPhotoPage';
 import WorkerResourcesPage from './pages/WorkerResourcesPage';
+import WorkerChatPage      from './pages/WorkerChatPage';
 import BrickCalculator     from '../../pages/estimator/BrickCalculator';
 import ConcreteCalculator  from '../../pages/estimator/ConcreteCalculator';
 import PlasterCalculator   from '../../pages/estimator/PlasterCalculator';
@@ -1535,6 +1536,7 @@ export default function WorkerPortal() {
     { id:'tasks',     icon:'📋', label:'कार्य',       color:C.amber },
     { id:'photos',    icon:'📸', label:'फोटोहरू',     color:C.purple },
     { id:'resources', icon:'🛠️', label:'स्रोतहरू',    color:C.red },
+    { id:'chat',      icon:'💬', label:'च्याट',       color:C.blue },
     { id:'profile',   icon:'👤', label:'प्रोफाइल',   color:C.blue },
   ];
 
@@ -1632,6 +1634,7 @@ export default function WorkerPortal() {
       {tab==='tasks'     && <WorkerTasksPage/>}
       {tab==='photos'    && <WorkerPhotoPage/>}
       {tab==='resources' && <WorkerResourcesPage/>}
+      {tab==='chat'      && <WorkerChatPage/>}
 
       {tab==='estimator' && (
         <div style={{minHeight:'100vh',background:'#0f172a',paddingBottom:100}}>

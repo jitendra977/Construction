@@ -47,6 +47,7 @@ function MobileDashboard() {
     const subPath = location.pathname.replace('/dashboard/mobile', '');
     const isHome     = subPath === '/home' || subPath === '' || subPath === '/';
     const isModule   = MODULE_PREFIXES.some(p => subPath.startsWith(p));
+    const isChatDetail = subPath.startsWith('/team-chat/');
     // Full-viewport modules (maps need a real height — h-full alone collapses on mobile)
     const isFullBleed = subPath.startsWith('/location');
 
@@ -89,7 +90,7 @@ function MobileDashboard() {
                     <Outlet />
                 </main>
 
-                <MobileNav />
+                {!isChatDetail && <MobileNav />}
 
                 {/* Unified floating button — AI + Daily update */}
                 <UnifiedButton projectId={activeProjectId} isMobile={true} />

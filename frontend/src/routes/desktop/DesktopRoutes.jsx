@@ -21,6 +21,7 @@ import TeamManagementPage from '../../pages/desktop/TeamManagementPage';
 import SettingsPage       from '../../pages/desktop/SettingsPage';
 import BiometricsPortalPage from '../../pages/desktop/BiometricsPortalPage';
 import BackupSystemPage   from '../../pages/desktop/BackupSystemPage';
+import TeamChatPage from '../../pages/desktop/TeamChatPage';
 
 // Self-contained modules
 import FinanceRoutes   from '../../modules/finance';
@@ -30,6 +31,7 @@ import ProjectsRoutes  from '../../modules/projects';
 import TimelineRoutes  from '../../modules/timeline';
 import AccountsRoutes  from '../../modules/accounts';
 import LocationRoutes  from '../../modules/location/LocationRoutes';
+import { CctvPage } from '../../modules/cctv';
 
 import { useConstruction } from '../../context/ConstructionContext';
 import { authService } from '../../services/auth';
@@ -86,6 +88,7 @@ const DesktopRoutes = () => {
             <Route path="settings"   element={<RequirePermission permission="can_manage_settings"><SettingsPage /></RequirePermission>}      />
             <Route path="biometrics" element={<BiometricsPortalPage />} />
             <Route path="backups"    element={<RequirePermission permission="can_manage_admin_config"><BackupSystemPage /></RequirePermission>} />
+            <Route path="team-chat"  element={<TeamChatPage />} />
 
             {/* Self-contained modules */}
             <Route path="projects/*"  element={<RequirePermission permission="can_view_projects"><ProjectsRoutes /></RequirePermission>} />
@@ -99,6 +102,9 @@ const DesktopRoutes = () => {
 
             {/* Location Tracking module */}
             <Route path="location/*"  element={<RequirePermission permission="can_view_workforce"><LocationRoutes projectId={activeProjectId} /></RequirePermission>} />
+
+            {/* CCTV module */}
+            <Route path="cctv" element={<RequirePermission permission="can_view_dashboard"><CctvPage /></RequirePermission>} />
 
             {/* Legacy redirects for old scattered account routes */}
             <Route path="profile"       element={<Navigate to="/dashboard/desktop/accounts/profile"  replace />} />

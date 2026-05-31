@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Desktop to MJPEG</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; }
+    button { padding: 10px 14px; margin-right: 8px; }
+    .muted { color: #555; }
+    video, img { width: 100%; max-width: 900px; border: 1px solid #ccc; border-radius: 8px; margin-top: 10px; }
+    code { background: #f2f2f2; padding: 2px 6px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Desktop Live Stream -> MJPEG</h1>
+  <p class="muted">1) Click Start Share. 2) Select your screen/window. 3) Use MJPEG URL in CCTV app.</p>
+
+  <p><strong>MJPEG URL:</strong> <code id="mjpegUrl"></code></p>
+
+  <button id="startBtn">Start Share</button>
+  <button id="stopBtn" disabled>Stop</button>
+
+  <p class="muted" id="status">Idle</p>
+
+  <video id="preview" autoplay muted playsinline></video>
+  <img id="mjpegPreview" alt="MJPEG Preview" />
+
+  <script>
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const statusEl = document.getElementById('status');
+    const preview = document.getElementById('preview');
+    const mjpegPreview = document.getElementById('mjpegPreview');
+    const mjpegUrlEl = document.getElementById('mjpegUrl');
+
+    const mjpegUrl = `${location.origin}/mjpeg`;
+    mjpegUrlEl.textContent = mjpegUrl;
+    mjpegPreview.src = mjpegUrl;
+
+    let ws = null;
+    let stream = null;
+    let timer = null;
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    async function startShare() {
+      try {
+        stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+        preview.srcObject = stream;
+
+        ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`);
+        ws.onopen = () => {
+          statusEl.textContent = 'Streaming...';
+          startBtn.disabled = true;
+          stopBtn.disabled = false;
+          timer = setInterval(sendFrame, 120);
+        };
+
+        ws.onclose = () => {
+          statusEl.textContent = 'Socket closed';
+        };
+
+        const [track] = stream.getVideoTracks();
+        track.onended = stopShare;
+      } catch (e) {
+        statusEl.textContent = `Share failed: ${e.message}`;
+      }
+    }
+
+    function sendFrame() {
+      if (!ws || ws.readyState !== WebSocket.OPEN || !preview.videoWidth || !preview.videoHeight) return;
+
+      const targetW = 960;
+      const scale = targetW / preview.videoWidth;
+      canvas.width = targetW;
+      canvas.height = Math.max(1, Math.floor(preview.videoHeight * scale));
+
+      ctx.drawImage(preview, 0, 0, canvas.width, canvas.height);
+      const jpg = canvas.toDataURL('image/jpeg', 0.65);
+      ws.send(JSON.stringify({ type: 'frame', data: jpg }));
+    }
+
+    function stopShare() {
+      if (timer) { clearInterval(timer); timer = null; }
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+      }
+      if (ws) {
+        ws.close();
+        ws = null;
+      }
+
+      preview.srcObject = null;
+      statusEl.textContent = 'Stopped';
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    }
+
+    startBtn.addEventListener('click', startShare);
+    stopBtn.addEventListener('click', stopShare);
+  </script>
+</body>
+</html>

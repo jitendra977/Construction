@@ -66,7 +66,7 @@ const s = {
     row3: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 18 },
     btnPrimary: {
         padding: '11px 22px', borderRadius: 10, fontSize: 14, fontWeight: 700,
-        background: 'var(--t-accent)', color: '#fff',
+        background: '#f97316', color: '#fff',
         border: 'none', cursor: 'pointer',
     },
     btnSecondary: {
@@ -120,7 +120,7 @@ const Toggle = ({ label, hint, value, onChange }) => (
                 onClick={() => onChange(!value)}
                 style={{
                     width: 42, height: 24, borderRadius: 12,
-                    background: value ? 'var(--t-accent)' : 'var(--t-border)',
+                    background: value ? '#f97316' : 'var(--t-border)',
                     position: 'relative', flexShrink: 0, transition: 'background .2s',
                 }}
             >
@@ -355,122 +355,130 @@ export default function MqttConfig({ projectId }) {
                     onChange={set('is_enabled')}
                 />
 
-                <Input
-                    label="Broker Host"
-                    hint={`Hostname or IP only is saved. You can paste: ${MQTT_URL_EXAMPLES.join('  |  ')}`}
-                    value={form?.broker_host}
-                    onChange={setBrokerHost}
-                    onBlur={normalizeBrokerHostField}
-                    placeholder="nishanaweb.cloud"
-                />
-
-                <div style={s.row3}>
-                    <NumberInput
-                        label="TCP Port"
-                        hint="Standard: 1883 · TLS: 8883"
-                        value={form?.broker_port}
-                        onChange={set('broker_port')}
-                        min={1} max={65535}
-                        placeholder="1883"
-                    />
-                    <NumberInput
-                        label="WebSocket Port"
-                        hint="Browser clients connect here (Mosquitto default: 9001)"
-                        value={form?.ws_port}
-                        onChange={set('ws_port')}
-                        min={1} max={65535}
-                        placeholder="9001"
-                    />
-                    <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 2 }}>
-                        <Toggle
-                            label="TLS / SSL"
-                            hint="Enable for encrypted connections"
-                            value={form?.use_tls ?? false}
-                            onChange={set('use_tls')}
-                        />
-                    </div>
-                </div>
-
-                <Input
-                    label="Subscribe Topic"
-                    hint="Use + for single-level wildcard, # for multi-level.  e.g. nfc/+/state"
-                    value={form?.topic}
-                    onChange={set('topic')}
-                    placeholder="nfc/+/state"
-                />
-
-                <div style={{
-                    marginTop: 12,
-                    padding: '11px 14px',
-                    borderRadius: 10,
-                    background: 'var(--t-surface2)',
-                    border: '1px solid var(--t-border)',
-                    fontSize: 12,
-                    color: 'var(--t-text3)',
-                    lineHeight: 1.5,
-                }}>
-                    Browser WebSocket URL:{' '}
-                    <strong style={{ color: 'var(--t-text)', fontFamily: 'monospace', overflowWrap: 'anywhere' }}>
-                        {mqttWebSocketUrl(form?.broker_host, form?.ws_port, form?.use_tls)}
-                    </strong>
-                </div>
-            </div>
-
-            {/* ── Credentials ────────────────────────────────────────────── */}
-            <div style={s.card}>
-                <div style={s.sectionTitle}>Credentials (optional)</div>
-                <div style={s.row2}>
-                    <div>
+                {(form?.is_enabled ?? true) && (
+                    <>
                         <Input
-                            label="Username"
-                            value={form?.username}
-                            onChange={set('username')}
-                            placeholder="mqttuser"
+                            label="Broker Host"
+                            hint={`Hostname or IP only is saved. You can paste: ${MQTT_URL_EXAMPLES.join('  |  ')}`}
+                            value={form?.broker_host}
+                            onChange={setBrokerHost}
+                            onBlur={normalizeBrokerHostField}
+                            placeholder="nishanaweb.cloud"
                         />
-                    </div>
-                    <div>
-                        <label style={s.label}>
-                            Password {config?.has_password ? '(stored — leave blank to keep)' : ''}
-                        </label>
-                        <input
-                            type="password"
-                            value={newPassword}
-                            onChange={(e) => { setNewPassword(e.target.value); setDirty(true); }}
-                            placeholder={config?.has_password ? '••••••••' : 'no password set'}
-                            style={s.input}
-                            autoComplete="new-password"
+
+                        <div style={s.row3}>
+                            <NumberInput
+                                label="TCP Port"
+                                hint="Standard: 1883 · TLS: 8883"
+                                value={form?.broker_port}
+                                onChange={set('broker_port')}
+                                min={1} max={65535}
+                                placeholder="1883"
+                            />
+                            <NumberInput
+                                label="WebSocket Port"
+                                hint="Browser clients connect here (Mosquitto default: 9001)"
+                                value={form?.ws_port}
+                                onChange={set('ws_port')}
+                                min={1} max={65535}
+                                placeholder="9001"
+                            />
+                            <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 2 }}>
+                                <Toggle
+                                    label="TLS / SSL"
+                                    hint="Enable for encrypted connections"
+                                    value={form?.use_tls ?? false}
+                                    onChange={set('use_tls')}
+                                />
+                            </div>
+                        </div>
+
+                        <Input
+                            label="Subscribe Topic"
+                            hint="Use + for single-level wildcard, # for multi-level.  e.g. nfc/+/state"
+                            value={form?.topic}
+                            onChange={set('topic')}
+                            placeholder="nfc/+/state"
                         />
-                        <p style={s.hint}>
-                            Stored in plaintext — use a dedicated broker user with minimal ACL.
-                        </p>
-                    </div>
-                </div>
+
+                        <div style={{
+                            marginTop: 12,
+                            padding: '11px 14px',
+                            borderRadius: 10,
+                            background: 'var(--t-surface2)',
+                            border: '1px solid var(--t-border)',
+                            fontSize: 12,
+                            color: 'var(--t-text3)',
+                            lineHeight: 1.5,
+                        }}>
+                            Browser WebSocket URL:{' '}
+                            <strong style={{ color: 'var(--t-text)', fontFamily: 'monospace', overflowWrap: 'anywhere' }}>
+                                {mqttWebSocketUrl(form?.broker_host, form?.ws_port, form?.use_tls)}
+                            </strong>
+                        </div>
+                    </>
+                )}
             </div>
 
-            {/* ── Test connection ─────────────────────────────────────────── */}
-            <div style={s.card}>
-                <div style={s.sectionTitle}>Test Connection</div>
-                <p style={{ ...s.hint, marginBottom: 14 }}>
-                    Opens a TCP socket to <strong>{form?.broker_host}:{form?.broker_port}</strong> and
-                    measures latency.  Uses the values in the form above (save first if you changed them,
-                    or test the unsaved values directly).
-                </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                    <button style={s.btnSecondary} onClick={handleTest} disabled={testing}>
-                        {testing ? 'Testing…' : '⚡ Test Connection'}
-                    </button>
-                    {testResult && (
-                        <span style={{
-                            fontSize: 13, fontWeight: 600,
-                            color: testResult.success ? '#0a7a40' : '#c0392b',
-                        }}>
-                            {testResult.success
-                                ? `✓ ${testResult.message}  (${testResult.latency_ms} ms)`
-                                : `✗ ${testResult.message}`}
-                        </span>
-                    )}
-                </div>
-            </div>
+            {(form?.is_enabled ?? true) && (
+                <>
+                    {/* ── Credentials ────────────────────────────────────────────── */}
+                    <div style={s.card}>
+                        <div style={s.sectionTitle}>Credentials (optional)</div>
+                        <div style={s.row2}>
+                            <div>
+                                <Input
+                                    label="Username"
+                                    value={form?.username}
+                                    onChange={set('username')}
+                                    placeholder="mqttuser"
+                                />
+                            </div>
+                            <div>
+                                <label style={s.label}>
+                                    Password {config?.has_password ? '(stored — leave blank to keep)' : ''}
+                                </label>
+                                <input
+                                    type="password"
+                                    value={newPassword}
+                                    onChange={(e) => { setNewPassword(e.target.value); setDirty(true); }}
+                                    placeholder={config?.has_password ? '••••••••' : 'no password set'}
+                                    style={s.input}
+                                    autoComplete="new-password"
+                                />
+                                <p style={s.hint}>
+                                    Stored in plaintext — use a dedicated broker user with minimal ACL.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ── Test connection ─────────────────────────────────────────── */}
+                    <div style={s.card}>
+                        <div style={s.sectionTitle}>Test Connection</div>
+                        <p style={{ ...s.hint, marginBottom: 14 }}>
+                            Opens a TCP socket to <strong>{form?.broker_host}:{form?.broker_port}</strong> and
+                            measures latency.  Uses the values in the form above (save first if you changed them,
+                            or test the unsaved values directly).
+                        </p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                            <button style={s.btnSecondary} onClick={handleTest} disabled={testing}>
+                                {testing ? 'Testing…' : '⚡ Test Connection'}
+                            </button>
+                            {testResult && (
+                                <span style={{
+                                    fontSize: 13, fontWeight: 600,
+                                    color: testResult.success ? '#0a7a40' : '#c0392b',
+                                }}>
+                                    {testResult.success
+                                        ? `✓ ${testResult.message}  (${testResult.latency_ms} ms)`
+                                        : `✗ ${testResult.message}`}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                </>
+            )}
 
             {/* ── Save / Reset buttons ────────────────────────────────────── */}
             {dirty && (

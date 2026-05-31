@@ -3,6 +3,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import { authService } from './services/auth';
+import { messengerService } from './services/messengerService';
 import { ConstructionProvider } from './context/ConstructionContext';
 import { ThemeProvider } from './context/ThemeContext';
 import OfflineStatus from './components/common/OfflineStatus';
@@ -30,7 +31,7 @@ const LoadingFallback = () => (
 // Routes that exist on mobile — only convert to mobile if the segment is known
 const MOBILE_ROUTES = new Set([
   'home', 'manage', 'budget', 'estimator', 'permits',
-  'photos', 'profile', 'activity-logs', 'import', 'timelapse', 'analytics',
+  'photos', 'profile', 'activity-logs', 'import', 'timelapse', 'analytics', 'team-chat',
 ]);
 
 // Helper component to handle responsive redirection
@@ -117,6 +118,14 @@ function App() {
       window.removeEventListener('storage', syncAuth);
     };
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return undefined;
+    const heartbeat = () => messengerService.heartbeatPresence().catch(() => {});
+    heartbeat();
+    const t = window.setInterval(heartbeat, 20000);
+    return () => window.clearInterval(t);
+  }, [isAuthenticated]);
 
   return (
     <ThemeProvider>

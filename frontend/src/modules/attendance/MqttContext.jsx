@@ -366,6 +366,7 @@ export function MqttProvider({ projectId, children }) {
         setLastScan,
         settings,          // ← ProjectAttendanceSettings (sound_enabled, voice_rate, etc.)
         config,            // ← MQTTConfig (broker settings)
+        isMqttEnabled: config ? (config.is_enabled !== false) : true,
         listenerStatus,
         deviceStatus,
         deviceCount,

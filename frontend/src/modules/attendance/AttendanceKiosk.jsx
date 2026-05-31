@@ -480,7 +480,7 @@ function TapToStart({ onStart }) {
 // ─── Main kiosk display (inside MqttProvider) ─────────────────────────────────
 
 function KioskDisplay({ projectId }) {
-    const { lastScan, clearScan, status: mqttStatus, settings } = useMqtt();
+    const { lastScan, clearScan, status: mqttStatus, settings, isMqttEnabled } = useMqtt();
     const { timeStr, dateStr } = useNowStr();
 
     const [started, setStarted] = useState(false);      // audio unlocked?
@@ -678,11 +678,13 @@ function KioskDisplay({ projectId }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <div style={{
                         width: 8, height: 8, borderRadius: '50%',
-                        background: mqttDot.color,
-                        boxShadow: `0 0 6px ${mqttDot.color}`,
-                        animation: mqttStatus === 'Connected' ? 'pulse-dot 2s ease-in-out infinite' : 'none',
+                        background: !isMqttEnabled ? '#ef4444' : mqttDot.color,
+                        boxShadow: `0 0 6px ${!isMqttEnabled ? '#ef4444' : mqttDot.color}`,
+                        animation: (isMqttEnabled && mqttStatus === 'Connected') ? 'pulse-dot 2s ease-in-out infinite' : 'none',
                     }} />
-                    <span style={{ fontSize: 12, color: '#64748b' }}>{mqttDot.label}</span>
+                    <span style={{ fontSize: 12, color: '#64748b' }}>
+                        {!isMqttEnabled ? 'NFC Disabled' : mqttDot.label}
+                    </span>
                 </div>
             </div>
 
@@ -710,13 +712,17 @@ function KioskDisplay({ projectId }) {
                 marginTop: 20,
                 fontSize: 18,
                 fontWeight: 600,
-                color: scanning ? '#f59e0b' : '#94a3b8',
+                color: !isMqttEnabled ? '#ef4444' : scanning ? '#f59e0b' : '#94a3b8',
                 transition: 'color 0.3s',
                 textAlign: 'center',
             }}>
-                {scanning
-                    ? 'Processing…'
-                    : 'Tap your NFC card to mark attendance'}
+                {!isMqttEnabled ? (
+                    '⚠️ NFC scanning is disabled for this project'
+                ) : scanning ? (
+                    'Processing…'
+                ) : (
+                    'Tap your NFC card to mark attendance'
+                )}
             </div>
 
             {/* ── Live count strip ──────────────────────────────────────── */}

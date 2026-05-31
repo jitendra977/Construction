@@ -112,6 +112,9 @@ urlpatterns = [
     # ── Location Tracking ─────────────────────────────────────────────────────
     path('api/v1/location/', include('apps.location_tracking.urls')),
 
+    # ── Field CCTV ─────────────────────────────────────────────────────────────
+    path('api/v1/cctv/', include('apps.cctv.urls')),
+
     # ── Biometrics Face Authentication ────────────────────────────────────────
     path('api/v1/biometrics/', include('apps.biometrics.urls')),
 
@@ -120,6 +123,9 @@ urlpatterns = [
 
     # ── Telegram Bot Integration ──────────────────────────────────────────────
     path('api/v1/telegram-bot/', include('apps.telegram_bot.urls')),
+
+    # ── Team Messenger (Phase 1) ─────────────────────────────────────────────
+    path('api/v1/messenger/', include('apps.messenger.urls')),
 ]
 
 # Serve media files in all environments

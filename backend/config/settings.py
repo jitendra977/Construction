@@ -132,6 +132,9 @@ INSTALLED_APPS = [
     # ── Location Tracking (Mobile GPS Geofencing) ────────────────────────────
     'apps.location_tracking',
 
+    # ── Field CCTV ─────────────────────────────────────────────────────────────
+    'apps.cctv',
+
     # ── Worker Portal (field worker API — no models, no migrations) ───────────
     'apps.worker',
 
@@ -143,6 +146,9 @@ INSTALLED_APPS = [
 
     # ── Telegram Bot Integration ──────────────────────────────────────────────
     'apps.telegram_bot',
+
+    # ── Team Messenger (Phase 1) ─────────────────────────────────────────────
+    'apps.messenger',
 ]
 
 # Explicitly map migration folders for nested apps to prevent loader errors
@@ -162,10 +168,12 @@ MIGRATION_MODULES = {
     'data_transfer': 'apps.data_transfer.migrations',
     'estimate': 'apps.estimate.migrations',
     'location_tracking': 'apps.location_tracking.migrations',
+    'cctv': 'apps.cctv.migrations',
     'worker': 'apps.worker.migrations',
     'biometrics': 'apps.biometrics.migrations',
     'backup': 'apps.backup.migrations',
     'telegram_bot': 'apps.telegram_bot.migrations',
+    'messenger': 'apps.messenger.migrations',
 }
 
 # ─── Photo Intelligence (HCMS-2) ──────────────────────────────────────

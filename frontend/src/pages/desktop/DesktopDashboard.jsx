@@ -99,7 +99,9 @@ function DesktopDashboard() {
         // Team & HR
         { id: 'attendance',    icon: '🕐',  label: 'Attendance (हाजिरी)', permission: 'can_view_workforce' },
         { id: 'workforce',     icon: '👷',  label: 'Workforce & Teams (कार्यबल)', permission: 'can_view_workforce' },
+        { id: 'team-chat',     icon: '💬',  label: 'Team Chat (समूह च्याट)' },
         { id: 'location',      icon: '📍',  label: 'Location (स्थान ट्र्याकिङ)', permission: 'can_view_workforce' },
+        { id: 'cctv',          icon: '📹',  label: 'Field CCTV (सिसिटिभी)', permission: 'can_view_dashboard' },
         // Admin & Config
         { id: 'accounts',      icon: '👤',  label: 'Accounts (खाता)', permission: ['can_manage_admin_config', 'can_manage_users'] },
         { id: 'settings',      icon: '⚙️',  label: 'Settings (सेटिङ)', permission: 'can_manage_settings' },

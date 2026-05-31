@@ -50,6 +50,23 @@ portalApi.interceptors.response.use(
 );
 
 // ── Service ───────────────────────────────────────────────────────────────────
+
+
+// ── Worker chat (reuses global messenger APIs with worker token) ───────────
+const workerAuthHeaders = () => {
+    const token = localStorage.getItem(PORTAL_ACCESS_KEY);
+    return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+const messengerRequest = (method, path, data = null, config = {}) =>
+    axios({
+        method,
+        url: `${API_URL}/messenger/${path}`,
+        data,
+        headers: { ...workerAuthHeaders(), ...(config.headers || {}) },
+        params: config.params,
+    }).then(r => r.data);
+
 const workerPortalApi = {
 
     /**
@@ -245,6 +262,23 @@ const workerPortalApi = {
      * Train and register worker face signature.
      * POST /api/v1/biometrics/train/
      */
+
+
+    // Chat members/conversations/messages
+    listChatMembers: (q = '') => messengerRequest('get', `members/${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+    listChatConversations: () => messengerRequest('get', 'conversations/'),
+    startDirectChat: (userId) => messengerRequest('post', 'conversations/start-direct/', { user_id: userId }),
+    listChatMessages: (conversationId, since = '') => messengerRequest('get', `conversations/${conversationId}/messages/${since ? `?since=${encodeURIComponent(since)}` : ''}`),
+    sendChatMessage: (conversationId, payload = {}) => {
+        const form = new FormData();
+        if (payload.text) form.append('text', payload.text);
+        if (payload.imageFile) form.append('image', payload.imageFile);
+        form.append('conversation', conversationId);
+        return messengerRequest('post', `conversations/${conversationId}/messages/`, form, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+    },
+
     registerFace: (encoding) => {
         const token = localStorage.getItem(PORTAL_ACCESS_KEY);
         return axios.post(`${API_URL}/biometrics/train/`, { encoding }, {

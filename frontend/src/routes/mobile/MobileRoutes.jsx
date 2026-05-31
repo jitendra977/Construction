@@ -29,6 +29,8 @@ import TimelineRoutes  from '../../modules/timeline';
 import AccountsRoutes  from '../../modules/accounts';
 import LocationRoutes    from '../../modules/location/LocationRoutes';
 import MobileTrackingPage from '../../modules/location/pages/MobileTrackingPage';
+import MobileTeamChatListPage from '../../pages/mobile/MobileTeamChatListPage';
+import MobileTeamChatDetailPage from '../../pages/mobile/MobileTeamChatDetailPage';
 
 import { useConstruction } from '../../context/ConstructionContext';
 
@@ -63,6 +65,8 @@ const MobileRoutes = () => {
             <Route path="workforce/safety"      element={<WorkforceHub forcedTab="SAFETY" mobileRouteBase="/dashboard/mobile/workforce" />} />
             <Route path="workforce/nfc"         element={<WorkforceHub forcedTab="NFC" mobileRouteBase="/dashboard/mobile/workforce" />} />
             <Route path="workforce/config"      element={<WorkforceHub forcedTab="CONFIG" mobileRouteBase="/dashboard/mobile/workforce" />} />
+            <Route path="team-chat"    element={<MobileTeamChatListPage />} />
+            <Route path="team-chat/:conversationId"    element={<MobileTeamChatDetailPage />} />
             <Route path="permits"      element={<PermitPage />}      />
             <Route path="data-transfer"  element={<DataTransferPage />} />
             <Route path="timelapse"    element={<TimelapsePage />}   />

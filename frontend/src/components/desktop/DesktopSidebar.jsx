@@ -121,7 +121,7 @@ const NAV_SECTIONS = [
     { id: 'projects',     label: 'Projects',      color: 'var(--t-primary)', ids: ['projects'],                                                                           defaultOpen: true  },
     { id: 'overview',     label: 'Overview',      color: '#6366f1',          ids: ['home', 'analytics', 'estimator'],                                                     defaultOpen: true  },
     { id: 'construction', label: 'Construction',  color: '#f59e0b',          ids: ['permits', 'phases', 'manage', 'timeline', 'finance', 'resource', 'structure', 'photos', 'timelapse'], defaultOpen: true },
-    { id: 'team',         label: 'Team & HR',     color: '#10b981',          ids: ['attendance', 'workforce', 'location'],                                         defaultOpen: true  },
+    { id: 'team',         label: 'Team & HR',     color: '#10b981',          ids: ['attendance', 'workforce', 'team-chat', 'location', 'cctv'],                    defaultOpen: true  },
     { id: 'admin',        label: 'Admin & Config', color: 'var(--t-text2)',   ids: ['accounts', 'settings', 'guides', 'data-transfer', 'backups'],                           defaultOpen: false },
 ];
 

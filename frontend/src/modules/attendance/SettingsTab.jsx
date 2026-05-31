@@ -13,6 +13,7 @@ import mqtt from 'mqtt';
 import attendanceService from '../../services/attendanceService';
 import { previewTheme, SOUND_THEMES } from './attendanceSounds';
 import { MQTT_URL_EXAMPLES, mqttWebSocketUrl, normalizeMqttBrokerHost } from './utils/mqttUrl';
+import MqttConfig from './mqtt/MqttConfig';
 
 // ── Tiny helpers ──────────────────────────────────────────────────────────────
 const Row = ({ label, children, hint }) => (
@@ -555,76 +556,9 @@ export default function SettingsTab({ projectId }) {
             {/* ── Tab: Devices & Scanning ──────────────────────────────────── */}
             {activeTab === 'devices' && (
                 <>
-                    {/* Live Terminal */}
                     <div style={{ marginBottom: 24 }}>
-                        <LiveMqttTerminal 
-                            brokerUrl={settings.mqtt_broker_url}
-                            topic={settings.mqtt_topic ?? 'nfc/+/state'}
-                            username={settings.mqtt_username}
-                            password={settings.mqtt_password}
-                            settingsReady={settingsLoaded}
-                        />
+                        <MqttConfig projectId={projectId} />
                     </div>
-
-                    {/* ── NFC & MQTT Setup Guide ─────────────────────────────────────── */}
-                    <SectionCard title="NFC Scanner & MQTT Setup" icon="🔌">
-                <div style={{ marginBottom: 12 }}>
-                    <p style={{ fontSize: 13, color: 'var(--t-text3)', margin: '0 0 16px', lineHeight: 1.5 }}>
-                        Configure your ESP32 PN532 NFC scanner to connect to this local MQTT broker. The backend listener is already running and waiting for scans.
-                    </p>
-                    
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-                        <Row label="MQTT Broker URL (Local IP or Domain)" hint={`Examples: ${MQTT_URL_EXAMPLES.join('  |  ')}`}>
-                            <Input
-                                value={settings.mqtt_broker_url ?? window.location.hostname}
-                                onChange={v => setSettings(s => ({ ...s, mqtt_broker_url: v }))}
-                                onBlur={e => setSettings(s => ({ ...s, mqtt_broker_url: normalizeMqttBrokerHost(e.target.value) }))}
-                                placeholder="nishanaweb.cloud"
-                            />
-                        </Row>
-                        <Row label="MQTT Port">
-                            <Input type="number" value={settings.mqtt_port ?? 1883} onChange={v => setSettings(s => ({ ...s, mqtt_port: parseInt(v) || 1883 }))} />
-                        </Row>
-                        <Row label="Browser WebSocket URL" hint="The browser live terminal uses WebSockets, usually port 9001. If this page is HTTPS, prefer wss:// on your broker/proxy.">
-                            <div style={{
-                                padding: '12px 14px',
-                                borderRadius: 12,
-                                fontSize: 13,
-                                fontFamily: 'monospace',
-                                background: 'var(--t-bg)',
-                                color: 'var(--t-text)',
-                                border: '1.5px solid var(--t-border)',
-                                overflowWrap: 'anywhere',
-                            }}>
-                                {mqttWebSocketUrl(settings.mqtt_broker_url ?? window.location.hostname, 9001)}
-                            </div>
-                        </Row>
-                        <Row label="Topic Format" hint="Use + as wildcard for MAC address">
-                            <Input value={settings.mqtt_topic ?? 'nfc/+/state'} onChange={v => setSettings(s => ({ ...s, mqtt_topic: v }))} style={{ fontFamily: 'monospace', fontSize: 12 }} />
-                        </Row>
-                        <Row label="Username" hint="Leave blank for anonymous">
-                            <Input value={settings.mqtt_username ?? ''} onChange={v => setSettings(s => ({ ...s, mqtt_username: v }))} placeholder="(anonymous)" />
-                        </Row>
-                        <Row label="Password" hint="Leave blank for anonymous">
-                            <Input type="password" value={settings.mqtt_password ?? ''} onChange={v => setSettings(s => ({ ...s, mqtt_password: v }))} placeholder="••••••••" />
-                        </Row>
-                    </div>
-
-                    <Row label="Expected JSON Payload" hint="Publish this payload when a card is tapped. The spaces in the UID are automatically removed by the backend.">
-                        <div style={{ 
-                            background: '#1a1a2e', padding: 14, borderRadius: 10, 
-                            color: '#a5b4fc', fontFamily: 'monospace', fontSize: 12,
-                            whiteSpace: 'pre-wrap', border: '1px solid var(--t-border)',
-                            lineHeight: 1.5
-                        }}>
-{`{"result":"Granted","user":"Suica","uid":"01 01 01 12 D9 19 C8 00"}`}
-                        </div>
-                    </Row>
-                </div>
-            </SectionCard>
-            
-            {/* ── Settings Save Button (for MQTT/NFC configs) ──────────────── */}
-            {settingsSaveButton}
 
             {/* ── 4. Scan Time Windows ──────────────────────────────────────── */}
             {scanWin !== null && (
