@@ -34,11 +34,19 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           envs: REMOTE_PROJECT_DIR
           script: |
-            set -e
+            set -euxo pipefail
             : "${REMOTE_PROJECT_DIR:?REMOTE_PROJECT_DIR is required}"
+            test -d "$REMOTE_PROJECT_DIR"
             cd "$REMOTE_PROJECT_DIR"
-            echo "── Pulling latest code ──"
-            git pull origin main
+            git config --global --add safe.directory "$REMOTE_PROJECT_DIR"
+            echo "── Syncing code to origin/main ──"
+            git fetch origin main --prune
+            git checkout -B main origin/main
+            git reset --hard origin/main
+            git clean -fd
+            echo "── Environment checks ──"
+            command -v make
+            command -v docker
             echo "── Building images ──"
             make build
             echo "── Starting infrastructure ──"
@@ -57,11 +65,17 @@ jobs:
           HEALTHCHECK_URL: ${{ secrets.HEALTHCHECK_URL }}
         run: |
           HEALTHCHECK_URL="${HEALTHCHECK_URL:-https://api.construction.nishanaweb.cloud/api/v1/health/}"
-
-          sleep 15
-          STATUS=$(curl -sS -o /dev/null -w "%{http_code}" \
-            "$HEALTHCHECK_URL" \
-            --max-time 30) || STATUS="000"
+          STATUS="000"
+          for i in 1 2 3 4 5 6 7 8; do
+            sleep 10
+            STATUS=$(curl -sS -o /dev/null -w "%{http_code}" \
+              "$HEALTHCHECK_URL" \
+              --max-time 30) || STATUS="000"
+            echo "Health attempt $i => HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              break
+            fi
+          done
 
           echo "Health check URL: $HEALTHCHECK_URL"
           echo "Health check HTTP status: $STATUS"
