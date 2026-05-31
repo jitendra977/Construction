@@ -24,7 +24,7 @@ const FlooringCalculator = () => {
                 thickness_in: Number(formData.thickness_in),
             });
             setResult(response.data);
-        } catch (err) {
+        } catch (_err) {
             setError("Failed to calculate. Please check inputs.");
         } finally {
             setLoading(false);

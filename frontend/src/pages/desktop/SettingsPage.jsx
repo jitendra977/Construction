@@ -300,7 +300,7 @@ function LanguageSection({ user, updateProfile }) {
 }
 
 // ── 4. Security ───────────────────────────────────────────────────────────────
-function SecuritySection({ user }) {
+function SecuritySection({ user: _user }) {
     const [sessions, setSessions] = useState(null);
     const [loading,  setLoading]  = useState(false);
 
@@ -546,7 +546,7 @@ function TelegramBotSection() {
             } else {
                 setMsg({ type: 'error', text: 'Failed to save settings.' });
             }
-        } catch (e) {
+        } catch (_e) {
             setMsg({ type: 'error', text: 'Network error saving settings.' });
         } finally {
             setBusy(false);

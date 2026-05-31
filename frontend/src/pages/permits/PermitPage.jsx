@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import PermitTracker from '../../components/desktop/permits/PermitTracker';
 import DocumentVault from '../../components/desktop/permits/DocumentVault';
 import PermitWizard from '../../components/permits/PermitWizard';
@@ -24,7 +24,7 @@ const PermitPage = () => {
         return [];
     };
 
-    const fetchStats = async () => {
+    const fetchStats = useCallback(async () => {
         try {
             const stepsResponse = await permitService.getSteps();
             const docsResponse = await permitService.getDocuments();
@@ -41,11 +41,11 @@ const PermitPage = () => {
         } catch (error) {
             console.error('Failed to fetch stats', error);
         }
-    };
+    }, []);
 
     useEffect(() => {
         fetchStats();
-    }, []);
+    }, [fetchStats]);
 
     const tabs = [
         { id: 'tracker', label: 'Timeline', icon: '📋' },

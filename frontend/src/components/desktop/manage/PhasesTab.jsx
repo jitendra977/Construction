@@ -384,6 +384,8 @@ function MobilePhaseCard({
     const doneT    = tasks.filter(t => t.status === 'COMPLETED').length;
     const overdueT = tasks.filter(t => t.due_date && daysLeft(t.due_date) < 0 && t.status !== 'COMPLETED').length;
     const inProgT  = tasks.filter(t => t.status === 'IN_PROGRESS').length;
+    const pendingT = tasks.filter(t => t.status === 'PENDING').length;
+    const blockedT = tasks.filter(t => t.status === 'BLOCKED').length;
     const progress = totalT > 0 ? Math.round(doneT / totalT * 100) : 0;
 
     const cyclePhaseStatus = () => {
@@ -468,56 +470,102 @@ function MobilePhaseCard({
 
                 {/* Row 2: phase controls and counts */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6, flexWrap: 'wrap' }}>
-                    <button
-                        onClick={e => { e.stopPropagation(); cyclePhaseStatus(); }}
-                        style={{
-                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                            minHeight: 22, padding: '3px 8px', borderRadius: 5, fontSize: 10, fontWeight: 600, lineHeight: 1,
-                            background: sm.bg, color: sm.color,
-                            border: `1px solid ${sm.color}40`,
-                            cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
-                        }}
-                    >
-                        {sm.label}
-                    </button>
-
-                    {inProgT > 0 && (
-                        <span style={{
-                            fontSize: 10, padding: '3px 7px', borderRadius: 5, fontWeight: 600,
-                            background: '#3b82f618', color: '#3b82f6', flexShrink: 0,
-                            whiteSpace: 'nowrap',
-                        }}>
-                            {inProgT} active
-                        </span>
-                    )}
-
-                    {phase.start_date && (
-                        <span style={{
-                            fontSize: 10,
-                            fontWeight: 400,
-                            color: 'var(--t-text3)',
-                            whiteSpace: 'nowrap',
-                            marginLeft: 'auto',
-                            letterSpacing: '0.01em',
-                        }}>
-                            {fmtDate(phase.start_date)}{phase.end_date ? ` - ${fmtDate(phase.end_date)}` : ''}
-                        </span>
-                    )}
-
                     <span style={{
-                        fontSize: 10, fontWeight: 400, color: 'var(--t-text3)',
-                        flexShrink: 0, whiteSpace: 'nowrap',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 2,
+                        minHeight: 22,
+                        padding: '2px 5px',
+                        borderRadius: 999,
+                        fontSize: 10,
+                        fontWeight: 600,
+                        lineHeight: 1,
+                        color: 'var(--t-text2)',
+                        background: 'rgba(255,255,255,0.82)',
+                        border: '1px solid rgba(148,163,184,0.22)',
+                        whiteSpace: 'nowrap',
                         letterSpacing: '0.01em',
                     }}>
-                        {phase.estimated_budget > 0
-                            ? `Rs.${Number(phase.estimated_budget).toLocaleString()}`
-                            : 'Budget not defined'}
+                        <span style={{
+                            color: '#6b7280',
+                            background: 'rgba(107,114,128,0.12)',
+                            border: '1px solid rgba(107,114,128,0.18)',
+                            borderRadius: 999,
+                            padding: '1px 4px',
+                        }}>{pendingT}P</span>
+                        <span style={{ color: 'rgba(148,163,184,0.7)', fontSize: 9 }}>·</span>
+                        <span style={{
+                            color: '#3b82f6',
+                            background: 'rgba(59,130,246,0.12)',
+                            border: '1px solid rgba(59,130,246,0.18)',
+                            borderRadius: 999,
+                            padding: '1px 4px',
+                        }}>{inProgT}R</span>
+                        <span style={{ color: 'rgba(148,163,184,0.7)', fontSize: 9 }}>·</span>
+                        <span style={{
+                            color: '#10b981',
+                            background: 'rgba(16,185,129,0.12)',
+                            border: '1px solid rgba(16,185,129,0.18)',
+                            borderRadius: 999,
+                            padding: '1px 4px',
+                        }}>{doneT}D</span>
+                        {blockedT > 0 && (
+                            <>
+                                <span style={{ color: 'rgba(148,163,184,0.7)', fontSize: 9 }}>·</span>
+                                <span style={{
+                                    color: '#f59e0b',
+                                    background: 'rgba(245,158,11,0.12)',
+                                    border: '1px solid rgba(245,158,11,0.18)',
+                                    borderRadius: 999,
+                                    padding: '1px 4px',
+                                }}>{blockedT}B</span>
+                            </>
+                        )}
                     </span>
+
+                    <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5, flexWrap: 'wrap' }}>
+                        {phase.start_date && (
+                            <span style={{
+                                fontSize: 10,
+                                fontWeight: 400,
+                                color: 'var(--t-text3)',
+                                whiteSpace: 'nowrap',
+                                letterSpacing: '0.01em',
+                            }}>
+                                {fmtDate(phase.start_date)}{phase.end_date ? ` - ${fmtDate(phase.end_date)}` : ''}
+                            </span>
+                        )}
+
+                        <span style={{
+                            fontSize: 10, fontWeight: 400, color: 'var(--t-text3)',
+                            flexShrink: 0, whiteSpace: 'nowrap',
+                            letterSpacing: '0.01em',
+                        }}>
+                            {phase.estimated_budget > 0
+                                ? `Rs.${Number(phase.estimated_budget).toLocaleString()}`
+                                : 'Budget not defined'}
+                        </span>
+
+                        <span style={{
+                            fontSize: 10, fontWeight: 600,
+                            color: 'var(--t-text)',
+                            letterSpacing: '0.01em',
+                            background: 'rgba(255,255,255,0.82)',
+                            border: '1px solid rgba(148,163,184,0.25)',
+                            borderRadius: 999,
+                            padding: '2px 7px',
+                            backdropFilter: 'blur(4px)',
+                            whiteSpace: 'nowrap',
+                        }}>
+                            {progress}%
+                        </span>
+                    </div>
 
                 </div>
                 {/* Row 3: integrated progress summary */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                    {overdueT > 0 ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 8 }}>
+                    {overdueT > 0 && (
                         <span style={{
                             fontSize: 10, fontWeight: 600,
                             color: '#ef4444',
@@ -528,31 +576,7 @@ function MobilePhaseCard({
                         }}>
                             ⚠ {overdueT} overdue
                         </span>
-                    ) : (
-                        <span style={{
-                            fontSize: 10,
-                            fontWeight: 500,
-                            color: 'var(--t-text3)',
-                            background: 'rgba(255,255,255,0.82)',
-                            border: '1px solid rgba(148,163,184,0.18)',
-                            borderRadius: 999,
-                            padding: '2px 7px',
-                        }}>
-                            {doneT} complete
-                        </span>
                     )}
-                    <span style={{
-                        fontSize: 10, fontWeight: 600,
-                        color: 'var(--t-text)',
-                        letterSpacing: '0.01em',
-                        background: 'rgba(255,255,255,0.82)',
-                        border: '1px solid rgba(148,163,184,0.25)',
-                        borderRadius: 999,
-                        padding: '2px 7px',
-                        backdropFilter: 'blur(4px)',
-                    }}>
-                        {doneT}/{totalT} · {progress}%
-                    </span>
                 </div>
             </div>
 
@@ -1279,6 +1303,38 @@ const PhasesTab = ({ searchQuery = '', onPhaseClick, onTaskClick }) => {
                             filterPriority={filterPriority}
                         />
                     ))}
+                    {filteredPhases.length > 0 && (
+                        <div style={{
+                            marginTop: 10,
+                            padding: '10px 12px',
+                            borderRadius: 12,
+                            background: 'var(--t-surface)',
+                            border: '1px solid var(--t-border)',
+                        }}>
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 10,
+                                flexWrap: 'wrap',
+                            }}>
+                                <span style={{ fontSize: 10, fontWeight: 600, color: '#6b7280' }}>P = पेन्डिङ</span>
+                                <span style={{ fontSize: 10, fontWeight: 600, color: '#3b82f6' }}>R = चलिरहेको</span>
+                                <span style={{ fontSize: 10, fontWeight: 600, color: '#10b981' }}>D = सकिएको</span>
+                                <span style={{ fontSize: 10, fontWeight: 600, color: '#f59e0b' }}>B = रोकिएको</span>
+                            </div>
+                            <p style={{
+                                margin: '8px 0 0 0',
+                                fontSize: 10,
+                                fontWeight: 400,
+                                lineHeight: 1.5,
+                                color: 'var(--t-text3)',
+                                textAlign: 'center',
+                            }}>
+                                बायाँतिरका चिन्हहरूले कामको स्थिति अनुसार संख्या देखाउँछन्। दायाँतिरको प्रतिशतले चरणको कुल प्रगति देखाउँछ।
+                            </p>
+                        </div>
+                    )}
                 </div>
             ) : (
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>

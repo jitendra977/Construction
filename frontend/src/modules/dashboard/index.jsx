@@ -307,9 +307,10 @@ export default function Dashboard() {
     const activePhasesShow  = phases.filter(p => p.status !== 'COMPLETED').slice(0, 4);
     const completedPhases   = phases.filter(p => p.status === 'COMPLETED').length;
     const lowStockItems     = (budgetStats?.lowStockItems || []).slice(0, 4);
+    const budgetCategories  = dashboardData?.budgetCategories || [];
     const autoTotalBudget = useMemo(
-        () => (dashboardData?.budgetCategories || []).reduce((sum, cat) => sum + Number(cat?.allocation || 0), 0),
-        [dashboardData?.budgetCategories]
+        () => budgetCategories.reduce((sum, cat) => sum + Number(cat?.allocation || 0), 0),
+        [budgetCategories]
     );
     const totalSpentValue = Number(budgetStats?.totalSpent || 0);
     const budgetPercentValue = autoTotalBudget > 0 ? (totalSpentValue / autoTotalBudget) * 100 : 0;

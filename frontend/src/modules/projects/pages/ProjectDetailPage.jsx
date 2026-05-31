@@ -49,6 +49,10 @@ export default function ProjectDetailPage() {
     const [loadingStats, setLS] = useState(false);
 
     const id = project?.id || activeProjectId;
+    const budgetCategories = dashboardData?.budgetCategories || [];
+    const autoBudgetFromCategories = useMemo(() => {
+        return budgetCategories.reduce((sum, cat) => sum + Number(cat?.allocation || 0), 0);
+    }, [budgetCategories]);
 
     useEffect(() => {
         if (!id) return;
@@ -80,10 +84,6 @@ export default function ProjectDetailPage() {
     );
 
     const s = stats;
-    const autoBudgetFromCategories = useMemo(() => {
-        const categories = dashboardData?.budgetCategories || [];
-        return categories.reduce((sum, cat) => sum + Number(cat?.allocation || 0), 0);
-    }, [dashboardData?.budgetCategories]);
     const financeBudget = autoBudgetFromCategories;
     const financeSpent = Number(s?.finance?.spent || 0);
     const financeRemaining = Math.max(0, financeBudget - financeSpent);

@@ -3,7 +3,7 @@ import { authService } from '../../services/auth';
 import { useConstruction } from '../../context/ConstructionContext';
 import DesktopSidebar from '../../components/desktop/DesktopSidebar';
 import UnifiedButton from '../../components/unified/UnifiedButton';
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Camera, MonitorSmartphone, ScanLine, Users, UserCheck } from 'lucide-react';
 
 // Sidebar widths kept in sync with DesktopSidebar.jsx
@@ -40,7 +40,7 @@ function usePageTitle(navItems) {
 function DesktopDashboard() {
     const navigate = useNavigate();
     const location = useLocation();
-    const { user, loading, activeProjectId, dashboardData } = useConstruction();
+    const { user, loading, activeProjectId } = useConstruction();
 
     const [collapsed, setCollapsed] = useState(() =>
         localStorage.getItem('sb_collapsed') === 'true'

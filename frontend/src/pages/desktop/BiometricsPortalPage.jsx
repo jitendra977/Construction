@@ -11,7 +11,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import * as faceapi from '@vladmandic/face-api';
 import api from '../../services/client';
 import { toast } from 'sonner';
-import { ShieldCheck, Camera, Sparkles, RefreshCw, CheckCircle, AlertCircle, Loader } from 'lucide-react';
+import { ShieldCheck, Camera, Sparkles, RefreshCw, CheckCircle } from 'lucide-react';
 
 // ─── Tiny sound beeps via Web Audio ──────────────────────────────────────────
 function beep(type) {
@@ -39,7 +39,9 @@ function beep(type) {
       g.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.3);
       o.start(); o.stop(ctx.currentTime + 0.3);
     }
-  } catch (_) {}
+  } catch (_) {
+    return;
+  }
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -81,7 +83,7 @@ export default function BiometricsPortalPage() {
         await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
         await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
         setModelReady(true);
-      } catch (e) {
+      } catch (_e) {
         toast.error('AI models failed to load — check internet connection.');
       } finally {
         setModelLoading(false);
@@ -89,7 +91,7 @@ export default function BiometricsPortalPage() {
     };
     load();
     return () => stopEverything();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Fetch user profile ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -104,7 +106,7 @@ export default function BiometricsPortalPage() {
   useEffect(() => {
     if (modelReady) startCamera();
     return () => stopEverything();
-  }, [modelReady]);
+  }, [modelReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Restart when mode changes ────────────────────────────────────────────────
   useEffect(() => {
@@ -113,7 +115,7 @@ export default function BiometricsPortalPage() {
       stopEverything();
       setTimeout(() => startCamera(), 300);
     }
-  }, [mode]);
+  }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Camera ────────────────────────────────────────────────────────────────────
   const startCamera = async () => {
@@ -128,7 +130,7 @@ export default function BiometricsPortalPage() {
         await videoRef.current.play();
         loopRef.current = requestAnimationFrame(frameLoop);
       }
-    } catch (e) {
+    } catch (_e) {
       setCamError('Camera permission denied. Please allow camera access and refresh.');
     }
   };
@@ -206,10 +208,12 @@ export default function BiometricsPortalPage() {
           setRegStatus('detecting');
         }
       }
-    } catch (_) {}
+    } catch (_) {
+      return;
+    }
 
     loopRef.current = requestAnimationFrame(frameLoop);
-  }, [mode]);
+  }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Register flow ─────────────────────────────────────────────────────────────
   const handleRegisterFrame = () => {
@@ -335,15 +339,12 @@ export default function BiometricsPortalPage() {
   // Status message
   let statusMsg = '';
   let statusSub = '';
-  let statusIcon = null;
   if (camError) {
     statusMsg = 'Camera Error';
     statusSub = camError;
-    statusIcon = <AlertCircle size={20} color="#ef4444" />;
   } else if (modelLoading) {
     statusMsg = 'Loading AI Models…';
     statusSub = 'Downloading face detection models (one-time)';
-    statusIcon = <Loader size={20} color="#f59e0b" style={{ animation: 'spin 1s linear infinite' }} />;
   } else if (!modelReady) {
     statusMsg = 'Initialising…';
     statusSub = '';
@@ -383,8 +384,6 @@ export default function BiometricsPortalPage() {
 
   const isDone  = regStatus === 'done' || loginStatus === 'done';
   const isError = regStatus === 'error' || loginStatus === 'error';
-  const isBusy  = regStatus === 'saving' || loginStatus === 'verifying';
-
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
     <div style={{ background: 'var(--t-bg)', minHeight: '100%', fontFamily: 'system-ui, sans-serif' }}>

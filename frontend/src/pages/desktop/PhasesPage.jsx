@@ -6,7 +6,7 @@
  *   phase → PhaseDetailPanel  (click "Detail →" on a phase)
  *   task  → TaskDetailPanel   (click "Detail" on a task row)
  */
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useConstruction } from '../../context/ConstructionContext';
 import { usePlatformBase } from '../../shared/utils/platformNav';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -33,14 +33,13 @@ export default function PhasesPage() {
     const location = useLocation();
     const isMobile = useIsMobileLayout();
 
-    const phases    = dashboardData?.phases || [];
-    const tasks     = dashboardData?.tasks  || [];
+    const phases = useMemo(() => dashboardData?.phases || [], [dashboardData?.phases]);
+    const tasks = useMemo(() => dashboardData?.tasks || [], [dashboardData?.tasks]);
     const done      = phases.filter(p => p.status === 'COMPLETED').length;
     const inProg    = phases.filter(p => p.status === 'IN_PROGRESS').length;
     const tasksDone = tasks.filter(t => t.status === 'COMPLETED').length;
 
     // view: { type:'list' } | { type:'phase', phase } | { type:'task', taskId, fromPhase }
-    const [view,   setView]   = useState({ type: 'list' });
     const [search, setSearch] = useState('');
 
     useEffect(() => {
@@ -59,8 +58,6 @@ export default function PhasesPage() {
 
     const goPhase = (phase)             => navigate(`${base}/phases/${phase.id}`);
     const goTask  = (task)              => navigate(`${base}/tasks/${task.id}`);
-    const goList  = ()                  => navigate(`${base}/phases`);
-
     const isDetail = false;
 
     return (
@@ -179,15 +176,13 @@ export default function PhasesPage() {
             )}
 
             {/* ── Views ── */}
-            {view.type === 'list' && (
-                <div style={{ padding: isMobile ? '14px 12px 96px' : '20px 24px 96px' }}>
-                    <PhasesTab
-                        searchQuery={search}
-                        onPhaseClick={goPhase}
-                        onTaskClick={(task) => goTask(task, null)}
-                    />
-                </div>
-            )}
+            <div style={{ padding: isMobile ? '14px 12px 96px' : '20px 24px 96px' }}>
+                <PhasesTab
+                    searchQuery={search}
+                    onPhaseClick={goPhase}
+                    onTaskClick={(task) => goTask(task, null)}
+                />
+            </div>
         </div>
     );
 }

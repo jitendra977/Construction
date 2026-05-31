@@ -37,7 +37,7 @@ const DataTab = () => {
                 initialEditValues[rate.id] = rate.value;
             });
             setEditValues(initialEditValues);
-        } catch (err) {
+        } catch (_err) {
             setError("Failed to load market rates.");
         } finally {
             setLoading(false);
@@ -61,7 +61,7 @@ const DataTab = () => {
             setSuccess(`Updated successfully!`);
             // Refresh local rates to ensure UI is in sync
             fetchRates();
-        } catch (err) {
+        } catch (_err) {
             setError("Failed to save rate. Please try again.");
         } finally {
             setSaving(false);

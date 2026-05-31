@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Play, Database, Cloud, Clock, CheckCircle, XCircle, HardDrive, Key, Folder, Save, Settings } from 'lucide-react';
 import api from '../../services/api';
 import ConfirmModal from '../../components/common/ConfirmModal';
@@ -32,7 +32,7 @@ export default function BackupSystemPage() {
   const showConfirm = (config) => setConfirmConfig({ ...config, isOpen: true });
   const closeConfirm = () => setConfirmConfig({ ...confirmConfig, isOpen: false });
 
-  const startProgressPolling = () => {
+  const startProgressPolling = useCallback(() => {
     if (pollRef.current) return;
     pollRef.current = setInterval(async () => {
       try {
@@ -51,7 +51,7 @@ export default function BackupSystemPage() {
         setTriggering(false);
       }
     }, 1000);
-  };
+  }, []);
 
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
   
@@ -93,8 +93,8 @@ export default function BackupSystemPage() {
           setTriggering(true);
           startProgressPolling();
         }
-      } catch (err) {
-        console.error("Failed to check active backup status", err);
+      } catch (_err) {
+        console.error("Failed to check active backup status", _err);
       }
     };
     checkActiveBackup();
@@ -104,7 +104,7 @@ export default function BackupSystemPage() {
       clearInterval(interval);
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, []);
+  }, [startProgressPolling]);
 
   const triggerBackup = () => {
     showConfirm({
@@ -121,8 +121,8 @@ export default function BackupSystemPage() {
           const res = await api.post('/backup/trigger/');
           setMessage(res.data.message || 'Backup triggered successfully.');
           startProgressPolling();
-        } catch (err) {
-          setMessage(err.response?.data?.error || 'Failed to trigger backup');
+        } catch (_err) {
+          setMessage(_err.response?.data?.error || 'Failed to trigger backup');
           setTriggering(false);
           setActiveBackup(null);
         }
@@ -135,7 +135,7 @@ export default function BackupSystemPage() {
       const res = await api.post('/backup/control/toggle_pause/');
       setMessage(res.data.message);
       fetchLogs();
-    } catch (err) {
+    } catch (_err) {
       alert('Failed to toggle system status');
     }
   };
@@ -155,7 +155,7 @@ export default function BackupSystemPage() {
       setMessage(res.data.message);
       fetchLogs();
       closeScheduleModal();
-    } catch (err) {
+    } catch (_err) {
       alert('Failed to update schedule');
     }
   };
@@ -172,7 +172,7 @@ export default function BackupSystemPage() {
           const res = await api.post('/backup/control/abort/', { task_id: taskId });
           setMessage(res.data.message);
           fetchLogs();
-        } catch (err) {
+        } catch (_err) {
           alert('Failed to abort task');
         }
       }

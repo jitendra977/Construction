@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { authService } from '../../services/auth';
 import { messengerService } from '../../services/messengerService';
 
@@ -68,7 +68,7 @@ export default function TeamChatPage() {
     return peer || null;
   }, [activeConversation]);
 
-  const loadBase = async (searchQuery = '') => {
+  const loadBase = useCallback(async (searchQuery = '') => {
     setLoading(true);
     try {
       const [memberList, convList] = await Promise.all([
@@ -81,9 +81,9 @@ export default function TeamChatPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeConversation]);
 
-  const loadMessages = async (conversationId, incremental = false) => {
+  const loadMessages = useCallback(async (conversationId, incremental = false) => {
     const list = await messengerService.listMessages(conversationId, incremental ? lastMessageAtRef.current : '');
     if (!list.length) return;
     setMessages((prev) => {
@@ -95,19 +95,21 @@ export default function TeamChatPage() {
     const nextTs = list[list.length - 1]?.created_at || lastMessageAtRef.current;
     lastMessageAtRef.current = nextTs;
     setLastMessageAt(nextTs);
-  };
+  }, []);
 
   useEffect(() => {
     loadBase();
-  }, []);
+  }, [loadBase]);
+
+  const activeConversationLastMessageAt = activeConversation?.last_message?.created_at || '';
 
   useEffect(() => {
     if (!activeConversation?.id) return;
     setMessages([]);
     setLastMessageAt('');
     loadMessages(activeConversation.id, false);
-    markConversationRead(activeConversation.id, activeConversation?.last_message?.created_at || new Date().toISOString());
-  }, [activeConversation?.id]);
+    markConversationRead(activeConversation.id, activeConversationLastMessageAt || new Date().toISOString());
+  }, [activeConversation?.id, activeConversationLastMessageAt, loadMessages]);
 
   useEffect(() => {
     lastMessageAtRef.current = lastMessageAt;
@@ -119,7 +121,7 @@ export default function TeamChatPage() {
       loadBase(query).catch(() => {});
     }, 5000);
     return () => clearInterval(t);
-  }, [activeConversation?.id, query]);
+  }, [activeConversation?.id, loadBase, loadMessages, query]);
 
   const startChatWithMember = async (memberId) => {
     const conv = await messengerService.startDirectConversation(memberId);

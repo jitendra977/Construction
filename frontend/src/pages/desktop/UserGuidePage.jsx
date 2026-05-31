@@ -354,7 +354,7 @@ function GuideMetaEditor({ guide, onClose, onSaved }) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function UserGuidePage() {
     const { dashboardData, user, language, refreshData } = useConstruction();
-    const rawGuides = dashboardData?.userGuides || [];
+    const rawGuides = useMemo(() => dashboardData?.userGuides || [], [dashboardData?.userGuides]);
     const isAdmin   = !!user?.is_system_admin;
     const lang      = language || 'en';
 

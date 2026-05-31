@@ -236,12 +236,12 @@ export default function MobileQuickCapture({ open, onClose }) {
     const uploading = files.some((file) => file.status === 'uploading');
 
     return createPortal(
-        <div className="fixed inset-0 z-[120] bg-black/65 backdrop-blur-sm flex items-end sm:items-center justify-center" onClick={onClose}>
+        <div className="fixed inset-0 z-[120] bg-black/65 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
             <div
-                className="w-full max-w-xl bg-[var(--t-bg)] rounded-t-[28px] sm:rounded-[28px] border border-[var(--t-border)] shadow-2xl overflow-hidden"
+                className="w-full max-w-xl max-h-[100dvh] sm:max-h-[92dvh] bg-[var(--t-bg)] rounded-t-[28px] sm:rounded-[28px] border border-[var(--t-border)] shadow-2xl overflow-hidden flex flex-col"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="px-5 pt-4 pb-3 border-b border-[var(--t-border)] bg-[var(--t-surface)]">
+                <div className="sticky top-0 z-10 px-4 sm:px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-3 border-b border-[var(--t-border)] bg-[var(--t-surface)]">
                     <div className="flex items-start justify-between gap-4">
                         <div>
                             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.18em] bg-[var(--t-primary)]/10 text-[var(--t-primary)] border border-[var(--t-primary)]/20">
@@ -256,14 +256,14 @@ export default function MobileQuickCapture({ open, onClose }) {
                         <button
                             type="button"
                             onClick={onClose}
-                            className="w-10 h-10 rounded-2xl border border-[var(--t-border)] bg-[var(--t-surface2)] text-[var(--t-text2)] flex items-center justify-center"
+                            className="w-10 h-10 rounded-2xl border border-[var(--t-border)] bg-[var(--t-surface2)] text-[var(--t-text2)] flex items-center justify-center shrink-0 sticky top-0"
                         >
                             <X className="w-4 h-4" />
                         </button>
                     </div>
                 </div>
 
-                <div className="max-h-[78vh] overflow-y-auto px-5 py-5 space-y-5">
+                <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 sm:py-5 space-y-4 sm:space-y-5 min-h-0">
                     <div className="grid grid-cols-2 gap-3">
                         <label
                             className={`relative rounded-3xl p-4 border text-left shadow-lg block overflow-hidden ${
@@ -460,7 +460,7 @@ export default function MobileQuickCapture({ open, onClose }) {
                     )}
                 </div>
 
-                <div className="px-5 py-4 border-t border-[var(--t-border)] bg-[var(--t-surface)]">
+                <div className="sticky bottom-0 px-4 sm:px-5 py-3 sm:py-4 border-t border-[var(--t-border)] bg-[var(--t-surface)]">
                     <button
                         type="button"
                         onClick={uploadAll}

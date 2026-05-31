@@ -7,18 +7,11 @@ import attendanceService from '../../services/attendanceService';
 /* ─── Helpers ───────────────────────────────────────────────────── */
 const fmtShort = d => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 const fmtRs = n => `Rs. ${Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
-const fmt$ = n => {
-    if (!n) return '0';
-    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-    if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
-    return String(n);
-};
-
 /* ─── GPS permission banner ─────────────────────────────────────── */
 function GPSPermissionBanner() {
     const tracker = useMobileTracker();
     if (!tracker) return null;
-    const { permission, requestPermission } = tracker;
+    const { permission } = tracker;
 
     if (permission === 'granted') return null;
 
@@ -189,7 +182,7 @@ const PH = {
 
 /* ═══════════════════════════════════════════════════════════════ */
 export default function HomeTab() {
-    const { dashboardData, budgetStats, user, activeProjectId } = useConstruction();
+    const { dashboardData, budgetStats, activeProjectId } = useConstruction();
     const navigate = useNavigate();
 
     const project  = dashboardData?.project || {};

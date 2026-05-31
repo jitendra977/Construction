@@ -26,7 +26,7 @@ const PlasterCalculator = () => {
                 ratio:        formData.ratio,
             });
             setResult(response.data);
-        } catch (err) {
+        } catch (_err) {
             setError("Failed to calculate. Please check inputs.");
         } finally {
             setLoading(false);

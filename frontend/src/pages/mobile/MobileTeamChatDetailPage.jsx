@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { authService } from '../../services/auth';
 import { messengerService } from '../../services/messengerService';
@@ -40,13 +40,13 @@ export default function MobileTeamChatDetailPage() {
     return (conversation.members || []).map((m) => m.user).find((u) => u?.id !== me?.id) || null;
   }, [conversation]);
 
-  const loadConversation = async () => {
+  const loadConversation = useCallback(async () => {
     const convs = await messengerService.listConversations();
     const conv = convs.find((c) => String(c.id) === String(conversationId));
     if (conv) setConversation(conv);
-  };
+  }, [conversationId]);
 
-  const loadMessages = async (incremental = false) => {
+  const loadMessages = useCallback(async (incremental = false) => {
     const list = await messengerService.listMessages(conversationId, incremental ? lastMessageAtRef.current : '');
     if (!list.length) return;
     setMessages((prev) => {
@@ -58,7 +58,7 @@ export default function MobileTeamChatDetailPage() {
     const nextTs = list[list.length - 1]?.created_at || lastMessageAtRef.current;
     lastMessageAtRef.current = nextTs;
     setLastMessageAt(nextTs);
-  };
+  }, [conversationId]);
 
   useEffect(() => {
     loadConversation();
@@ -68,7 +68,7 @@ export default function MobileTeamChatDetailPage() {
     })();
     map[String(conversationId)] = new Date().toISOString();
     localStorage.setItem(READ_KEY, JSON.stringify(map));
-  }, [conversationId]);
+  }, [conversationId, loadConversation, loadMessages]);
 
   useEffect(() => {
     lastMessageAtRef.current = lastMessageAt;
@@ -84,7 +84,7 @@ export default function MobileTeamChatDetailPage() {
       localStorage.setItem(READ_KEY, JSON.stringify(map));
     }, 5000);
     return () => clearInterval(t);
-  }, [conversationId]);
+  }, [conversationId, loadMessages]);
 
   const sendMessage = async () => {
     const payload = text.trim();

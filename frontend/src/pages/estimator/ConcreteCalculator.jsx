@@ -33,7 +33,7 @@ const ConcreteCalculator = () => {
                 include_rebar: formData.include_rebar,
             });
             setResult(response.data);
-        } catch (err) {
+        } catch (_err) {
             setError("Failed to calculate. Please check inputs.");
         } finally {
             setLoading(false);
