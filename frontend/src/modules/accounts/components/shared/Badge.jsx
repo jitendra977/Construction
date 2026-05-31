@@ -1,2 +1,2 @@
-/** Re-exported from shared/ui — kept for backwards compat with existing imports. */
-export { Badge as default } from '../../../../shared/ui';
+/** Re-exported from shared UI file for backward compatibility. */
+export { default } from '../../../../shared/ui/Badge';

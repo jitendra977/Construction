@@ -13,6 +13,37 @@ import MobileQuickCapture from './MobileQuickCapture';
 
 const BASE = '/dashboard/mobile';
 
+const ROUTE_PERMISSIONS = {
+    home:         'can_view_dashboard',
+    analytics:    'can_view_dashboard',
+    estimator:    'can_view_dashboard',
+    projects:     'can_view_projects',
+    phases:       'can_view_phases',
+    timeline:     'can_view_phases',
+    manage:       'can_manage_phases',
+    permits:      'can_manage_phases',
+    structure:    'can_view_structure',
+    resource:     'can_view_resources',
+    attendance:   'can_view_workforce',
+    workforce:    'can_view_workforce',
+    tracking:     'can_view_workforce',
+    location:     'can_view_workforce',
+    finance:      'can_view_finances',
+    'data-transfer':'can_manage_data_transfer',
+    photos:       'can_view_dashboard',
+    timelapse:    'can_view_dashboard',
+    accounts:     ['can_view_profile', 'can_manage_admin_config', 'can_manage_users'],
+    guides:       'can_view_dashboard',
+    'team-chat':  null,
+};
+
+function canAccessRoute(id) {
+    const permission = ROUTE_PERMISSIONS[id];
+    if (!permission) return true;
+    if (Array.isArray(permission)) return permission.some(p => authService.hasPermission(p));
+    return authService.hasPermission(permission);
+}
+
 // ── Primary bottom tabs ───────────────────────────────────────────────────────
 const PRIMARY = [
     { id: 'home',       icon: '🏠',  label: 'Home'     },
@@ -223,12 +254,17 @@ function AppDrawer({ onClose }) {
     };
 
     const query = search.trim().toLowerCase();
+    const visibleSections = SECTIONS.map(section => ({
+        ...section,
+        items: section.items.filter(item => canAccessRoute(item.id)),
+    })).filter(section => section.items.length > 0);
+
     const filteredSections = query
-        ? SECTIONS.map(s => ({
+        ? visibleSections.map(s => ({
               ...s,
               items: s.items.filter(i => i.label.toLowerCase().includes(query) || i.id.includes(query)),
           })).filter(s => s.items.length > 0)
-        : SECTIONS;
+        : visibleSections;
 
     return (
         <>
@@ -395,6 +431,19 @@ function AppDrawer({ onClose }) {
 export default function MobileNav() {
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [captureOpen, setCaptureOpen] = useState(false);
+    const byId = (id) => PRIMARY.find(x => x.id === id);
+    const homeTab = byId('home');
+    const phaseTab = byId('phases');
+    const projectTab = byId('projects');
+    const financeTab = byId('finance');
+    const attendanceTab = byId('attendance');
+    const chatTab = byId('team-chat');
+    const showHome = canAccessRoute('home');
+    const showPhases = canAccessRoute('phases');
+    const showProjects = canAccessRoute('projects');
+    const showFinance = canAccessRoute('finance');
+    const showAttendance = canAccessRoute('attendance');
+    const showChat = canAccessRoute('team-chat');
 
     return (
         <>
@@ -409,20 +458,16 @@ export default function MobileNav() {
                 <div
                     className="grid items-stretch h-[64px] rounded-[26px] overflow-visible relative"
                     style={{
-                        gridTemplateColumns: '1fr 1fr 1fr 72px 1fr 1fr 1fr',
+                        gridTemplateColumns: '1fr 1fr 1fr 72px 1fr 1fr 1fr 1fr',
                         background:     'var(--t-surface)',
                         border:         '1px solid var(--t-border)',
                         backdropFilter: 'blur(20px)',
                         boxShadow:      '0 -6px 28px rgba(0,0,0,0.12), 0 4px 14px rgba(0,0,0,0.08)',
                     }}
                 >
-                    {PRIMARY.slice(0, 3).map(item => (
-                        <BottomTab
-                            key={item.id}
-                            {...item}
-                            showGps={item.id === 'attendance'}
-                        />
-                    ))}
+                    {showHome && homeTab ? <BottomTab {...homeTab} /> : <div />}
+                    {showPhases && phaseTab ? <BottomTab {...phaseTab} /> : <div />}
+                    {showProjects && projectTab ? <BottomTab {...projectTab} /> : <div />}
 
                     <div className="relative flex items-center justify-center">
                         <button
@@ -441,13 +486,9 @@ export default function MobileNav() {
                         </button>
                     </div>
 
-                    {PRIMARY.filter(item => ['attendance', 'team-chat'].includes(item.id)).map(item => (
-                        <BottomTab
-                            key={item.id}
-                            {...item}
-                            showGps={item.id === 'attendance'}
-                        />
-                    ))}
+                    {showFinance && financeTab ? <BottomTab {...financeTab} /> : <div />}
+                    {showAttendance && attendanceTab ? <BottomTab {...attendanceTab} showGps /> : <div />}
+                    {showChat && chatTab ? <BottomTab {...chatTab} /> : <div />}
 
                     <button
                         onClick={() => setDrawerOpen(true)}

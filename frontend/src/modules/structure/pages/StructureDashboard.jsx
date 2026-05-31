@@ -6,17 +6,17 @@ import RoomForm from '../components/rooms/RoomForm';
 import StatusBadge, { STATUS_MAP } from '../components/shared/StatusBadge';
 import { floorBuildAreaSqft, SQFT_TO_M2 } from '../utils/area';
 
-const FLOOR_COLORS = ['#ea580c', '#3b82f6', '#8b5cf6', '#10b981'];
+const FLOOR_COLORS = ['#ea580c', '#2563eb', '#7c3aed', '#059669'];
 
 const Stat = ({ icon, label, value, sub }) => (
-    <div className="rounded-xl p-4 flex items-center gap-4"
-        style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)' }}>
-        <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0"
-            style={{ background: 'rgba(234,88,12,0.1)' }}>{icon}</div>
-        <div>
-            <p className="text-2xl font-black" style={{ color: 'var(--t-text)' }}>{value}</p>
-            <p className="text-xs font-semibold" style={{ color: 'var(--t-text3)' }}>{label}</p>
-            {sub && <p className="text-[10px]" style={{ color: 'var(--t-text3)' }}>{sub}</p>}
+    <div className="rounded-2xl p-5 flex items-center gap-4"
+        style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)', boxShadow: '0 6px 22px rgba(0,0,0,0.05)' }}>
+        <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0"
+            style={{ background: 'rgba(234,88,12,0.12)' }}>{icon}</div>
+        <div className="min-w-0">
+            <p className="text-2xl font-black leading-none" style={{ color: 'var(--t-text)' }}>{value}</p>
+            <p className="text-[11px] font-black uppercase tracking-wider mt-1" style={{ color: 'var(--t-text3)' }}>{label}</p>
+            {sub && <p className="text-[10px] mt-1" style={{ color: 'var(--t-text3)' }}>{sub}</p>}
         </div>
     </div>
 );
@@ -44,13 +44,14 @@ export default function StructureDashboard() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="rounded-2xl p-6 flex items-center justify-between"
+                style={{ background: 'linear-gradient(125deg, rgba(249,115,22,0.12), rgba(59,130,246,0.08))', border: '1px solid var(--t-border)' }}>
                 <div>
                     <h1 className="text-2xl font-black" style={{ color: 'var(--t-text)' }}>
                         🏗️ Structure Overview
                     </h1>
                     <p className="text-sm mt-0.5" style={{ color: 'var(--t-text3)' }}>
-                        Manage floors, rooms, and building layout
+                        Modern site blueprint summary across floors and rooms
                     </p>
                 </div>
                 <div className="flex gap-2">
@@ -83,7 +84,7 @@ export default function StructureDashboard() {
             </div>
 
             {/* Overall progress */}
-            <div className="rounded-xl p-5" style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)' }}>
+            <div className="rounded-2xl p-5" style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)', boxShadow: '0 6px 22px rgba(0,0,0,0.05)' }}>
                 <div className="flex items-center justify-between mb-3">
                     <h3 className="font-bold text-sm" style={{ color: 'var(--t-text)' }}>Overall Completion</h3>
                     <span className="text-sm font-black" style={{ color: '#f97316' }}>{progressPct}%</span>
@@ -110,23 +111,25 @@ export default function StructureDashboard() {
                     const color = FLOOR_COLORS[idx % FLOOR_COLORS.length];
                     const rooms = floor.rooms || [];
                     const done  = rooms.filter(r => r.status === 'COMPLETED').length;
+                    const inProg = rooms.filter(r => r.status === 'IN_PROGRESS').length;
                     const pct   = rooms.length ? Math.round((done / rooms.length) * 100) : 0;
                     const buildArea = floorBuildAreaSqft(floor);
+                    const floorBudget = rooms.reduce((sum, r) => sum + Number(r.budget_allocation || 0), 0);
 
                     return (
                         <div
                             key={floor.id}
-                            className="rounded-xl overflow-hidden"
-                            style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)' }}
+                            className="rounded-2xl overflow-hidden"
+                            style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)', boxShadow: '0 8px 24px rgba(0,0,0,0.06)' }}
                         >
                             {/* Floor header */}
                             <div className="px-4 py-3 flex items-center justify-between"
-                                style={{ borderBottom: `2px solid ${color}`, background: `${color}18` }}>
+                                style={{ borderBottom: `2px solid ${color}`, background: `${color}14` }}>
                                 <div>
-                                    <h3 className="font-black text-sm" style={{ color: 'var(--t-text)' }}>
+                                    <h3 className="font-black text-base leading-tight" style={{ color: 'var(--t-text)' }}>
                                         {floor.name}
                                     </h3>
-                                    <p className="text-[10px]" style={{ color: 'var(--t-text3)' }}>
+                                    <p className="text-[10px] mt-1" style={{ color: 'var(--t-text3)' }}>
                                         Level {floor.level} · {rooms.length} rooms
                                         {buildArea > 0 && ` · ${buildArea.toFixed(0)} ft² build`}
                                     </p>
@@ -141,13 +144,28 @@ export default function StructureDashboard() {
                             </div>
 
                             {/* Progress bar */}
-                            <div className="px-4 py-2">
+                            <div className="px-4 py-3">
                                 <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--t-border)' }}>
                                     <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
                                 </div>
-                                <p className="text-[10px] mt-1" style={{ color: 'var(--t-text3)' }}>
-                                    {done}/{rooms.length} rooms complete
-                                </p>
+                                <div className="flex items-center justify-between mt-1.5">
+                                    <p className="text-[10px]" style={{ color: 'var(--t-text3)' }}>
+                                        {done}/{rooms.length} rooms complete
+                                    </p>
+                                    <p className="text-[10px] font-semibold" style={{ color: 'var(--t-text3)' }}>
+                                        NPR {floorBudget.toLocaleString()}
+                                    </p>
+                                </div>
+                                <div className="flex gap-2 mt-2">
+                                    <span className="text-[9px] px-2 py-0.5 rounded-full font-bold"
+                                        style={{ background: 'rgba(16,185,129,0.14)', color: '#10b981' }}>
+                                        ✅ {done} done
+                                    </span>
+                                    <span className="text-[9px] px-2 py-0.5 rounded-full font-bold"
+                                        style={{ background: 'rgba(59,130,246,0.14)', color: '#3b82f6' }}>
+                                        🔄 {inProg} active
+                                    </span>
+                                </div>
                             </div>
 
                             {/* Rooms mini list */}
@@ -176,6 +194,14 @@ export default function StructureDashboard() {
                     );
                 })}
             </div>
+            {floors.length === 0 && (
+                <div className="rounded-2xl p-12 text-center"
+                    style={{ background: 'var(--t-surface)', border: '1px dashed var(--t-border)' }}>
+                    <p className="text-4xl mb-2">🏢</p>
+                    <p className="font-black" style={{ color: 'var(--t-text)' }}>No floors added yet</p>
+                    <p className="text-sm mt-1" style={{ color: 'var(--t-text3)' }}>Create your first floor to start room planning.</p>
+                </div>
+            )}
 
             {/* Modals */}
             {showFloorForm && (

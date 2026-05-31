@@ -61,6 +61,9 @@ _MATERIAL_HINTS = {
     "गिट्टी": "aggregate", "gitti": "aggregate", "aggregate": "aggregate",
     "छड": "rebar", "chhad": "rebar", "rebar": "rebar",
 }
+_PRIORITY_RE = re.compile(r"\b(low|medium|high|critical)\b", re.IGNORECASE)
+_PHASE_RE = re.compile(r"\bphase\s*[:=]?\s*([A-Za-z0-9\u0900-\u097F _-]{2,60})", re.IGNORECASE)
+_TITLE_RE = re.compile(r"\btitle\s*[:=]?\s*([A-Za-z0-9\u0900-\u097F _-]{2,100})", re.IGNORECASE)
 
 
 @dataclass
@@ -99,6 +102,7 @@ def _score_intent(text: str) -> Tuple[str, float]:
 
 def _extract_entities(text: str) -> Dict:
     entities: Dict = {}
+    raw = text or ""
     numbers = _NUM_RE.findall(text)
     if numbers:
         try:
@@ -112,6 +116,19 @@ def _extract_entities(text: str) -> Dict:
         if hint.lower() in t:
             entities["material"] = canonical
             break
+
+    pm = _PRIORITY_RE.search(raw)
+    if pm:
+        entities["priority"] = pm.group(1).upper()
+
+    tm = _TITLE_RE.search(raw)
+    if tm:
+        entities["title"] = tm.group(1).strip(" -,:।.")
+
+    ph = _PHASE_RE.search(raw)
+    if ph:
+        entities["phase_name"] = ph.group(1).strip(" -,:।.")
+
     return entities
 
 

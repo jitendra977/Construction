@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useStructure } from '../context/StructureContext';
-import RoomCard from '../components/rooms/RoomCard';
 import Modal from '../../../components/common/Modal';
 import RoomForm from '../components/rooms/RoomForm';
 import structureApi from '../services/structureApi';
@@ -13,7 +12,7 @@ export default function RoomsPage() {
     const [filterStatus, setFStatus] = useState('');
     const [search, setSearch]       = useState('');
 
-    const floorName = (id) => floors.find(f => f.id === id)?.name || '—';
+    const floorName = (id) => floors.find(f => String(f.id) === String(id))?.name || '—';
 
     const visible = allRooms.filter(r => {
         if (filterFloor && String(r.floor) !== String(filterFloor)) return false;
@@ -21,6 +20,23 @@ export default function RoomsPage() {
         if (search && !r.name.toLowerCase().includes(search.toLowerCase())) return false;
         return true;
     });
+    const groupedByFloor = useMemo(() => {
+        const orderMap = new Map(floors.map((f, i) => [String(f.id), i]));
+        const groups = new Map();
+        visible.forEach((room) => {
+            const key = String(room.floor || 'unknown');
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push(room);
+        });
+        return Array.from(groups.entries())
+            .sort((a, b) => (orderMap.get(a[0]) ?? 9999) - (orderMap.get(b[0]) ?? 9999))
+            .map(([floorId, rooms]) => ({ floorId, rooms }));
+    }, [visible, floors]);
+    const statusChip = (status) => {
+        if (status === 'COMPLETED') return { bg: 'rgba(16,185,129,0.12)', color: '#10b981', label: 'Completed' };
+        if (status === 'IN_PROGRESS') return { bg: 'rgba(59,130,246,0.12)', color: '#3b82f6', label: 'In Progress' };
+        return { bg: 'rgba(107,114,128,0.12)', color: '#6b7280', label: 'Not Started' };
+    };
 
     const handleEdit = (room) => { setEditRoom(room); setShowForm(true); };
     const handleDelete = async (room) => {
@@ -87,7 +103,7 @@ export default function RoomsPage() {
                 </select>
             </div>
 
-            {/* Grid */}
+            {/* Floor-wise Table View */}
             {visible.length === 0 ? (
                 <div className="text-center py-16" style={{ color: 'var(--t-text3)' }}>
                     <p className="text-4xl mb-3">🚪</p>
@@ -95,20 +111,79 @@ export default function RoomsPage() {
                     <p className="text-sm mt-1">Add rooms from the Floor Plan page or click + Add Room</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {visible.map(room => (
-                        <div key={room.id} className="relative group">
-                            <RoomCard
-                                room={room}
-                                floorName={floorName(room.floor)}
-                                onClick={() => handleEdit(room)}
-                            />
-                            <button
-                                onClick={(e) => { e.stopPropagation(); handleDelete(room); }}
-                                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 rounded-full bg-red-100 text-red-500 text-xs flex items-center justify-center hover:bg-red-200"
-                            >
-                                ×
-                            </button>
+                <div className="space-y-5">
+                    {groupedByFloor.map(group => (
+                        <div key={group.floorId} className="rounded-xl border overflow-hidden"
+                            style={{ background: 'var(--t-surface)', borderColor: 'var(--t-border)' }}>
+                            <div className="px-4 py-3 border-b flex items-center justify-between"
+                                style={{ borderColor: 'var(--t-border)', background: 'var(--t-surface2)' }}>
+                                <h3 className="text-sm font-black" style={{ color: 'var(--t-text)' }}>
+                                    {floorName(group.floorId)} ({group.rooms.length})
+                                </h3>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full min-w-[860px]">
+                                    <thead>
+                                        <tr className="text-left" style={{ background: 'var(--t-surface2)' }}>
+                                            <th className="px-4 py-2 text-[10px] uppercase tracking-wider" style={{ color: 'var(--t-text3)' }}>Room</th>
+                                            <th className="px-4 py-2 text-[10px] uppercase tracking-wider" style={{ color: 'var(--t-text3)' }}>Type</th>
+                                            <th className="px-4 py-2 text-[10px] uppercase tracking-wider" style={{ color: 'var(--t-text3)' }}>Status</th>
+                                            <th className="px-4 py-2 text-[10px] uppercase tracking-wider" style={{ color: 'var(--t-text3)' }}>Size (cm)</th>
+                                            <th className="px-4 py-2 text-[10px] uppercase tracking-wider" style={{ color: 'var(--t-text3)' }}>Budget</th>
+                                            <th className="px-4 py-2 text-[10px] uppercase tracking-wider text-right" style={{ color: 'var(--t-text3)' }}>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {group.rooms.map(room => {
+                                            const st = statusChip(room.status);
+                                            return (
+                                                <tr key={room.id} className="border-t" style={{ borderColor: 'var(--t-border)' }}>
+                                                    <td className="px-4 py-3">
+                                                        <button
+                                                            onClick={() => handleEdit(room)}
+                                                            className="font-bold text-sm hover:underline"
+                                                            style={{ color: 'var(--t-text)' }}
+                                                        >
+                                                            {room.name}
+                                                        </button>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm" style={{ color: 'var(--t-text2)' }}>{room.room_type || '—'}</td>
+                                                    <td className="px-4 py-3">
+                                                        <span className="px-2 py-1 rounded text-[11px] font-bold"
+                                                            style={{ background: st.bg, color: st.color }}>
+                                                            {st.label}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm" style={{ color: 'var(--t-text2)' }}>
+                                                        {room.width_cm || 0} × {room.depth_cm || 0}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm font-semibold" style={{ color: 'var(--t-text)' }}>
+                                                        Rs. {Number(room.budget_allocation || 0).toLocaleString()}
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex justify-end gap-2">
+                                                            <button
+                                                                onClick={() => handleEdit(room)}
+                                                                className="px-3 py-1.5 rounded text-xs font-bold"
+                                                                style={{ background: 'rgba(59,130,246,0.12)', color: '#3b82f6' }}
+                                                            >
+                                                                Edit
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDelete(room)}
+                                                                className="px-3 py-1.5 rounded text-xs font-bold"
+                                                                style={{ background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}
+                                                            >
+                                                                Delete
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     ))}
                 </div>

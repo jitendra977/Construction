@@ -55,17 +55,15 @@ function MobileDashboard() {
         // MobileTrackerProvider starts GPS tracking as soon as the user is on mobile.
         // projectId can be null initially — the tracker waits until it is set.
         <MobileTrackerProvider projectId={activeProjectId}>
-            <div className="min-h-screen bg-[var(--t-bg)] overflow-x-hidden transition-colors duration-500">
+            <div className="min-h-dvh bg-[var(--t-bg)] overflow-x-hidden transition-colors duration-500">
 
-                {/* Shell header — hidden on home (HomeTab has its own) and inside modules */}
-                {!isHome && !isModule && (
-                    <MobileHeader
-                        project={dashboardData?.project}
-                        stats={stats ?? []}
-                        onLogout={handleLogout}
-                        onShowConfig={() => setShowConfigModal(true)}
-                    />
-                )}
+                {/* Shared mobile header on every mobile page */}
+                <MobileHeader
+                    project={dashboardData?.project}
+                    stats={stats ?? []}
+                    onLogout={handleLogout}
+                    onShowConfig={() => setShowConfigModal(true)}
+                />
 
                 {/*
                  * Main content:
@@ -79,11 +77,11 @@ function MobileDashboard() {
                             ? 'fixed inset-x-0 top-0 z-0 flex flex-col overflow-hidden'
                             : isModule
                                 ? 'pb-24'
-                                : 'pb-0'
+                                : 'pb-24'
                     }
                     style={
                         isFullBleed
-                            ? { bottom: 'calc(58px + 6px + max(env(safe-area-inset-bottom, 8px))' }
+                            ? { bottom: 'calc(58px + 6px + max(env(safe-area-inset-bottom), 8px))' }
                             : undefined
                     }
                 >

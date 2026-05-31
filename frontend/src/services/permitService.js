@@ -9,12 +9,12 @@ export const permitService = {
         api.post(`permits/steps/${stepId}/attach_document/`, { document_id: documentId }),
     detachDocument: (stepId, documentId) =>
         api.post(`permits/steps/${stepId}/detach_document/`, { document_id: documentId }),
-    getDocuments: () => api.get('permits/documents/'),
+    getDocuments: () => api.get('documents/'),
     createDocument: (data) =>
-        api.post('permits/documents/', data, {
+        api.post('documents/', data, {
             headers: { 'Content-Type': 'multipart/form-data' },
         }),
-    deleteDocument: (id) => api.delete(`permits/documents/${id}/`),
+    deleteDocument: (id) => api.delete(`documents/${id}/`),
 };
 
 export const permitCopilotService = {

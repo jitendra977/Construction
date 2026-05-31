@@ -313,7 +313,7 @@ function TaskRow({ task, onUpdate, onDelete, onTaskClick }) {
                 fontSize: 10, color: 'var(--t-text3)', flexShrink: 0,
                 minWidth: 70, textAlign: 'right', whiteSpace: 'nowrap',
             }}>
-                {task.estimated_cost > 0 ? `Rs.${Number(task.estimated_cost).toLocaleString()}` : ''}
+                {task.estimated_cost > 0 ? `Rs.${Number(task.estimated_cost).toLocaleString()}` : 'Budget not defined'}
             </span>
 
             {/* Detail view button */}
@@ -366,7 +366,7 @@ function useIsMobile() {
 function MobilePhaseCard({
     phase, tasks,
     expanded, onToggle,
-    onPhaseUpdate, onPhaseDelete,
+    onPhaseUpdate,
     onTaskUpdate, onTaskDelete, onTaskAdded,
     onPhaseClick, onTaskClick,
     canManage, searchQuery, filterStatus, filterPriority,
@@ -394,7 +394,7 @@ function MobilePhaseCard({
 
     return (
         <div style={{
-            marginBottom: 10, borderRadius: 14,
+            marginBottom: 8, borderRadius: 12,
             border: `1px solid ${expanded ? sm.color + '60' : 'var(--t-border)'}`,
             background: 'var(--t-surface)',
             overflow: 'hidden',
@@ -405,46 +405,74 @@ function MobilePhaseCard({
             <div
                 onClick={() => onToggle(phase.id)}
                 style={{
-                    padding: '10px 12px 10px',
-                    background: expanded ? `${sm.color}08` : 'var(--t-surface)',
+                    padding: '8px 10px',
+                    background: expanded
+                        ? `linear-gradient(90deg, ${sm.color}22 0%, ${sm.color}22 ${progress}%, var(--t-surface) ${progress}%, var(--t-surface) 100%)`
+                        : `linear-gradient(90deg, ${sm.color}18 0%, ${sm.color}18 ${progress}%, var(--t-surface) ${progress}%, var(--t-surface) 100%)`,
                     cursor: 'pointer', userSelect: 'none',
+                    transition: 'background 0.25s ease',
                 }}
             >
-                {/* Row 1: # · name · status · active count · tasks · detail · chevron */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 7 }}>
-                    {/* Order # */}
+                {/* Row 1: phase name only */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7, marginBottom: 6 }}>
                     <span style={{
-                        fontSize: 9, fontWeight: 900, width: 20, height: 20, borderRadius: 5,
+                        fontSize: 8, fontWeight: 900, width: 18, height: 18, borderRadius: 5,
                         flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
                         background: 'rgba(249,115,22,0.12)', color: '#f97316',
                         border: '1px solid rgba(249,115,22,0.2)',
+                        marginTop: 1,
                     }}>
                         {phase.order}
                     </span>
-
-                    {/* Phase name — wraps freely, takes remaining space */}
-                    <span style={{
-                        flex: 1, fontSize: 13, fontWeight: 800, color: 'var(--t-text)',
-                        lineHeight: 1.3, wordBreak: 'break-word',
-                    }}>
-                        {phase.name}
-                    </span>
-
-                    {/* Budget — before status */}
-                    {phase.estimated_budget > 0 && (
-                        <span style={{
-                            fontSize: 9, fontWeight: 700, color: 'var(--t-text3)',
-                            flexShrink: 0, whiteSpace: 'nowrap',
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{
+                            fontSize: 15, fontWeight: 800, color: 'var(--t-text)',
+                            lineHeight: 1.3, wordBreak: 'break-word',
+                            letterSpacing: '-0.01em',
                         }}>
-                            Rs.{Number(phase.estimated_budget).toLocaleString()}
-                        </span>
+                            {phase.name}
+                        </div>
+                    </div>
+                    {onPhaseClick && (
+                        <button
+                            onClick={e => { e.stopPropagation(); onPhaseClick(phase); }}
+                            style={{
+                                display: 'inline-flex', alignItems: 'center', gap: 6,
+                                minHeight: 22, padding: '4px 8px', borderRadius: 999,
+                                fontSize: 10, fontWeight: 700, letterSpacing: '0.02em', lineHeight: 1,
+                                background: '#fff7ed', color: '#c2410c',
+                                border: '1px solid #fdba74',
+                                cursor: 'pointer', flexShrink: 0,
+                                whiteSpace: 'nowrap',
+                                marginTop: 1,
+                            }}
+                        >
+                            <span>DETAIL</span>
+                            <span style={{
+                                minWidth: 16, height: 16, borderRadius: 999,
+                                padding: '0 4px', display: 'inline-flex',
+                                alignItems: 'center', justifyContent: 'center',
+                                background: '#c2410c', color: '#fff', fontSize: 9, fontWeight: 700,
+                                lineHeight: 1,
+                            }}>{totalT}</span>
+                        </button>
                     )}
+                    <span style={{
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        width: 20, height: 20, fontSize: 14, lineHeight: 1,
+                        color: 'var(--t-text3)', flexShrink: 0,
+                        transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.2s',
+                    }}>›</span>
+                </div>
 
-                    {/* Status badge — tap to cycle */}
+                {/* Row 2: phase controls and counts */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6, flexWrap: 'wrap' }}>
                     <button
                         onClick={e => { e.stopPropagation(); cyclePhaseStatus(); }}
                         style={{
-                            padding: '2px 8px', borderRadius: 4, fontSize: 9, fontWeight: 800,
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                            minHeight: 22, padding: '3px 8px', borderRadius: 5, fontSize: 10, fontWeight: 600, lineHeight: 1,
                             background: sm.bg, color: sm.color,
                             border: `1px solid ${sm.color}40`,
                             cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
@@ -453,10 +481,9 @@ function MobilePhaseCard({
                         {sm.label}
                     </button>
 
-                    {/* Active count — right after status */}
                     {inProgT > 0 && (
                         <span style={{
-                            fontSize: 9, padding: '2px 6px', borderRadius: 4, fontWeight: 800,
+                            fontSize: 10, padding: '3px 7px', borderRadius: 5, fontWeight: 600,
                             background: '#3b82f618', color: '#3b82f6', flexShrink: 0,
                             whiteSpace: 'nowrap',
                         }}>
@@ -464,87 +491,69 @@ function MobilePhaseCard({
                         </span>
                     )}
 
-                    {/* Task count */}
-                    <span style={{
-                        fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 8,
-                        background: 'var(--t-surface2)', color: 'var(--t-text3)',
-                        border: '1px solid var(--t-border)', flexShrink: 0, whiteSpace: 'nowrap',
-                    }}>
-                        {totalT}t
-                    </span>
-
-                    {/* Detail → */}
-                    {onPhaseClick && (
-                        <button
-                            onClick={e => { e.stopPropagation(); onPhaseClick(phase); }}
-                            style={{
-                                padding: '5px 12px', borderRadius: 6, fontSize: 11, fontWeight: 800,
-                                background: 'rgba(249,115,22,0.12)', color: '#f97316',
-                                border: '1px solid rgba(249,115,22,0.3)',
-                                cursor: 'pointer', flexShrink: 0,
-                                whiteSpace: 'nowrap',
-                            }}
-                        >Detail →</button>
+                    {phase.start_date && (
+                        <span style={{
+                            fontSize: 10,
+                            fontWeight: 400,
+                            color: 'var(--t-text3)',
+                            whiteSpace: 'nowrap',
+                            marginLeft: 'auto',
+                            letterSpacing: '0.01em',
+                        }}>
+                            {fmtDate(phase.start_date)}{phase.end_date ? ` - ${fmtDate(phase.end_date)}` : ''}
+                        </span>
                     )}
 
-                    {/* Chevron */}
                     <span style={{
-                        fontSize: 14, color: 'var(--t-text3)', flexShrink: 0,
-                        transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                        transition: 'transform 0.2s',
-                    }}>›</span>
-                </div>
-
-                {/* Row 2: Progress bar with % label inside */}
-                <div style={{ position: 'relative' }}>
-                    {/* Background track */}
-                    <div style={{
-                        height: 16, borderRadius: 6,
-                        background: 'var(--t-border)',
-                        overflow: 'hidden',
+                        fontSize: 10, fontWeight: 400, color: 'var(--t-text3)',
+                        flexShrink: 0, whiteSpace: 'nowrap',
+                        letterSpacing: '0.01em',
                     }}>
-                        {/* Filled portion */}
-                        <div style={{
-                            height: '100%', width: `${progress}%`, minWidth: progress > 0 ? 6 : 0,
-                            background: progress === 100
-                                ? 'linear-gradient(90deg,#10b981,#34d399)'
-                                : `linear-gradient(90deg,${sm.color},${sm.color}cc)`,
-                            borderRadius: 6,
-                            transition: 'width 0.45s cubic-bezier(.4,0,.2,1)',
-                        }} />
-                    </div>
-                    {/* % text floating above bar */}
+                        {phase.estimated_budget > 0
+                            ? `Rs.${Number(phase.estimated_budget).toLocaleString()}`
+                            : 'Budget not defined'}
+                    </span>
+
+                </div>
+                {/* Row 3: integrated progress summary */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    {overdueT > 0 ? (
+                        <span style={{
+                            fontSize: 10, fontWeight: 600,
+                            color: '#ef4444',
+                            background: 'rgba(255,255,255,0.9)',
+                            border: '1px solid rgba(239,68,68,0.18)',
+                            borderRadius: 999,
+                            padding: '2px 7px',
+                        }}>
+                            ⚠ {overdueT} overdue
+                        </span>
+                    ) : (
+                        <span style={{
+                            fontSize: 10,
+                            fontWeight: 500,
+                            color: 'var(--t-text3)',
+                            background: 'rgba(255,255,255,0.82)',
+                            border: '1px solid rgba(148,163,184,0.18)',
+                            borderRadius: 999,
+                            padding: '2px 7px',
+                        }}>
+                            {doneT} complete
+                        </span>
+                    )}
                     <span style={{
-                        position: 'absolute', right: 6, top: '50%',
-                        transform: 'translateY(-50%)',
-                        fontSize: 9, fontWeight: 900,
-                        color: progress > 85 ? '#fff' : 'var(--t-text2)',
-                        mixBlendMode: progress > 85 ? 'normal' : undefined,
-                        pointerEvents: 'none',
-                        letterSpacing: '0.02em',
+                        fontSize: 10, fontWeight: 600,
+                        color: 'var(--t-text)',
+                        letterSpacing: '0.01em',
+                        background: 'rgba(255,255,255,0.82)',
+                        border: '1px solid rgba(148,163,184,0.25)',
+                        borderRadius: 999,
+                        padding: '2px 7px',
+                        backdropFilter: 'blur(4px)',
                     }}>
                         {doneT}/{totalT} · {progress}%
                     </span>
-                    {/* Overdue badge */}
-                    {overdueT > 0 && (
-                        <span style={{
-                            position: 'absolute', left: 6, top: '50%',
-                            transform: 'translateY(-50%)',
-                            fontSize: 9, fontWeight: 800,
-                            color: '#ef4444',
-                            pointerEvents: 'none',
-                        }}>⚠ {overdueT}</span>
-                    )}
                 </div>
-
-                {/* Row 3: dates (only if set) */}
-                {phase.start_date && (
-                    <div style={{ marginTop: 5 }}>
-                        <span style={{ fontSize: 10, color: 'var(--t-text3)' }}>
-                            📅 {fmtDate(phase.start_date)} → {fmtDate(phase.end_date) || '?'}
-                        </span>
-                    </div>
-                )}
             </div>
 
             {/* ── Expanded: mobile task list ── */}
@@ -630,7 +639,8 @@ function MobilePhaseCard({
                                                 <button
                                                     onClick={() => onTaskUpdate(task.id, { status: tsm.next })}
                                                     style={{
-                                                        padding: '3px 8px', borderRadius: 4, fontSize: 10, fontWeight: 800,
+                                                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                                        minHeight: 22, padding: '3px 8px', borderRadius: 4, fontSize: 10, fontWeight: 800, lineHeight: 1,
                                                         background: tsm.color + '18', color: tsm.color,
                                                         border: `1px solid ${tsm.color}30`, cursor: 'pointer',
                                                         whiteSpace: 'nowrap',
@@ -640,7 +650,8 @@ function MobilePhaseCard({
                                                     <button
                                                         onClick={() => onTaskClick(task)}
                                                         style={{
-                                                            padding: '5px 12px', borderRadius: 6, fontSize: 11, fontWeight: 800,
+                                                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                                            minHeight: 26, padding: '5px 12px', borderRadius: 6, fontSize: 11, fontWeight: 800, lineHeight: 1,
                                                             background: 'rgba(249,115,22,0.12)', color: '#f97316',
                                                             border: '1px solid rgba(249,115,22,0.3)', cursor: 'pointer',
                                                             whiteSpace: 'nowrap',
@@ -660,19 +671,6 @@ function MobilePhaseCard({
                         <QuickAddTask phaseId={phase.id} onAdded={onTaskAdded} />
                     )}
 
-                    {/* Delete phase footer */}
-                    {canManage && (
-                        <div style={{ padding: '8px 14px', borderTop: '1px solid var(--t-border)', textAlign: 'right' }}>
-                            <button
-                                onClick={() => onPhaseDelete(phase.id)}
-                                style={{
-                                    padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700,
-                                    background: '#ef444410', color: '#ef4444',
-                                    border: '1px solid #ef444430', cursor: 'pointer',
-                                }}
-                            >🗑 Delete Phase</button>
-                        </div>
-                    )}
                 </div>
             )}
         </div>
@@ -682,7 +680,7 @@ function MobilePhaseCard({
 /* ─── PhaseAccordion ─────────────────────────────────────────────────────── */
 function SortablePhaseAccordion({
     phase, tasks, expanded, onToggle,
-    onPhaseUpdate, onPhaseDelete,
+    onPhaseUpdate,
     onTaskUpdate, onTaskDelete, onTaskAdded,
     onPhaseClick, onTaskClick,
     canManage, searchQuery, filterStatus, filterPriority,
@@ -763,13 +761,22 @@ function SortablePhaseAccordion({
                             <button
                                 onClick={e => { e.stopPropagation(); onPhaseClick(phase); }}
                                 style={{
-                                    padding: '5px 14px', borderRadius: 7, fontSize: 11, fontWeight: 800,
-                                    background: 'rgba(249,115,22,0.12)', color: '#f97316',
-                                    border: '1px solid rgba(249,115,22,0.35)', cursor: 'pointer',
-                                    flexShrink: 0, whiteSpace: 'nowrap', letterSpacing: '0.04em',
+                                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                                    minHeight: 26, padding: '5px 10px', borderRadius: 999,
+                                    fontSize: 10, fontWeight: 900, letterSpacing: '0.03em', lineHeight: 1,
+                                    background: '#fff7ed', color: '#c2410c',
+                                    border: '1px solid #fdba74', cursor: 'pointer',
+                                    flexShrink: 0, whiteSpace: 'nowrap',
                                 }}
                             >
-                                📋 Detail →
+                                <span>DETAIL</span>
+                                <span style={{
+                                    minWidth: 18, height: 18, borderRadius: 999,
+                                    padding: '0 5px', display: 'inline-flex',
+                                    alignItems: 'center', justifyContent: 'center',
+                                    background: '#c2410c', color: '#fff', fontSize: 10, fontWeight: 900,
+                                    lineHeight: 1,
+                                }}>{totalT}</span>
                             </button>
                         )}
                     </div>
@@ -803,18 +810,19 @@ function SortablePhaseAccordion({
                 </div>
 
                 {/* Budget */}
-                {phase.estimated_budget > 0 && (
-                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text2)', whiteSpace: 'nowrap' }}>
-                        Rs.{Number(phase.estimated_budget).toLocaleString()}
-                    </span>
-                )}
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text2)', whiteSpace: 'nowrap' }}>
+                    {phase.estimated_budget > 0
+                        ? `Rs.${Number(phase.estimated_budget).toLocaleString()}`
+                        : 'Budget not defined'}
+                </span>
 
                 {/* Status — click to cycle */}
                 <button
                     onClick={e => { e.stopPropagation(); cyclePhaseStatus(); }}
                     title="Click to change phase status"
                     style={{
-                        padding: '3px 10px', borderRadius: 5, fontSize: 10, fontWeight: 800,
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        minHeight: 24, padding: '3px 10px', borderRadius: 5, fontSize: 10, fontWeight: 800, lineHeight: 1,
                         background: sm.bg, color: sm.color,
                         border: `1px solid ${sm.color}30`,
                         cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
@@ -823,33 +831,11 @@ function SortablePhaseAccordion({
                     {sm.label}
                 </button>
 
-                {/* Task count */}
-                <span style={{
-                    fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
-                    background: 'var(--t-surface2)', color: 'var(--t-text2)',
-                    border: '1px solid var(--t-border)', flexShrink: 0,
-                }}>
-                    {totalT} {totalT === 1 ? 'task' : 'tasks'}
-                </span>
-
-                {/* Delete phase */}
-                {canManage && (
-                    <button
-                        onClick={e => { e.stopPropagation(); onPhaseDelete(phase.id); }}
-                        style={{
-                            padding: '3px 7px', borderRadius: 5, fontSize: 12,
-                            background: 'transparent', color: 'var(--t-text3)',
-                            border: 'none', cursor: 'pointer', flexShrink: 0,
-                        }}
-                        title="Delete phase"
-                    >
-                        🗑
-                    </button>
-                )}
-
                 {/* Chevron */}
                 <span style={{
-                    fontSize: 14, color: 'var(--t-text3)', flexShrink: 0,
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    width: 20, height: 20, fontSize: 14, lineHeight: 1,
+                    color: 'var(--t-text3)', flexShrink: 0,
                     transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
                     transition: 'transform 0.2s',
                 }}>
@@ -1167,22 +1153,6 @@ const PhasesTab = ({ searchQuery = '', onPhaseClick, onTaskClick }) => {
         catch { refreshData(); }
     };
 
-    const handlePhaseDelete = (id) =>
-        setConfirmCfg({
-            isOpen: true,
-            title: 'Delete Phase?',
-            message: 'This will permanently delete the phase and all tasks inside it. Cannot be undone.',
-            confirmText: 'Delete Phase',
-            type: 'danger',
-            onConfirm: async () => {
-                setPhases(prev => prev.filter(p => p.id !== id));
-                setTasks(prev => prev.filter(t => t.phase !== id));
-                setConfirmCfg(c => ({ ...c, isOpen: false }));
-                try { await constructionService.deletePhase(id); }
-                catch { refreshData(); }
-            },
-        });
-
     const handlePhaseCreated = (phase) => {
         setPhases(prev => [...prev, phase]);
         setExpandedIds(prev => new Set([...prev, phase.id]));
@@ -1298,7 +1268,6 @@ const PhasesTab = ({ searchQuery = '', onPhaseClick, onTaskClick }) => {
                             expanded={expandedIds.has(phase.id)}
                             onToggle={toggleExpand}
                             onPhaseUpdate={handlePhaseUpdate}
-                            onPhaseDelete={handlePhaseDelete}
                             onTaskUpdate={handleTaskUpdate}
                             onTaskDelete={handleTaskDelete}
                             onTaskAdded={handleTaskAdded}
@@ -1322,7 +1291,6 @@ const PhasesTab = ({ searchQuery = '', onPhaseClick, onTaskClick }) => {
                                 expanded={expandedIds.has(phase.id)}
                                 onToggle={toggleExpand}
                                 onPhaseUpdate={handlePhaseUpdate}
-                                onPhaseDelete={handlePhaseDelete}
                                 onTaskUpdate={handleTaskUpdate}
                                 onTaskDelete={handleTaskDelete}
                                 onTaskAdded={handleTaskAdded}

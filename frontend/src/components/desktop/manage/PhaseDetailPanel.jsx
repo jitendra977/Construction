@@ -691,6 +691,26 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
         finally { setCompleting(false); }
     };
 
+    const handleDeletePhase = () => {
+        setConfirmCfg({
+            isOpen: true,
+            title: 'Delete Phase?',
+            message: 'This will permanently delete the phase and all tasks inside it. Cannot be undone.',
+            confirmText: 'Delete Phase',
+            type: 'danger',
+            onConfirm: async () => {
+                setConfirmCfg(c => ({ ...c, isOpen: false }));
+                try {
+                    await constructionService.deletePhase(phase.id);
+                    refreshData();
+                    onBack?.();
+                } catch (err) {
+                    showError(err?.response?.data?.detail || 'Failed to delete phase.');
+                }
+            },
+        });
+    };
+
     const inp = {
         width: '100%', padding: '7px 10px', borderRadius: 8, fontSize: 12,
         border: '1px solid var(--t-border)', background: 'var(--t-surface2)',
@@ -742,14 +762,27 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                                 background: 'var(--t-surface2)', color: 'var(--t-text)',
                                 border: '1px solid var(--t-border)', cursor: 'pointer',
                             }}>Cancel</button>
+                            <button onClick={handleDeletePhase} style={{
+                                padding: '6px 14px', borderRadius: 8, fontSize: 11, fontWeight: 800,
+                                background: '#ef444410', color: '#ef4444',
+                                border: '1px solid #ef444430', cursor: 'pointer',
+                            }}>🗑 Delete Phase</button>
                         </div>
                     ) : (
-                        <button onClick={() => setIsEditing(true)} style={{
-                            padding: '6px 16px', borderRadius: 8, fontSize: 11, fontWeight: 800,
-                            background: 'rgba(249,115,22,0.1)', color: '#f97316',
-                            border: '1px solid rgba(249,115,22,0.3)', cursor: 'pointer',
-                            width: isMobile ? '100%' : 'auto',
-                        }}>✏️ Edit Phase</button>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', width: isMobile ? '100%' : 'auto' }}>
+                            <button onClick={() => setIsEditing(true)} style={{
+                                padding: '6px 16px', borderRadius: 8, fontSize: 11, fontWeight: 800,
+                                background: 'rgba(249,115,22,0.1)', color: '#f97316',
+                                border: '1px solid rgba(249,115,22,0.3)', cursor: 'pointer',
+                                width: isMobile ? '100%' : 'auto',
+                            }}>✏️ Edit Phase</button>
+                            <button onClick={handleDeletePhase} style={{
+                                padding: '6px 14px', borderRadius: 8, fontSize: 11, fontWeight: 800,
+                                background: '#ef444410', color: '#ef4444',
+                                border: '1px solid #ef444430', cursor: 'pointer',
+                                width: isMobile ? '100%' : 'auto',
+                            }}>🗑 Delete Phase</button>
+                        </div>
                     )
                 )}
             </div>

@@ -2,7 +2,7 @@
  * ProjectDetailPage — Overview tab
  * Cross-module stats, quick links, timeline info for a single project.
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { usePlatformBase } from '../../../shared/utils/platformNav';
 import api from '../services/projectsApi';
@@ -43,7 +43,7 @@ export default function ProjectDetailPage() {
     const navigate     = useNavigate();
     const base         = usePlatformBase();
     const isMobile     = base.includes('mobile');
-    const { activeProjectId } = useConstruction();
+    const { activeProjectId, dashboardData } = useConstruction();
     const [stats, setStats]   = useState(null);
     const [floors, setFloors] = useState([]);
     const [loadingStats, setLS] = useState(false);
@@ -80,6 +80,14 @@ export default function ProjectDetailPage() {
     );
 
     const s = stats;
+    const autoBudgetFromCategories = useMemo(() => {
+        const categories = dashboardData?.budgetCategories || [];
+        return categories.reduce((sum, cat) => sum + Number(cat?.allocation || 0), 0);
+    }, [dashboardData?.budgetCategories]);
+    const financeBudget = autoBudgetFromCategories;
+    const financeSpent = Number(s?.finance?.spent || 0);
+    const financeRemaining = Math.max(0, financeBudget - financeSpent);
+    const financeUsedPct = financeBudget > 0 ? (financeSpent / financeBudget) * 100 : 0;
     const floorBuildAreaSqft = totalBuildAreaSqft(floors);
     const buildAreaSqft = floorBuildAreaSqft || s?.structure?.build_area_sqft || project?.build_area_sqft || 0;
 
@@ -134,16 +142,17 @@ export default function ProjectDetailPage() {
                         <h3 className="text-sm font-black uppercase tracking-widest mb-3"
                             style={{ color: 'var(--t-text3)' }}>💰 Finance</h3>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
-                            <StatCard icon="💰" label="Total Budget"   value={fmt(s.finance.budget)}    color="#f97316" />
-                            <StatCard icon="💸" label="Total Spent"    value={fmt(s.finance.spent)}     color="#ef4444"
-                                sub={`${pct(s.finance.used_pct)} used`} />
-                            <StatCard icon="💼" label="Remaining"      value={fmt(s.finance.remaining)} color="#10b981" />
-                            <StatCard icon="📊" label="Budget Used"    value={pct(s.finance.used_pct)}
-                                color={s.finance.used_pct > 90 ? '#ef4444' : s.finance.used_pct > 70 ? '#f59e0b' : '#10b981'}
+                            <StatCard icon="💰" label="Total Budget"   value={fmt(financeBudget)} color="#f97316"
+                                sub="from Finance categories" />
+                            <StatCard icon="💸" label="Total Spent"    value={fmt(financeSpent)}  color="#ef4444"
+                                sub={`${pct(financeUsedPct)} used`} />
+                            <StatCard icon="💼" label="Remaining"      value={fmt(financeRemaining)} color="#10b981" />
+                            <StatCard icon="📊" label="Budget Used"    value={pct(financeUsedPct)}
+                                color={financeUsedPct > 90 ? '#ef4444' : financeUsedPct > 70 ? '#f59e0b' : '#10b981'}
                                 sub="of total budget" />
                         </div>
-                        <ProgressBar value={s.finance.spent} max={s.finance.budget}
-                            color={s.finance.used_pct > 90 ? '#ef4444' : '#f97316'} label="Budget Consumed" />
+                        <ProgressBar value={financeSpent} max={financeBudget}
+                            color={financeUsedPct > 90 ? '#ef4444' : '#f97316'} label="Budget Consumed" />
                     </section>
 
                     {/* ── Structure stats ─────────────────────────────────────── */}

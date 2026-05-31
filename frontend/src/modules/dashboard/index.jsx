@@ -307,7 +307,14 @@ export default function Dashboard() {
     const activePhasesShow  = phases.filter(p => p.status !== 'COMPLETED').slice(0, 4);
     const completedPhases   = phases.filter(p => p.status === 'COMPLETED').length;
     const lowStockItems     = (budgetStats?.lowStockItems || []).slice(0, 4);
-    const overBudget        = (budgetStats?.budgetPercent || 0) > 90;
+    const autoTotalBudget = useMemo(
+        () => (dashboardData?.budgetCategories || []).reduce((sum, cat) => sum + Number(cat?.allocation || 0), 0),
+        [dashboardData?.budgetCategories]
+    );
+    const totalSpentValue = Number(budgetStats?.totalSpent || 0);
+    const budgetPercentValue = autoTotalBudget > 0 ? (totalSpentValue / autoTotalBudget) * 100 : 0;
+    const overBudget        = budgetPercentValue > 90;
+    const formatExactAmount = (n) => `Rs. ${Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 
     const greeting = useMemo(() => {
         const h = new Date().getHours();
@@ -384,7 +391,7 @@ export default function Dashboard() {
                             <p style={{ margin: 0, fontSize: 11, color: 'var(--t-text3)' }}>
                                 {taskStats.overdue > 0 && `${taskStats.overdue} overdue task${taskStats.overdue > 1 ? 's' : ''}`}
                                 {taskStats.overdue > 0 && overBudget && ' · '}
-                                {overBudget && `Budget at ${Math.round(budgetStats.budgetPercent)}%`}
+                                {overBudget && `Budget at ${Math.round(budgetPercentValue)}%`}
                             </p>
                         </div>
                         <button onClick={() => navigate(`${base}/phases`)} style={{
@@ -398,15 +405,15 @@ export default function Dashboard() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
                     <KpiCard
                         icon="💰" label="Total Budget"
-                        value={formatCurrency ? formatCurrency(budgetStats?.totalBudget) : `Rs. ${(budgetStats?.totalBudget || 0).toLocaleString()}`}
-                        hint="Project master budget"
+                        value={formatExactAmount(autoTotalBudget)}
+                        hint="From Finance categories"
                         accent="#f97316"
                     />
                     <KpiCard
                         icon="💸" label="Total Spent"
-                        value={formatCurrency ? formatCurrency(budgetStats?.totalSpent) : `Rs. ${(budgetStats?.totalSpent || 0).toLocaleString()}`}
-                        hint={`${Math.round(budgetStats?.budgetPercent || 0)}% of budget used`}
-                        accent={overBudget ? '#ef4444' : (budgetStats?.budgetPercent || 0) > 70 ? '#f59e0b' : '#10b981'}
+                        value={formatExactAmount(totalSpentValue)}
+                        hint={`${Math.round(budgetPercentValue)}% of budget used`}
+                        accent={overBudget ? '#ef4444' : budgetPercentValue > 70 ? '#f59e0b' : '#10b981'}
                     />
                     <KpiCard
                         icon="📋" label="Phases"
@@ -540,8 +547,8 @@ export default function Dashboard() {
 
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
                                 {[
-                                    { label: 'Budget',    value: formatCurrency ? formatCurrency(budgetStats?.totalBudget) : `Rs.${(budgetStats?.totalBudget||0).toLocaleString()}`, color: '#f97316' },
-                                    { label: 'Spent',     value: formatCurrency ? formatCurrency(budgetStats?.totalSpent)  : `Rs.${(budgetStats?.totalSpent ||0).toLocaleString()}`, color: overBudget ? '#ef4444' : '#3b82f6' },
+                                    { label: 'Budget',    value: formatExactAmount(autoTotalBudget), color: '#f97316' },
+                                    { label: 'Spent',     value: formatExactAmount(totalSpentValue), color: overBudget ? '#ef4444' : '#3b82f6' },
                                     { label: 'Cash',      value: formatCurrency ? formatCurrency(budgetStats?.availableCash) : '—', color: '#10b981' },
                                     { label: 'Payable',   value: formatCurrency ? formatCurrency(budgetStats?.totalPayables) : '—', color: '#f59e0b' },
                                 ].map(s => (
@@ -557,8 +564,8 @@ export default function Dashboard() {
 
                             <BudgetBar
                                 label="Budget Used"
-                                spent={budgetStats?.totalSpent || 0}
-                                budget={budgetStats?.totalBudget || 1}
+                                spent={totalSpentValue}
+                                budget={autoTotalBudget || 1}
                                 color={overBudget ? '#ef4444' : '#f97316'}
                             />
                             {budgetStats?.netPosition !== undefined && budgetStats?.netPosition !== null && (

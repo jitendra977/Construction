@@ -7,14 +7,34 @@ export const assistantService = {
 
     // AI chat — Groq / Gemini / OpenAI
     // provider: "auto" | "groq" | "gemini" | "openai"
-    chat: (message, history = [], projectId = null, language = 'ne', provider = 'auto') =>
-        api.post('assistant/chat/', {
-            message,
-            history,
-            project_id: projectId,
-            language,
-            provider,
-        }, { _silentError: true }),
+    chat: (message, history = [], projectId = null, language = 'ne', provider = 'auto') => {
+        const safeMessage = String(message || '').trim();
+        const safeHistory = Array.isArray(history)
+            ? history
+                .filter((h) => h && typeof h === 'object')
+                .map((h) => ({
+                    role: h.role === 'assistant' ? 'assistant' : 'user',
+                    content: String(h.content || '').slice(0, 4000),
+                }))
+                .filter((h) => h.content)
+                .slice(-20)
+            : [];
+
+        return api.post(
+            'assistant/chat/',
+            {
+                message: safeMessage,
+                history: safeHistory,
+                project_id: projectId,
+                language,
+                provider,
+            },
+            {
+                _silentError: true,
+                timeout: 45000,
+            },
+        );
+    },
 
     // Groq Whisper STT — sends audio blob, returns { transcript, language }
     transcribe: (audioBlob, language = 'ne') => {

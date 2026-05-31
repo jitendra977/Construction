@@ -40,7 +40,7 @@ function usePageTitle(navItems) {
 function DesktopDashboard() {
     const navigate = useNavigate();
     const location = useLocation();
-    const { user, loading, activeProjectId } = useConstruction();
+    const { user, loading, activeProjectId, dashboardData } = useConstruction();
 
     const [collapsed, setCollapsed] = useState(() =>
         localStorage.getItem('sb_collapsed') === 'true'
@@ -149,6 +149,8 @@ function DesktopDashboard() {
 function TopBar({ navItems, user, activeProjectId }) {
     const title = usePageTitle(navItems);
     const location = useLocation();
+    const { dashboardData } = useConstruction();
+    const projectName = dashboardData?.project?.name || 'No project selected';
 
     // Build simple breadcrumb: Dashboard > Page
     const isHome = location.pathname.endsWith('/home') || location.pathname.endsWith('/desktop');
@@ -192,6 +194,15 @@ function TopBar({ navItems, user, activeProjectId }) {
             {/* Right side: time + user */}
             <div className="flex items-center gap-3">
                 <AttendanceShortcutIcons activeProjectId={activeProjectId} />
+                <div className="max-w-[260px] px-2.5 py-1 rounded-lg hidden md:flex items-center gap-2"
+                    style={{ background: 'var(--t-surface2)', border: '1px solid var(--t-border)' }}>
+                    <span className="text-[10px]">🏗️</span>
+                    <span className="text-[10px] font-bold truncate"
+                        style={{ color: 'var(--t-text2)', fontFamily: "'DM Mono', monospace" }}
+                        title={projectName}>
+                        {projectName}
+                    </span>
+                </div>
                 <Clock />
                 <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg"
                     style={{ background: 'var(--t-surface2)', border: '1px solid var(--t-border)' }}>

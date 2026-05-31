@@ -422,6 +422,7 @@ function AiTab({ projectId, onTabSwitch }) {
     const waveFrameRef   = useRef(null);
     const audioRef       = useRef(null);
     const voicesRef      = useRef([]);
+    const speakSeqRef    = useRef(0);
     const voiceModeRef   = useRef(false);
     const convModeRef    = useRef(false);
     const silenceRef     = useRef(0);   // silence frame counter
@@ -507,6 +508,8 @@ function AiTab({ projectId, onTabSwitch }) {
 
     /* ── TTS — API first, browser fallback ──────────────────────────────────── */
     const stopSpeaking = () => {
+        // Invalidate any in-flight async TTS request/playback callbacks.
+        speakSeqRef.current += 1;
         // Stop API audio
         if (audioRef.current) { audioRef.current.pause(); audioRef.current.src=''; audioRef.current=null; }
         // Stop browser TTS
@@ -517,16 +520,30 @@ function AiTab({ projectId, onTabSwitch }) {
     const speakWithBrowser = useCallback((text, onEnd) => {
         if (!window.speechSynthesis) { onEnd?.(); return; }
         window.speechSynthesis.cancel();
-        const clean = text.replace(/[✅⚠️🤖📊📋➕🏗️📈🔊✓*_#]/g,'').replace(/\n+/g,'। ').replace(/\s{2,}/g,' ').trim();
+        const clean = text
+            .replace(/[✅⚠️🤖📊📋➕🏗️📈🔊✓*_#]/g,'')
+            // Currency style: "रु एक लाख"
+            .replace(/Rs\.?\s*/gi, 'रु ')
+            .replace(/(^|[\s(])रु\.?\s*/g, '$1रु ')
+            // Never read numeric commas.
+            .replace(/([0-9०-९]),([0-9०-९])/g, '$1$2')
+            .replace(/\n+/g,'। ')
+            .replace(/\s{2,}/g,' ')
+            .trim();
         if (!clean) { onEnd?.(); return; }
         const utter  = new SpeechSynthesisUtterance(clean);
         const hasNep = /[ऀ-ॿ]/.test(text);
+        const hasEng = /[A-Za-z]/.test(text);
         const voices = voicesRef.current;
-        const voice  = hasNep
-            ? (voices.find(v=>v.lang==='ne-NP') || voices.find(v=>v.lang==='hi-IN') || voices.find(v=>v.lang.startsWith('hi')))
-            : (voices.find(v=>v.lang==='en-US') || voices.find(v=>v.lang.startsWith('en')));
+        const voice  = (hasNep && hasEng)
+            ? (voices.find(v => /multilingual/i.test(v.name) && v.lang.startsWith('en')) ||
+               voices.find(v => v.lang === 'en-US') ||
+               voices.find(v => v.lang.startsWith('en')))
+            : hasNep
+                ? (voices.find(v=>v.lang==='ne-NP') || voices.find(v=>v.lang==='hi-IN') || voices.find(v=>v.lang.startsWith('hi')))
+                : (voices.find(v=>v.lang==='en-US') || voices.find(v=>v.lang.startsWith('en')));
         if (voice) { utter.voice=voice; utter.lang=voice.lang; }
-        else utter.lang = hasNep ? 'hi-IN' : 'en-US';
+        else utter.lang = (hasNep && hasEng) ? 'en-US' : (hasNep ? 'hi-IN' : 'en-US');
         utter.rate = hasNep ? .88 : .93; utter.pitch = 1.04; utter.volume = 1;
         utter.onstart = () => setSpeaking(true);
         utter.onend   = () => { setSpeaking(false); onEnd?.(); };
@@ -537,33 +554,42 @@ function AiTab({ projectId, onTabSwitch }) {
     const speak = useCallback(async (text, onEnd) => {
         if (!tts) { onEnd?.(); return; }
         stopSpeaking();
+        const seq = speakSeqRef.current;
 
         if (ttsMode === 'api') {
             try {
                 const resp = await assistantService.tts(text, null, lang);
+                if (seq !== speakSeqRef.current) return;
                 const blob = new Blob([resp.data], { type:'audio/mpeg' });
                 const url  = URL.createObjectURL(blob);
                 const audio = new Audio(url);
                 audioRef.current = audio;
-                audio.onplay  = () => setSpeaking(true);
+                audio.onplay  = () => { if (seq === speakSeqRef.current) setSpeaking(true); };
                 audio.onended = () => {
+                    if (seq !== speakSeqRef.current) return;
                     setSpeaking(false);
                     URL.revokeObjectURL(url);
                     audioRef.current = null;
                     onEnd?.();
                 };
                 audio.onerror = () => {
+                    if (seq !== speakSeqRef.current) return;
                     setSpeaking(false);
                     audioRef.current = null;
                     // fallback to browser TTS
                     speakWithBrowser(text, onEnd);
                 };
+                if (seq !== speakSeqRef.current) {
+                    URL.revokeObjectURL(url);
+                    return;
+                }
                 await audio.play();
                 return;
             } catch {
                 // API TTS failed → browser fallback
             }
         }
+        if (seq !== speakSeqRef.current) return;
         speakWithBrowser(text, onEnd);
     }, [tts, ttsMode, speakWithBrowser]); // eslint-disable-line
 
@@ -686,14 +712,17 @@ function AiTab({ projectId, onTabSwitch }) {
         setStreamText(null); setStreamId(null);
         setShowStarter(false); setInput('');
 
+        // Keep a snapshot before appending current user message so backend
+        // does not receive the same user prompt twice.
+        const priorHistory = historyRef.current.slice(-20);
         const userMsg = { id:Date.now(), role:'user', content:msg, ts:new Date(), source:null, suggestions:[], actionDone:false };
         setMessages(m => [...m.map(x => ({...x, suggestions:[]})), userMsg]);
-        historyRef.current = [...historyRef.current, {role:'user', content:msg}].slice(-20);
+        historyRef.current = [...priorHistory, {role:'user', content:msg}].slice(-20);
         setBusy(true);
         if (convModeRef.current) setConvPhase('thinking');
 
         try {
-            const { data } = await assistantService.chat(msg, historyRef.current, projectId, 'ne', provider);
+            const { data } = await assistantService.chat(msg, priorHistory, projectId, 'ne', provider);
             const reply = data.message || 'No response.';
             const sugg  = Array.isArray(data.suggestions) ? data.suggestions : [];
             historyRef.current = [...historyRef.current, {role:'assistant', content:reply}].slice(-20);
@@ -716,8 +745,21 @@ function AiTab({ projectId, onTabSwitch }) {
                     setConvPhase('idle');
                 }
             });
-        } catch {
-            setMessages(m => [...m, { id:Date.now()+1, role:'ai', content:'⚠️ जडान त्रुटि — Backend जाँच गर्नुस्।', ts:new Date(), source:'fallback', suggestions:[], actionDone:false }]);
+        } catch (err) {
+            const detail =
+                err?.response?.data?.detail ||
+                err?.response?.data?.message ||
+                err?.message ||
+                'Backend जाँच गर्नुस्।';
+            setMessages(m => [...m, {
+                id:Date.now()+1,
+                role:'ai',
+                content:`⚠️ जडान त्रुटि — ${detail}`,
+                ts:new Date(),
+                source:'fallback',
+                suggestions:[],
+                actionDone:false,
+            }]);
             setBusy(false);
             if (convModeRef.current) setConvPhase('listening');
         }

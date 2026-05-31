@@ -86,6 +86,21 @@ export default function PhasesPage() {
                         }}>📋</div>
 
                         <div>
+                            {isMobile && (
+                                <p style={{
+                                    margin: '0 0 3px 0',
+                                    fontSize: 10,
+                                    fontWeight: 800,
+                                    color: '#2563eb',
+                                    letterSpacing: '0.02em',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                    maxWidth: '72vw',
+                                }}>
+                                    🏗️ {dashboardData?.project?.name || 'No project selected'}
+                                </p>
+                            )}
                             <p style={{ margin: 0, fontSize: 15, fontWeight: 900, color: 'var(--t-text)' }}>
                                 Phase &amp; Task Manager
                             </p>

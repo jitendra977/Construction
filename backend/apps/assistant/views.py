@@ -17,6 +17,8 @@ _NE_ONES = [
     'दश', 'एघार', 'बाह्र', 'तेह्र', 'चौध', 'पन्ध्र', 'सोह्र', 'सत्र', 'अठार', 'उन्नाइस',
 ]
 _NE_TENS = ['', '', 'बीस', 'तीस', 'चालीस', 'पचास', 'साठी', 'सत्तरी', 'असी', 'नब्बे']
+_DEVANAGARI_TO_ASCII = str.maketrans("०१२३४५६७८९", "0123456789")
+_NE_FINAL_VERBS = r'(सक्छ|सकिन्छ|हुन्छ|चाहिन्छ|मिल्छ|गरिन्छ|बनाइन्छ|देखिन्छ)'
 
 def _num_to_nepali(n: int) -> str:
     if n < 0:   return 'माइनस ' + _num_to_nepali(-n)
@@ -37,40 +39,131 @@ def _num_to_nepali(n: int) -> str:
     r = n % 1_00_00_000
     return _num_to_nepali(n // 1_00_00_000) + ' करोड' + ('' if r == 0 else ' ' + _num_to_nepali(r))
 
+def _normalize_digit_string(s: str) -> str:
+    # Convert Devanagari digits to ASCII so int() is deterministic.
+    return (s or "").translate(_DEVANAGARI_TO_ASCII)
+
+def _expand_common_tokens(text: str, lang: str = "ne") -> str:
+    # Keep technical terms readable and avoid merged pronunciation.
+    repl = [
+        (r'\bAPI\b', 'ए पी आई' if lang == "ne" else 'A P I'),
+        (r'\bID\b', 'आइ डी' if lang == "ne" else 'I D'),
+        (r'\bURL\b', 'यू आर एल' if lang == "ne" else 'U R L'),
+        (r'\bUI\b', 'यू आई' if lang == "ne" else 'U I'),
+        (r'\bUX\b', 'यू एक्स' if lang == "ne" else 'U X'),
+        (r'\bSQL\b', 'एस क्यू एल' if lang == "ne" else 'S Q L'),
+        (r'\bNPR\b', 'नेपाली रुपैयाँ' if lang == "ne" else 'Nepalese rupees'),
+        (r'\bkg\b', 'किलोग्राम' if lang == "ne" else 'kilograms'),
+        (r'\bg\b', 'ग्राम' if lang == "ne" else 'grams'),
+        (r'\bkm\b', 'किलोमिटर' if lang == "ne" else 'kilometers'),
+        (r'\bm2\b', 'वर्ग मिटर' if lang == "ne" else 'square meters'),
+        (r'\bm3\b', 'घन मिटर' if lang == "ne" else 'cubic meters'),
+        (r'\bcm\b', 'सेन्टिमिटर' if lang == "ne" else 'centimeters'),
+        (r'\bmm\b', 'मिलिमिटर' if lang == "ne" else 'millimeters'),
+        (r'\bhrs?\b', 'घण्टा' if lang == "ne" else 'hours'),
+        (r'\bmins?\b', 'मिनेट' if lang == "ne" else 'minutes'),
+        (r'\bsecs?\b', 'सेकेन्ड' if lang == "ne" else 'seconds'),
+    ]
+    for pat, val in repl:
+        text = re.sub(pat, val, text, flags=re.IGNORECASE)
+    return text
+
+def _normalize_pauses(text: str, lang: str = "ne") -> str:
+    # Explicit, natural pauses per punctuation rules.
+    text = text.replace("\r\n", "\n")
+    if lang == "ne":
+        # Prosody: lightly hold final syllable on common Nepali sentence-ending verbs.
+        # Examples: "सकिन्छ।" -> "सकिन्छ्…"
+        text = re.sub(rf'{_NE_FINAL_VERBS}\s*:', r'\1्… :', text)
+        text = re.sub(rf'{_NE_FINAL_VERBS}\s*।', r'\1्… ।', text)
+        text = re.sub(rf'{_NE_FINAL_VERBS}\s*\.', r'\1्… .', text)
+        text = re.sub(rf'{_NE_FINAL_VERBS}\s*$', r'\1्…', text)
+
+    # Nepali danda should act like sentence punctuation, not spoken as a symbol.
+    text = text.replace("।", ". ")
+    text = re.sub(r'\n{2,}', '\n\n', text)
+    text = re.sub(r'([,:;])\s*', r'\1 ', text)
+    text = re.sub(r'([.?!])\s*', r'\1 ', text)
+    # Keep longer paragraph pause by preserving blank lines
+    text = text.replace("\n\n", " …\n\n")
+    if lang == "ne":
+        # End-of-sentence completion pause (0.5–1s feel) and medium pause after headings.
+        text = re.sub(r'\.\s*', '… . ', text)
+        text = re.sub(r':\s*', '… : ', text)
+    return text
+
 def _prepare_tts(text: str, lang: str = 'ne') -> str:
-    """Clean AI response text for natural TTS speech."""
-    # Strip markdown / emoji symbols
+    """Normalize text for clearer Nepali/English speech with punctuation pauses."""
+    # Strip markdown, keep content.
     text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
     text = re.sub(r'\*(.+?)\*',     r'\1', text)
     text = re.sub(r'#+\s*',         '',    text)
-    text = re.sub(r'[✅⚠️🤖📊📋➕🏗️📈🔊✓_`~]', '', text)
+    text = re.sub(r'[✅⚠️🤖📊📋➕🏗️📈🔊✓`~|<>#@$^&*=+{}[\]\\]', ' ', text)
     text = re.sub(r'\[.*?\]\(.*?\)', lambda m: m.group(0).split(']')[0][1:], text)  # [label](url) → label
+    text = text.replace('_', ' ')
+
+    # Dates and time (read naturally)
+    if lang == 'ne':
+        text = re.sub(r'\b(\d{4})[/-](\d{1,2})[/-](\d{1,2})\b', r'\1 साल \2 महिना \3 गते', text)
+        text = re.sub(r'\b(\d{1,2}):(\d{2})\s*([AaPp][Mm])\b', r'\1 बजेर \2 मिनेट \3', text)
+    else:
+        text = re.sub(r'\b(\d{4})[/-](\d{1,2})[/-](\d{1,2})\b', r'\1-\2-\3', text)
+        text = re.sub(r'\b(\d{1,2}):(\d{2})\s*([AaPp][Mm])\b', r'\1 \2 \3', text)
+
+    # Currency and percentage (supports ASCII + Devanagari digits)
+    # User-preferred style: "रु एक लाख"
+    text = re.sub(r'Rs\.?\s*', 'रु ', text, flags=re.IGNORECASE)
+    # Only normalize standalone "रु." token.
+    text = re.sub(r'(^|[\s(])रु\.?\s*', r'\1रु ', text)
+    text = re.sub(r'₹\s*', 'रु ' if lang == 'ne' else 'rupees ', text)
+    text = re.sub(r'([0-9०-९])\s*%', r'\1 प्रतिशत' if lang == 'ne' else r'\1 percent', text)
 
     if lang == 'ne':
-        # Rs. / रु. → spoken रुपैयाँ
-        text = re.sub(r'Rs\.?\s*', 'रुपैयाँ ', text, flags=re.IGNORECASE)
-        text = re.sub(r'रु\.?\s*',  'रुपैयाँ ', text)
+        # Convert currency amounts first.
+        # Target format: "रु <number in words>"
+        # Example: Rs. 200,000 -> "रु दुई लाख"
+        def _replace_currency_num(m):
+            raw = _normalize_digit_string(m.group(1)).replace(",", "")
+            try:
+                return f"रु {_num_to_nepali(int(raw))}"
+            except ValueError:
+                return m.group(0)
 
-        # Numbers with commas → Nepali words  e.g. 1,20,000 → एक लाख बीस हजार
+        text = re.sub(
+            r'रु\s*([0-9०-९][0-9०-९,]*)',
+            _replace_currency_num,
+            text,
+            flags=re.IGNORECASE,
+        )
+
+        # Numbers with commas/digits → Nepali words.
         def _replace(m):
-            raw = m.group(0).replace(',', '')
+            raw = _normalize_digit_string(m.group(0)).replace(',', '')
             try:
                 return _num_to_nepali(int(raw))
             except ValueError:
                 return raw
-        text = re.sub(r'[\d,]+', _replace, text)
-
-        # % → प्रतिशत
-        text = re.sub(r'%', ' प्रतिशत', text)
+        text = re.sub(r'[0-9०-९,]+', _replace, text)
     else:
-        # English: just remove Rs., clean commas
-        text = re.sub(r'Rs\.?\s*', 'rupees ', text, flags=re.IGNORECASE)
-        text = re.sub(r'(\d),(\d)', r'\1\2', text)  # remove thousands comma
+        # Keep digits in English but normalize grouped numbers.
+        text = re.sub(r'(\d),(\d)', r'\1\2', text)
+
+    # Safety: never speak numeric commas in any language.
+    text = re.sub(r'([0-9०-९]),([0-9०-९])', r'\1\2', text)
+
+    # Read IDs/model names clearly: split separators.
+    text = re.sub(r'([A-Za-z0-9])[-_/]([A-Za-z0-9])', r'\1 \2', text)
+    text = _expand_common_tokens(text, lang)
+    text = _normalize_pauses(text, lang)
 
     # Collapse whitespace
-    text = re.sub(r'\n+', '। ', text)
+    text = re.sub(r'\n', ' ', text)
     text = re.sub(r'\s{2,}', ' ', text)
-    return text.strip()
+    text = text.strip()
+    # Ensure a natural trailing pause at sentence end.
+    if text and text[-1] not in ".?!":
+        text += "."
+    return text
 
 from .models import KnownPhrase, TranscriptionLog, VoiceCommand
 from .serializers import (
@@ -129,23 +222,57 @@ def ai_chat_view(request):
     POST /api/v1/assistant/chat/
     Body: {message, history, project_id, language, provider}
     """
-    message    = (request.data.get("message") or "").strip()
-    history    = request.data.get("history") or []
+    message = str(request.data.get("message") or "").strip()
+    raw_history = request.data.get("history") or []
     project_id = request.data.get("project_id")
-    language   = request.data.get("language", "en")
-    provider   = request.data.get("provider", "auto")
+    language = str(request.data.get("language", "ne") or "ne").lower()
+    provider = str(request.data.get("provider", "auto") or "auto").lower()
 
     if not message:
         return Response({"detail": "message is required."}, status=status.HTTP_400_BAD_REQUEST)
 
+    if provider not in {"auto", "groq", "gemini", "openai"}:
+        provider = "auto"
+    if language not in {"ne", "en"}:
+        language = "ne"
+
+    # Normalize client history to prevent malformed payloads from breaking chat.
+    history = []
+    if isinstance(raw_history, list):
+        for item in raw_history[-20:]:
+            if not isinstance(item, dict):
+                continue
+            role = item.get("role")
+            content = str(item.get("content") or "").strip()
+            if role not in {"user", "assistant"} or not content:
+                continue
+            history.append({"role": role, "content": content[:4000]})
+
+    if project_id in ("", "null", "undefined"):
+        project_id = None
+    try:
+        project_id = int(project_id) if project_id is not None else None
+    except (TypeError, ValueError):
+        project_id = None
+
     from .services.ai_chat import ai_chat
-    result = ai_chat(
-        message=message,
-        history=history,
-        project_id=project_id,
-        language=language,
-        provider=provider,
-    )
+    try:
+        result = ai_chat(
+            message=message,
+            history=history,
+            project_id=project_id,
+            language=language,
+            provider=provider,
+        )
+    except Exception as exc:
+        # Never fail the endpoint with 500 for user chat.
+        result = {
+            "message": "⚠️ AI सेवा अहिले उपलब्ध छैन। केही समयपछि फेरि प्रयास गर्नुहोस्।",
+            "intent": "UNKNOWN",
+            "source": "fallback",
+            "data": {"error": str(exc)[:160]},
+            "suggestions": ["फेरि प्रयास गर्नुहोस्", "खुला कामहरू देखाउनुस्", "बजेट स्थिति जाँच्नुस्"],
+        }
 
     VoiceCommand.objects.create(
         user=request.user,
@@ -243,12 +370,28 @@ def tts_view(request):
         import asyncio
         import edge_tts
 
-        # Pick a neural voice based on language
+        # Pick a neural voice based on language.
+        # Mixed Nepali + English text benefits from multilingual EN voice.
+        has_nep = bool(re.search(r'[ऀ-ॿ]', spoken_text))
+        has_eng = bool(re.search(r'[A-Za-z]', spoken_text))
+        is_mixed = has_nep and has_eng
+
         if not voice_id:
-            voice_id = "ne-NP-HemkalaNeural" if lang == "ne" else "en-US-JennyNeural"
+            if lang == "ne" and is_mixed:
+                voice_id = "en-US-AvaMultilingualNeural"
+            else:
+                voice_id = "ne-NP-HemkalaNeural" if lang == "ne" else "en-US-JennyNeural"
 
         async def _speak():
-            communicate = edge_tts.Communicate(spoken_text, voice_id)
+            # Warm, clear, professional pacing (clarity over speed).
+            rate = "-8%" if is_mixed else "-12%"
+            communicate = edge_tts.Communicate(
+                spoken_text,
+                voice_id,
+                rate=rate,
+                pitch="+0Hz",
+                volume="+0%",
+            )
             chunks = []
             async for chunk in communicate.stream():
                 if chunk["type"] == "audio":
@@ -285,7 +428,7 @@ def tts_view(request):
             resp = _direct.post(
                 "https://api.openai.com/v1/audio/speech",
                 headers={"Authorization": f"Bearer {openai_key}", "Content-Type": "application/json"},
-                json={"model": "tts-1", "voice": "nova", "input": text, "response_format": "mp3"},
+                json={"model": "tts-1-hd", "voice": "nova", "input": spoken_text, "response_format": "mp3", "speed": 0.9},
                 timeout=30,
             )
             resp.raise_for_status()

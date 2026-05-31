@@ -1,13 +1,14 @@
 /**
  * ProjectSettingsPage — edit project details, danger zone (delete).
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import api from '../services/projectsApi';
 import { useProjects } from '../context/ProjectsContext';
 import { usePlatformBase } from '../../../shared/utils/platformNav';
 import structureApi from '../../structure/services/structureApi';
 import { SQFT_TO_M2, totalBuildAreaSqft } from '../../structure/utils/area';
+import { useConstruction } from '../../../context/ConstructionContext';
 
 const FIELD = {
     background: 'var(--t-bg)', border: '1px solid var(--t-border)',
@@ -27,6 +28,7 @@ export default function ProjectSettingsPage() {
     const navigate                       = useNavigate();
     const base                           = usePlatformBase();
     const { updateProjectLocal, removeProjectLocal } = useProjects();
+    const { dashboardData } = useConstruction();
 
     const [project, setProject] = useState(null);
     const [form, setForm]       = useState(null);
@@ -39,14 +41,13 @@ export default function ProjectSettingsPage() {
     useEffect(() => {
         if (ctxProject) {
             setProject(ctxProject);
-            setForm({
-                name:                     ctxProject.name || '',
-                owner_name:               ctxProject.owner_name || '',
-                address:                  ctxProject.address || '',
-                total_budget:             ctxProject.total_budget || '',
-                start_date:               ctxProject.start_date || '',
-                expected_completion_date: ctxProject.expected_completion_date || '',
-            });
+                setForm({
+                    name:                     ctxProject.name || '',
+                    owner_name:               ctxProject.owner_name || '',
+                    address:                  ctxProject.address || '',
+                    start_date:               ctxProject.start_date || '',
+                    expected_completion_date: ctxProject.expected_completion_date || '',
+                });
         } else if (id) {
             api.getProject(id).then(r => {
                 setProject(r.data);
@@ -54,13 +55,17 @@ export default function ProjectSettingsPage() {
                     name:                     r.data.name || '',
                     owner_name:               r.data.owner_name || '',
                     address:                  r.data.address || '',
-                    total_budget:             r.data.total_budget || '',
                     start_date:               r.data.start_date || '',
                     expected_completion_date: r.data.expected_completion_date || '',
                 });
             });
         }
     }, [id, ctxProject]);
+
+    const autoTotalBudget = useMemo(() => {
+        const categories = dashboardData?.budgetCategories || [];
+        return categories.reduce((sum, cat) => sum + Number(cat?.allocation || 0), 0);
+    }, [dashboardData?.budgetCategories]);
 
     useEffect(() => {
         if (!id) return;
@@ -81,7 +86,7 @@ export default function ProjectSettingsPage() {
         try {
             const res = await api.updateProject(project.id, {
                 ...form,
-                total_budget: +form.total_budget || 0,
+                total_budget: autoTotalBudget,
             });
             updateProjectLocal(res.data);
             setFlash(true);
@@ -165,7 +170,16 @@ export default function ProjectSettingsPage() {
                     <h3 className="text-sm font-bold" style={{ color: 'var(--t-text)' }}>Budget & Timeline</h3>
                     <div>
                         <Label>Total Budget (NPR)</Label>
-                        <input type="number" value={form.total_budget} onChange={e => change('total_budget', e.target.value)} style={FIELD} />
+                        <input
+                            type="number"
+                            value={autoTotalBudget}
+                            style={{ ...FIELD, background: 'var(--t-surface2)', cursor: 'not-allowed' }}
+                            disabled
+                            readOnly
+                        />
+                        <p className="text-[10px] mt-1" style={{ color: 'var(--t-text3)' }}>
+                            Auto-calculated from Finance budget categories (Allocation total). Edit from Finance → Budget.
+                        </p>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                         <div>

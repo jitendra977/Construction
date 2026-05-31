@@ -1,53 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useConstruction } from '../../context/ConstructionContext';
 import { useMobileTracker } from '../../modules/location/context/MobileTrackerContext';
-import ThemeToggle from '../common/ThemeToggle';
-import { getMediaUrl } from '../../services/api';
 import attendanceService from '../../services/attendanceService';
 
-/* ─── Clock ─────────────────────────────────────────────────────── */
-const useClock = () => {
-    const [t, setT] = useState(new Date());
-    useEffect(() => { const id = setInterval(() => setT(new Date()), 1000); return () => clearInterval(id); }, []);
-    return t;
-};
-
 /* ─── Helpers ───────────────────────────────────────────────────── */
-const greet = h => h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-const fmtTime = d => d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-const fmtDay  = d => d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 const fmtShort = d => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+const fmtRs = n => `Rs. ${Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 const fmt$ = n => {
     if (!n) return '0';
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
     if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
     return String(n);
 };
-
-/* ─── GPS status ────────────────────────────────────────────────── */
-function GPSBadge() {
-    const tracker = useMobileTracker();
-    if (!tracker || tracker.status === 'idle') return null;
-    const cfg = {
-        tracking: { dot: '#f97316', label: 'Tracking'  },
-        on_site:  { dot: '#22c55e', label: 'On Site'   },
-        off_site: { dot: '#94a3b8', label: 'Off Site'  },
-        error:    { dot: '#ef4444', label: 'GPS Error' },
-    }[tracker.status];
-    if (!cfg) return null;
-    return (
-        <Link to="/dashboard/mobile/tracking" style={{
-            display: 'flex', alignItems: 'center', gap: 5,
-            padding: '4px 10px', borderRadius: 20,
-            background: 'var(--t-surface2)', border: '1px solid var(--t-border)',
-            textDecoration: 'none',
-        }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.dot, display: 'block', flexShrink: 0 }} />
-            <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--t-text2)' }}>{cfg.label}</span>
-        </Link>
-    );
-}
 
 /* ─── GPS permission banner ─────────────────────────────────────── */
 function GPSPermissionBanner() {
@@ -226,7 +191,6 @@ const PH = {
 export default function HomeTab() {
     const { dashboardData, budgetStats, user, activeProjectId } = useConstruction();
     const navigate = useNavigate();
-    const now = useClock();
 
     const project  = dashboardData?.project || {};
     const phases   = dashboardData?.phases  || [];
@@ -242,65 +206,44 @@ export default function HomeTab() {
     const activePhPct   = activePhTasks.length > 0
         ? Math.round(activePhTasks.filter(t => t.status === 'COMPLETED').length / activePhTasks.length * 100) : 0;
 
-    const totalBudget = project.budget || 0;
-    const usedBudget  = budgetStats?.usedBudget || 0;
+    const totalBudget = useMemo(
+        () => (dashboardData?.budgetCategories || []).reduce((sum, cat) => sum + Number(cat?.allocation || 0), 0),
+        [dashboardData?.budgetCategories]
+    );
+    const usedBudget  = Number(budgetStats?.totalSpent || 0);
     const budgetPct   = totalBudget > 0 ? Math.round(usedBudget / totalBudget * 100) : 0;
-
-    const firstName = (user?.full_name || user?.username || 'there').split(' ')[0];
-    const h         = now.getHours();
-    const [timePart, ampm] = fmtTime(now).split(' ');
 
     return (
         <div style={{ minHeight: '100vh', background: 'var(--t-bg)', paddingBottom: 110, overflowX: 'hidden' }}>
 
             {/* ══ HEADER ═══════════════════════════════════════════ */}
             <div style={{
+                position: 'sticky',
+                top: 0,
+                zIndex: 30,
                 background: 'var(--t-surface)',
                 borderBottom: '1px solid var(--t-border)',
-                padding: '52px 20px 20px',
+                padding: '14px',
             }}>
-                {/* Top row */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                    <GPSBadge />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <ThemeToggle />
-                        <Link to="/dashboard/mobile/profile" style={{
-                            width: 36, height: 36, borderRadius: 10,
-                            background: 'var(--t-surface2)', border: '1px solid var(--t-border)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            overflow: 'hidden', textDecoration: 'none', flexShrink: 0,
-                        }}>
-                            {user?.profile_image
-                                ? <img src={getMediaUrl(user.profile_image)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                : <span style={{ fontSize: 16 }}>👤</span>}
-                        </Link>
-                    </div>
-                </div>
-
-                {/* Greeting + time */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                    <div>
-                        <p style={{ fontSize: 12, color: 'var(--t-text3)', fontWeight: 500, marginBottom: 4 }}>
-                            {fmtDay(now)}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, marginBottom: 12 }}>
+                    <div style={{
+                        width: 38, height: 38, borderRadius: 10, flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 20, background: 'rgba(249,115,22,0.12)',
+                        border: '1px solid rgba(249,115,22,0.25)',
+                    }}>🏠</div>
+                    <div style={{ minWidth: 0 }}>
+                        <p style={{ margin: 0, fontSize: 15, fontWeight: 900, color: 'var(--t-text)' }}>
+                            Dashboard
                         </p>
-                        <h1 style={{ fontSize: 20, fontWeight: 800, color: 'var(--t-text)', lineHeight: 1.2, marginBottom: 2 }}>
-                            {greet(h)}, {firstName}
-                        </h1>
-                        <p style={{ fontSize: 12, color: 'var(--t-text3)', fontWeight: 500 }}>
-                            {project.name || 'No project selected'}
+                        <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: 'var(--t-text3)', letterSpacing: '0.06em' }}>
+                            {doneCnt}/{allTasks.length || 0} tasks · {phases.length} phases
                         </p>
-                    </div>
-                    {/* Live time */}
-                    <div style={{ textAlign: 'right' }}>
-                        <p style={{ fontSize: 28, fontWeight: 800, color: 'var(--t-text)', lineHeight: 1, letterSpacing: '-0.02em' }}>
-                            {timePart}
-                        </p>
-                        <p style={{ fontSize: 10, color: 'var(--t-text3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{ampm}</p>
                     </div>
                 </div>
 
                 {/* Overall progress */}
-                <div style={{ marginTop: 20, padding: '14px 16px', background: 'var(--t-surface2)', borderRadius: 12, border: '1px solid var(--t-border)' }}>
+                <div style={{ padding: '14px 16px', background: 'var(--t-surface2)', borderRadius: 12, border: '1px solid var(--t-border)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                         <p style={{ fontSize: 11, color: 'var(--t-text3)', fontWeight: 600 }}>Overall Progress</p>
                         <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--t-primary)' }}>{overallPct}%</p>
@@ -388,8 +331,8 @@ export default function HomeTab() {
                     {/* Budget */}
                     <Card>
                         <p style={{ fontSize: 10, color: 'var(--t-text3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Budget</p>
-                        <p style={{ fontSize: 20, fontWeight: 800, color: 'var(--t-text)', lineHeight: 1, marginBottom: 2 }}>{fmt$(usedBudget)}</p>
-                        <p style={{ fontSize: 10, color: 'var(--t-text3)', marginBottom: 10 }}>of {fmt$(totalBudget)}</p>
+                        <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--t-text)', lineHeight: 1.15, marginBottom: 2 }}>{fmtRs(usedBudget)}</p>
+                        <p style={{ fontSize: 10, color: 'var(--t-text3)', marginBottom: 10 }}>of {fmtRs(totalBudget)}</p>
                         <Bar pct={budgetPct} color={budgetPct > 90 ? '#ef4444' : budgetPct > 70 ? '#f59e0b' : '#22c55e'} />
                         <p style={{ fontSize: 10, fontWeight: 700, color: budgetPct > 90 ? '#ef4444' : 'var(--t-text3)', marginTop: 6 }}>{budgetPct}% used</p>
                     </Card>

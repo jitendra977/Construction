@@ -18,19 +18,25 @@ const PermitPage = () => {
         pending: 0,
         documents: 0
     });
+    const asList = (payload) => {
+        if (Array.isArray(payload)) return payload;
+        if (Array.isArray(payload?.results)) return payload.results;
+        return [];
+    };
 
     const fetchStats = async () => {
         try {
             const stepsResponse = await permitService.getSteps();
             const docsResponse = await permitService.getDocuments();
 
-            const stepsData = stepsResponse.data || [];
+            const stepsData = asList(stepsResponse.data);
+            const docsData = asList(docsResponse.data);
             setStats({
                 total: stepsData.length,
                 approved: stepsData.filter(s => s.status === 'APPROVED').length,
                 inProgress: stepsData.filter(s => s.status === 'IN_PROGRESS').length,
                 pending: stepsData.filter(s => s.status === 'PENDING').length,
-                documents: (docsResponse.data || []).length
+                documents: docsData.length
             });
         } catch (error) {
             console.error('Failed to fetch stats', error);
@@ -67,12 +73,6 @@ const PermitPage = () => {
 
     const content = (
         <div className="space-y-8 pb-12">
-            {!isMobile && (
-                <div className="bg-[var(--t-surface)] border-b border-[var(--t-border)] shadow-xl pb-16 pt-8 px-6 rounded-[2rem] relative overflow-hidden mb-12">
-                   {/* Desktop Header content content would go here */}
-                </div>
-            )}
-
             {/* Local Stats Grid */}
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                 {[
@@ -94,7 +94,7 @@ const PermitPage = () => {
 
             {/* Main Content Area */}
             <div className="bg-[var(--t-surface)] rounded-[2rem] p-6 shadow-sm min-h-[500px] border border-[var(--t-border)]">
-                {activeTab === 'tracker' && <PermitTracker onUpdate={fetchStats} />}
+                {activeTab === 'tracker' && <PermitTracker onUpdate={fetchStats} projectId={projectId} />}
                 {activeTab === 'wizard' && <PermitWizard projectId={projectId} />}
                 {activeTab === 'documents' && <DocumentVault onUpdate={fetchStats} />}
             </div>

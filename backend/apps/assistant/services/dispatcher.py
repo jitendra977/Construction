@@ -75,6 +75,57 @@ _HANDLERS = {
 }
 
 
+def _handle_task_add(entities: Dict) -> str:
+    title = (entities.get("title") or "").strip()
+    phase = (entities.get("phase_name") or "").strip()
+    priority = (entities.get("priority") or "").strip()
+
+    missing = []
+    if not title:
+        missing.append("title")
+    if not phase:
+        missing.append("phase")
+    if not priority:
+        missing.append("priority")
+
+    if missing:
+        return (
+            "✅ नयाँ काम थप्न तयार छु।\n"
+            f"कृपया यी विवरण दिनुहोस्: {', '.join(missing)}\n"
+            "उदाहरण: title: Brick wall, phase: Masonry, priority: HIGH"
+        )
+
+    return (
+        "✅ राम्रो। विवरण प्राप्त भयो:\n"
+        f"- title: {title}\n"
+        f"- phase: {phase}\n"
+        f"- priority: {priority}\n"
+        "अब पुष्टि गर्नुहोस्: 'save task' भनेर पठाउनुस्।"
+    )
+
+
+def _handle_task_complete(entities: Dict) -> str:
+    return (
+        "कुन काम पूरा भयो? कृपया task title पठाउनुस्।\n"
+        "उदाहरण: complete task Brick wall"
+    )
+
+
+def _handle_expense_add(entities: Dict) -> str:
+    return (
+        "✅ खर्च थप्न तयार छु।\n"
+        "कृपया title, amount र phase पठाउनुस्।\n"
+        "उदाहरण: title: Sand purchase, amount: 25000, phase: Foundation"
+    )
+
+
+_HANDLERS.update({
+    "TASK_ADD": lambda ents: _handle_task_add(ents),
+    "TASK_COMPLETE": lambda ents: _handle_task_complete(ents),
+    "EXPENSE_ADD": lambda ents: _handle_expense_add(ents),
+})
+
+
 def dispatch(parse_result: ParseResult) -> str:
     handler = _HANDLERS.get(parse_result.intent)
     if not handler:

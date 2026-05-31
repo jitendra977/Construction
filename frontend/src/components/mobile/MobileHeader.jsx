@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getMediaUrl } from '../../services/api';
 import { useConstruction } from '../../context/ConstructionContext';
@@ -6,11 +6,25 @@ import ThemeToggle from '../common/ThemeToggle';
 
 const MobileHeader = ({ project, stats, onLogout, onShowGuide, onShowConfig }) => {
     const { user } = useConstruction();
+    const [now, setNow] = useState(() => new Date());
 
-    const isHome = window.location.pathname.endsWith('/home');
+    useEffect(() => {
+        const timer = window.setInterval(() => setNow(new Date()), 1000);
+        return () => window.clearInterval(timer);
+    }, []);
+
+    const userLabel = user?.full_name || user?.username || 'User';
+    const greeting = now.getHours() < 12 ? 'Good morning' : now.getHours() < 17 ? 'Good afternoon' : 'Good evening';
+    const dateTimeLabel = now.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+    });
 
     return (
-        <header className={`${isHome ? 'h-0 opacity-0 overflow-hidden' : 'px-4 pt-3 pb-4'} bg-[var(--t-surface)] border-b border-[var(--t-border)] relative z-20 transition-all duration-500`}>
+        <header className="px-4 pt-3 pb-4 bg-[var(--t-surface)] border-b border-[var(--t-border)] relative z-20 transition-all duration-500">
             {/* Luminous accents */}
             <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--t-primary)]/5 rounded-full blur-3xl pointer-events-none transform translate-x-1/2 -translate-y-1/2"></div>
 
@@ -27,34 +41,44 @@ const MobileHeader = ({ project, stats, onLogout, onShowGuide, onShowConfig }) =
                         {project?.name || 'Site Link'}
                     </h1>
                 </button>
-                <div className="flex items-center gap-2">
-                    <ThemeToggle />
+                <div className="flex flex-col items-end gap-1">
+                    <div className="flex items-center gap-2">
+                        <ThemeToggle />
 
-                    <Link
-                        to="/dashboard/mobile/profile"
-                        className="w-9 h-9 bg-[var(--t-surface2)] rounded text-[var(--t-text2)] border border-[var(--t-border)] active:bg-[var(--t-surface3)] transition-all flex items-center justify-center overflow-hidden hover:border-[var(--t-primary)]"
-                    >
-                        {user?.profile_image ? (
-                            <img
-                                src={getMediaUrl(user.profile_image)}
-                                alt={user.username}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                    e.target.onerror = null;
-                                    e.target.style.display = 'none';
-                                    e.target.parentNode.innerHTML = '<span class="text-sm">👤</span>';
-                                }}
-                            />
-                        ) : (
-                            <span className="text-sm">👤</span>
-                        )}
-                    </Link>
-                    <button
-                        onClick={onLogout}
-                        className="w-9 h-9 bg-[var(--t-surface2)] rounded text-[var(--t-text2)] border border-[var(--t-border)] hover:bg-[var(--t-danger)]/10 hover:text-[var(--t-danger)] hover:border-[var(--t-danger)] transition-all flex items-center justify-center"
-                    >
-                        <span className="text-sm">🚪</span>
-                    </button>
+                        <Link
+                            to="/dashboard/mobile/profile"
+                            className="w-9 h-9 bg-[var(--t-surface2)] rounded text-[var(--t-text2)] border border-[var(--t-border)] active:bg-[var(--t-surface3)] transition-all flex items-center justify-center overflow-hidden hover:border-[var(--t-primary)]"
+                        >
+                            {user?.profile_image ? (
+                                <img
+                                    src={getMediaUrl(user.profile_image)}
+                                    alt={user.username}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.style.display = 'none';
+                                        e.target.parentNode.innerHTML = '<span class="text-sm">👤</span>';
+                                    }}
+                                />
+                            ) : (
+                                <span className="text-sm">👤</span>
+                            )}
+                        </Link>
+                        <button
+                            onClick={onLogout}
+                            className="w-9 h-9 bg-[var(--t-surface2)] rounded text-[var(--t-text2)] border border-[var(--t-border)] hover:bg-[var(--t-danger)]/10 hover:text-[var(--t-danger)] hover:border-[var(--t-danger)] transition-all flex items-center justify-center"
+                        >
+                            <span className="text-sm">🚪</span>
+                        </button>
+                    </div>
+                    <div className="max-w-[170px] text-right leading-tight">
+                        <p className="text-[9px] font-bold text-[var(--t-text2)] truncate">
+                            {greeting}, {userLabel}
+                        </p>
+                        <p className="text-[10px] font-bold tracking-wide text-[var(--t-primary)]">
+                            {dateTimeLabel}
+                        </p>
+                    </div>
                 </div>
             </div>
 
