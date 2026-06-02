@@ -32,6 +32,9 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_SSH_PORT || 22 }}
+          timeout: 2m
+          command_timeout: 30m
           envs: REMOTE_PROJECT_DIR
           script: |
             set -euxo pipefail
