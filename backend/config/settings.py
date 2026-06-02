@@ -361,14 +361,14 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle'
     ],
     'DEFAULT_THROTTLE_RATES': {
-        # Raised from 100/day — the login endpoint is AllowAny (anonymous),
-        # so the old limit was easily exhausted during normal testing,
-        # locking out legitimate users with no visible error.
-        'anon': '300/day',
-        'user': '2000/day',
+        # Cloud traffic includes dashboard polling, mobile sync, chat refresh,
+        # location updates, and gallery requests. Keep login protection separate
+        # and give the general API a much higher ceiling by default.
+        'anon': config('DRF_ANON_THROTTLE_RATE', default='3000/day'),
+        'user': config('DRF_USER_THROTTLE_RATE', default='20000/day'),
         # Auth-specific: login has its own in-process throttle (views.py).
         # password_reset is used by PasswordResetThrottle (accounts/throttles.py).
-        'password_reset': '10/hour',
+        'password_reset': config('DRF_PASSWORD_RESET_THROTTLE_RATE', default='10/hour'),
     }
 }
 
