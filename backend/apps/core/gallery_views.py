@@ -6,7 +6,7 @@ from itertools import chain
 from .gallery_serializers import GalleryItemSerializer
 from apps.permits.models import PermitDocument
 from apps.tasks.models import TaskMedia
-from apps.core.models import ConstructionPhase, Floor
+from apps.core.models import ConstructionPhase, PhaseDocument, Floor
 import datetime
 
 class GalleryViewSet(viewsets.ViewSet):
@@ -121,6 +121,35 @@ class GalleryViewSet(viewsets.ViewSet):
                     'meta': {'phase_id': p.id}
                 })
 
+        # C2. Multi-file phase documents (Naksa, structural files, 3D models)
+        document_category = {
+            'NAKSA': 'Blueprint',
+            'STRUCTURE': 'Design',
+            '3D_MODEL': '3D Model',
+            'OTHER': 'Document',
+        }
+        for doc in PhaseDocument.objects.select_related('phase').all():
+            if not doc.file:
+                continue
+
+            phase_name = doc.phase.name if doc.phase else 'Unassigned Phase'
+            display_type = doc.get_document_type_display()
+            items.append({
+                'id': f"phase_doc_{doc.id}",
+                'url': doc.file.url,
+                'title': doc.name or f"{phase_name} - {display_type}",
+                'subtitle': f"{phase_name} • {display_type}",
+                'category': document_category.get(doc.document_type, 'Document'),
+                'uploaded_at': doc.uploaded_at,
+                'source_type': 'PHASE_DOCUMENT',
+                'media_type': self._get_file_type(doc.file.name),
+                'meta': {
+                    'phase_id': doc.phase.id if doc.phase else None,
+                    'phase_document_id': doc.id,
+                    'document_type': doc.document_type,
+                }
+            })
+
         # D. Floor Plans
         for f in Floor.objects.all():
             if f.image:
@@ -167,16 +196,16 @@ class GalleryViewSet(viewsets.ViewSet):
             ]
             for item in filtered:
                 p_id = item['meta']['phase_id']
-                p_info = phase_map.get(p_id, {'name': 'Unassigned', 'order': 99})
-                key = f"{p_info['order']}. {p_info['name']}"
+                p_info = phase_map.get(p_id)
+                key = f"{p_info['order']}. {p_info['name']}" if p_info else 'Unassigned Album'
                 if key not in grouped_data: grouped_data[key] = []
                 grouped_data[key].append(item)
 
         elif view_mode == 'blueprints':
             # Group by Type (Naksa, Structure, Floor Plan)
-            # Includes: Naksa, Structure, Floor Plans
-            target_sources = ['PHASE_NAKSA', 'PHASE_DESIGN', 'FLOOR_PLAN']
-            filtered = [i for i in items if i['source_type'] in target_sources or i['category'] == 'Blueprint']
+            # Includes: Naksa, Structure, 3D Models, Floor Plans
+            target_sources = ['PHASE_NAKSA', 'PHASE_DESIGN', 'PHASE_DOCUMENT', 'FLOOR_PLAN']
+            filtered = [i for i in items if i['source_type'] in target_sources or i['category'] in ['Blueprint', 'Design', '3D Model']]
             for item in filtered:
                 key = item['category'] # e.g., 'Blueprint', 'Design', 'Floor Plan'
                 if key not in grouped_data: grouped_data[key] = []
@@ -229,4 +258,6 @@ class GalleryViewSet(viewsets.ViewSet):
             return 'PDF'
         elif ext in ['mp4', 'mov', 'avi']:
             return 'VIDEO'
+        elif ext in ['glb', 'gltf', 'obj', 'fbx', 'skp', 'dwg', 'dxf', 'rvt', 'ifc']:
+            return 'FILE'
         return 'FILE'

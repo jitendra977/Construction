@@ -47,6 +47,7 @@ function MobileDashboard() {
     const subPath = location.pathname.replace('/dashboard/mobile', '');
     const isModule   = MODULE_PREFIXES.some(p => subPath.startsWith(p));
     const isChatDetail = subPath.startsWith('/team-chat/');
+    const hideShellHeader = subPath.startsWith('/photos');
     // Full-viewport modules (maps need a real height — h-full alone collapses on mobile)
     const isFullBleed = subPath.startsWith('/location');
 
@@ -57,12 +58,14 @@ function MobileDashboard() {
             <div className="min-h-dvh bg-[var(--t-bg)] overflow-x-hidden transition-colors duration-500">
 
                 {/* Shared mobile header on every mobile page */}
-                <MobileHeader
-                    project={dashboardData?.project}
-                    stats={stats ?? []}
-                    onLogout={handleLogout}
-                    onShowConfig={() => setShowConfigModal(true)}
-                />
+                {!hideShellHeader && (
+                    <MobileHeader
+                        project={dashboardData?.project}
+                        stats={stats ?? []}
+                        onLogout={handleLogout}
+                        onShowConfig={() => setShowConfigModal(true)}
+                    />
+                )}
 
                 {/*
                  * Main content:

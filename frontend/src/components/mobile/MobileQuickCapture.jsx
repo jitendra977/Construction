@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Camera, ImagePlus, MapPin, Upload, Video, X } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { constructionService } from '../../services/constructionService';
 import { authService } from '../../services/auth';
 import { useConstruction } from '../../context/ConstructionContext';
@@ -252,6 +252,14 @@ export default function MobileQuickCapture({ open, onClose }) {
                             <p className="text-xs text-[var(--t-text2)] mt-1">
                                 Saves photo with user, time, page, and current GPS context.
                             </p>
+                            <Link
+                                to="/dashboard/mobile/photos"
+                                onClick={onClose}
+                                className="mt-3 inline-flex items-center gap-2 rounded-2xl border border-[var(--t-border)] bg-[var(--t-surface2)] px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--t-primary)]"
+                            >
+                                <ImagePlus className="w-3.5 h-3.5" />
+                                Photo Album
+                            </Link>
                         </div>
                         <button
                             type="button"

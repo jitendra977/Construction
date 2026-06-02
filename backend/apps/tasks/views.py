@@ -296,7 +296,9 @@ class TaskMediaViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
+        if not getattr(self.request.user, "is_system_admin", False):
+            qs = qs | self.queryset.filter(task__isnull=True)
         task_id = self.request.query_params.get('task')
         if task_id:
             qs = qs.filter(task_id=task_id)
-        return qs
+        return qs.distinct()

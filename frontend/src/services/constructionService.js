@@ -36,6 +36,7 @@ export const constructionService = {
             headers: { 'Content-Type': 'multipart/form-data' },
             onUploadProgress,
         })).data,
+    updateTaskMedia: async (id, data) => (await api.patch(`task-media/${id}/`, data)).data,
     deleteTaskMedia: async (id) => { await api.delete(`task-media/${id}/`); },
 };
 

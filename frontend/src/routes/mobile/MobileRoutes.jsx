@@ -19,6 +19,8 @@ import TimelapsePage from '../../pages/TimelapsePage';
 import AnalyticsPage from '../../pages/AnalyticsPage';
 import UserGuidePage from '../../pages/desktop/UserGuidePage';
 import PhasesPage    from '../../pages/desktop/PhasesPage';
+import PhaseDetailPage from '../../pages/desktop/PhaseDetailPage';
+import TaskDetailPage from '../../pages/desktop/TaskDetailPage';
 
 // ── Full feature modules (same module used by desktop) ────────────────────────
 import ProjectsRoutes  from '../../modules/projects';
@@ -73,6 +75,8 @@ const MobileRoutes = () => {
             <Route path="analytics"    element={<AnalyticsPage />}   />
             <Route path="guides"       element={<UserGuidePage />}   />
             <Route path="phases"       element={<PhasesPage />}      />
+            <Route path="phases/:id"   element={<PhaseDetailPage />} />
+            <Route path="tasks/:id"    element={<TaskDetailPage />}  />
 
             {/* ── Full feature modules ───────────────────────────────────── */}
             <Route path="projects/*"   element={<ProjectsRoutes />}                                  />

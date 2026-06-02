@@ -9,7 +9,7 @@ import { authService } from '../../services/auth';
  * Shared sticky top header for all mobile pages.
  * Renders the page title, a live-system badge, theme toggle, profile link & logout.
  */
-const MobilePageHeader = ({ title, subtitle, rightExtra }) => {
+const MobilePageHeader = ({ title, subtitle, rightExtra, showActions = true }) => {
     const { user } = useConstruction();
 
     const handleLogout = () => {
@@ -66,55 +66,59 @@ const MobilePageHeader = ({ title, subtitle, rightExtra }) => {
             {/* Right: actions row */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 {rightExtra}
-                <ThemeToggle />
-                <Link
-                    to="/dashboard/mobile/profile"
-                    title="Profile"
-                    style={{
-                        width: 36, height: 36,
-                        background: 'var(--t-surface2)',
-                        border: '1px solid var(--t-border)',
-                        borderRadius: 8,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 16, textDecoration: 'none', color: 'var(--t-text2)',
-                        overflow: 'hidden',
-                        transition: 'border-color 0.2s',
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--t-primary)'}
-                    onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--t-border)'}
-                >
-                    {user?.profile_image ? (
-                        <img
-                            src={getMediaUrl(user.profile_image)}
-                            alt={user.username}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                            onError={e => { e.target.style.display = 'none'; e.target.parentNode.innerHTML = '👤'; }}
-                        />
-                    ) : '👤'}
-                </Link>
-                <button
-                    onClick={handleLogout}
-                    title="Logout"
-                    style={{
-                        width: 36, height: 36,
-                        background: 'var(--t-surface2)',
-                        border: '1px solid var(--t-border)',
-                        borderRadius: 8,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 16, cursor: 'pointer', color: 'var(--t-text2)',
-                        transition: 'all 0.2s',
-                    }}
-                    onMouseEnter={e => {
-                        e.currentTarget.style.borderColor = 'var(--t-danger)';
-                        e.currentTarget.style.color = 'var(--t-danger)';
-                    }}
-                    onMouseLeave={e => {
-                        e.currentTarget.style.borderColor = 'var(--t-border)';
-                        e.currentTarget.style.color = 'var(--t-text2)';
-                    }}
-                >
-                    🚪
-                </button>
+                {showActions && (
+                    <>
+                        <ThemeToggle />
+                        <Link
+                            to="/dashboard/mobile/profile"
+                            title="Profile"
+                            style={{
+                                width: 36, height: 36,
+                                background: 'var(--t-surface2)',
+                                border: '1px solid var(--t-border)',
+                                borderRadius: 8,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: 16, textDecoration: 'none', color: 'var(--t-text2)',
+                                overflow: 'hidden',
+                                transition: 'border-color 0.2s',
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--t-primary)'}
+                            onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--t-border)'}
+                        >
+                            {user?.profile_image ? (
+                                <img
+                                    src={getMediaUrl(user.profile_image)}
+                                    alt={user.username}
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    onError={e => { e.target.style.display = 'none'; e.target.parentNode.innerHTML = '👤'; }}
+                                />
+                            ) : '👤'}
+                        </Link>
+                        <button
+                            onClick={handleLogout}
+                            title="Logout"
+                            style={{
+                                width: 36, height: 36,
+                                background: 'var(--t-surface2)',
+                                border: '1px solid var(--t-border)',
+                                borderRadius: 8,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: 16, cursor: 'pointer', color: 'var(--t-text2)',
+                                transition: 'all 0.2s',
+                            }}
+                            onMouseEnter={e => {
+                                e.currentTarget.style.borderColor = 'var(--t-danger)';
+                                e.currentTarget.style.color = 'var(--t-danger)';
+                            }}
+                            onMouseLeave={e => {
+                                e.currentTarget.style.borderColor = 'var(--t-border)';
+                                e.currentTarget.style.color = 'var(--t-text2)';
+                            }}
+                        >
+                            🚪
+                        </button>
+                    </>
+                )}
             </div>
         </header>
     );

@@ -278,7 +278,7 @@ export default function HomeTab() {
 
                 {/* ── QUICK ACCESS ── */}
                 <div style={{ marginBottom: 20 }}>
-                    <SectionLabel action="See all" onAction={() => {}}>Quick Access</SectionLabel>
+                    <SectionLabel action="See all" onAction={() => navigate('/dashboard/mobile/manage')}>Quick Access</SectionLabel>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
                         {NAV.map(q => (
                             <button key={q.label} onClick={() => navigate(q.path)}
