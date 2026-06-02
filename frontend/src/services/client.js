@@ -17,6 +17,16 @@ const API_PATH = (() => {
     catch { return API_URL.startsWith('http') ? '/api/v1' : API_URL.replace(/\/$/, ''); }
 })();
 
+const MEDIA_BASE = (() => {
+    if (API_URL.startsWith('http://') || API_URL.startsWith('https://')) {
+        return API_URL.replace(/\/api\/v1\/?$/, '');
+    }
+    if (typeof window !== 'undefined' && window.location?.origin) {
+        return window.location.origin;
+    }
+    return '';
+})();
+
 const getAuthHeader = () => {
     const accessToken = localStorage.getItem('access_token');
     return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
@@ -193,20 +203,26 @@ offlineQueue.installOnlineFlush(api);
  */
 export const getMediaUrl = (url) => {
     if (!url) return '';
+    if (url.startsWith('blob:') || url.startsWith('data:')) return url;
+
     let path = url;
-    if (url.startsWith('http')) {
-        const isInternal =
-            url.includes('nishanaweb.cloud') ||
-            url.includes('localhost') ||
-            url.includes('127.0.0.1') ||
-            url.includes('192.168.');
-        if (isInternal) {
-            try { path = new URL(url).pathname; } catch { return url; }
-        } else {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+        try {
+            const parsed = new URL(url);
+            const isInternal =
+                parsed.hostname.endsWith('nishanaweb.cloud') ||
+                parsed.hostname === 'localhost' ||
+                parsed.hostname === '127.0.0.1' ||
+                parsed.hostname.startsWith('192.168.');
+            if (!isInternal) return url;
+            path = `${parsed.pathname}${parsed.search}${parsed.hash}`;
+        } catch {
             return url;
         }
     }
-    return path;
+
+    if (!path.startsWith('/')) return path;
+    return MEDIA_BASE ? `${MEDIA_BASE}${path}` : path;
 };
 
 export default api;
