@@ -200,11 +200,15 @@ export async function flush(axiosInstance) {
     const results = [];
     for (const e of entries) {
         try {
+            const token = localStorage.getItem('access_token');
             await axiosInstance.request({
                 url: normalizeQueuedUrl(e.url),
                 method: e.method,
                 data: e.body,
-                headers: e.headers,
+                headers: {
+                    ...(e.headers || {}),
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
             });
             await remove(e.id);
             results.push({ id: e.id, ok: true });

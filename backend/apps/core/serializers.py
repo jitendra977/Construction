@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import HouseProject, ConstructionPhase, PhaseDocument, Room, Floor, UserGuide, UserGuideStep, UserGuideFAQ, UserGuideSection, UserGuideProgress, EmailLog, ProjectMember, ProjectRole
+from utils.file_validation import PHASE_DOCUMENT_EXTENSIONS, validate_safe_upload
 
 
 class ProjectRoleSerializer(serializers.ModelSerializer):
@@ -128,6 +129,13 @@ class HouseProjectSerializer(serializers.ModelSerializer):
 
 # ── Phase Document ─────────────────────────────────────────────────────────────
 class PhaseDocumentSerializer(serializers.ModelSerializer):
+    def validate_file(self, value):
+        return validate_safe_upload(
+            value,
+            allowed_extensions=PHASE_DOCUMENT_EXTENSIONS,
+            label="phase document",
+        )
+
     class Meta:
         model = PhaseDocument
         fields = '__all__'
@@ -136,6 +144,27 @@ class PhaseDocumentSerializer(serializers.ModelSerializer):
 class ConstructionPhaseSerializer(serializers.ModelSerializer):
     total_spent = serializers.SerializerMethodField()
     documents = PhaseDocumentSerializer(many=True, read_only=True)
+
+    def validate_naksa_file(self, value):
+        return validate_safe_upload(
+            value,
+            allowed_extensions=PHASE_DOCUMENT_EXTENSIONS,
+            label="naksa file",
+        )
+
+    def validate_structure_design(self, value):
+        return validate_safe_upload(
+            value,
+            allowed_extensions=PHASE_DOCUMENT_EXTENSIONS,
+            label="structure design",
+        )
+
+    def validate_completion_photo(self, value):
+        return validate_safe_upload(
+            value,
+            allowed_extensions={"jpg", "jpeg", "png", "webp"},
+            label="completion photo",
+        )
 
     class Meta:
         model  = ConstructionPhase
@@ -176,6 +205,13 @@ class RoomSerializer(serializers.ModelSerializer):
 
 class FloorSerializer(serializers.ModelSerializer):
     rooms = RoomSerializer(many=True, read_only=True)
+
+    def validate_image(self, value):
+        return validate_safe_upload(
+            value,
+            allowed_extensions={"jpg", "jpeg", "png", "webp"},
+            label="floor plan image",
+        )
 
     class Meta:
         model  = Floor

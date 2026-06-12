@@ -105,7 +105,12 @@ export const dashboardService = {
         api.post('documents/', formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
         }),
-    getGallery: (groupBy = 'category') => api.get(`gallery/?group_by=${groupBy}`),
+    getGallery: (groupBy = 'category', projectId = null) => api.get('gallery/', {
+        params: {
+            group_by: groupBy,
+            ...(projectId ? { project: projectId } : {}),
+        },
+    }),
 
     // Funding (legacy — no fin equivalent; see DEPRECATED note above)
     getFundingSources: () => api.get('finance/funding-sources/'),

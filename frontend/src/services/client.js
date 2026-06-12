@@ -175,7 +175,6 @@ export const attachResponseInterceptor = (axiosInstance) => {
                         method: originalRequest.method,
                         body: originalRequest.data,
                         headers: {
-                            Authorization: originalRequest.headers?.Authorization,
                             'Content-Type': 'application/json',
                         },
                     });

@@ -292,12 +292,16 @@ class TaskMediaViewSet(ProjectScopedMixin, viewsets.ModelViewSet):
     queryset = TaskMedia.objects.all()
     serializer_class = TaskMediaSerializer
     permission_classes = [permissions.IsAuthenticated, CanManagePhases]
-    project_field = 'task__phase__project'
+    project_field = 'project'
+
+    def perform_create(self, serializer):
+        media = serializer.save()
+        if media.task_id and not media.project_id:
+            media.project = media.task.phase.project
+            media.save(update_fields=['project'])
 
     def get_queryset(self):
         qs = super().get_queryset()
-        if not getattr(self.request.user, "is_system_admin", False):
-            qs = qs | self.queryset.filter(task__isnull=True)
         task_id = self.request.query_params.get('task')
         if task_id:
             qs = qs.filter(task_id=task_id)

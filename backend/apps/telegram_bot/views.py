@@ -120,6 +120,7 @@ class TelegramWebhookView(APIView):
                             # 3. Save it to TaskMedia
                             from django.core.files.base import ContentFile
                             from apps.tasks.models import TaskMedia
+                            from utils.file_validation import TASK_MEDIA_EXTENSIONS, validate_safe_upload
                             import uuid
                             
                             from_user = message.get('from', {})
@@ -127,13 +128,19 @@ class TelegramWebhookView(APIView):
                             last_name = from_user.get('last_name', '')
                             uploader_name = f"{first_name} {last_name}".strip() or "Telegram User"
 
+                            filename = f"telegram_{uuid.uuid4().hex[:8]}.{ext}"
+                            upload_file = ContentFile(img_res.content, name=filename)
+                            validate_safe_upload(
+                                upload_file,
+                                allowed_extensions=TASK_MEDIA_EXTENSIONS,
+                                label="telegram media",
+                            )
                             media = TaskMedia.objects.create(
                                 media_type=media_type,
                                 description=caption,
                                 telegram_uploader_name=uploader_name
                             )
-                            filename = f"telegram_{uuid.uuid4().hex[:8]}.{ext}"
-                            media.file.save(filename, ContentFile(img_res.content))
+                            media.file.save(filename, upload_file)
                             
                             # 4. Run AI Photo Analysis synchronously
                             from apps.photo_intel.services.analyzer import analyze_task_media
@@ -163,6 +170,10 @@ class TelegramWebhookView(APIView):
                             active_tasks = list(Task.objects.filter(
                                 status__in=['PENDING', 'IN_PROGRESS']
                             ).select_related('phase').order_by('-updated_at')[:15])
+
+                            if active_tasks and not media.project_id:
+                                media.project = active_tasks[0].phase.project
+                                media.save(update_fields=['project'])
 
                             if active_tasks:
                                 # Sort: tasks matching AI-detected phase come first
@@ -270,7 +281,8 @@ class TelegramWebhookView(APIView):
                                 media = TaskMedia.objects.get(id=media_id)
                                 task = Task.objects.get(id=selected_task_id)
                                 media.task = task
-                                media.save(update_fields=['task'])
+                                media.project = task.phase.project
+                                media.save(update_fields=['task', 'project'])
                                 
                                 cache.delete(cache_key)
                                 reply_url = f"https://api.telegram.org/bot{settings.bot_token}/sendMessage"
@@ -298,4 +310,3 @@ class TelegramWebhookView(APIView):
                         pass
 
         return Response({"status": "ok"}, status=status.HTTP_200_OK)
-

@@ -4,6 +4,34 @@
  */
 import '@testing-library/jest-dom';
 
+// ── Mock face-api for component tests ────────────────────────────────────────
+// The browser app loads face-api models from CDN, but the package tries to load
+// a Node TensorFlow backend under Vitest. Mock it so auth/biometric UI tests can
+// render without adding @tensorflow/tfjs-node as a test dependency.
+vi.mock('@vladmandic/face-api', () => {
+  const chain = {
+    withFaceLandmarks: vi.fn(() => chain),
+    withFaceDescriptor: vi.fn(() => Promise.resolve(null)),
+  };
+  return {
+    nets: {
+      tinyFaceDetector: { loadFromUri: vi.fn(() => Promise.resolve()) },
+      faceLandmark68Net: { loadFromUri: vi.fn(() => Promise.resolve()) },
+      faceRecognitionNet: { loadFromUri: vi.fn(() => Promise.resolve()) },
+    },
+    TinyFaceDetectorOptions: vi.fn(function TinyFaceDetectorOptions(options) {
+      Object.assign(this, options);
+    }),
+    detectSingleFace: vi.fn(() => chain),
+    matchDimensions: vi.fn(() => ({ width: 0, height: 0 })),
+    resizeResults: vi.fn((result) => result),
+    draw: {
+      drawDetections: vi.fn(),
+      drawFaceLandmarks: vi.fn(),
+    },
+  };
+});
+
 // ── Mock navigator.geolocation ────────────────────────────────────────────────
 // jsdom doesn't provide geolocation. Login uses it to gate the submit button.
 // Stub it so geoStatus immediately resolves to 'granted' (not 'checking').

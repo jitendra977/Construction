@@ -161,8 +161,9 @@ function BottomTab({ id, icon, label, showGps = false }) {
             className="flex-1 flex flex-col items-center justify-center relative transition-all"
             style={({ isActive }) => ({
                 color: isActive ? 'var(--t-primary)' : 'var(--t-text3)',
-                paddingTop: 10,
-                paddingBottom: 8,
+                minWidth: 0,
+                paddingTop: 8,
+                paddingBottom: 7,
             })}
         >
             {({ isActive }) => (
@@ -178,14 +179,14 @@ function BottomTab({ id, icon, label, showGps = false }) {
                         }}
                     />
                     {/* Icon */}
-                    <span className="relative flex items-center justify-center w-8 h-7">
-                        <span className={`text-[20px] leading-none transition-transform duration-200 ${isActive ? 'scale-110' : 'scale-100'}`}>
+                    <span className="relative flex h-6 w-7 items-center justify-center">
+                        <span className={`text-[18px] leading-none transition-transform duration-200 ${isActive ? 'scale-110' : 'scale-100'}`}>
                             {icon}
                         </span>
                         {showGps && <GPSStatusDot />}
                     </span>
                     {/* Label */}
-                    <span className={`text-[7.5px] font-bold uppercase tracking-[0.18em] mt-0.5 transition-all ${
+                    <span className={`mt-0.5 max-w-full truncate px-0.5 text-[6.8px] font-bold uppercase tracking-[0.1em] transition-all ${
                         isActive ? 'opacity-100' : 'opacity-50'
                     }`}>
                         {label}
@@ -450,15 +451,15 @@ export default function MobileNav() {
             <nav
                 className="fixed bottom-0 left-0 right-0 z-50"
                 style={{
-                    padding: '0 12px',
-                    paddingBottom: 'max(env(safe-area-inset-bottom, 10px), 10px)',
-                    paddingTop: 6,
+                    padding: '0 8px',
+                    paddingBottom: 'max(env(safe-area-inset-bottom, 8px), 8px)',
+                    paddingTop: 5,
                 }}
             >
                 <div
-                    className="grid items-stretch h-[64px] rounded-[26px] overflow-visible relative"
+                    className="grid h-[60px] min-w-0 items-stretch overflow-visible rounded-[24px] relative"
                     style={{
-                        gridTemplateColumns: '1fr 1fr 1fr 72px 1fr 1fr 1fr 1fr',
+                        gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 60px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)',
                         background:     'var(--t-surface)',
                         border:         '1px solid var(--t-border)',
                         backdropFilter: 'blur(20px)',
@@ -473,7 +474,7 @@ export default function MobileNav() {
                         <button
                             type="button"
                             onClick={() => setCaptureOpen(true)}
-                            className="absolute -top-5 w-[64px] h-[64px] rounded-[24px] border-4 border-[var(--t-bg)] flex flex-col items-center justify-center shadow-2xl active:scale-95 transition-transform"
+                            className="absolute -top-4 flex h-[58px] w-[58px] flex-col items-center justify-center rounded-[22px] border-4 border-[var(--t-bg)] shadow-2xl transition-transform active:scale-95"
                             style={{
                                 background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%)',
                                 color: '#fff',
@@ -481,8 +482,8 @@ export default function MobileNav() {
                             aria-label="Quick photo upload"
                             title="Quick photo upload"
                         >
-                            <span className="text-[24px] leading-none">📷</span>
-                            <span className="text-[7px] font-black uppercase tracking-[0.2em] mt-0.5">Upload</span>
+                            <span className="text-[22px] leading-none">📷</span>
+                            <span className="mt-0.5 text-[6.5px] font-black uppercase tracking-[0.14em]">Upload</span>
                         </button>
                     </div>
 
@@ -495,16 +496,17 @@ export default function MobileNav() {
                         className="flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 relative"
                         style={{
                             color: drawerOpen ? 'var(--t-primary)' : 'var(--t-text3)',
-                            paddingTop: 10,
-                            paddingBottom: 8,
+                            minWidth: 0,
+                            paddingTop: 8,
+                            paddingBottom: 7,
                         }}
                     >
                         {drawerOpen && (
                             <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full"
                                 style={{ background: 'var(--t-primary)' }} />
                         )}
-                        <span className="flex items-center justify-center w-8 h-7 text-[19px] leading-none">⊞</span>
-                        <span className="text-[7px] font-bold uppercase tracking-widest">All</span>
+                        <span className="flex h-6 w-7 items-center justify-center text-[18px] leading-none">⊞</span>
+                        <span className="text-[6.8px] font-bold uppercase tracking-[0.1em]">All</span>
                     </button>
                 </div>
             </nav>

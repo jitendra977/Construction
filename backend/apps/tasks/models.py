@@ -88,6 +88,14 @@ class TaskMedia(models.Model):
         ('DOCUMENT', 'Document'),
     ]
 
+    project = models.ForeignKey(
+        'core.HouseProject',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='task_media',
+        help_text='Project scope for unassigned/general uploads.',
+    )
     task = models.ForeignKey(Task, on_delete=models.SET_NULL, null=True, blank=True, related_name='media')
     file = models.FileField(upload_to='task_updates/')
     media_type = models.CharField(max_length=10, choices=MEDIA_TYPES, default='IMAGE')

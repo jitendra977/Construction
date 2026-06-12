@@ -1,12 +1,9 @@
 from rest_framework import viewsets, response
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.decorators import action
 from django.db.models import Q
-from itertools import chain
-from .gallery_serializers import GalleryItemSerializer
 from apps.permits.models import PermitDocument
 from apps.tasks.models import TaskMedia
-from apps.core.models import ConstructionPhase, PhaseDocument, Floor
+from apps.core.models import ConstructionPhase, HouseProject, PhaseDocument, Floor
 import datetime
 
 class GalleryViewSet(viewsets.ViewSet):
@@ -15,19 +12,34 @@ class GalleryViewSet(viewsets.ViewSet):
     Supports views: 'timeline' (all photos), 'phases' (grouped by phase), 'blueprints' (tech docs), 'permits' (legal).
     """
     permission_classes = [IsAuthenticated]
+
+    def _project_queryset(self, request):
+        qs = HouseProject.objects.all()
+        if not getattr(request.user, 'is_system_admin', False):
+            qs = qs.filter(members__user=request.user).distinct()
+
+        project_id = request.query_params.get('project') or request.query_params.get('project_id')
+        if project_id:
+            qs = qs.filter(pk=project_id)
+        return qs
     
     def list(self, request):
         view_mode = request.query_params.get('group_by', 'timeline') # renamed 'group_by' to 'view_mode' conceptualy, keeping param name for compatibility
+        project_ids = list(self._project_queryset(request).values_list('id', flat=True))
+        if not project_ids:
+            return response.Response([])
         
         # Helper to get phase order map
-        phase_map = {p.id: {'name': p.name, 'order': p.order} for p in ConstructionPhase.objects.all()}
+        phases_qs = ConstructionPhase.objects.filter(project_id__in=project_ids)
+        phase_map = {p.id: {'name': p.name, 'order': p.order} for p in phases_qs}
         
         items = []
 
         # --- 1. Fetch & Normalize Data ---
 
         # A. Permit Documents (Legal & Blueprint docs — sourced from permits app)
-        for doc in PermitDocument.objects.all():
+        permit_docs = PermitDocument.objects.filter(permit_steps__project_id__in=project_ids).distinct()
+        for doc in permit_docs:
             if not doc.file: continue
             
             is_legal = doc.document_type in ['NAKSHA', 'LALPURJA', 'NAGRIKTA', 'TIRO', 'CHARKILLA', 'PERMIT']
@@ -45,7 +57,10 @@ class GalleryViewSet(viewsets.ViewSet):
             })
             
         # B. Task Media (Updates)
-        for tm in TaskMedia.objects.select_related('task', 'task__phase').all():
+        task_media = TaskMedia.objects.select_related('project', 'task', 'task__phase').filter(
+            Q(task__phase__project_id__in=project_ids) | Q(project_id__in=project_ids)
+        ).distinct()
+        for tm in task_media:
             if not tm.file: continue
             
             if tm.task:
@@ -56,9 +71,9 @@ class GalleryViewSet(viewsets.ViewSet):
                 category = 'Task Update'
             else:
                 phase_id = 0
-                title = "Telegram Upload"
+                title = "Unassigned Upload"
                 status = "N/A"
-                subtitle = "Direct from Bot"
+                subtitle = tm.project.name if tm.project else "Needs assignment"
                 category = 'Site Photo'
 
             items.append({
@@ -75,12 +90,13 @@ class GalleryViewSet(viewsets.ViewSet):
                 'meta': {
                     'task_id': tm.task.id if tm.task else None,
                     'phase_id': phase_id,
+                    'project_id': tm.project_id or (tm.task.phase.project_id if tm.task and tm.task.phase else None),
                     'task_status': status,
                 }
             })
             
         # C. Phase Files (Naksa, Design, Photos)
-        for p in ConstructionPhase.objects.all():
+        for p in phases_qs:
             # Blueprint (Naksa)
             if p.naksa_file:
                 items.append({
@@ -128,7 +144,7 @@ class GalleryViewSet(viewsets.ViewSet):
             '3D_MODEL': '3D Model',
             'OTHER': 'Document',
         }
-        for doc in PhaseDocument.objects.select_related('phase').all():
+        for doc in PhaseDocument.objects.select_related('phase').filter(phase__project_id__in=project_ids):
             if not doc.file:
                 continue
 
@@ -151,7 +167,7 @@ class GalleryViewSet(viewsets.ViewSet):
             })
 
         # D. Floor Plans
-        for f in Floor.objects.all():
+        for f in Floor.objects.filter(project_id__in=project_ids):
             if f.image:
                 items.append({
                     'id': f"floor_{f.id}",
@@ -214,7 +230,11 @@ class GalleryViewSet(viewsets.ViewSet):
         elif view_mode == 'permits':
             # Group by Document Type
             # Includes: Legal Docs
-            filtered = [i for i in items if i['source_type'] in ['LEGAL_DOC', 'DOCUMENT'] and i['media_type'] == 'PDF' or i['category'] == 'Permit']
+            filtered = [
+                i for i in items
+                if (i['source_type'] in ['LEGAL_DOC', 'DOCUMENT'] and i['media_type'] == 'PDF')
+                or i['category'] == 'Permit'
+            ]
             for item in filtered:
                 key = item['category']
                 if key not in grouped_data: grouped_data[key] = []

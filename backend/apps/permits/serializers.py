@@ -1,11 +1,19 @@
 from rest_framework import serializers
 from .models import PermitStep, PermitDocument
+from utils.file_validation import PHASE_DOCUMENT_EXTENSIONS, validate_safe_upload
 
 
 class PermitDocumentSerializer(serializers.ModelSerializer):
     document_type_display = serializers.CharField(
         source='get_document_type_display', read_only=True
     )
+
+    def validate_file(self, value):
+        return validate_safe_upload(
+            value,
+            allowed_extensions=PHASE_DOCUMENT_EXTENSIONS,
+            label="permit document",
+        )
 
     class Meta:
         model  = PermitDocument

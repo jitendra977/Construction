@@ -10,7 +10,7 @@ const MobileLayout = ({
     spacing = "space-y-0"
 }) => {
     return (
-        <div className="min-h-dvh overflow-x-hidden pb-32 pt-0 relative transition-colors duration-300"
+        <div className="relative min-h-dvh w-full max-w-full overflow-x-hidden pb-[calc(104px+max(env(safe-area-inset-bottom),0px))] pt-0 transition-colors duration-300"
             style={{ background: 'var(--t-bg)', color: 'var(--t-text)' }}>
             {/* LUMINOUS BACKGROUND ELEMENTS */}
             {showBackground && (
@@ -20,10 +20,10 @@ const MobileLayout = ({
                 </>
             )}
 
-            <div className={`${padding} ${spacing} relative z-10`}>
+            <div className={`${padding} ${spacing} relative z-10 w-full max-w-full`}>
                 {/* CONSISTENT HEADER */}
                 {(title || subtitle || headerExtra) && (
-                    <header className="flex flex-col gap-6 mb-12 animate-stagger">
+                    <header className="mb-8 flex flex-col gap-4 animate-stagger">
                         <div className="flex justify-between items-center">
                             <div>
                                 {title && (

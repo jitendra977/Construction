@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Task, TaskUpdate, TaskMedia
 from apps.core.serializers import ConstructionPhaseSerializer, RoomSerializer
+from utils.file_validation import TASK_MEDIA_EXTENSIONS, validate_safe_upload
 
 
 class AssignedMemberSerializer(serializers.Serializer):
@@ -37,6 +38,25 @@ class AssignedTeamSerializer(serializers.Serializer):
 
 
 class TaskMediaSerializer(serializers.ModelSerializer):
+    def validate_file(self, value):
+        return validate_safe_upload(
+            value,
+            allowed_extensions=TASK_MEDIA_EXTENSIONS,
+            label="task media",
+        )
+
+    def validate(self, attrs):
+        task = attrs.get('task') or getattr(self.instance, 'task', None)
+        project = attrs.get('project') or getattr(self.instance, 'project', None)
+        if task:
+            attrs['project'] = task.phase.project
+        elif not project:
+            request = self.context.get('request')
+            project_id = request.data.get('project') if request else None
+            if project_id:
+                attrs['project_id'] = project_id
+        return attrs
+
     class Meta:
         model  = TaskMedia
         fields = '__all__'

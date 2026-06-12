@@ -49,14 +49,14 @@ const TYPE_META = {
 };
 
 const PHOTO_VIEW_OPTIONS = [
-    { id: 'phase', label: 'Phase' },
-    { id: 'task', label: 'Task' },
-    { id: 'all', label: 'All' },
-    { id: 'date', label: 'Date' },
-    { id: 'week', label: 'Week' },
-    { id: 'month', label: 'Month' },
-    { id: 'plan', label: 'Design' },
-    { id: 'docs', label: 'Docs' },
+    { id: 'phase', label: 'Phase', hint: 'Albums' },
+    { id: 'task', label: 'Task', hint: 'Work' },
+    { id: 'all', label: 'All', hint: 'Files' },
+    { id: 'date', label: 'Date', hint: 'Recent' },
+    { id: 'week', label: 'Week', hint: '7 days' },
+    { id: 'month', label: 'Month', hint: 'Monthly' },
+    { id: 'plan', label: 'Design', hint: 'Plans' },
+    { id: 'docs', label: 'Docs', hint: 'Files' },
 ];
 
 const getPhaseAlbumLabel = (groupName, group) => {
@@ -134,7 +134,7 @@ const MediaPreview = ({ item, onClose }) => {
             onClick={onClose}
         >
             <div
-                className="w-full max-w-4xl bg-[var(--t-surface)] border border-[var(--t-border)] rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl"
+                className="flex max-h-[calc(100dvh-16px)] w-full max-w-4xl flex-col overflow-hidden rounded-t-3xl border border-[var(--t-border)] bg-[var(--t-surface)] shadow-2xl sm:max-h-[calc(100dvh-48px)] sm:rounded-3xl"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex items-start justify-between gap-3 px-4 py-4 border-b border-[var(--t-border)] bg-[var(--t-surface2)]">
@@ -157,31 +157,32 @@ const MediaPreview = ({ item, onClose }) => {
                     <button
                         type="button"
                         onClick={onClose}
+                        aria-label="Close preview"
                         className="shrink-0 w-9 h-9 rounded-full border border-[var(--t-border)] bg-[var(--t-surface)] text-[var(--t-text2)] flex items-center justify-center"
                     >
                         <X className="w-4 h-4" />
                     </button>
                 </div>
 
-                <div className="bg-black/90 min-h-[46vh] max-h-[70vh] flex items-center justify-center p-3 sm:p-5">
+                <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-black/90 p-3 sm:p-5">
                     {item.type === 'IMAGE' && (
                         <img
                             src={item.url}
                             alt={item.title}
-                            className="max-h-[62vh] w-full object-contain rounded-2xl"
+                            className="max-h-[calc(100dvh-190px)] w-full object-contain rounded-2xl sm:max-h-[70vh]"
                         />
                     )}
                     {item.type === 'VIDEO' && (
                         <CustomVideoPlayer
                             src={item.url}
-                            className="max-h-[62vh] w-full rounded-2xl bg-black"
+                            className="max-h-[calc(100dvh-190px)] w-full rounded-2xl bg-black sm:max-h-[70vh]"
                         />
                     )}
                     {item.type === 'PDF' && (
                         <iframe
                             src={item.url}
                             title={item.title}
-                            className="w-full h-[62vh] rounded-2xl bg-white"
+                            className="h-[calc(100dvh-190px)] w-full rounded-2xl bg-white sm:h-[70vh]"
                         />
                     )}
                     {item.type === 'FILE' && (
@@ -193,7 +194,7 @@ const MediaPreview = ({ item, onClose }) => {
                     )}
                 </div>
 
-                <div className="flex items-center justify-between gap-3 px-4 py-4 border-t border-[var(--t-border)] bg-[var(--t-surface2)]">
+                <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[var(--t-border)] bg-[var(--t-surface2)] px-4 py-3 pb-[max(12px,env(safe-area-inset-bottom))]">
                     <p className="text-[11px] text-[var(--t-text3)] line-clamp-2">{item.category}</p>
                     <div className="flex items-center gap-2">
                         <a
@@ -229,7 +230,7 @@ const MobileMediaCard = ({ item, onOpen, onAssign }) => {
         <button
             type="button"
             onClick={() => onOpen(item)}
-            className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl border border-[var(--t-border)] bg-[var(--t-surface)] text-left shadow-sm active:scale-[0.985] transition-transform"
+            className="relative aspect-[4/4.55] w-full overflow-hidden rounded-[18px] border border-[var(--t-border)] bg-[var(--t-surface)] text-left shadow-sm active:scale-[0.985] transition-transform"
         >
             {item.type === 'FILE' ? (
                 <div className={`w-full h-full bg-gradient-to-br ${meta.panelClass} flex flex-col items-start justify-between p-3`}>
@@ -250,7 +251,7 @@ const MobileMediaCard = ({ item, onOpen, onAssign }) => {
                 <MediaThumbnail item={item} />
             )}
 
-            <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/95 via-black/70 to-transparent">
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent p-2.5">
                 <div className="flex items-center justify-between gap-2 mb-1">
                     <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[9px] font-bold uppercase tracking-[0.18em] ${meta.badgeClass}`}>
                         <Icon className="w-3 h-3" />
@@ -282,7 +283,7 @@ const MobileMediaCard = ({ item, onOpen, onAssign }) => {
                         </span>
                     )}
                 </div>
-                <p className="text-white text-[11px] font-semibold leading-snug line-clamp-2">{item.title}</p>
+                <p className="text-white text-[11.5px] font-semibold leading-snug line-clamp-2">{item.title}</p>
                 <p className="text-white/70 text-[10px] mt-1 line-clamp-1">{item.subtitle}</p>
             </div>
         </button>
@@ -312,7 +313,7 @@ const AlbumCard = ({ group, onOpen, albumLabel, typeLabel = 'Album' }) => {
             aria-label={`Open ${label}`}
             className="w-full overflow-hidden rounded-[16px] border border-[var(--t-border)] bg-[var(--t-surface)] text-left shadow-sm active:scale-[0.99] transition-transform"
         >
-            <div className="relative aspect-[4/2.25] bg-[var(--t-surface2)] p-1">
+            <div className="relative aspect-[4/2.05] bg-[var(--t-surface2)] p-1">
                 {visibleCount === 1 && (
                     <div className="h-full">
                         {renderThumb(coverItems[0], 0)}
@@ -346,15 +347,15 @@ const AlbumCard = ({ group, onOpen, albumLabel, typeLabel = 'Album' }) => {
                     </div>
                 )}
 
-                <div className="pointer-events-none absolute inset-x-1 bottom-1 rounded-b-[10px] bg-gradient-to-t from-black/85 via-black/55 to-transparent px-3 pb-2.5 pt-8">
-                    <p className="text-[14px] font-semibold text-white leading-tight truncate drop-shadow">
+                <div className="pointer-events-none absolute inset-x-1 bottom-1 rounded-b-[10px] bg-gradient-to-t from-black/90 via-black/58 to-transparent px-2.5 pb-2 pt-9">
+                    <p className="text-[13px] font-semibold text-white leading-tight truncate drop-shadow">
                         {label}
                     </p>
-                    <div className="mt-1.5 flex items-center gap-1.5">
+                    <div className="mt-1 flex items-center gap-1.5">
                         <span className="inline-flex items-center rounded-full bg-white/18 px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.14em] text-white/90 backdrop-blur">
                             {typeLabel}
                         </span>
-                        <span className="text-[10px] font-medium text-white/80">
+                        <span className="text-[9px] font-medium text-white/80">
                             {group.items.length} files
                         </span>
                     </div>
@@ -484,12 +485,12 @@ const AssignMediaModal = ({ item, phases, tasks, onClose, onAssigned }) => {
                         </button>
                         <button
                             type="button"
-                        onClick={() => setConfirmDeleteOpen(true)}
-                        disabled={saving || deleting}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-black uppercase tracking-[0.16em] text-red-600 disabled:opacity-50"
-                    >
-                        <Trash2 className="h-4 w-4" />
-                        {deleting ? 'Deleting...' : 'Delete'}
+                            onClick={() => setConfirmDeleteOpen(true)}
+                            disabled={saving || deleting}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-black uppercase tracking-[0.16em] text-red-600 disabled:opacity-50"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                            {deleting ? 'Deleting...' : 'Delete'}
                         </button>
                     </div>
                 </div>
@@ -513,7 +514,7 @@ const AssignMediaModal = ({ item, phases, tasks, onClose, onAssigned }) => {
 };
 
 const PhotosTab = () => {
-    const { dashboardData } = useConstruction();
+    const { activeProjectId, dashboardData } = useConstruction();
     const [groupedGallery, setGroupedGallery] = useState([]);
     const [loading, setLoading] = useState(true);
     const [photoView, setPhotoView] = useState('phase');
@@ -532,7 +533,7 @@ const PhotosTab = () => {
         const fetchGallery = async () => {
             setLoading(true);
             try {
-                const response = await dashboardService.getGallery(albumScope);
+                const response = await dashboardService.getGallery(albumScope, activeProjectId || dashboardData?.project?.id);
                 const processedData = response.data.map((group) => ({
                     ...group,
                     items: group.items.map(normalizeItem),
@@ -547,7 +548,7 @@ const PhotosTab = () => {
         };
 
         fetchGallery();
-    }, [albumScope, reloadKey]);
+    }, [activeProjectId, albumScope, dashboardData?.project?.id, reloadKey]);
 
     useEffect(() => {
         setSelectedAlbum(null);
@@ -692,10 +693,10 @@ const PhotosTab = () => {
                 )}
             />
 
-            <div className="cyber-wrap pb-28 pt-4">
+            <div className="cyber-wrap pb-28 pt-3">
                 <div className="ht-sec">
-                    <div className="mb-5 rounded-[18px] border border-[var(--t-border)] bg-[var(--t-surface)] p-2.5 shadow-sm">
-                        <div className="flex gap-1.5 overflow-x-auto rounded-[14px] border border-[var(--t-border)] bg-[var(--t-surface2)] p-1 scrollbar-hide">
+                    <div className="mb-4 rounded-[20px] border border-[var(--t-border)] bg-[var(--t-surface)] p-2 shadow-sm">
+                        <div className="grid grid-cols-4 gap-1.5 rounded-[16px] border border-[var(--t-border)] bg-[var(--t-surface2)] p-1.5">
                             {PHOTO_VIEW_OPTIONS.map((option) => {
                                 const active = photoView === option.id;
                                 return (
@@ -703,14 +704,19 @@ const PhotosTab = () => {
                                         key={option.id}
                                         type="button"
                                         onClick={() => setPhotoView(option.id)}
-                                        className="shrink-0 rounded-[10px] px-3 py-2 text-[9px] font-black uppercase tracking-[0.08em] transition-colors"
+                                        className="min-w-0 rounded-[12px] px-1.5 py-2 text-center transition-colors"
                                         style={{
                                             background: active ? 'var(--t-primary)' : 'transparent',
                                             color: active ? 'white' : 'var(--t-text2)',
                                             border: active ? '1px solid var(--t-primary)' : '1px solid transparent',
                                         }}
                                     >
-                                        {option.label}
+                                        <span className="block truncate text-[10px] font-black uppercase tracking-[0.08em]">
+                                            {option.label}
+                                        </span>
+                                        <span className="mt-0.5 block truncate text-[7.5px] font-bold uppercase tracking-[0.1em] opacity-70">
+                                            {option.hint}
+                                        </span>
                                     </button>
                                 );
                             })}
@@ -757,7 +763,7 @@ const PhotosTab = () => {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-2 gap-2.5">
                                 {activeAlbumItems.map((item) => (
                                     <MobileMediaCard
                                         key={item.id}
@@ -771,7 +777,7 @@ const PhotosTab = () => {
                     ) : (
                         <div className="space-y-6">
                             {isTimelineFlatGrid ? (
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-2 gap-2.5">
                                     {displayGroups.flatMap((group) => group.items).map((item) => (
                                         <MobileMediaCard
                                             key={item.id}
@@ -782,7 +788,7 @@ const PhotosTab = () => {
                                     ))}
                                 </div>
                             ) : isAlbumGrid ? (
-                                <div className="grid grid-cols-1 gap-4">
+                                <div className="grid grid-cols-2 gap-2.5">
                                     {displayGroups.map((group) => (
                                         <AlbumCard
                                             key={group.groupName}
@@ -811,14 +817,14 @@ const PhotosTab = () => {
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-3">
+                                        <div className="grid grid-cols-2 gap-2.5">
                                             {group.items.map((item) => (
                                                 <MobileMediaCard
-                                                key={item.id}
-                                                item={item}
-                                                onOpen={setPreviewItem}
-                                                onAssign={setAssignItem}
-                                            />
+                                                    key={item.id}
+                                                    item={item}
+                                                    onOpen={setPreviewItem}
+                                                    onAssign={setAssignItem}
+                                                />
                                         ))}
                                     </div>
                                     </section>

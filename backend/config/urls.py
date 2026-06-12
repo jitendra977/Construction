@@ -7,7 +7,6 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.http import JsonResponse
 from django.db import connection
-from django.views.decorators.clickjacking import xframe_options_exempt
 from django.views.static import serve
 from rest_framework.routers import DefaultRouter
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
@@ -130,5 +129,5 @@ urlpatterns = [
 
 # Serve media files in all environments
 urlpatterns += [
-    path('media/<path:path>', xframe_options_exempt(serve), {'document_root': settings.MEDIA_ROOT}),
+    path('media/<path:path>', serve, {'document_root': settings.MEDIA_ROOT}),
 ]

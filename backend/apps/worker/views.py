@@ -232,7 +232,7 @@ class WorkerPhotosView(APIView):
             TaskMedia.objects
             .filter(
                 models.Q(task__phase__project_id=member.current_project_id) |
-                models.Q(task__isnull=True)
+                models.Q(task__isnull=True, project_id=member.current_project_id)
             )
             .select_related("task", "task__phase")
             .order_by("-created_at")[:50]
@@ -278,6 +278,7 @@ class WorkerPhotoUploadView(APIView):
                 )
 
         media = TaskMedia.objects.create(
+            project_id=member.current_project_id,
             task=task,
             file=d["file"],
             media_type="IMAGE",
