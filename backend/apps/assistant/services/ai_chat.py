@@ -1,11 +1,9 @@
 """
 ai_chat.py — Free AI-powered project-aware chat for साथी.
 
-Provider priority (all free / low-cost):
-  1. Groq  — FREE, fast, Llama 3.3-70B  (recommended — get key at console.groq.com)
-  2. Google Gemini — FREE generous tier  (get key at aistudio.google.com)
-  3. OpenAI — paid fallback
-  4. Rule-based parser — always available offline
+Provider:
+  1. OpenAI — primary and required for chat
+  2. No silent local fallback; errors are returned explicitly
 
 Set ONE of these in your .env:
     GROQ_API_KEY=gsk_...
@@ -147,11 +145,11 @@ _session = _requests.Session()
 _session.trust_env = False
 
 
-def _call_groq(messages: list, api_key: str, tools: list | None = None, project_id: int | None = None) -> str:
-    """Groq — FREE. Uses requests (no openai package needed). Supports tool/function calling."""
+def _call_openai(messages: list, api_key: str, tools: list | None = None, project_id: int | None = None) -> str:
+    """OpenAI — main assistant. Uses requests. Supports tool/function calling."""
     from apps.assistant.services.ai_tools import execute_tool
 
-    model = getattr(settings, "GROQ_MODEL", "llama-3.3-70b-versatile")
+    model = getattr(settings, "OPENAI_MODEL", "gpt-4o-mini")
 
     payload = {
         "model": model,
@@ -164,12 +162,18 @@ def _call_groq(messages: list, api_key: str, tools: list | None = None, project_
         payload["tool_choice"] = "auto"
 
     resp = _session.post(
-        "https://api.groq.com/openai/v1/chat/completions",
-        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        "https://api.openai.com/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
         json=payload,
         timeout=25,
     )
-    resp.raise_for_status()
+    try:
+        resp.raise_for_status()
+    except Exception as exc:
+        raise RuntimeError(_openai_error_detail(resp)) from exc
     data = resp.json()
     choice = data["choices"][0]
     msg = choice["message"]
@@ -204,59 +208,40 @@ def _call_groq(messages: list, api_key: str, tools: list | None = None, project_
             "temperature": 0.4,
         }
         resp2 = _session.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            "https://api.openai.com/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
             json=payload2,
             timeout=25,
         )
-        resp2.raise_for_status()
+        try:
+            resp2.raise_for_status()
+        except Exception as exc:
+            raise RuntimeError(_openai_error_detail(resp2)) from exc
         return resp2.json()["choices"][0]["message"]["content"].strip()
 
     # Plain text response (no tool calls)
     return (msg.get("content") or "").strip()
 
 
-def _call_gemini(messages: list, api_key: str) -> str:
-    """Google Gemini — FREE generous tier. Uses requests."""
-    system_text = next((m["content"] for m in messages if m["role"] == "system"), "")
-    history = [
-        {"role": "user" if m["role"] == "user" else "model", "parts": [{"text": m["content"]}]}
-        for m in messages if m["role"] in ("user", "assistant")
-    ]
-    model = getattr(settings, "GEMINI_MODEL", "gemini-2.0-flash")
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-    resp = _session.post(
-        url,
-        json={
-            "system_instruction": {"parts": [{"text": system_text}]},
-            "contents": history,
-            "generationConfig": {"maxOutputTokens": 500, "temperature": 0.5},
-        },
-        timeout=20,
-    )
-    resp.raise_for_status()
-    return resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
-
-
-def _call_openai(messages: list, api_key: str) -> str:
-    """OpenAI — paid fallback. Uses requests."""
-    model = getattr(settings, "OPENAI_MODEL", "gpt-4o-mini")
-    resp = _session.post(
-        "https://api.openai.com/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": model,
-            "messages": messages,
-            "max_tokens": 500,
-            "temperature": 0.5,
-        },
-        timeout=20,
-    )
-    resp.raise_for_status()
-    return resp.json()["choices"][0]["message"]["content"].strip()
+def _openai_error_detail(resp) -> str:
+    try:
+        data = resp.json()
+        err = data.get("error") or {}
+        message = err.get("message") or resp.text
+        code = err.get("code")
+        err_type = err.get("type")
+        parts = [f"HTTP {resp.status_code}"]
+        if err_type:
+            parts.append(f"type={err_type}")
+        if code:
+            parts.append(f"code={code}")
+        parts.append(str(message)[:500])
+        return " | ".join(parts)
+    except Exception:
+        return f"HTTP {resp.status_code} | {resp.text[:500]}"
 
 
 # ── Main entry point ──────────────────────────────────────────────────────────
@@ -265,17 +250,11 @@ def ai_chat(
     history: List[dict] | None = None,
     project_id: int | None = None,
     language: str = "en",
-    provider: str = "auto",   # "auto" | "groq" | "gemini" | "openai"
+    provider: str = "openai",
 ) -> dict:
     """
     Returns:
         {message, intent, source, data, suggestions}
-
-    provider:
-        "auto"   — try Groq → Gemini → OpenAI in order
-        "groq"   — force Groq; fall back to auto on failure
-        "gemini" — force Gemini; fall back to auto on failure
-        "openai" — force OpenAI; fall back to auto on failure
     """
     history = history or []
     context = _build_context(project_id)
@@ -289,46 +268,16 @@ def ai_chat(
 
     from apps.assistant.services.ai_tools import TOOLS
 
-    groq_key   = getattr(settings, "GROQ_API_KEY",   "") or ""
-    gemini_key = getattr(settings, "GEMINI_API_KEY", "") or ""
     openai_key = getattr(settings, "OPENAI_API_KEY", "") or ""
 
     _errors = []   # collect failure reasons for diagnostics
-
-    def try_groq():
-        if not groq_key:
-            _errors.append("Groq: key missing")
-            return None
-        try:
-            raw = _call_groq(conv, groq_key, tools=TOOLS, project_id=project_id)
-            reply, suggestions = _extract_suggestions(raw)
-            return {"message": reply, "intent": None, "source": "groq", "data": None, "suggestions": suggestions}
-        except Exception as e:
-            msg = f"Groq: {type(e).__name__}: {str(e)[:120]}"
-            logger.warning(msg)
-            _errors.append(msg)
-            return None
-
-    def try_gemini():
-        if not gemini_key:
-            _errors.append("Gemini: key missing")
-            return None
-        try:
-            raw = _call_gemini(conv, gemini_key)
-            reply, suggestions = _extract_suggestions(raw)
-            return {"message": reply, "intent": None, "source": "gemini", "data": None, "suggestions": suggestions}
-        except Exception as e:
-            msg = f"Gemini: {type(e).__name__}: {str(e)[:120]}"
-            logger.warning(msg)
-            _errors.append(msg)
-            return None
 
     def try_openai():
         if not openai_key:
             _errors.append("OpenAI: key missing")
             return None
         try:
-            raw = _call_openai(conv, openai_key)
+            raw = _call_openai(conv, openai_key, tools=TOOLS, project_id=project_id)
             reply, suggestions = _extract_suggestions(raw)
             return {"message": reply, "intent": None, "source": "openai", "data": None, "suggestions": suggestions}
         except Exception as e:
@@ -337,24 +286,39 @@ def ai_chat(
             _errors.append(msg)
             return None
 
-    # ── Dispatch by provider preference ──────────────────────────────────────
-    p = (provider or "auto").lower()
-
-    if p == "groq":
-        result = try_groq() or try_gemini() or try_openai()
-    elif p == "gemini":
-        result = try_gemini() or try_groq() or try_openai()
-    elif p == "openai":
-        result = try_openai() or try_groq() or try_gemini()
-    else:
-        # auto: Groq → Gemini → OpenAI
-        result = try_groq() or try_gemini() or try_openai()
+    result = try_openai()
 
     if result:
         return result
-    # All providers failed — pass error details to fallback so UI can show them
-    logger.error("All AI providers failed. Errors: %s", _errors)
-    return _rule_fallback(message, _errors)
+
+    logger.error("OpenAI chat failed. Errors: %s", _errors)
+    return _openai_error_response(_errors)
+
+
+def _openai_error_response(errors: list | None = None) -> dict:
+    first = (errors or ["OpenAI unavailable"])[0]
+    lower = first.lower()
+
+    if "insufficient_quota" in lower or "exceeded your current quota" in lower:
+        message = "⚠️ OpenAI quota/billing सकिएको छ। Platform billing/credits जाँचेर quota थप्नुहोस्, त्यसपछि backend restart गर्नुहोस्।"
+    elif "key missing" in lower:
+        message = "⚠️ OpenAI API key भेटिएन। Backend `.env` मा OPENAI_API_KEY राखेर Django restart गर्नुहोस्।"
+    elif "401" in first or "403" in first:
+        message = "⚠️ OpenAI API key अमान्य छ। सही OPENAI_API_KEY राखेर backend restart गर्नुहोस्।"
+    elif "429" in first:
+        message = "⚠️ OpenAI rate limit आयो। केही समयपछि फेरि प्रयास गर्नुहोस्।"
+    elif "connection" in lower or "timeout" in lower:
+        message = "⚠️ OpenAI जडान असफल भयो। Internet/backend network जाँचेर फेरि प्रयास गर्नुहोस्।"
+    else:
+        message = f"⚠️ OpenAI chat failed: {first[:120]}"
+
+    return {
+        "message": message,
+        "intent": "OPENAI_ERROR",
+        "source": "openai-error",
+        "data": {"errors": errors or []},
+        "suggestions": ["API key जाँच्नुस्", "Backend restart गर्नुस्", "फेरि प्रयास गर्नुस्"],
+    }
 
 
 def _rule_fallback(message: str, errors: list | None = None) -> dict:
@@ -372,7 +336,7 @@ def _rule_fallback(message: str, errors: list | None = None) -> dict:
         elif "ConnectionError" in first or "Connection" in first:
             diag = "⚠️ Network error — internet जडान जाँच्नुस्।"
         elif "key missing" in first:
-            diag = "⚠️ API key छैन — .env मा GROQ_API_KEY थप्नुस्।"
+            diag = "⚠️ API key छैन — .env मा OPENAI_API_KEY थप्नुस्।"
         elif "401" in first or "403" in first:
             diag = "⚠️ API key अमान्य — .env मा सही key राख्नुस्।"
         elif "429" in first:

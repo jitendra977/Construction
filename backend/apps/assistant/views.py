@@ -1,4 +1,5 @@
 import re
+import hashlib
 import requests as _req_module
 
 from django.http import HttpResponse
@@ -226,13 +227,11 @@ def ai_chat_view(request):
     raw_history = request.data.get("history") or []
     project_id = request.data.get("project_id")
     language = str(request.data.get("language", "ne") or "ne").lower()
-    provider = str(request.data.get("provider", "auto") or "auto").lower()
+    provider = "openai"
 
     if not message:
         return Response({"detail": "message is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-    if provider not in {"auto", "groq", "gemini", "openai"}:
-        provider = "auto"
     if language not in {"ne", "en"}:
         language = "ne"
 
@@ -267,11 +266,11 @@ def ai_chat_view(request):
     except Exception as exc:
         # Never fail the endpoint with 500 for user chat.
         result = {
-            "message": "⚠️ AI सेवा अहिले उपलब्ध छैन। केही समयपछि फेरि प्रयास गर्नुहोस्।",
-            "intent": "UNKNOWN",
-            "source": "fallback",
+            "message": f"⚠️ OpenAI chat endpoint failed: {str(exc)[:160]}",
+            "intent": "OPENAI_ERROR",
+            "source": "openai-error",
             "data": {"error": str(exc)[:160]},
-            "suggestions": ["फेरि प्रयास गर्नुहोस्", "खुला कामहरू देखाउनुस्", "बजेट स्थिति जाँच्नुस्"],
+            "suggestions": ["API key जाँच्नुस्", "Backend restart गर्नुस्", "फेरि प्रयास गर्नुस्"],
         }
 
     VoiceCommand.objects.create(
@@ -280,7 +279,7 @@ def ai_chat_view(request):
         language=language,
         intent=result.get("intent") or "UNKNOWN",
         parsed_entities=result.get("data") or {},
-        confidence=1.0 if result.get("source") in ("groq", "gemini", "openai") else 0.5,
+        confidence=1.0 if result.get("source") == "openai" else 0.0,
         response_text=result.get("message", ""),
         executed=False,
     )
@@ -288,7 +287,89 @@ def ai_chat_view(request):
     return Response(result, status=status.HTTP_200_OK)
 
 
-# ── Groq Whisper STT ──────────────────────────────────────────────────────────
+# ── OpenAI Realtime Voice Session ─────────────────────────────────────────────
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def realtime_session_view(request):
+    """
+    POST /api/v1/assistant/realtime/session/
+    Body: {project_id, language}
+
+    Returns an ephemeral OpenAI Realtime client secret for browser WebRTC.
+    This keeps OPENAI_API_KEY server-side and avoids the old STT → chat → TTS chain.
+    """
+    from django.conf import settings
+    from .services.ai_chat import SYSTEM_PROMPT, _build_context
+
+    openai_key = getattr(settings, "OPENAI_API_KEY", "") or ""
+    if not openai_key:
+        return Response({"detail": "OPENAI_API_KEY not configured"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+    project_id = request.data.get("project_id")
+    if project_id in ("", "null", "undefined"):
+        project_id = None
+    try:
+        project_id = int(project_id) if project_id is not None else None
+    except (TypeError, ValueError):
+        project_id = None
+
+    language = str(request.data.get("language", "ne") or "ne").lower()
+    if language not in {"ne", "en"}:
+        language = "ne"
+
+    context = _build_context(project_id)
+    instructions = SYSTEM_PROMPT.format(context=context)
+    instructions += (
+        "\n\nVoice mode rules:\n"
+        "- This is a live speech-to-speech session; respond with natural spoken audio.\n"
+        "- Do not output SUGGEST JSON in voice mode.\n"
+        "- Keep answers concise unless the user asks for detail.\n"
+    )
+    if language == "en":
+        instructions += "- The user selected English; answer primarily in English.\n"
+
+    model = getattr(settings, "OPENAI_REALTIME_MODEL", "gpt-realtime-2")
+    voice = getattr(settings, "OPENAI_REALTIME_VOICE", "marin")
+    user_id = getattr(request.user, "id", "anonymous")
+    safety_identifier = hashlib.sha256(f"hcms-user:{user_id}".encode("utf-8")).hexdigest()
+
+    session_config = {
+        "session": {
+            "type": "realtime",
+            "model": model,
+            "instructions": instructions,
+            "audio": {
+                "output": {
+                    "voice": voice,
+                },
+            },
+        }
+    }
+
+    try:
+        resp = _direct.post(
+            "https://api.openai.com/v1/realtime/client_secrets",
+            headers={
+                "Authorization": f"Bearer {openai_key}",
+                "Content-Type": "application/json",
+                "OpenAI-Safety-Identifier": safety_identifier,
+            },
+            json=session_config,
+            timeout=20,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        data["model"] = model
+        data["voice"] = voice
+        return Response(data, status=status.HTTP_200_OK)
+    except Exception as exc:
+        return Response(
+            {"detail": f"Realtime session failed: {exc}"},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+
+# ── OpenAI Whisper STT ────────────────────────────────────────────────────────
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def transcribe_view(request):
@@ -296,8 +377,8 @@ def transcribe_view(request):
     POST /api/v1/assistant/transcribe/
     Form-data: audio (file), language ('ne'|'en')
 
-    Uses Groq's Whisper-large-v3-turbo — ultra-fast, accurate, free tier.
-    Falls back to a 503 if GROQ_API_KEY is not set.
+    Uses OpenAI's Whisper model.
+    Falls back to a 503 if OPENAI_API_KEY is not set.
     """
     from django.conf import settings
 
@@ -306,12 +387,12 @@ def transcribe_view(request):
         return Response({"detail": "audio file required"}, status=status.HTTP_400_BAD_REQUEST)
 
     lang = request.data.get("language", "ne")
-    # Groq Whisper language codes
+    # Whisper language codes
     lang_code = "ne" if lang == "ne" else "en"
 
-    groq_key = getattr(settings, "GROQ_API_KEY", "") or ""
-    if not groq_key:
-        return Response({"detail": "GROQ_API_KEY not configured"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+    openai_key = getattr(settings, "OPENAI_API_KEY", "") or ""
+    if not openai_key:
+        return Response({"detail": "OPENAI_API_KEY not configured"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
     try:
         raw = audio_file.read()
@@ -319,11 +400,11 @@ def transcribe_view(request):
         mime     = audio_file.content_type or "audio/webm"
 
         resp = _direct.post(
-            "https://api.groq.com/openai/v1/audio/transcriptions",
-            headers={"Authorization": f"Bearer {groq_key}"},
+            "https://api.openai.com/v1/audio/transcriptions",
+            headers={"Authorization": f"Bearer {openai_key}"},
             files={"file": (filename, raw, mime)},
             data={
-                "model": "whisper-large-v3-turbo",
+                "model": "whisper-1",
                 "response_format": "json",
                 "language": lang_code,
                 "temperature": 0,
@@ -365,7 +446,23 @@ def tts_view(request):
     # Clean text for natural speech (convert numbers, remove markdown)
     spoken_text = _prepare_tts(text, lang)
 
-    # ── 1. Microsoft Edge TTS (FREE — no API key needed) ──────────────────────
+    # ── 1. OpenAI TTS (Primary) ───────────────────────────────────────────────
+    openai_key = getattr(settings, "OPENAI_API_KEY", "") or ""
+    if openai_key:
+        try:
+            resp = _direct.post(
+                "https://api.openai.com/v1/audio/speech",
+                headers={"Authorization": f"Bearer {openai_key}", "Content-Type": "application/json"},
+                json={"model": "tts-1-hd", "voice": "nova", "input": spoken_text, "response_format": "mp3", "speed": 0.9},
+                timeout=30,
+            )
+            resp.raise_for_status()
+            return HttpResponse(resp.content, content_type="audio/mpeg")
+        except Exception as e:
+            # Fall through to free Edge TTS
+            pass
+
+    # ── 2. Microsoft Edge TTS (Free fallback if OpenAI fails/key missing) ─────
     try:
         import asyncio
         import edge_tts
@@ -401,39 +498,7 @@ def tts_view(request):
         audio = asyncio.run(_speak())
         if audio:
             return HttpResponse(audio, content_type="audio/mpeg")
-    except Exception as e:
-        pass  # fall through to paid providers
-
-    # ── 2. ElevenLabs ─────────────────────────────────────────────────────────
-    el_key = getattr(settings, "ELEVENLABS_API_KEY", "") or ""
-    if el_key:
-        el_voice = voice_id or getattr(settings, "ELEVENLABS_VOICE_ID", "pNInz6obpgDQGcFmaJgB")
-        try:
-            resp = _direct.post(
-                f"https://api.elevenlabs.io/v1/text-to-speech/{el_voice}",
-                headers={"xi-api-key": el_key, "Content-Type": "application/json", "Accept": "audio/mpeg"},
-                json={"text": text, "model_id": "eleven_multilingual_v2",
-                      "voice_settings": {"stability": 0.45, "similarity_boost": 0.82, "style": 0.15, "use_speaker_boost": True}},
-                timeout=30,
-            )
-            resp.raise_for_status()
-            return HttpResponse(resp.content, content_type="audio/mpeg")
-        except Exception:
-            pass
-
-    # ── 3. OpenAI TTS ─────────────────────────────────────────────────────────
-    openai_key = getattr(settings, "OPENAI_API_KEY", "") or ""
-    if openai_key:
-        try:
-            resp = _direct.post(
-                "https://api.openai.com/v1/audio/speech",
-                headers={"Authorization": f"Bearer {openai_key}", "Content-Type": "application/json"},
-                json={"model": "tts-1-hd", "voice": "nova", "input": spoken_text, "response_format": "mp3", "speed": 0.9},
-                timeout=30,
-            )
-            resp.raise_for_status()
-            return HttpResponse(resp.content, content_type="audio/mpeg")
-        except Exception as e:
-            return Response({"detail": f"TTS failed: {e}"}, status=status.HTTP_502_BAD_GATEWAY)
+    except Exception:
+        pass
 
     return Response({"detail": "TTS unavailable"}, status=status.HTTP_502_BAD_GATEWAY)

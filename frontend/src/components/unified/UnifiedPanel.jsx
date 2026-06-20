@@ -2,7 +2,7 @@
  * UnifiedPanel — साथी AI chat + Daily work update, all in one place.
  *
  * Tabs:
- *   🤖 साथी    — full AI conversation (Groq, voice, suggestions)
+ *   🤖 साथी    — OpenAI conversation, direct Realtime voice, suggestions
  *   📋 काम     — task progress note + slider
  *   📷 फोटो    — camera / file upload
  *   👷 हाजिरी  — bulk attendance marking
@@ -238,16 +238,14 @@ const CSS = `
 /*  AI Chat — constants                                                         */
 /* ─────────────────────────────────────────────────────────────────────────── */
 const SOURCE_CFG = {
-    groq:     { label:'Llama 3',   color:'#8b5cf6', dot:'#8b5cf6' },
-    gemini:   { label:'Gemini',    color:'#3b82f6', dot:'#3b82f6' },
     openai:   { label:'GPT-4o',    color:'#10b981', dot:'#10b981' },
-    fallback: { label:'Offline',   color:'#6b7280', dot:'#6b7280' },
+    'openai-realtime': { label:'Realtime', color:'#10b981', dot:'#10b981' },
+    'openai-error': { label:'OpenAI error', color:'#ef4444', dot:'#ef4444' },
+    fallback: { label:'Local fallback', color:'#6b7280', dot:'#6b7280' },
 };
 const getSourceCfg = (source) => SOURCE_CFG[source] || null;
 const PROVIDERS = [
-    { id:'auto',   label:'Auto',   icon:'⚡', color:'#6366f1' },
-    { id:'groq',   label:'Groq',   icon:'🦙', color:'#f97316' },
-    { id:'gemini', label:'Gemini', icon:'✦',  color:'#3b82f6' },
+    { id:'openai', label:'OpenAI', icon:'🤖', color:'#10b981' },
 ];
 const STARTERS = [
     { icon:'💰', label:'बजेट स्थिति',     text:'हालको बजेट स्थिति के छ? कुनै श्रेणी बजेट नाघेको छ?' },
@@ -399,13 +397,11 @@ function AiTab({ projectId, onTabSwitch }) {
     const [recState,    setRecState]    = useState('idle'); // idle|recording|transcribing
     const [waveLevels,  setWaveLevels]  = useState([0,0,0,0,0,0,0]);
     const [speaking,    setSpeaking]    = useState(false);
-    const [tts,         setTts]         = useState(true);
     const [lang,        setLang]        = useState('ne');
     const [showStarter, setShowStarter] = useState(true);
     const [atBottom,    setAtBottom]    = useState(true);
     const [voiceMode,   setVoiceMode]   = useState(false);
-    const [provider,    setProvider]    = useState(() => localStorage.getItem('sathi_provider') || 'auto');
-    const [ttsMode,     setTtsMode]     = useState(() => localStorage.getItem('sathi_tts_mode') || 'api');
+    const [provider,    setProvider]    = useState('openai');
     const [voiceError,  setVoiceError]  = useState('');
     const [convMode,    setConvMode]    = useState(false); // full duplex conversation mode
     const [convPhase,   setConvPhase]   = useState('idle'); // idle|listening|thinking|speaking
@@ -420,9 +416,11 @@ function AiTab({ projectId, onTabSwitch }) {
     const audioCtxRef    = useRef(null);
     const analyserRef    = useRef(null);
     const waveFrameRef   = useRef(null);
-    const audioRef       = useRef(null);
-    const voicesRef      = useRef([]);
-    const speakSeqRef    = useRef(0);
+    const realtimePcRef  = useRef(null);
+    const realtimeDcRef  = useRef(null);
+    const realtimeAudioRef = useRef(null);
+    const realtimeStreamRef = useRef(null);
+    const realtimeReplyRef = useRef('');
     const voiceModeRef   = useRef(false);
     const convModeRef    = useRef(false);
     const silenceRef     = useRef(0);   // silence frame counter
@@ -449,20 +447,13 @@ function AiTab({ projectId, onTabSwitch }) {
         el.style.height = Math.min(el.scrollHeight, 120) + 'px';
     }, [input]);
 
-    /* Load browser TTS voices (fallback) */
-    useEffect(() => {
-        const load = () => { voicesRef.current = window.speechSynthesis?.getVoices() || []; };
-        load();
-        window.speechSynthesis?.addEventListener('voiceschanged', load);
-        return () => window.speechSynthesis?.removeEventListener('voiceschanged', load);
-    }, []);
-
     /* Cleanup on unmount */
     useEffect(() => () => {
         stopRecording();
         stopSpeaking();
+        stopRealtimeConversation();
         clearTimeout(streamTimer.current);
-    }, []); // eslint-disable-line
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     /* ── Live waveform from microphone ──────────────────────────────────────── */
     const startWaveform = (stream) => {
@@ -506,92 +497,28 @@ function AiTab({ projectId, onTabSwitch }) {
         setWaveLevels([0,0,0,0,0,0,0]);
     };
 
-    /* ── TTS — API first, browser fallback ──────────────────────────────────── */
     const stopSpeaking = () => {
-        // Invalidate any in-flight async TTS request/playback callbacks.
-        speakSeqRef.current += 1;
-        // Stop API audio
-        if (audioRef.current) { audioRef.current.pause(); audioRef.current.src=''; audioRef.current=null; }
-        // Stop browser TTS
         window.speechSynthesis?.cancel?.();
         setSpeaking(false);
     };
 
-    const speakWithBrowser = useCallback((text, onEnd) => {
-        if (!window.speechSynthesis) { onEnd?.(); return; }
-        window.speechSynthesis.cancel();
-        const clean = text
-            .replace(/[✅⚠️🤖📊📋➕🏗️📈🔊✓*_#]/g,'')
-            // Currency style: "रु एक लाख"
-            .replace(/Rs\.?\s*/gi, 'रु ')
-            .replace(/(^|[\s(])रु\.?\s*/g, '$1रु ')
-            // Never read numeric commas.
-            .replace(/([0-9०-९]),([0-9०-९])/g, '$1$2')
-            .replace(/\n+/g,'। ')
-            .replace(/\s{2,}/g,' ')
-            .trim();
-        if (!clean) { onEnd?.(); return; }
-        const utter  = new SpeechSynthesisUtterance(clean);
-        const hasNep = /[ऀ-ॿ]/.test(text);
-        const hasEng = /[A-Za-z]/.test(text);
-        const voices = voicesRef.current;
-        const voice  = (hasNep && hasEng)
-            ? (voices.find(v => /multilingual/i.test(v.name) && v.lang.startsWith('en')) ||
-               voices.find(v => v.lang === 'en-US') ||
-               voices.find(v => v.lang.startsWith('en')))
-            : hasNep
-                ? (voices.find(v=>v.lang==='ne-NP') || voices.find(v=>v.lang==='hi-IN') || voices.find(v=>v.lang.startsWith('hi')))
-                : (voices.find(v=>v.lang==='en-US') || voices.find(v=>v.lang.startsWith('en')));
-        if (voice) { utter.voice=voice; utter.lang=voice.lang; }
-        else utter.lang = (hasNep && hasEng) ? 'en-US' : (hasNep ? 'hi-IN' : 'en-US');
-        utter.rate = hasNep ? .88 : .93; utter.pitch = 1.04; utter.volume = 1;
-        utter.onstart = () => setSpeaking(true);
-        utter.onend   = () => { setSpeaking(false); onEnd?.(); };
-        utter.onerror = () => { setSpeaking(false); onEnd?.(); };
-        window.speechSynthesis.speak(utter);
-    }, []);
-
-    const speak = useCallback(async (text, onEnd) => {
-        if (!tts) { onEnd?.(); return; }
-        stopSpeaking();
-        const seq = speakSeqRef.current;
-
-        if (ttsMode === 'api') {
-            try {
-                const resp = await assistantService.tts(text, null, lang);
-                if (seq !== speakSeqRef.current) return;
-                const blob = new Blob([resp.data], { type:'audio/mpeg' });
-                const url  = URL.createObjectURL(blob);
-                const audio = new Audio(url);
-                audioRef.current = audio;
-                audio.onplay  = () => { if (seq === speakSeqRef.current) setSpeaking(true); };
-                audio.onended = () => {
-                    if (seq !== speakSeqRef.current) return;
-                    setSpeaking(false);
-                    URL.revokeObjectURL(url);
-                    audioRef.current = null;
-                    onEnd?.();
-                };
-                audio.onerror = () => {
-                    if (seq !== speakSeqRef.current) return;
-                    setSpeaking(false);
-                    audioRef.current = null;
-                    // fallback to browser TTS
-                    speakWithBrowser(text, onEnd);
-                };
-                if (seq !== speakSeqRef.current) {
-                    URL.revokeObjectURL(url);
-                    return;
-                }
-                await audio.play();
-                return;
-            } catch {
-                // API TTS failed → browser fallback
-            }
+    const stopRealtimeConversation = useCallback(() => {
+        realtimeDcRef.current?.close?.();
+        realtimeDcRef.current = null;
+        realtimePcRef.current?.getSenders?.().forEach(sender => sender.track?.stop?.());
+        realtimePcRef.current?.close?.();
+        realtimePcRef.current = null;
+        realtimeStreamRef.current?.getTracks?.().forEach(track => track.stop());
+        realtimeStreamRef.current = null;
+        if (realtimeAudioRef.current) {
+            realtimeAudioRef.current.pause();
+            realtimeAudioRef.current.srcObject = null;
+            realtimeAudioRef.current = null;
         }
-        if (seq !== speakSeqRef.current) return;
-        speakWithBrowser(text, onEnd);
-    }, [tts, ttsMode, speakWithBrowser]); // eslint-disable-line
+        realtimeReplyRef.current = '';
+        stopWaveform();
+        setSpeaking(false);
+    }, []);
 
     /* ── Word-by-word streaming ──────────────────────────────────────────────── */
     const streamResponse = useCallback((msgId, fullText, onDone) => {
@@ -612,25 +539,7 @@ function AiTab({ projectId, onTabSwitch }) {
         streamTimer.current = setTimeout(step, 50);
     }, []);
 
-    /* ── Browser SpeechRecognition fallback ────────────────────────────────── */
-    const startBrowserSTT = useCallback((onResult, onError) => {
-        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SR) { onError('Browser STT not supported'); return null; }
-        const sr = new SR();
-        sr.lang = lang === 'ne' ? 'ne-NP' : 'en-US';
-        sr.interimResults = false;
-        sr.maxAlternatives = 1;
-        sr.onresult = (e) => {
-            const text = e.results[0]?.[0]?.transcript?.trim() || '';
-            onResult(text);
-        };
-        sr.onerror = (e) => onError(e.error);
-        sr.onend   = () => {};
-        sr.start();
-        return sr;
-    }, [lang]);
-
-    /* ── MediaRecorder → Groq Whisper STT (browser STT fallback) ───────────── */
+    /* ── MediaRecorder → OpenAI Whisper STT for one-shot mic input ─────────── */
     const startRecording = useCallback(async () => {
         if (busyRef.current || recState !== 'idle') return;
         setVoiceError('');
@@ -658,20 +567,19 @@ function AiTab({ projectId, onTabSwitch }) {
                 setRecState('transcribing');
                 const blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' });
 
-                // Try Groq Whisper first
+                // One-shot mic input uses OpenAI Whisper. Full voice mode uses OpenAI Realtime.
                 try {
                     const { data } = await assistantService.transcribe(blob, lang);
                     const text = (data.transcript || '').trim();
                     setRecState('idle');
                     if (text) send(text);
                     return;
-                } catch (groqErr) {
-                    console.warn('[साथी] Groq STT failed, trying browser STT:', groqErr);
+                } catch (transcribeErr) {
+                    console.warn('[साथी] OpenAI transcription failed:', transcribeErr);
                 }
 
-                // Fallback: browser SpeechRecognition (re-listen since blob already recorded)
                 setRecState('idle');
-                setVoiceError('Groq offline — browser mic retry गर्नुस्');
+                setVoiceError('OpenAI transcription unavailable — type or use direct voice assistant');
                 setTimeout(() => setVoiceError(''), 3000);
             };
             rec.start(250);
@@ -728,22 +636,12 @@ function AiTab({ projectId, onTabSwitch }) {
             historyRef.current = [...historyRef.current, {role:'assistant', content:reply}].slice(-20);
 
             const aiId  = Date.now() + 1;
-            const aiMsg = { id:aiId, role:'ai', content:reply, ts:new Date(), source:data.source||'fallback', intent:data.intent||null, actionDone:reply.includes('✅'), suggestions:sugg };
+            const aiMsg = { id:aiId, role:'ai', content:reply, ts:new Date(), source:data.source||'openai', intent:data.intent||null, actionDone:reply.includes('✅'), suggestions:sugg };
             setMessages(m => [...m, aiMsg]);
             setBusy(false);
 
             streamResponse(aiId, reply, () => {
-                if (tts) {
-                    if (convModeRef.current) setConvPhase('speaking');
-                    speak(reply, () => {
-                        if (voiceModeRef.current) startRecording();
-                        else if (convModeRef.current) setConvPhase('idle');
-                    });
-                } else if (voiceModeRef.current) {
-                    startRecording();
-                } else if (convModeRef.current) {
-                    setConvPhase('idle');
-                }
+                if (convModeRef.current) setConvPhase('idle');
             });
         } catch (err) {
             const detail =
@@ -756,40 +654,167 @@ function AiTab({ projectId, onTabSwitch }) {
                 role:'ai',
                 content:`⚠️ जडान त्रुटि — ${detail}`,
                 ts:new Date(),
-                source:'fallback',
-                suggestions:[],
+                source:'openai-error',
+                suggestions:['API key जाँच्नुस्', 'Backend restart गर्नुस्', 'फेरि प्रयास गर्नुस्'],
                 actionDone:false,
             }]);
             setBusy(false);
             if (convModeRef.current) setConvPhase('listening');
         }
         if (!convModeRef.current) setTimeout(() => inputRef.current?.focus(), 80);
-    }, [projectId, speak, tts, provider, streamResponse]); // eslint-disable-line
+    }, [projectId, provider, streamResponse]);
 
-    /* ── Full duplex conversation mode ─────────────────────────────────────── */
-    const startConversation = () => {
+    /* ── Direct OpenAI Realtime conversation mode ──────────────────────────── */
+    const handleRealtimeEvent = useCallback((event) => {
+        const type = event?.type || '';
+        if (!type) return;
+
+        if (type.includes('input_audio_buffer.speech_started')) {
+            setConvPhase('listening');
+        } else if (type.includes('input_audio_buffer.speech_stopped')) {
+            setConvPhase('thinking');
+        } else if (type.includes('response.created') || type.includes('response.audio')) {
+            setConvPhase('speaking');
+            setSpeaking(true);
+        }
+
+        if (type.includes('input_audio_transcription.completed') && event.transcript) {
+            const content = String(event.transcript).trim();
+            if (content) {
+                setMessages(m => [...m, {
+                    id: Date.now(),
+                    role: 'user',
+                    content,
+                    ts: new Date(),
+                    source: null,
+                    suggestions: [],
+                    actionDone: false,
+                }]);
+                setShowStarter(false);
+            }
+        }
+
+        if ((type.includes('response.audio_transcript.delta') || type.includes('response.text.delta')) && event.delta) {
+            realtimeReplyRef.current += event.delta;
+            setStreamText(realtimeReplyRef.current);
+        }
+
+        if ((type.includes('response.audio_transcript.done') || type.includes('response.text.done')) && (event.transcript || event.text || realtimeReplyRef.current)) {
+            const content = String(event.transcript || event.text || realtimeReplyRef.current).trim();
+            realtimeReplyRef.current = '';
+            setStreamText(null);
+            setStreamId(null);
+            if (content) {
+                setMessages(m => [...m, {
+                    id: Date.now() + 1,
+                    role: 'ai',
+                    content,
+                    ts: new Date(),
+                    source: 'openai-realtime',
+                    intent: null,
+                    actionDone: false,
+                    suggestions: [],
+                }]);
+                setShowStarter(false);
+            }
+        }
+
+        if (type.includes('response.done') || type.includes('response.cancelled')) {
+            setSpeaking(false);
+            if (convModeRef.current) setConvPhase('listening');
+        }
+
+        if (type.includes('error')) {
+            setVoiceError(event?.error?.message || 'OpenAI Realtime voice error');
+            setConvPhase('idle');
+            setSpeaking(false);
+        }
+    }, []);
+
+    const startConversation = async () => {
+        if (convModeRef.current) return;
         setConvMode(true);
         convModeRef.current = true;
         setVoiceMode(true);
         voiceModeRef.current = true;
         silenceRef.current = 0;
         hasSpeechRef.current = false;
-
-        // AI speaks first — greet the user, then auto-listen
-        setConvPhase('speaking');
-        const greeting = lang === 'ne'
-            ? 'नमस्ते! म साथी हुँ। के सहायता गर्न सक्छु?'
-            : 'Hello! I am Sathi. How can I help you?';
-
-        // Add greeting as AI message
-        const greetMsg = { id: Date.now(), role:'ai', content: greeting, ts: new Date(), source: null, suggestions:[], actionDone: false };
-        setMessages(m => [...m, greetMsg]);
         setShowStarter(false);
+        setVoiceError('');
+        setConvPhase('thinking');
 
-        speak(greeting, () => {
-            // After greeting finishes → start listening
-            if (convModeRef.current) startRecording();
-        });
+        try {
+            if (!navigator.mediaDevices?.getUserMedia) {
+                throw new Error('Microphone not supported in this browser');
+            }
+
+            const { data } = await assistantService.realtimeSession(projectId, lang);
+            const ephemeralKey = data?.value || data?.client_secret?.value || data?.clientSecret?.value;
+            if (!ephemeralKey) throw new Error('Realtime client secret missing');
+
+            const pc = new RTCPeerConnection();
+            realtimePcRef.current = pc;
+
+            const remoteAudio = document.createElement('audio');
+            remoteAudio.autoplay = true;
+            remoteAudio.onplay = () => { setSpeaking(true); setConvPhase('speaking'); };
+            remoteAudio.onended = () => { setSpeaking(false); if (convModeRef.current) setConvPhase('listening'); };
+            pc.ontrack = (event) => { remoteAudio.srcObject = event.streams[0]; };
+            realtimeAudioRef.current = remoteAudio;
+
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            realtimeStreamRef.current = stream;
+            stream.getTracks().forEach(track => pc.addTrack(track, stream));
+            startWaveform(stream);
+
+            const dc = pc.createDataChannel('oai-events');
+            realtimeDcRef.current = dc;
+            dc.addEventListener('message', (event) => {
+                try { handleRealtimeEvent(JSON.parse(event.data)); } catch { /* ignore malformed events */ }
+            });
+            dc.addEventListener('open', () => {
+                setConvPhase('speaking');
+                dc.send(JSON.stringify({
+                    type: 'response.create',
+                    response: {
+                        instructions: lang === 'ne'
+                            ? 'नमस्ते! म साथी हुँ। छोटकरीमा आफैं परिचय दिनुहोस् र प्रयोगकर्तालाई के सहायता चाहिन्छ भनेर सोध्नुहोस्।'
+                            : 'Briefly introduce yourself as Sathi and ask how you can help.',
+                    },
+                }));
+            });
+            dc.addEventListener('close', () => {
+                if (convModeRef.current) setConvPhase('idle');
+            });
+
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+
+            const sdpResponse = await fetch('https://api.openai.com/v1/realtime/calls', {
+                method: 'POST',
+                body: offer.sdp,
+                headers: {
+                    Authorization: `Bearer ${ephemeralKey}`,
+                    'Content-Type': 'application/sdp',
+                },
+            });
+            if (!sdpResponse.ok) {
+                throw new Error(`Realtime connect failed (${sdpResponse.status})`);
+            }
+
+            const answer = { type: 'answer', sdp: await sdpResponse.text() };
+            await pc.setRemoteDescription(answer);
+            setConvPhase('listening');
+        } catch (err) {
+            stopRealtimeConversation();
+            setConvMode(false);
+            convModeRef.current = false;
+            setVoiceMode(false);
+            voiceModeRef.current = false;
+            setConvPhase('idle');
+            setVoiceError(err?.response?.data?.detail || err?.message || 'OpenAI Realtime unavailable');
+            setTimeout(() => setVoiceError(''), 5000);
+        }
     };
 
     const endConversation = () => {
@@ -800,6 +825,7 @@ function AiTab({ projectId, onTabSwitch }) {
         setConvPhase('idle');
         stopRecording();
         stopSpeaking();
+        stopRealtimeConversation();
     };
 
     const toggleVoiceMode = () => {
@@ -820,7 +846,7 @@ function AiTab({ projectId, onTabSwitch }) {
     const clearChat = () => {
         clearTimeout(streamTimer.current);
         setStreamText(null); setStreamId(null);
-        stopSpeaking(); stopRecording();
+        stopSpeaking(); stopRecording(); stopRealtimeConversation();
         setVoiceMode(false); setRecState('idle');
         setMessages([WELCOME]); historyRef.current = [];
         setShowStarter(true); setInput('');
@@ -850,38 +876,6 @@ function AiTab({ projectId, onTabSwitch }) {
                     style={{fontSize:9, fontWeight:800, padding:'3px 7px', borderRadius:20, background:'transparent', border:'1px solid var(--t-border)', color:'var(--t-text3)', cursor:'pointer', fontFamily:"'DM Mono',monospace"}}>
                     {lang==='ne' ? 'NE' : 'EN'}
                 </button>
-
-                {/* TTS on/off */}
-                <button onClick={() => { setTts(v => !v); stopSpeaking(); }}
-                    title={tts ? 'आवाज बन्द गर्नुस्' : 'आवाज खोल्नुस्'}
-                    style={{width:26, height:26, borderRadius:7, display:'flex', alignItems:'center', justifyContent:'center',
-                        background: tts ? 'color-mix(in srgb,var(--t-primary) 10%,transparent)' : 'transparent',
-                        border: `1px solid ${tts ? 'color-mix(in srgb,var(--t-primary) 30%,transparent)' : 'var(--t-border)'}`,
-                        color: tts ? 'var(--t-primary)' : 'var(--t-text3)', cursor:'pointer', transition:'all .15s'}}>
-                    {tts
-                        ? <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 6H1v4h2l4 3V3L3 6zM11.5 8a3.5 3.5 0 0 0-2-3.15v6.3A3.5 3.5 0 0 0 11.5 8z" fill="currentColor"/></svg>
-                        : <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 6H1v4h2l4 3V3L3 6z" fill="currentColor"/><path d="M13 5l-3 3m0 0l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                    }
-                </button>
-
-                {/* TTS mode API/Browser */}
-                <button onClick={() => { const m = ttsMode==='api'?'browser':'api'; setTtsMode(m); localStorage.setItem('sathi_tts_mode', m); }}
-                    title={ttsMode==='api' ? 'API आवाज (ElevenLabs/OpenAI)' : 'Browser आवाज'}
-                    style={{fontSize:8.5, fontWeight:800, padding:'3px 7px', borderRadius:20, cursor:'pointer', fontFamily:"'DM Mono',monospace",
-                        background: ttsMode==='api' ? 'color-mix(in srgb,#10b981 10%,transparent)' : 'transparent',
-                        border: `1px solid ${ttsMode==='api' ? '#10b981' : 'var(--t-border)'}`,
-                        color: ttsMode==='api' ? '#10b981' : 'var(--t-text3)', transition:'all .15s'}}>
-                    {ttsMode==='api' ? 'API' : 'BRW'}
-                </button>
-
-                {/* Stop speaking */}
-                {speaking && (
-                    <button onClick={stopSpeaking}
-                        style={{display:'flex', alignItems:'center', gap:3, fontSize:9, padding:'3px 7px', borderRadius:20, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.3)', color:'#ef4444', cursor:'pointer'}}>
-                        <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor"><rect width="8" height="8" rx="1.5"/></svg>
-                        रोक्नुस्
-                    </button>
-                )}
 
                 <span style={{flex:1}}/>
 
@@ -920,7 +914,7 @@ function AiTab({ projectId, onTabSwitch }) {
                         <div style={{textAlign:'center', padding:'10px 0 14px'}}>
                             <div style={{width:46, height:46, borderRadius:13, background:'linear-gradient(135deg,var(--t-primary),color-mix(in srgb,var(--t-primary) 65%,black))', display:'inline-flex', alignItems:'center', justifyContent:'center', fontSize:20, marginBottom:7, boxShadow:'0 5px 18px color-mix(in srgb,var(--t-primary) 28%,transparent)'}}>🤖</div>
                             <p style={{fontSize:14, fontWeight:800, color:'var(--t-text)', margin:0}}>साथी AI सहायक</p>
-                            <p style={{fontSize:10, color:'var(--t-text3)', margin:'3px 0 0', fontFamily:"'DM Mono',monospace", letterSpacing:'.06em'}}>GROQ WHISPER · {ttsMode==='api'?'ELEVENLABS':'BROWSER'} TTS · नेपाली</p>
+                            <p style={{fontSize:10, color:'var(--t-text3)', margin:'3px 0 0', fontFamily:"'DM Mono',monospace", letterSpacing:'.06em'}}>OPENAI REALTIME VOICE · DIRECT AUDIO · नेपाली</p>
                         </div>
                         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:5}}>
                             {STARTERS.map(s => (
@@ -938,7 +932,7 @@ function AiTab({ projectId, onTabSwitch }) {
 
                 {messages.map((m, idx) => (
                     <AiMessage key={m.id} msg={m}
-                        onSpeak={tts ? speak : null}
+                        onSpeak={null}
                         onChip={send}
                         onRegenerate={m.role==='ai' && idx===messages.length-1 && !busy ? regenerate : null}
                         streaming={streamId===m.id ? streamText : null}
@@ -981,14 +975,14 @@ function AiTab({ projectId, onTabSwitch }) {
                     ) : (
                         <>
                             <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="var(--t-primary)" strokeWidth="2.5" strokeDasharray="28" strokeDashoffset="9"/></svg>
-                            <span style={{fontSize:12, fontWeight:600, color:'var(--t-text2)'}}>Groq Whisper ले ट्रान्सक्राइब गर्दैछ…</span>
+                            <span style={{fontSize:12, fontWeight:600, color:'var(--t-text2)'}}>OpenAI Whisper ले ट्रान्सक्राइब गर्दैछ…</span>
                         </>
                     )}
                 </div>
             )}
 
             {/* ── Speaking indicator ── */}
-            {speaking && (
+            {speaking && !convMode && (
                 <div style={{position:'absolute', bottom:70, left:12, right:12, background:'color-mix(in srgb,var(--t-primary) 8%,var(--t-surface))', border:'1px solid color-mix(in srgb,var(--t-primary) 25%,transparent)', borderRadius:12, padding:'8px 14px', zIndex:11, display:'flex', alignItems:'center', gap:8, boxShadow:'0 4px 18px rgba(0,0,0,.12)'}}>
                     <div style={{display:'flex', alignItems:'center', gap:3}}>
                         {[4,8,6,10,5,9,4].map((h,i) => (
@@ -1093,7 +1087,7 @@ function AiTab({ projectId, onTabSwitch }) {
 
                         {/* Hint */}
                         <p style={{fontSize:9, color:'var(--t-text3)', fontFamily:"'DM Mono',monospace", letterSpacing:'.06em'}}>
-                            AUTO SILENCE DETECT · GROQ WHISPER · EDGE TTS
+                            OPENAI REALTIME · WEBRTC · DIRECT AUDIO
                         </p>
                     </div>
                 );
@@ -1105,11 +1099,11 @@ function AiTab({ projectId, onTabSwitch }) {
                     onFocusCapture={e => e.currentTarget.style.borderColor='var(--t-primary)'}
                     onBlurCapture={e  => e.currentTarget.style.borderColor='var(--t-border)'}>
 
-                    {/* Mic → Groq Whisper */}
+                    {/* One-shot mic → OpenAI Whisper */}
                     <button
                         onClick={toggleRecording}
                         className={recState==='recording' ? 'up-mic-active' : ''}
-                        title={recState==='idle' ? 'Groq Whisper मा रेकर्ड गर्नुस्' : 'रोक्नुस्'}
+                        title={recState==='idle' ? 'OpenAI Whisper मा रेकर्ड गर्नुस्' : 'रोक्नुस्'}
                         style={{width:32, height:32, borderRadius:9, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center',
                             background: recState==='recording' ? '#ef4444' : recState==='transcribing' ? 'color-mix(in srgb,var(--t-primary) 15%,transparent)' : 'var(--t-surface2)',
                             border: `1px solid ${recState==='recording' ? '#ef4444' : 'var(--t-border)'}`,
@@ -1139,8 +1133,8 @@ function AiTab({ projectId, onTabSwitch }) {
                         <span style={{fontSize:9, color:'var(--t-text3)', fontFamily:"'DM Mono',monospace", flexShrink:0, paddingBottom:2}}>{input.length}</span>
                     )}
 
-                    {/* Conversation mode button */}
-                    <button onClick={toggleVoiceMode} title="Voice conversation mode — dual talking"
+                    {/* Direct OpenAI voice assistant */}
+                    <button onClick={toggleVoiceMode} title="Direct OpenAI voice assistant"
                         style={{width:32, height:32, borderRadius:9, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center',
                             background: convMode ? 'color-mix(in srgb,#10b981 15%,transparent)' : 'var(--t-surface2)',
                             border: `1.5px solid ${convMode ? '#10b981' : 'var(--t-border)'}`,
@@ -1173,7 +1167,7 @@ function AiTab({ projectId, onTabSwitch }) {
                     </p>
                 ) : (
                     <p style={{fontSize:8.5, color:'var(--t-text3)', textAlign:'center', marginTop:5, fontFamily:"'DM Mono',monospace", letterSpacing:'.04em'}}>
-                        🎤 Groq Whisper STT · {ttsMode==='api'?'Edge Neural TTS':'Browser'} TTS · ▶ Voice loop
+                        🎙️ OpenAI Realtime voice assistant · direct speech-to-speech · no separate speech synthesis
                     </p>
                 )}
             </div>

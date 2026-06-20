@@ -194,6 +194,9 @@ GEMINI_MODEL  = config('GEMINI_MODEL',  default='gemini-2.0-flash')
 ELEVENLABS_API_KEY  = config('ELEVENLABS_API_KEY',  default='')
 ELEVENLABS_VOICE_ID = config('ELEVENLABS_VOICE_ID', default='pNInz6obpgDQGcFmaJgB')
 OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
+OPENAI_MODEL = config('OPENAI_MODEL', default='gpt-4o-mini')
+OPENAI_REALTIME_MODEL = config('OPENAI_REALTIME_MODEL', default='gpt-realtime-2')
+OPENAI_REALTIME_VOICE = config('OPENAI_REALTIME_VOICE', default='marin')
 
 # ── GitHub Actions CI/CD Deployment Token ──────────────────────────────────────
 GITHUB_DEPLOY_TOKEN = config('GITHUB_DEPLOY_TOKEN', default='')

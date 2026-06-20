@@ -5,9 +5,8 @@ export const assistantService = {
     ask: (transcript, language = 'ne') =>
         api.post('assistant/voice-commands/ask/', { transcript, language }),
 
-    // AI chat — Groq / Gemini / OpenAI
-    // provider: "auto" | "groq" | "gemini" | "openai"
-    chat: (message, history = [], projectId = null, language = 'ne', provider = 'auto') => {
+    // AI chat — OpenAI only
+    chat: (message, history = [], projectId = null, language = 'ne', provider = 'openai') => {
         const safeMessage = String(message || '').trim();
         const safeHistory = Array.isArray(history)
             ? history
@@ -36,7 +35,7 @@ export const assistantService = {
         );
     },
 
-    // Groq Whisper STT — sends audio blob, returns { transcript, language }
+    // OpenAI Whisper STT — sends audio blob, returns { transcript, language }
     transcribe: (audioBlob, language = 'ne') => {
         const form = new FormData();
         form.append('audio', audioBlob, `recording.${_ext(audioBlob.type)}`);
@@ -47,15 +46,12 @@ export const assistantService = {
         });
     },
 
-    // Edge TTS / ElevenLabs / OpenAI TTS — returns audio/mpeg ArrayBuffer
-    tts: (text, voiceId = null, lang = 'ne') => {
-        const body = { text, lang };
-        if (voiceId) body.voice_id = voiceId;
-        return api.post('assistant/tts/', body, {
-            responseType: 'arraybuffer',
+    // Direct OpenAI Realtime voice assistant — returns an ephemeral client secret
+    realtimeSession: (projectId = null, language = 'ne') =>
+        api.post('assistant/realtime/session/', { project_id: projectId, language }, {
             _silentError: true,
-        });
-    },
+            timeout: 20000,
+        }),
 
     getHistory: () => api.get('assistant/voice-commands/'),
     getPhrases: () => api.get('assistant/phrases/'),

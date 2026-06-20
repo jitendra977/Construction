@@ -6,6 +6,7 @@ from .views import (
     TranscriptionLogViewSet,
     VoiceCommandViewSet,
     ai_chat_view,
+    realtime_session_view,
     transcribe_view,
     tts_view,
 )
@@ -18,6 +19,7 @@ router.register(r"transcripts",    TranscriptionLogViewSet, basename="transcript
 urlpatterns = [
     path("", include(router.urls)),
     path("chat/",        ai_chat_view,   name="ai-chat"),
-    path("transcribe/",  transcribe_view, name="ai-transcribe"),  # Groq Whisper STT
+    path("realtime/session/", realtime_session_view, name="ai-realtime-session"),
+    path("transcribe/",  transcribe_view, name="ai-transcribe"),  # OpenAI Whisper STT
     path("tts/",         tts_view,        name="ai-tts"),          # ElevenLabs / OpenAI TTS
 ]
