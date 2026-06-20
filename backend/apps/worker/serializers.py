@@ -62,6 +62,7 @@ class WorkerTaskMediaSerializer(serializers.ModelSerializer):
 
 class WorkerTaskSerializer(serializers.ModelSerializer):
     phase_name       = serializers.CharField(source="phase.name",            read_only=True)
+    phase_status     = serializers.CharField(source="phase.status",          read_only=True)
     room_name        = serializers.CharField(source="room.name",             read_only=True, default=None)
     assigned_to_name = serializers.SerializerMethodField()
     media            = WorkerTaskMediaSerializer(many=True, read_only=True)
@@ -72,7 +73,7 @@ class WorkerTaskSerializer(serializers.ModelSerializer):
             "id", "title", "description", "technical_requirement",
             "status", "priority",
             "start_date", "due_date", "completed_date",
-            "phase", "phase_name",
+            "phase", "phase_name", "phase_status",
             "room",  "room_name",
             "assigned_to", "assigned_to_name",
             "media",
@@ -81,7 +82,7 @@ class WorkerTaskSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id", "title", "description", "technical_requirement",
             "priority", "start_date", "due_date",
-            "phase", "phase_name", "room", "room_name",
+            "phase", "phase_name", "phase_status", "room", "room_name",
             "assigned_to", "assigned_to_name",
             "media", "created_at", "updated_at",
         ]

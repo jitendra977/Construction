@@ -5,6 +5,7 @@
  */
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { useTimeline } from '../../context/TimelineContext';
+import { daysUntilDate, isTaskOverdue } from '../../../../shared/utils/taskSchedule';
 
 /* ── mobile detector ───────────────────────────────────────────────────────── */
 function useIsMobile() {
@@ -241,9 +242,9 @@ function MobileGanttView({ phases, tasksByPhase, filteredTasks, criticalPathIds,
                                     const tc       = STATUS_COLOR[task.status] || '#6b7280';
                                     const tl       = STATUS_LABEL[task.status] || task.status;
                                     const isCrit   = criticalPathIds.includes(task.id);
-                                    const dl       = task.due_date
-                                        ? Math.round((new Date(task.due_date) - new Date()) / DAY)
-                                        : null;
+                                    const dl       = daysUntilDate(task.due_date);
+                                    const overdue  = isTaskOverdue(task, [phase]);
+                                    const workFinished = task.status === 'COMPLETED' || phase.status === 'COMPLETED';
 
                                     return (
                                         <div
@@ -296,12 +297,12 @@ function MobileGanttView({ phases, tasksByPhase, filteredTasks, criticalPathIds,
                                                     {task.due_date && (
                                                         <span style={{
                                                             fontSize: 10, fontWeight: 700,
-                                                            color: dl !== null && dl < 0 ? '#ef4444' : dl !== null && dl <= 3 ? '#f59e0b' : 'var(--t-text2)',
+                                                            color: overdue ? '#ef4444' : workFinished ? '#10b981' : dl !== null && dl <= 3 ? '#f59e0b' : 'var(--t-text2)',
                                                         }}>
                                                             ⏰ {fmtShort(task.due_date)}
                                                             {dl !== null && (
                                                                 <span style={{ marginLeft: 3, fontSize: 9, fontWeight: 600 }}>
-                                                                    {dl < 0 ? `(${Math.abs(dl)}d over)` : dl <= 3 ? `(${dl}d left)` : ''}
+                                                                    {overdue ? `(${Math.abs(dl)}d over)` : workFinished ? '(finished)' : dl <= 3 ? `(${dl}d left)` : ''}
                                                                 </span>
                                                             )}
                                                         </span>

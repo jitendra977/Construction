@@ -4,6 +4,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { useTimeline } from '../../context/TimelineContext';
+import { daysUntilDate, isParentPhaseCompleted, isTaskOverdue } from '../../../../shared/utils/taskSchedule';
 
 /* ── mobile detector ───────────────────────────────────────────────────────── */
 function useIsMobile() {
@@ -38,11 +39,6 @@ function fmt(dateStr) {
     return new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
 }
 
-function daysLeft(dueStr) {
-    if (!dueStr) return null;
-    return Math.round((new Date(dueStr) - new Date()) / 86400000);
-}
-
 /* ── desktop table header ───────────────────────────────────────────────── */
 const Th = ({ children, sort, active, dir, onSort }) => (
     <th onClick={() => onSort(sort)} style={{
@@ -58,10 +54,12 @@ const Th = ({ children, sort, active, dir, onSort }) => (
 );
 
 /* ── mobile task card ───────────────────────────────────────────────────── */
-function MobileTaskCard({ task, phaseMap, criticalPathIds, onTaskClick }) {
+function MobileTaskCard({ task, phaseMap, phases, criticalPathIds, onTaskClick }) {
     const sm  = STATUS_META[task.status]   || STATUS_META.PENDING;
     const pm  = PRIORITY_META[task.priority] || PRIORITY_META.MEDIUM;
-    const dl  = daysLeft(task.due_date);
+    const dl  = daysUntilDate(task.due_date);
+    const overdue = isTaskOverdue(task, phases);
+    const workFinished = task.status === 'COMPLETED' || isParentPhaseCompleted(task, phases);
     const pct = task.progress_percentage || 0;
     const isCritical = criticalPathIds.includes(task.id);
 
@@ -155,12 +153,12 @@ function MobileTaskCard({ task, phaseMap, criticalPathIds, onTaskClick }) {
                     {task.due_date && (
                         <span style={{
                             fontSize: 10, fontWeight: 700,
-                            color: dl !== null && dl < 0 ? '#ef4444' : dl !== null && dl <= 3 ? '#f59e0b' : 'var(--t-text2)',
+                            color: overdue ? '#ef4444' : workFinished ? '#10b981' : dl !== null && dl <= 3 ? '#f59e0b' : 'var(--t-text2)',
                         }}>
                             ⏰ {fmt(task.due_date)}
                             {dl !== null && (
                                 <span style={{ marginLeft: 4, fontSize: 9 }}>
-                                    ({dl < 0 ? `${Math.abs(dl)}d over` : `${dl}d left`})
+                                    ({overdue ? `${Math.abs(dl)}d over` : workFinished ? 'finished' : `${dl}d left`})
                                 </span>
                             )}
                         </span>
@@ -301,6 +299,7 @@ export default function ListView({ onTaskClick }) {
                             key={task.id}
                             task={task}
                             phaseMap={phaseMap}
+                            phases={phases}
                             criticalPathIds={criticalPathIds}
                             onTaskClick={onTaskClick}
                         />
@@ -332,7 +331,9 @@ export default function ListView({ onTaskClick }) {
                         {sorted.map(task => {
                             const sm = STATUS_META[task.status] || STATUS_META.PENDING;
                             const pm = PRIORITY_META[task.priority] || PRIORITY_META.MEDIUM;
-                            const dl = daysLeft(task.due_date);
+                            const dl = daysUntilDate(task.due_date);
+                            const overdue = isTaskOverdue(task, phases);
+                            const workFinished = task.status === 'COMPLETED' || isParentPhaseCompleted(task, phases);
                             const isCritical = criticalPathIds.includes(task.id);
                             const pct = task.progress_percentage || 0;
 
@@ -405,15 +406,15 @@ export default function ListView({ onTaskClick }) {
                                         {fmt(task.start_date)}
                                     </td>
                                     <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
-                                        <span style={{ fontSize: 11, color: dl !== null && dl < 0 ? '#ef4444' : dl !== null && dl <= 3 ? '#f59e0b' : 'var(--t-text2)' }}>
+                                        <span style={{ fontSize: 11, color: overdue ? '#ef4444' : workFinished ? '#10b981' : dl !== null && dl <= 3 ? '#f59e0b' : 'var(--t-text2)' }}>
                                             {fmt(task.due_date)}
                                         </span>
                                         {dl !== null && (
                                             <span style={{
                                                 marginLeft: 4, fontSize: 9, fontWeight: 700,
-                                                color: dl < 0 ? '#ef4444' : dl <= 3 ? '#f59e0b' : 'var(--t-text3)',
+                                                color: overdue ? '#ef4444' : workFinished ? '#10b981' : dl <= 3 ? '#f59e0b' : 'var(--t-text3)',
                                             }}>
-                                                {dl < 0 ? `${Math.abs(dl)}d over` : `${dl}d left`}
+                                                {overdue ? `${Math.abs(dl)}d over` : workFinished ? 'finished' : `${dl}d left`}
                                             </span>
                                         )}
                                     </td>

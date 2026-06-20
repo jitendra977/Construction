@@ -9,6 +9,7 @@ import React, { useState, useEffect } from 'react';
 import { useTimeline } from '../../context/TimelineContext';
 import timelineApi from '../../services/timelineApi';
 import VoiceNoteInput from '../../../../components/common/VoiceNoteInput';
+import { daysUntilDate, isTaskOverdue } from '../../../../shared/utils/taskSchedule';
 
 const STATUS_OPTS = [
     { value: 'PENDING',     label: 'Pending',     color: '#6b7280' },
@@ -69,9 +70,9 @@ export default function TaskDetailDrawer({ task, onClose }) {
     const phase      = phases.find(p => p.id === task.phase);
     const blockedByTask = tasks.find(t => t.id === task.blocked_by);
 
-    const daysLeft = task.due_date
-        ? Math.round((new Date(task.due_date) - new Date()) / 86400000)
-        : null;
+    const daysLeft = daysUntilDate(task.due_date);
+    const overdue = isTaskOverdue(task, phases);
+    const workFinished = task.status === 'COMPLETED' || phase?.status === 'COMPLETED';
 
     async function saveChanges() {
         setSaving(true);
@@ -159,15 +160,17 @@ export default function TaskDetailDrawer({ task, onClose }) {
                         {daysLeft !== null && (
                             <div style={{
                                 padding: '8px 12px', borderRadius: 8, gridColumn: '1/-1',
-                                background: daysLeft < 0 ? 'rgba(239,68,68,0.08)' : daysLeft <= 3 ? 'rgba(245,158,11,0.08)' : 'var(--t-surface2)',
-                                border: `1px solid ${daysLeft < 0 ? '#ef4444' : daysLeft <= 3 ? '#f59e0b' : 'var(--t-border)'}`,
+                                background: overdue ? 'rgba(239,68,68,0.08)' : workFinished ? 'rgba(16,185,129,0.08)' : daysLeft <= 3 ? 'rgba(245,158,11,0.08)' : 'var(--t-surface2)',
+                                border: `1px solid ${overdue ? '#ef4444' : workFinished ? '#10b981' : daysLeft <= 3 ? '#f59e0b' : 'var(--t-border)'}`,
                             }}>
                                 <p style={{
                                     margin: 0, fontSize: 12, fontWeight: 800,
-                                    color: daysLeft < 0 ? '#ef4444' : daysLeft <= 3 ? '#f59e0b' : '#10b981',
+                                    color: overdue ? '#ef4444' : workFinished ? '#10b981' : daysLeft <= 3 ? '#f59e0b' : '#10b981',
                                 }}>
-                                    {daysLeft < 0
+                                    {overdue
                                         ? `⚠ ${Math.abs(daysLeft)} days overdue`
+                                        : workFinished
+                                        ? '✓ Work finished'
                                         : daysLeft === 0
                                         ? '⏰ Due today!'
                                         : `✓ ${daysLeft} days remaining`}

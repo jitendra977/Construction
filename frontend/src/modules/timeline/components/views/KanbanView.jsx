@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTimeline } from '../../context/TimelineContext';
 import timelineApi from '../../services/timelineApi';
+import { daysUntilDate, isTaskOverdue } from '../../../../shared/utils/taskSchedule';
 
 /* ── mobile detector ───────────────────────────────────────────────────────── */
 function useIsMobile() {
@@ -42,12 +43,11 @@ function fmt(d) {
 }
 
 /* ── shared task card ────────────────────────────────────────────────────── */
-function KanbanCard({ task, phaseMap, criticalPathIds, col, dragging, onDragStart, onClick, isMobile }) {
+function KanbanCard({ task, phaseMap, phases, criticalPathIds, col, dragging, onDragStart, onClick, isMobile }) {
     const isCritical = criticalPathIds.includes(task.id);
     const pct = task.progress_percentage || 0;
-    const dl  = task.due_date
-        ? Math.round((new Date(task.due_date) - new Date()) / 86400000)
-        : null;
+    const dl  = daysUntilDate(task.due_date);
+    const overdue = isTaskOverdue(task, phases);
 
     return (
         <div
@@ -126,9 +126,9 @@ function KanbanCard({ task, phaseMap, criticalPathIds, col, dragging, onDragStar
                 {dl !== null && (
                     <span style={{
                         fontSize: 9, fontWeight: 700,
-                        color: dl < 0 ? '#ef4444' : dl <= 3 ? '#f59e0b' : 'var(--t-text3)',
+                        color: overdue ? '#ef4444' : dl <= 3 ? '#f59e0b' : 'var(--t-text3)',
                     }}>
-                        {dl < 0 ? `⚠ ${Math.abs(dl)}d over` : `📅 ${fmt(task.due_date)}`}
+                        {overdue ? `⚠ ${Math.abs(dl)}d over` : `📅 ${fmt(task.due_date)}`}
                     </span>
                 )}
             </div>
@@ -251,6 +251,7 @@ export default function KanbanView({ onTaskClick }) {
                             key={task.id}
                             task={task}
                             phaseMap={phaseMap}
+                            phases={phases}
                             criticalPathIds={criticalPathIds}
                             col={col}
                             dragging={null}
@@ -316,6 +317,7 @@ export default function KanbanView({ onTaskClick }) {
                                     key={task.id}
                                     task={task}
                                     phaseMap={phaseMap}
+                                    phases={phases}
                                     criticalPathIds={criticalPathIds}
                                     col={col}
                                     dragging={dragging}

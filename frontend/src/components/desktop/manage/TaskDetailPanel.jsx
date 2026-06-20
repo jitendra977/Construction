@@ -13,6 +13,7 @@ import { useConstruction } from '../../../context/ConstructionContext';
 import imageCompression from 'browser-image-compression';
 import FilePreviewModal from '../../common/FilePreviewModal';
 import { getStatusAction } from '../../../shared/utils/statusWorkflow';
+import { daysUntilDate, isTaskOverdue } from '../../../shared/utils/taskSchedule';
 
 function useIsMobile() {
     const [mobile, setMobile] = useState(() => window.innerWidth < 1024);
@@ -26,7 +27,7 @@ function useIsMobile() {
 
 const fmt = (d) => d ? new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : 'TBD';
 const fmtShort = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
-const daysLeft = (s) => s ? Math.round((new Date(s) - new Date()) / 86400000) : null;
+const daysLeft = daysUntilDate;
 
 const STATUS_META = {
     COMPLETED:   { label: 'Completed',   color: '#10b981', bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.2)' },
@@ -212,8 +213,8 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
     const sm   = STATUS_META[task.status]     || STATUS_META.PENDING;
     const pm   = PRIORITY_META[task.priority] || PRIORITY_META.MEDIUM;
     const dl   = daysLeft(task.due_date);
-    const overdue = dl !== null && dl < 0 && task.status !== 'COMPLETED';
     const phase          = (dashboardData.phases         || []).find(p => p.id === task.phase);
+    const overdue = isTaskOverdue(task, phase ? [phase] : []);
     const assignedMember = task.assigned_to_detail
         || (dashboardData.contractors || []).find(c => String(c.id) === String(task.assigned_to));
     const assignedTeam   = task.assigned_team_detail || null;
@@ -342,6 +343,7 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                                 type="button"
                                 onClick={handleStatusAction}
                                 disabled={statusChanging}
+                                title={`${statusAction.label}: ${statusAction.dateHint}`}
                                 style={{
                                     padding: '7px 16px', borderRadius: 10, fontSize: 12, fontWeight: 850,
                                     background: statusAction.color, color: '#fff', border: 'none',
@@ -504,7 +506,7 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
 
                         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: isEditing ? 16 : 0, alignItems: 'center' }}>
                             <Pill
-                                label={sm.label} color={sm.color} bg={sm.bg} border={sm.border}
+                                label={statusAction.currentLabel} color={sm.color} bg={sm.bg} border={sm.border}
                             />
                             <Pill
                                 label={pm.label} color={pm.color} bg={pm.bg} border={pm.border}
@@ -521,7 +523,9 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                                 <div>
                                     <label style={{ fontSize: 9, fontWeight: 850, color: 'var(--t-text3)', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>Status</label>
                                     <select style={inp} value={formData.status || ''} onChange={e => setFormData(f => ({ ...f, status: e.target.value }))}>
-                                        {['PENDING','IN_PROGRESS','BLOCKED','COMPLETED'].map(s => <option key={s} value={s}>{s.replace('_',' ')}</option>)}
+                                        {['PENDING','IN_PROGRESS','BLOCKED','COMPLETED'].map(s => (
+                                            <option key={s} value={s}>{getStatusAction('task', s).currentLabel}</option>
+                                        ))}
                                     </select>
                                 </div>
                                 <div>

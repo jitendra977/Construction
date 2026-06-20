@@ -8,10 +8,12 @@ import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useConstruction } from '../../context/ConstructionContext';
 import { usePlatformBase } from '../../shared/utils/platformNav';
+import { daysUntilDate, isParentPhaseCompleted, isTaskOverdue } from '../../shared/utils/taskSchedule';
+import { getProjectTimeline } from '../../shared/utils/projectTimeline';
 
 /* ── tiny helpers ── */
 const fmtDate  = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—';
-const daysLeft = (s) => s ? Math.round((new Date(s) - new Date()) / 86400000) : null;
+const daysLeft = daysUntilDate;
 const today    = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
 /* ── Status / priority meta ── */
@@ -88,7 +90,7 @@ function PhaseCard({ phase, tasks, onViewDetail }) {
     const pTasks   = tasks.filter(t => t.phase === phase.id);
     const done     = pTasks.filter(t => t.status === 'COMPLETED').length;
     const pct      = pTasks.length > 0 ? Math.round(done / pTasks.length * 100) : 0;
-    const overdue  = pTasks.filter(t => t.due_date && daysLeft(t.due_date) < 0 && t.status !== 'COMPLETED').length;
+    const overdue  = phase.status === 'COMPLETED' ? 0 : pTasks.filter(t => isTaskOverdue(t, [phase])).length;
 
     return (
         <div style={{
@@ -141,7 +143,7 @@ function PhaseCard({ phase, tasks, onViewDetail }) {
 function PriorityTaskRow({ task, phases, onViewDetail }) {
     const sm   = TASK_STATUS[task.status] || TASK_STATUS.PENDING;
     const dl   = daysLeft(task.due_date);
-    const over = dl !== null && dl < 0;
+    const over = isTaskOverdue(task, phases);
     const ph   = phases.find(p => p.id === task.phase);
 
     return (
@@ -291,18 +293,20 @@ export default function Dashboard() {
         const done     = tasks.filter(t => t.status === 'COMPLETED').length;
         const inProg   = tasks.filter(t => t.status === 'IN_PROGRESS').length;
         const blocked  = tasks.filter(t => t.status === 'BLOCKED').length;
-        const overdue  = tasks.filter(t => t.due_date && daysLeft(t.due_date) < 0 && t.status !== 'COMPLETED').length;
+        const overdue  = tasks.filter(t => isTaskOverdue(t, phases)).length;
         const pct      = total > 0 ? Math.round(done / total * 100) : 0;
         return { total, done, inProg, blocked, overdue, pct };
-    }, [tasks]);
+    }, [tasks, phases]);
 
     const priorityTasks = useMemo(() => {
         const rank = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
         return tasks
-            .filter(t => t.status !== 'COMPLETED')
+            .filter(t => t.status !== 'COMPLETED' && !isParentPhaseCompleted(t, phases))
             .sort((a, b) => (rank[a.priority] ?? 2) - (rank[b.priority] ?? 2))
             .slice(0, 6);
-    }, [tasks]);
+    }, [tasks, phases]);
+
+    const projectTimeline = getProjectTimeline(dashboardData?.project, phases);
 
     const activePhasesShow  = phases.filter(p => p.status !== 'COMPLETED').slice(0, 4);
     const completedPhases   = phases.filter(p => p.status === 'COMPLETED').length;
@@ -359,6 +363,18 @@ export default function Dashboard() {
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{
+                        display: 'flex', gap: 8, padding: '5px 10px', borderRadius: 9,
+                        background: 'var(--t-surface2)', border: '1px solid var(--t-border)',
+                    }}>
+                        <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--t-text2)', whiteSpace: 'nowrap' }}>
+                            ⏱ {projectTimeline.runningLabel}
+                        </span>
+                        <span style={{ width: 1, background: 'var(--t-border)' }} />
+                        <span style={{ fontSize: 11, fontWeight: 800, color: projectTimeline.targetTone, whiteSpace: 'nowrap' }}>
+                            🏁 {projectTimeline.targetLabel}
+                        </span>
+                    </div>
                     {/* Overall progress pill */}
                     <span style={{
                         fontSize: 11, fontWeight: 800, padding: '4px 12px', borderRadius: 20,

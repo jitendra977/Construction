@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { useConstruction } from '../../context/ConstructionContext';
 import MobileLayout from './MobileLayout';
 import ManagementTabs from '../desktop/manage/ManagementTabs';
+import { isTaskOverdue } from '../../shared/utils/taskSchedule';
 
 const BASE = '/dashboard/mobile';
 
@@ -98,7 +99,7 @@ function ModuleCard({ icon, title, subtitle, color, stats, actions, path, badge 
 
 /* ─── SystemStatusBar ────────────────────────────────────────────────────── */
 function SystemStatusBar({ phases, tasks, expenses, materials, permits }) {
-    const overdueT = tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'COMPLETED').length;
+    const overdueT = tasks.filter(t => isTaskOverdue(t, phases)).length;
     const lowStock = materials.filter(m => m.quantity_in_stock <= (m.minimum_stock || 5)).length;
     const pendingP = permits.filter(p => p.status === 'PENDING' || p.status === 'IN_PROGRESS').length;
     const blockedT = tasks.filter(t => t.status === 'BLOCKED').length;
@@ -174,7 +175,7 @@ const MobileManage = () => {
         const phaseActive = phases.filter(p => p.status === 'IN_PROGRESS').length;
         const taskDone    = tasks.filter(t => t.status === 'COMPLETED').length;
         const taskActive  = tasks.filter(t => t.status === 'IN_PROGRESS').length;
-        const taskOverdue = tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'COMPLETED').length;
+        const taskOverdue = tasks.filter(t => isTaskOverdue(t, phases)).length;
         const totalSpent  = expenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
         const totalBudget = activeProject ? parseFloat(activeProject.total_budget || 0) : 0;
         const lowStock    = materials.filter(m => m.quantity_in_stock <= (m.minimum_stock || 5)).length;

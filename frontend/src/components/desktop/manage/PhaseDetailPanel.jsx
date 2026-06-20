@@ -11,11 +11,12 @@ import imageCompression from 'browser-image-compression';
 import workforceService from '../../../services/workforceService';
 import FilePreviewModal from '../../common/FilePreviewModal';
 import { getStatusAction } from '../../../shared/utils/statusWorkflow';
+import { daysUntilDate, isTaskOverdue } from '../../../shared/utils/taskSchedule';
 
 /* ── helpers ── */
 const fmt = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'TBD';
 const fmtShort = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—';
-const daysLeft = (s) => s ? Math.round((new Date(s) - new Date()) / 86400000) : null;
+const daysLeft = daysUntilDate;
 
 const PHASE_STATUSES = ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'HALTED'];
 const TASK_STATUSES  = ['PENDING', 'IN_PROGRESS', 'BLOCKED', 'COMPLETED'];
@@ -69,10 +70,10 @@ function Field({ label, children }) {
 }
 
 /* ── TaskMiniRow ── */
-function TaskMiniRow({ task, isSelected, onClick, onTaskClick, canDelete, onDelete }) {
+function TaskMiniRow({ task, phase, isSelected, onClick, onTaskClick, canDelete, onDelete }) {
     const sm = STATUS_COLOR[task.status] || STATUS_COLOR.PENDING;
     const dl = daysLeft(task.due_date);
-    const overdue = dl !== null && dl < 0 && task.status !== 'COMPLETED';
+    const overdue = isTaskOverdue(task, [phase]);
     const isMobile = useIsMobile();
 
     return (
@@ -799,6 +800,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                                 type="button"
                                 onClick={handlePhaseStatusAction}
                                 disabled={completing}
+                                title={`${phaseStatusAction.label}: ${phaseStatusAction.dateHint}`}
                                 style={{
                                     padding: '6px 16px', borderRadius: 8, fontSize: 11, fontWeight: 850,
                                     background: phaseStatusAction.color, color: '#fff', border: 'none',
@@ -847,10 +849,12 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                             }}>Phase {phase.order}</span>
                             {isEditing ? (
                                 <select value={localPhase.status} onChange={e => set('status', e.target.value)} style={{ ...inp, width: 140 }}>
-                                    {PHASE_STATUSES.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+                                    {PHASE_STATUSES.map(s => (
+                                        <option key={s} value={s}>{getStatusAction('phase', s).currentLabel}</option>
+                                    ))}
                                 </select>
                             ) : (
-                                <Pill label={sm.label} color={sm.color} bg={sm.bg} />
+                                <Pill label={phaseStatusAction.currentLabel} color={sm.color} bg={sm.bg} />
                             )}
                         </div>
 
@@ -975,7 +979,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                                         background: 'linear-gradient(90deg,#f97316,#ea580c)', color: '#fff',
                                         border: 'none', cursor: 'pointer', opacity: completing ? 0.6 : 1,
                                     }}>
-                                        {completing ? 'Processing…' : '🏁 Mark Complete'}
+                                        {completing ? 'Processing…' : '🏁 Finish Phase'}
                                     </button>
                                 ) : (
                                     <p style={{ fontSize: 11, color: 'var(--t-text3)', margin: 0, lineHeight: 1.5 }}>
@@ -1111,6 +1115,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                                         <TaskMiniRow
                                             key={task.id}
                                             task={task}
+                                            phase={livePhase}
                                             isSelected={selectedTaskId === task.id}
                                             onClick={t => setSelectedTaskId(t.id === selectedTaskId ? null : t.id)}
                                             onTaskClick={onTaskClick}
@@ -1129,7 +1134,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                                             { label: 'Done',    value: doneCount,                                               color: '#10b981' },
                                             { label: 'Active',  value: phaseTasks.filter(t => t.status === 'IN_PROGRESS').length, color: '#3b82f6' },
                                             { label: 'Blocked', value: phaseTasks.filter(t => t.status === 'BLOCKED').length,    color: '#f59e0b' },
-                                            { label: 'Overdue', value: phaseTasks.filter(t => t.due_date && daysLeft(t.due_date) < 0 && t.status !== 'COMPLETED').length, color: '#ef4444' },
+                                            { label: 'Overdue', value: livePhase.status === 'COMPLETED' ? 0 : phaseTasks.filter(t => isTaskOverdue(t, [livePhase])).length, color: '#ef4444' },
                                         ].map(s => (
                                             <div key={s.label} style={{ textAlign: 'center' }}>
                                                 <div style={{ fontSize: 18, fontWeight: 900, color: s.color }}>{s.value}</div>

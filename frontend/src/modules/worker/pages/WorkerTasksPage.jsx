@@ -20,6 +20,7 @@
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import workerPortalApi from '../../../services/workerPortalApi';
+import { isTaskOverdue } from '../../../shared/utils/taskSchedule';
 
 // ─── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -277,7 +278,7 @@ function TaskCard({ task, onUpdate, readOnly = false }) {
     const dueDate = task.due_date
         ? new Date(task.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
         : null;
-    const overdue = task.due_date && task.status !== 'COMPLETED' && new Date(task.due_date) < new Date();
+    const overdue = isTaskOverdue(task);
     const pct = task.completion_percentage ?? (task.status === 'COMPLETED' ? 100 : task.status === 'IN_PROGRESS' ? 50 : 0);
     const sm = STATUS_META[task.status] || STATUS_META.PENDING;
 

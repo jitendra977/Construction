@@ -10,6 +10,7 @@ import { useConstruction } from '../../../../context/ConstructionContext';
 import { usePlatformBase } from '../../../../shared/utils/platformNav';
 import ManagementTabs from '../../../../components/desktop/manage/ManagementTabs';
 import ExportButton from '../shared/ExportButton';
+import { isTaskOverdue } from '../../../../shared/utils/taskSchedule';
 
 const VIEWS = [
     { key: 'gantt',    label: '📊 Gantt',    short: '📊', title: 'Gantt Timeline' },
@@ -51,10 +52,7 @@ export default function TimelineLayout({ children }) {
     const activeProject = projectList.find(p => p.id === activeProjectId);
 
     const cpCount      = criticalPathIds.length;
-    const overdueCount = filteredTasks.filter(t => {
-        if (!t.due_date || t.status === 'COMPLETED') return false;
-        return new Date(t.due_date) < new Date();
-    }).length;
+    const overdueCount = filteredTasks.filter(t => isTaskOverdue(t, phases)).length;
 
     const activeFilters = [
         filterStatus !== 'ALL',

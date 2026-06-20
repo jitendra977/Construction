@@ -29,6 +29,7 @@ import { authService } from '../../../services/auth';
 import { useConstruction } from '../../../context/ConstructionContext';
 import ConfirmModal from '../../common/ConfirmModal';
 import { getStatusAction } from '../../../shared/utils/statusWorkflow';
+import { daysUntilDate, isTaskOverdue } from '../../../shared/utils/taskSchedule';
 
 /* ─── Constants ──────────────────────────────────────────────────────────── */
 const PHASE_STATUSES  = ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'HALTED'];
@@ -175,11 +176,12 @@ function QuickAddTask({ phaseId, onAdded }) {
 }
 
 /* ─── TaskRow ────────────────────────────────────────────────────────────── */
-function TaskRow({ task, onUpdate, onDelete, onTaskClick }) {
+function TaskRow({ task, phase, onUpdate, onDelete, onTaskClick }) {
     const [hovered, setHovered]  = useState(false);
     const [deleting, setDeleting] = useState(false);
 
-    const dl     = daysLeft(task.due_date);
+    const dl     = daysUntilDate(task.due_date);
+    const overdue = isTaskOverdue(task, [phase]);
     const isDone = task.status === 'COMPLETED';
     const pct    = task.progress_percentage || 0;
 
@@ -250,15 +252,20 @@ function TaskRow({ task, onUpdate, onDelete, onTaskClick }) {
                 )}
             </div>
 
-            {/* Status workflow action */}
-            <button onClick={advanceStatus} title={`${statusAction.label}; dates update automatically`} style={{
-                padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 800,
-                background: statusAction.color + '18', color: statusAction.color,
-                border: `1px solid ${statusAction.color}30`,
-                cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap', minWidth: 92, textAlign: 'center',
-            }}>
-                {statusAction.icon} {statusAction.label.replace(' Task', '')}
-            </button>
+            {/* Current status and the next real-world action are separate. */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 2, flexShrink: 0 }}>
+                <span style={{ fontSize: 8, fontWeight: 750, color: 'var(--t-text3)', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                    {statusAction.currentLabel}
+                </span>
+                <button onClick={advanceStatus} title={`${statusAction.label}: ${statusAction.dateHint}`} style={{
+                    padding: '3px 8px', borderRadius: 5, fontSize: 10, fontWeight: 800,
+                    background: statusAction.color + '18', color: statusAction.color,
+                    border: `1px solid ${statusAction.color}30`,
+                    cursor: 'pointer', whiteSpace: 'nowrap', minWidth: 92, textAlign: 'center',
+                }}>
+                    {statusAction.icon} {statusAction.label}
+                </button>
+            </div>
 
             {/* Priority — click to cycle */}
             <button onClick={cyclePriority} title="Click to change priority" style={{
@@ -283,12 +290,12 @@ function TaskRow({ task, onUpdate, onDelete, onTaskClick }) {
             <span style={{
                 fontSize: 10, fontWeight: 700, flexShrink: 0, whiteSpace: 'nowrap',
                 width: 80, textAlign: 'right',
-                color: dl !== null && dl < 0 ? '#ef4444'
+                color: overdue ? '#ef4444'
                      : dl !== null && dl <= 3 ? '#f59e0b'
                      : 'var(--t-text3)',
             }}>
                 {task.due_date
-                    ? (dl !== null && dl < 0
+                    ? (overdue
                         ? `⚠ ${Math.abs(dl)}d over`
                         : `📅 ${fmtDate(task.due_date)}`)
                     : ''}
@@ -376,7 +383,7 @@ function MobilePhaseCard({
 
     const totalT   = tasks.length;
     const doneT    = tasks.filter(t => t.status === 'COMPLETED').length;
-    const overdueT = tasks.filter(t => t.due_date && daysLeft(t.due_date) < 0 && t.status !== 'COMPLETED').length;
+    const overdueT = phase.status === 'COMPLETED' ? 0 : tasks.filter(t => isTaskOverdue(t, [phase])).length;
     const inProgT  = tasks.filter(t => t.status === 'IN_PROGRESS').length;
     const pendingT = tasks.filter(t => t.status === 'PENDING').length;
     const blockedT = tasks.filter(t => t.status === 'BLOCKED').length;
@@ -515,13 +522,21 @@ function MobilePhaseCard({
                     </span>
 
                     <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5, flexWrap: 'wrap' }}>
+                        <span style={{
+                            minHeight: 22, padding: '3px 7px', borderRadius: 999,
+                            fontSize: 9, fontWeight: 750, whiteSpace: 'nowrap',
+                            color: 'var(--t-text2)', background: 'var(--t-surface2)',
+                            border: '1px solid var(--t-border)',
+                        }}>
+                            {phaseAction.currentLabel}
+                        </span>
                         <button
                             type="button"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 onPhaseUpdate(phase.id, { status: phaseAction.nextStatus });
                             }}
-                            title={`${phaseAction.label}; dates update automatically`}
+                            title={`${phaseAction.label}: ${phaseAction.dateHint}`}
                             style={{
                                 minHeight: 22, padding: '3px 8px', borderRadius: 999,
                                 fontSize: 9, fontWeight: 800, whiteSpace: 'nowrap',
@@ -529,7 +544,7 @@ function MobilePhaseCard({
                                 border: `1px solid ${phaseAction.color}35`, cursor: 'pointer',
                             }}
                         >
-                            {phaseAction.icon} {phaseAction.label.replace(' Phase', '')}
+                            {phaseAction.icon} {phaseAction.label}
                         </button>
                         {phase.start_date && (
                             <span style={{
@@ -612,7 +627,8 @@ function MobilePhaseCard({
                                 .map(task => {
                                     const taskAction = getStatusAction('task', task.status);
                                     const isDone = task.status === 'COMPLETED';
-                                    const dl = daysLeft(task.due_date);
+                                    const dl = daysUntilDate(task.due_date);
+                                    const overdue = isTaskOverdue(task, [phase]);
                                     return (
                                         <div key={task.id} style={{
                                             display: 'flex', alignItems: 'flex-start', gap: 10,
@@ -652,9 +668,9 @@ function MobilePhaseCard({
                                                     {task.due_date && (
                                                         <span style={{
                                                             fontSize: 10, fontWeight: 700,
-                                                            color: dl !== null && dl < 0 ? '#ef4444' : dl !== null && dl <= 3 ? '#f59e0b' : 'var(--t-text3)',
+                                                            color: overdue ? '#ef4444' : dl !== null && dl <= 3 ? '#f59e0b' : 'var(--t-text3)',
                                                         }}>
-                                                            {dl !== null && dl < 0 ? `⚠ ${Math.abs(dl)}d over` : `📅 ${fmtDate(task.due_date)}`}
+                                                            {overdue ? `⚠ ${Math.abs(dl)}d over` : `📅 ${fmtDate(task.due_date)}`}
                                                         </span>
                                                     )}
                                                     {task.assigned_to_detail?.name && (
@@ -666,9 +682,12 @@ function MobilePhaseCard({
                                             </div>
                                             {/* Status badge + detail */}
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end', flexShrink: 0 }}>
+                                                <span style={{ fontSize: 8, fontWeight: 750, color: 'var(--t-text3)', whiteSpace: 'nowrap' }}>
+                                                    {taskAction.currentLabel}
+                                                </span>
                                                 <button
                                                     onClick={() => onTaskUpdate(task.id, { status: taskAction.nextStatus })}
-                                                    title={`${taskAction.label}; dates update automatically`}
+                                                    title={`${taskAction.label}: ${taskAction.dateHint}`}
                                                     style={{
                                                         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                                                         minHeight: 22, padding: '3px 8px', borderRadius: 4, fontSize: 10, fontWeight: 800, lineHeight: 1,
@@ -676,7 +695,7 @@ function MobilePhaseCard({
                                                         border: `1px solid ${taskAction.color}30`, cursor: 'pointer',
                                                         whiteSpace: 'nowrap',
                                                     }}
-                                                >{taskAction.icon} {taskAction.label.replace(' Task', '')}</button>
+                                                >{taskAction.icon} {taskAction.label}</button>
                                                 {onTaskClick && (
                                                     <button
                                                         onClick={() => onTaskClick(task)}
@@ -731,7 +750,7 @@ function SortablePhaseAccordion({
 
     const totalT   = tasks.length;
     const doneT    = tasks.filter(t => t.status === 'COMPLETED').length;
-    const overdueT = tasks.filter(t => t.due_date && daysLeft(t.due_date) < 0 && t.status !== 'COMPLETED').length;
+    const overdueT = phase.status === 'COMPLETED' ? 0 : tasks.filter(t => isTaskOverdue(t, [phase])).length;
     const inProgT  = tasks.filter(t => t.status === 'IN_PROGRESS').length;
     const progress = totalT > 0 ? Math.round(doneT / totalT * 100) : 0;
 
@@ -843,13 +862,21 @@ function SortablePhaseAccordion({
                         : 'Budget not defined'}
                 </span>
 
+                <span style={{
+                    fontSize: 9, fontWeight: 750, color: 'var(--t-text2)', whiteSpace: 'nowrap',
+                    padding: '3px 8px', borderRadius: 5,
+                    background: 'var(--t-surface2)', border: '1px solid var(--t-border)',
+                }}>
+                    {phaseAction.currentLabel}
+                </span>
+
                 {/* Status workflow action */}
                 <button
                     onClick={e => {
                         e.stopPropagation();
                         onPhaseUpdate(phase.id, { status: phaseAction.nextStatus });
                     }}
-                    title={`${phaseAction.label}; dates update automatically`}
+                    title={`${phaseAction.label}: ${phaseAction.dateHint}`}
                     style={{
                         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                         minHeight: 24, padding: '3px 10px', borderRadius: 5, fontSize: 10, fontWeight: 800, lineHeight: 1,
@@ -934,6 +961,7 @@ function SortablePhaseAccordion({
                                     <TaskRow
                                         key={task.id}
                                         task={task}
+                                        phase={phase}
                                         onUpdate={onTaskUpdate}
                                         onDelete={onTaskDelete}
                                         onTaskClick={onTaskClick}
@@ -958,7 +986,7 @@ function SummaryBar({ phases, tasks }) {
     const done      = tasks.filter(t => t.status === 'COMPLETED').length;
     const inProg    = tasks.filter(t => t.status === 'IN_PROGRESS').length;
     const blocked   = tasks.filter(t => t.status === 'BLOCKED').length;
-    const overdue   = tasks.filter(t => t.due_date && daysLeft(t.due_date) < 0 && t.status !== 'COMPLETED').length;
+    const overdue   = tasks.filter(t => isTaskOverdue(t, phases)).length;
     const phaseDone = phases.filter(p => p.status === 'COMPLETED').length;
     const overall   = total > 0 ? Math.round(done / total * 100) : 0;
 
@@ -1078,7 +1106,9 @@ function AddPhaseForm({ phaseCount, projectId, onCreated, onCancel }) {
                 <div>
                     <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--t-text3)', display: 'block', marginBottom: 3 }}>Status</label>
                     <select style={inp} value={form.status} onChange={e => set('status', e.target.value)}>
-                        {PHASE_STATUSES.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+                        {PHASE_STATUSES.map(s => (
+                            <option key={s} value={s}>{getStatusAction('phase', s).currentLabel}</option>
+                        ))}
                     </select>
                 </div>
                 <div>
@@ -1228,7 +1258,9 @@ const PhasesTab = ({ searchQuery = '', onPhaseClick, onTaskClick }) => {
                     flex: isMobile ? '1' : undefined,
                 }}>
                     <option value="ALL">All Statuses</option>
-                    {TASK_STATUSES.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+                    {TASK_STATUSES.map(s => (
+                        <option key={s} value={s}>{getStatusAction('task', s).currentLabel}</option>
+                    ))}
                 </select>
 
                 <select value={filterPriority} onChange={e => setFilterPri(e.target.value)} style={{

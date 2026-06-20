@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useConstruction } from '../../context/ConstructionContext';
 import { useMobileTracker } from '../../modules/location/context/MobileTrackerContext';
 import attendanceService from '../../services/attendanceService';
+import { getProjectTimeline } from '../../shared/utils/projectTimeline';
 
 /* ─── Helpers ───────────────────────────────────────────────────── */
 const fmtShort = d => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
@@ -205,6 +206,7 @@ export default function HomeTab() {
     );
     const usedBudget  = Number(budgetStats?.totalSpent || 0);
     const budgetPct   = totalBudget > 0 ? Math.round(usedBudget / totalBudget * 100) : 0;
+    const projectTimeline = getProjectTimeline(project, phases);
 
     return (
         <div style={{ minHeight: '100vh', background: 'var(--t-bg)', paddingBottom: 110, overflowX: 'hidden' }}>
@@ -232,6 +234,20 @@ export default function HomeTab() {
                         <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: 'var(--t-text3)', letterSpacing: '0.06em' }}>
                             {doneCnt}/{allTasks.length || 0} tasks · {phases.length} phases
                         </p>
+                    </div>
+                </div>
+
+                <div style={{
+                    display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8,
+                    marginBottom: 10,
+                }}>
+                    <div style={{ padding: '8px 10px', borderRadius: 10, background: 'var(--t-surface2)', border: '1px solid var(--t-border)', minWidth: 0 }}>
+                        <p style={{ margin: 0, fontSize: 9, fontWeight: 800, color: 'var(--t-text3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>⏱ Project Time</p>
+                        <p style={{ margin: '3px 0 0', fontSize: 12, fontWeight: 800, color: 'var(--t-text)', lineHeight: 1.25 }}>{projectTimeline.runningLabel}</p>
+                    </div>
+                    <div style={{ padding: '8px 10px', borderRadius: 10, background: 'var(--t-surface2)', border: '1px solid var(--t-border)', minWidth: 0 }}>
+                        <p style={{ margin: 0, fontSize: 9, fontWeight: 800, color: 'var(--t-text3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>🏁 Target</p>
+                        <p style={{ margin: '3px 0 0', fontSize: 12, fontWeight: 800, color: projectTimeline.targetTone, lineHeight: 1.25 }}>{projectTimeline.targetLabel}</p>
                     </div>
                 </div>
 
@@ -340,7 +356,7 @@ export default function HomeTab() {
                         <div style={{ height: 1, background: 'var(--t-border)', marginBottom: 8 }} />
                         <div>
                             <p style={{ fontSize: 9, color: 'var(--t-text3)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 3 }}>Target</p>
-                            <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--t-text)' }}>{fmtShort(project.end_date)}</p>
+                            <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--t-text)' }}>{fmtShort(project.expected_completion_date)}</p>
                         </div>
                     </Card>
                 </div>
