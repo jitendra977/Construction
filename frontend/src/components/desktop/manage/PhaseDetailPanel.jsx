@@ -10,6 +10,7 @@ import ConfirmModal from '../../common/ConfirmModal';
 import imageCompression from 'browser-image-compression';
 import workforceService from '../../../services/workforceService';
 import FilePreviewModal from '../../common/FilePreviewModal';
+import { getStatusAction } from '../../../shared/utils/statusWorkflow';
 
 /* ── helpers ── */
 const fmt = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'TBD';
@@ -687,8 +688,31 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
         const incomplete = phaseTasks.filter(t => t.status !== 'COMPLETED');
         if (incomplete.length > 0) { showError(`${incomplete.length} tasks still incomplete.`); return; }
         setCompleting(true);
-        try { await updatePhase(phase.id, { status: 'COMPLETED' }); refreshData(); }
+        try {
+            const updated = await updatePhase(phase.id, { status: 'COMPLETED' });
+            if (updated) setLocalPhase(current => ({ ...current, ...updated }));
+            refreshData();
+        }
         finally { setCompleting(false); }
+    };
+
+    const handlePhaseStatusAction = async () => {
+        const action = getStatusAction('phase', livePhase.status);
+        if (action.nextStatus === 'COMPLETED') {
+            await handleComplete();
+            return;
+        }
+
+        setCompleting(true);
+        try {
+            const updated = await updatePhase(phase.id, { status: action.nextStatus });
+            if (updated) setLocalPhase(current => ({ ...current, ...updated }));
+            refreshData();
+        } catch (err) {
+            showError(err?.response?.data?.detail || 'Failed to update phase status.');
+        } finally {
+            setCompleting(false);
+        }
     };
 
     const handleDeletePhase = () => {
@@ -718,6 +742,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
     };
 
     const sm = STATUS_COLOR[localPhase.status] || STATUS_COLOR.PENDING;
+    const phaseStatusAction = getStatusAction('phase', livePhase.status);
 
     return (
         <div style={{ minHeight: '100%' }}>
@@ -770,6 +795,20 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                         </div>
                     ) : (
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', width: isMobile ? '100%' : 'auto' }}>
+                            <button
+                                type="button"
+                                onClick={handlePhaseStatusAction}
+                                disabled={completing}
+                                style={{
+                                    padding: '6px 16px', borderRadius: 8, fontSize: 11, fontWeight: 850,
+                                    background: phaseStatusAction.color, color: '#fff', border: 'none',
+                                    cursor: completing ? 'wait' : 'pointer', opacity: completing ? 0.65 : 1,
+                                    boxShadow: `0 4px 14px ${phaseStatusAction.color}35`,
+                                    width: isMobile ? '100%' : 'auto',
+                                }}
+                            >
+                                {completing ? 'Updating…' : `${phaseStatusAction.icon} ${phaseStatusAction.label}`}
+                            </button>
                             <button onClick={() => setIsEditing(true)} style={{
                                 padding: '6px 16px', borderRadius: 8, fontSize: 11, fontWeight: 800,
                                 background: 'rgba(249,115,22,0.1)', color: '#f97316',

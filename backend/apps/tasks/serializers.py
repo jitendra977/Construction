@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.utils import timezone
 from .models import Task, TaskUpdate, TaskMedia
 from apps.core.serializers import ConstructionPhaseSerializer, RoomSerializer
 from utils.file_validation import TASK_MEDIA_EXTENSIONS, validate_safe_upload
@@ -87,6 +88,29 @@ class TaskSerializer(serializers.ModelSerializer):
         if obj.assigned_to_id:
             return 'individual'
         return 'unassigned'
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        next_status = attrs.get('status')
+        if not next_status:
+            return attrs
+
+        today = timezone.localdate()
+        current_status = getattr(self.instance, 'status', None)
+        status_changed = self.instance is None or current_status != next_status
+        current_start = attrs.get('start_date', getattr(self.instance, 'start_date', None))
+
+        if status_changed and next_status in {'IN_PROGRESS', 'BLOCKED', 'COMPLETED'} and not current_start:
+            attrs['start_date'] = today
+
+        if status_changed:
+            if next_status == 'COMPLETED':
+                attrs['completed_date'] = today
+            else:
+                # Reopening or resetting a task removes its old completion marker.
+                attrs['completed_date'] = None
+
+        return attrs
 
     class Meta:
         model  = Task

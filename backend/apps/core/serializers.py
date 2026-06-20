@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.utils import timezone
 from .models import HouseProject, ConstructionPhase, PhaseDocument, Room, Floor, UserGuide, UserGuideStep, UserGuideFAQ, UserGuideSection, UserGuideProgress, EmailLog, ProjectMember, ProjectRole
 from utils.file_validation import PHASE_DOCUMENT_EXTENSIONS, validate_safe_upload
 
@@ -165,6 +166,29 @@ class ConstructionPhaseSerializer(serializers.ModelSerializer):
             allowed_extensions={"jpg", "jpeg", "png", "webp"},
             label="completion photo",
         )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        next_status = attrs.get('status')
+        if not next_status:
+            return attrs
+
+        today = timezone.localdate()
+        current_status = getattr(self.instance, 'status', None)
+        status_changed = self.instance is None or current_status != next_status
+        current_start = attrs.get('start_date', getattr(self.instance, 'start_date', None))
+
+        if status_changed and next_status in {'IN_PROGRESS', 'HALTED', 'COMPLETED'} and not current_start:
+            attrs['start_date'] = today
+
+        if status_changed:
+            if next_status == 'COMPLETED':
+                attrs['end_date'] = today
+            elif current_status == 'COMPLETED':
+                # Reopening a completed phase removes its old completion date.
+                attrs['end_date'] = None
+
+        return attrs
 
     class Meta:
         model  = ConstructionPhase

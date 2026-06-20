@@ -28,6 +28,7 @@ import { constructionService } from '../../../services/api';
 import { authService } from '../../../services/auth';
 import { useConstruction } from '../../../context/ConstructionContext';
 import ConfirmModal from '../../common/ConfirmModal';
+import { getStatusAction } from '../../../shared/utils/statusWorkflow';
 
 /* ─── Constants ──────────────────────────────────────────────────────────── */
 const PHASE_STATUSES  = ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'HALTED'];
@@ -39,13 +40,6 @@ const PHASE_STATUS_META = {
     IN_PROGRESS: { label: 'In Progress', color: '#3b82f6', bg: '#3b82f618' },
     HALTED:      { label: 'Halted',      color: '#ef4444', bg: '#ef444418' },
     PENDING:     { label: 'Pending',     color: '#6b7280', bg: '#6b728018' },
-};
-
-const TASK_STATUS_META = {
-    COMPLETED:   { label: 'Done',        color: '#10b981', next: 'PENDING'     },
-    IN_PROGRESS: { label: 'In Progress', color: '#3b82f6', next: 'COMPLETED'   },
-    BLOCKED:     { label: 'Blocked',     color: '#f59e0b', next: 'IN_PROGRESS' },
-    PENDING:     { label: 'Pending',     color: '#6b7280', next: 'IN_PROGRESS' },
 };
 
 const PRIORITY_COLOR = {
@@ -185,12 +179,12 @@ function TaskRow({ task, onUpdate, onDelete, onTaskClick }) {
     const [hovered, setHovered]  = useState(false);
     const [deleting, setDeleting] = useState(false);
 
-    const sm     = TASK_STATUS_META[task.status] || TASK_STATUS_META.PENDING;
     const dl     = daysLeft(task.due_date);
     const isDone = task.status === 'COMPLETED';
     const pct    = task.progress_percentage || 0;
 
-    const cycleStatus = () => onUpdate(task.id, { status: sm.next });
+    const statusAction = getStatusAction('task', task.status);
+    const advanceStatus = () => onUpdate(task.id, { status: statusAction.nextStatus });
 
     const toggleDone = () => onUpdate(task.id, {
         status: isDone ? 'PENDING' : 'COMPLETED',
@@ -256,14 +250,14 @@ function TaskRow({ task, onUpdate, onDelete, onTaskClick }) {
                 )}
             </div>
 
-            {/* Status — click to cycle */}
-            <button onClick={cycleStatus} title={`Next: ${sm.next.replace('_', ' ')}`} style={{
+            {/* Status workflow action */}
+            <button onClick={advanceStatus} title={`${statusAction.label}; dates update automatically`} style={{
                 padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 800,
-                background: sm.color + '18', color: sm.color,
-                border: `1px solid ${sm.color}30`,
-                cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap', minWidth: 76, textAlign: 'center',
+                background: statusAction.color + '18', color: statusAction.color,
+                border: `1px solid ${statusAction.color}30`,
+                cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap', minWidth: 92, textAlign: 'center',
             }}>
-                {sm.label}
+                {statusAction.icon} {statusAction.label.replace(' Task', '')}
             </button>
 
             {/* Priority — click to cycle */}
@@ -388,11 +382,7 @@ function MobilePhaseCard({
     const blockedT = tasks.filter(t => t.status === 'BLOCKED').length;
     const progress = totalT > 0 ? Math.round(doneT / totalT * 100) : 0;
 
-    const cyclePhaseStatus = () => {
-        const idx  = PHASE_STATUSES.indexOf(phase.status);
-        const next = PHASE_STATUSES[(idx + 1) % PHASE_STATUSES.length];
-        onPhaseUpdate(phase.id, { status: next });
-    };
+    const phaseAction = getStatusAction('phase', phase.status);
 
     return (
         <div style={{
@@ -525,6 +515,22 @@ function MobilePhaseCard({
                     </span>
 
                     <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5, flexWrap: 'wrap' }}>
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onPhaseUpdate(phase.id, { status: phaseAction.nextStatus });
+                            }}
+                            title={`${phaseAction.label}; dates update automatically`}
+                            style={{
+                                minHeight: 22, padding: '3px 8px', borderRadius: 999,
+                                fontSize: 9, fontWeight: 800, whiteSpace: 'nowrap',
+                                color: phaseAction.color, background: phaseAction.color + '18',
+                                border: `1px solid ${phaseAction.color}35`, cursor: 'pointer',
+                            }}
+                        >
+                            {phaseAction.icon} {phaseAction.label.replace(' Phase', '')}
+                        </button>
                         {phase.start_date && (
                             <span style={{
                                 fontSize: 10,
@@ -604,7 +610,7 @@ function MobilePhaseCard({
                                     return (a.id || 0) - (b.id || 0);
                                 })
                                 .map(task => {
-                                    const tsm = TASK_STATUS_META[task.status] || TASK_STATUS_META.PENDING;
+                                    const taskAction = getStatusAction('task', task.status);
                                     const isDone = task.status === 'COMPLETED';
                                     const dl = daysLeft(task.due_date);
                                     return (
@@ -661,15 +667,16 @@ function MobilePhaseCard({
                                             {/* Status badge + detail */}
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end', flexShrink: 0 }}>
                                                 <button
-                                                    onClick={() => onTaskUpdate(task.id, { status: tsm.next })}
+                                                    onClick={() => onTaskUpdate(task.id, { status: taskAction.nextStatus })}
+                                                    title={`${taskAction.label}; dates update automatically`}
                                                     style={{
                                                         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                                                         minHeight: 22, padding: '3px 8px', borderRadius: 4, fontSize: 10, fontWeight: 800, lineHeight: 1,
-                                                        background: tsm.color + '18', color: tsm.color,
-                                                        border: `1px solid ${tsm.color}30`, cursor: 'pointer',
+                                                        background: taskAction.color + '18', color: taskAction.color,
+                                                        border: `1px solid ${taskAction.color}30`, cursor: 'pointer',
                                                         whiteSpace: 'nowrap',
                                                     }}
-                                                >{tsm.label}</button>
+                                                >{taskAction.icon} {taskAction.label.replace(' Task', '')}</button>
                                                 {onTaskClick && (
                                                     <button
                                                         onClick={() => onTaskClick(task)}
@@ -728,11 +735,7 @@ function SortablePhaseAccordion({
     const inProgT  = tasks.filter(t => t.status === 'IN_PROGRESS').length;
     const progress = totalT > 0 ? Math.round(doneT / totalT * 100) : 0;
 
-    const cyclePhaseStatus = () => {
-        const idx  = PHASE_STATUSES.indexOf(phase.status);
-        const next = PHASE_STATUSES[(idx + 1) % PHASE_STATUSES.length];
-        onPhaseUpdate(phase.id, { status: next });
-    };
+    const phaseAction = getStatusAction('phase', phase.status);
 
     return (
         <div ref={setNodeRef} style={{
@@ -840,19 +843,22 @@ function SortablePhaseAccordion({
                         : 'Budget not defined'}
                 </span>
 
-                {/* Status — click to cycle */}
+                {/* Status workflow action */}
                 <button
-                    onClick={e => { e.stopPropagation(); cyclePhaseStatus(); }}
-                    title="Click to change phase status"
+                    onClick={e => {
+                        e.stopPropagation();
+                        onPhaseUpdate(phase.id, { status: phaseAction.nextStatus });
+                    }}
+                    title={`${phaseAction.label}; dates update automatically`}
                     style={{
                         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                         minHeight: 24, padding: '3px 10px', borderRadius: 5, fontSize: 10, fontWeight: 800, lineHeight: 1,
-                        background: sm.bg, color: sm.color,
-                        border: `1px solid ${sm.color}30`,
+                        background: phaseAction.color + '18', color: phaseAction.color,
+                        border: `1px solid ${phaseAction.color}30`,
                         cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
                     }}
                 >
-                    {sm.label}
+                    {phaseAction.icon} {phaseAction.label}
                 </button>
 
                 {/* Chevron */}
@@ -1173,7 +1179,10 @@ const PhasesTab = ({ searchQuery = '', onPhaseClick, onTaskClick }) => {
     /* ── Phase CRUD ── */
     const handlePhaseUpdate = async (id, data) => {
         setPhases(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
-        try { await constructionService.updatePhase(id, data); }
+        try {
+            const updated = await constructionService.updatePhase(id, data);
+            setPhases(prev => prev.map(p => p.id === id ? { ...p, ...updated } : p));
+        }
         catch { refreshData(); }
     };
 
@@ -1186,7 +1195,10 @@ const PhasesTab = ({ searchQuery = '', onPhaseClick, onTaskClick }) => {
     /* ── Task CRUD ── */
     const handleTaskUpdate = async (id, data) => {
         setTasks(prev => prev.map(t => t.id === id ? { ...t, ...data } : t));
-        try { await constructionService.updateTask(id, data); }
+        try {
+            const updated = await constructionService.updateTask(id, data);
+            setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updated } : t));
+        }
         catch { refreshData(); }
     };
 

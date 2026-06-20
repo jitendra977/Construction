@@ -12,6 +12,7 @@ import { getMediaUrl } from '../../../services/api';
 import { useConstruction } from '../../../context/ConstructionContext';
 import imageCompression from 'browser-image-compression';
 import FilePreviewModal from '../../common/FilePreviewModal';
+import { getStatusAction } from '../../../shared/utils/statusWorkflow';
 
 function useIsMobile() {
     const [mobile, setMobile] = useState(() => window.innerWidth < 1024);
@@ -185,6 +186,7 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
     const [isEditing, setIsEditing] = useState(false);
     const [formData,  setFormData]  = useState({});
     const [loading,   setLoading]   = useState(false);
+    const [statusChanging, setStatusChanging] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [previewDoc, setPreviewDoc] = useState(null); // { file, name } for FilePreviewModal
@@ -219,13 +221,18 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
     const room           = (dashboardData.rooms         || []).find(r => r.id === task.room);
     const cat            = (dashboardData.budgetCategories || []).find(c => c.id === task.category);
 
-    const STATUS_STATUSES  = ['PENDING', 'IN_PROGRESS', 'BLOCKED', 'COMPLETED'];
     const PRIORITY_LEVELS  = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
-    
-    const cycleStatus   = () => {
-        const idx  = STATUS_STATUSES.indexOf(task.status);
-        const next = STATUS_STATUSES[(idx + 1) % STATUS_STATUSES.length];
-        handleFieldSave({ status: next });
+    const statusAction = getStatusAction('task', task.status);
+
+    const handleStatusAction = async () => {
+        setStatusChanging(true);
+        try {
+            await updateTask(task.id, { status: statusAction.nextStatus });
+        } catch {
+            alert('Failed to update task status.');
+        } finally {
+            setStatusChanging(false);
+        }
     };
     
     const cyclePriority = () => {
@@ -303,7 +310,7 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
                 padding: isMobile ? '16px 20px' : '18px 32px',
                 background: 'var(--t-surface)', borderBottom: '1px solid var(--t-border)',
-                position: 'sticky', top: 0, zIndex: 100,
+                position: 'sticky', top: 0, zIndex: 100, flexWrap: 'wrap',
                 backdropFilter: 'blur(12px)',
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
@@ -328,9 +335,23 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                     </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
+                <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap', width: isMobile ? '100%' : 'auto' }}>
                     {!isEditing ? (
                         <>
+                            <button
+                                type="button"
+                                onClick={handleStatusAction}
+                                disabled={statusChanging}
+                                style={{
+                                    padding: '7px 16px', borderRadius: 10, fontSize: 12, fontWeight: 850,
+                                    background: statusAction.color, color: '#fff', border: 'none',
+                                    cursor: statusChanging ? 'wait' : 'pointer', opacity: statusChanging ? 0.65 : 1,
+                                    boxShadow: `0 4px 14px ${statusAction.color}35`,
+                                    flex: isMobile ? '1 1 100%' : '0 0 auto',
+                                }}
+                            >
+                                {statusChanging ? 'Updating…' : `${statusAction.icon} ${statusAction.label}`}
+                            </button>
                             <button 
                                 onClick={() => fileInputRef.current?.click()} 
                                 disabled={uploading} 
@@ -484,8 +505,6 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: isEditing ? 16 : 0, alignItems: 'center' }}>
                             <Pill
                                 label={sm.label} color={sm.color} bg={sm.bg} border={sm.border}
-                                onClick={!isEditing ? cycleStatus : undefined}
-                                title={!isEditing ? 'Click to toggle status' : undefined}
                             />
                             <Pill
                                 label={pm.label} color={pm.color} bg={pm.bg} border={pm.border}

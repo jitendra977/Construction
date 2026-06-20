@@ -392,9 +392,14 @@ export const ConstructionProvider = ({ children }) => {
         }));
 
         try {
-            await constructionService.updatePhase(phaseId, updateData);
+            const updatedPhase = await constructionService.updatePhase(phaseId, updateData);
+            setDashboardData(prev => ({
+                ...prev,
+                phases: prev.phases.map(p => p.id === phaseId ? { ...p, ...updatedPhase } : p),
+            }));
             // Fetch fresh data in background to ensure sync
             await fetchData(true);
+            return updatedPhase;
         } catch (error) {
             // Rollback on error
             setDashboardData(previousData);
@@ -416,8 +421,13 @@ export const ConstructionProvider = ({ children }) => {
         }));
 
         try {
-            await constructionService.updateTask(taskId, updateData);
+            const updatedTask = await constructionService.updateTask(taskId, updateData);
+            setDashboardData(prev => ({
+                ...prev,
+                tasks: prev.tasks.map(t => t.id === taskId ? { ...t, ...updatedTask } : t),
+            }));
             await fetchData(true);
+            return updatedTask;
         } catch (error) {
             setDashboardData(previousData);
             console.error("Failed to update task", error);
