@@ -12,6 +12,7 @@ import { getMediaUrl } from '../../../services/api';
 import { useConstruction } from '../../../context/ConstructionContext';
 import imageCompression from 'browser-image-compression';
 import FilePreviewModal from '../../common/FilePreviewModal';
+import ConfirmModal from '../../common/ConfirmModal';
 import { getStatusAction } from '../../../shared/utils/statusWorkflow';
 import { daysUntilDate, isTaskOverdue } from '../../../shared/utils/taskSchedule';
 
@@ -178,23 +179,66 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
     const {
         dashboardData, updateTask, deleteTask,
         uploadTaskMedia, formatCurrency, dispatchGlobalUpload,
+        user,
     } = useConstruction();
 
     const fileInputRef = useRef(null);
     const isMobile = useIsMobile();
     const task = (dashboardData.tasks || []).find(t => t.id === taskId);
 
-    const [isEditing, setIsEditing] = useState(false);
+    const canManage = user?.is_system_admin || user?.can_manage_phases;
+    const isEditing = canManage;
     const [formData,  setFormData]  = useState({});
     const [loading,   setLoading]   = useState(false);
     const [statusChanging, setStatusChanging] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [previewDoc, setPreviewDoc] = useState(null); // { file, name } for FilePreviewModal
+    const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+    const [pendingAction, setPendingAction] = useState(null);
 
     useEffect(() => {
         if (task) setFormData({ ...task });
     }, [taskId, task?.id]);
+
+    const isDirty = React.useMemo(() => {
+        if (!task) return false;
+        return (
+            (formData.title !== undefined && formData.title !== task.title) ||
+            (formData.description !== undefined && formData.description !== task.description) ||
+            (formData.priority !== undefined && formData.priority !== task.priority) ||
+            (formData.due_date !== undefined && formData.due_date !== task.due_date) ||
+            (formData.start_date !== undefined && formData.start_date !== task.start_date) ||
+            (formData.completed_date !== undefined && formData.completed_date !== task.completed_date) ||
+            (formData.estimated_cost !== undefined && formData.estimated_cost !== task.estimated_cost) ||
+            (formData.progress_percentage !== undefined && formData.progress_percentage !== task.progress_percentage) ||
+            (formData.room !== undefined && formData.room !== task.room) ||
+            (formData.category !== undefined && formData.category !== task.category) ||
+            (formData.status !== undefined && formData.status !== task.status) ||
+            (formData.phase !== undefined && formData.phase !== task.phase) ||
+            (formData.assigned_to !== undefined && formData.assigned_to !== task.assigned_to)
+        );
+    }, [formData, task]);
+
+    useEffect(() => {
+        const handleBeforeUnload = (e) => {
+            if (isDirty) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [isDirty]);
+
+    const handleNav = (action) => {
+        if (isDirty) {
+            setPendingAction(() => action);
+            setShowDiscardConfirm(true);
+        } else {
+            action();
+        }
+    };
 
     if (!task) {
         return (
@@ -251,7 +295,6 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
         setLoading(true);
         try {
             await updateTask(task.id, formData);
-            setIsEditing(false);
         } catch { alert('Failed to save.'); }
         finally { setLoading(false); }
     };
@@ -309,17 +352,18 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
             {/* ── Breadcrumb & Actions Bar ── */}
             <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
-                padding: isMobile ? '16px 20px' : '18px 32px',
+                padding: isMobile ? '12px 16px' : '12px 28px',
                 background: 'var(--t-surface)', borderBottom: '1px solid var(--t-border)',
                 position: 'sticky', top: 0, zIndex: 100, flexWrap: 'wrap',
                 backdropFilter: 'blur(12px)',
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                    {/* One step back → phase detail */}
                     <button 
-                        onClick={onBack} 
+                        onClick={() => handleNav(onBack)} 
                         style={{
-                            display: 'flex', alignItems: 'center', gap: 6,
-                            padding: '7px 14px', borderRadius: 10, fontSize: 12, fontWeight: 800,
+                            display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
+                            padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 800,
                             background: 'var(--t-surface2)', color: 'var(--t-text)',
                             border: '1px solid var(--t-border)', cursor: 'pointer',
                             transition: 'all 0.15s',
@@ -329,15 +373,46 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                     >
                         ← Back
                     </button>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--t-text3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        <span>Phases &amp; Tasks</span>
-                        <span>›</span>
-                        <span style={{ fontWeight: 800, color: 'var(--t-text)' }}>#{task.id}</span>
+
+                    {/* Breadcrumb: Phases › Phase Name › Task #id */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, minWidth: 0, overflow: 'hidden' }}>
+                        {/* Phases root link */}
+                        <button
+                            onClick={() => handleNav(() => onPhaseClick ? onPhaseClick(null) : onBack?.())}
+                            style={{
+                                background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                                fontSize: 12, fontWeight: 700, color: 'var(--t-primary)',
+                                whiteSpace: 'nowrap', flexShrink: 0,
+                            }}
+                        >📋 Phases</button>
+                        {phase && (
+                            <>
+                                <span style={{ color: 'var(--t-text3)', fontSize: 14, flexShrink: 0 }}>›</span>
+                                {/* Phase name link — goes back to phase detail */}
+                                <button
+                                    onClick={() => handleNav(onBack)}
+                                    style={{
+                                        background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                                        fontSize: 12, fontWeight: 700, color: 'var(--t-primary)',
+                                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                                        maxWidth: isMobile ? 90 : 160, flexShrink: 1,
+                                    }}
+                                    title={phase.name}
+                                >{phase.name}</button>
+                            </>
+                        )}
+                        <span style={{ color: 'var(--t-text3)', fontSize: 14, flexShrink: 0 }}>›</span>
+                        {/* Current task */}
+                        <span style={{
+                            fontSize: 12, fontWeight: 900, color: 'var(--t-text)',
+                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                            maxWidth: isMobile ? 90 : 200, flexShrink: 1,
+                        }}>{task.name || `Task #${task.id}`}</span>
                     </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap', width: isMobile ? '100%' : 'auto' }}>
-                    {!isEditing ? (
+                    {canManage && (
                         <>
                             <button
                                 type="button"
@@ -355,6 +430,37 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                                 {statusChanging ? 'Updating…' : `${statusAction.icon} ${statusAction.label}`}
                             </button>
                             <button 
+                                onClick={handleFullSave} 
+                                disabled={loading || !isDirty} 
+                                style={{
+                                    padding: '7px 18px', borderRadius: 10, fontSize: 12, fontWeight: 800,
+                                    background: isDirty ? '#10b981' : 'var(--t-surface2)', 
+                                    color: isDirty ? '#fff' : 'var(--t-text3)', 
+                                    border: isDirty ? 'none' : '1px solid var(--t-border)',
+                                    cursor: isDirty ? 'pointer' : 'not-allowed',
+                                    opacity: loading ? 0.6 : 1, transition: 'all 0.2s',
+                                    boxShadow: isDirty ? '0 4px 12px rgba(16,185,129,0.2)' : 'none',
+                                    flex: isMobile ? '1 1 100%' : '0 0 auto',
+                                }}
+                            >
+                                {loading ? 'Saving…' : '✓ Save Changes'}
+                            </button>
+                            {isDirty && (
+                                <button 
+                                    onClick={() => { 
+                                        setFormData({ ...task });
+                                    }} 
+                                    style={{
+                                        padding: '7px 14px', borderRadius: 10, fontSize: 12, fontWeight: 800,
+                                        background: 'rgba(239,68,68,0.08)', color: '#ef4444',
+                                        border: '1px solid rgba(239,68,68,0.25)', cursor: 'pointer',
+                                        flex: isMobile ? '1 1 100%' : '0 0 auto',
+                                    }}
+                                >
+                                    Discard
+                                </button>
+                            )}
+                            <button 
                                 onClick={() => fileInputRef.current?.click()} 
                                 disabled={uploading} 
                                 style={{
@@ -362,36 +468,10 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                                     background: 'rgba(16,185,129,0.08)', color: '#10b981',
                                     border: '1px solid rgba(16,185,129,0.25)', cursor: 'pointer',
                                     transition: 'all 0.2s',
-                                }}
-                                onMouseEnter={e => {
-                                    e.currentTarget.style.transform = 'translateY(-1px)';
-                                    e.currentTarget.style.background = 'rgba(16,185,129,0.12)';
-                                }}
-                                onMouseLeave={e => {
-                                    e.currentTarget.style.transform = 'none';
-                                    e.currentTarget.style.background = 'rgba(16,185,129,0.08)';
+                                    flex: isMobile ? '1 1 100%' : '0 0 auto',
                                 }}
                             >
                                 {uploading ? '⏳ Uploading…' : '📤 Upload Proof'}
-                            </button>
-                            <button 
-                                onClick={() => setIsEditing(true)} 
-                                style={{
-                                    padding: '7px 16px', borderRadius: 10, fontSize: 12, fontWeight: 800,
-                                    background: 'rgba(249,115,22,0.08)', color: '#f97316',
-                                    border: '1px solid rgba(249,115,22,0.25)', cursor: 'pointer',
-                                    transition: 'all 0.2s',
-                                }}
-                                onMouseEnter={e => {
-                                    e.currentTarget.style.transform = 'translateY(-1px)';
-                                    e.currentTarget.style.background = 'rgba(249,115,22,0.12)';
-                                }}
-                                onMouseLeave={e => {
-                                    e.currentTarget.style.transform = 'none';
-                                    e.currentTarget.style.background = 'rgba(249,115,22,0.08)';
-                                }}
-                            >
-                                ✏️ Edit
                             </button>
                             <button 
                                 onClick={() => setShowDeleteConfirm(true)} 
@@ -400,43 +480,10 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                                     background: 'rgba(239,68,68,0.08)', color: '#ef4444',
                                     border: '1px solid rgba(239,68,68,0.25)', cursor: 'pointer',
                                     transition: 'all 0.2s',
-                                }}
-                                onMouseEnter={e => {
-                                    e.currentTarget.style.transform = 'translateY(-1px)';
-                                    e.currentTarget.style.background = 'rgba(239,68,68,0.12)';
-                                }}
-                                onMouseLeave={e => {
-                                    e.currentTarget.style.transform = 'none';
-                                    e.currentTarget.style.background = 'rgba(239,68,68,0.08)';
+                                    flex: isMobile ? '1 1 100%' : '0 0 auto',
                                 }}
                             >
                                 🗑️
-                            </button>
-                        </>
-                    ) : (
-                        <>
-                            <button 
-                                onClick={handleFullSave} 
-                                disabled={loading} 
-                                style={{
-                                    padding: '7px 18px', borderRadius: 10, fontSize: 12, fontWeight: 800,
-                                    background: '#10b981', color: '#fff', border: 'none', cursor: 'pointer',
-                                    opacity: loading ? 0.6 : 1, transition: 'all 0.2s',
-                                    boxShadow: '0 4px 12px rgba(16,185,129,0.2)',
-                                }}
-                            >
-                                {loading ? 'Saving…' : '✓ Save Changes'}
-                            </button>
-                            <button 
-                                onClick={() => setIsEditing(false)} 
-                                style={{
-                                    padding: '7px 14px', borderRadius: 10, fontSize: 12, fontWeight: 800,
-                                    background: 'var(--t-surface2)', color: 'var(--t-text)',
-                                    border: '1px solid var(--t-border)', cursor: 'pointer',
-                                    transition: 'all 0.2s',
-                                }}
-                            >
-                                Cancel
                             </button>
                         </>
                     )}
@@ -513,9 +560,6 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                                 onClick={!isEditing ? cyclePriority : undefined}
                                 title={!isEditing ? 'Click to toggle priority' : undefined}
                             />
-                            {overdue && (
-                                <Pill label={`${Math.abs(dl)}d overdue`} color="#ef4444" bg="rgba(239,68,68,0.08)" border="rgba(239,68,68,0.25)" />
-                            )}
                         </div>
 
                         {isEditing && (
@@ -651,7 +695,6 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                                 {[
                                     { key: 'start_date',     label: 'Start Date',     type: 'date'   },
-                                    { key: 'due_date',       label: 'Due Date',       type: 'date'   },
                                     { key: 'completed_date', label: 'Completed On',   type: 'date'   },
                                     { key: 'estimated_cost', label: 'Estimated Cost', type: 'number' },
                                 ].map(({ key, label, type }) => (
@@ -673,12 +716,6 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
                                     <MetaCard label="Start Date" value={fmt(task.start_date)} icon="🛫" />
-                                    <MetaCard 
-                                        label="Due Date" 
-                                        value={task.due_date ? `${fmt(task.due_date)}${overdue ? ' (Overdue)' : ''}` : 'TBD'} 
-                                        icon="🏁" 
-                                        accent={overdue ? '#ef4444' : undefined} 
-                                    />
                                     <MetaCard label="Completed On" value={fmt(task.completed_date)} icon="✓" accent={task.completed_date ? '#10b981' : undefined} />
                                     <MetaCard 
                                         label="Estimated Cost" 
@@ -808,6 +845,23 @@ export default function TaskDetailPanel({ taskId, onBack, onPhaseClick }) {
                 <span>Last Updated: {fmtShort(task.updated_at)}</span>
             </div>
 
+            <ConfirmModal
+                isOpen={showDiscardConfirm}
+                title="Discard Unsaved Changes?"
+                message="You have made changes to this task. Leaving this page will discard all unsaved changes."
+                confirmText="Discard Changes"
+                cancelText="Keep Editing"
+                type="danger"
+                onConfirm={() => {
+                    setShowDiscardConfirm(false);
+                    setFormData({ ...task });
+                    if (pendingAction) pendingAction();
+                }}
+                onCancel={() => {
+                    setShowDiscardConfirm(false);
+                    setPendingAction(null);
+                }}
+            />
         </div>
     );
 }

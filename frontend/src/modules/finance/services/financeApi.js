@@ -38,11 +38,15 @@ export const createTransfer      = (data)       => http.post('/financials/transf
 export const getDisbursements    = (projectId, loanId) =>
   http.get(`/financials/loan-disbursements/${qs(projectId, loanId ? `loan_account=${loanId}` : '')}`);
 export const createDisbursement  = (data) => http.post('/financials/loan-disbursements/', data);
+export const updateDisbursement  = (id, data) => http.patch(`/financials/loan-disbursements/${id}/`, data);
+export const deleteDisbursement  = (id) => http.delete(`/financials/loan-disbursements/${id}/`);
 
 // ── Loans — EMI Payments ──────────────────────────────────────────────────────
 export const getEMIPayments      = (projectId, loanId) =>
   http.get(`/financials/loan-emi-payments/${qs(projectId, loanId ? `loan_account=${loanId}` : '')}`);
 export const createEMIPayment    = (data) => http.post('/financials/loan-emi-payments/', data);
+export const updateEMIPayment    = (id, data) => http.patch(`/financials/loan-emi-payments/${id}/`, data);
+export const deleteEMIPayment    = (id) => http.delete(`/financials/loan-emi-payments/${id}/`);
 
 // ── Bills ─────────────────────────────────────────────────────────────────────
 export const getBills            = (projectId, statusFilter) =>

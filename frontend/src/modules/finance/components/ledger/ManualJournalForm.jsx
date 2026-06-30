@@ -120,31 +120,31 @@ export default function ManualJournalForm({ accounts = [], preAccount = null, pr
       {/* Date + Description */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className={lbl}>Date</label>
+          <label className={lbl}>मिति *</label>
           <input type="date" className={inp} required value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
         <div>
-          <label className={lbl}>Description</label>
-          <input className={inp} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g. Opening equity balance" />
+          <label className={lbl}>विवरण</label>
+          <input className={inp} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="उदाहरण: शुरूआती इक्विटी बाकी" />
         </div>
       </div>
 
       {/* Lines */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <label className={lbl}>Journal Lines</label>
+          <label className={lbl}>जर्नल लाइनहरू</label>
           <div className="flex items-center gap-3 text-[10px] font-bold">
-            <span className={`${balanced ? 'text-green-600' : 'text-red-500'}`}>
-              {balanced ? '✓ Balanced' : `Diff: ${fmt(Math.abs(totalDebit - totalCredit))}`}
+            <span className={`${balanced ? 'text-green-600' : 'text-red-500'} flex items-center gap-1`}>
+              {balanced ? '✓ सन्तुलित' : `फरक: ${fmt(Math.abs(totalDebit - totalCredit))}`}
             </span>
           </div>
         </div>
 
         {/* Header */}
         <div className="grid grid-cols-[1fr_100px_120px_28px] gap-2 mb-1.5 px-1">
-          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Account</span>
+          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">खाता</span>
           <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Dr / Cr</span>
-          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Amount (NPR)</span>
+          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">रकम (NPR)</span>
           <span />
         </div>
 
@@ -162,7 +162,7 @@ export default function ManualJournalForm({ accounts = [], preAccount = null, pr
                     onChange={(e) => setLine(i, 'account', e.target.value)}
                     required
                   >
-                    <option value="">— Select account —</option>
+                    <option value="">— खाता छान्नुहोस् —</option>
                     {accounts.map((a) => (
                       <option key={a.id} value={a.id}>
                         {a.code} · {a.name} ({a.account_type})
@@ -230,18 +230,18 @@ export default function ManualJournalForm({ accounts = [], preAccount = null, pr
           onClick={addLine}
           className="mt-2 text-[10px] font-black text-blue-600 hover:text-blue-800 transition-colors"
         >
-          + Add Line
+          + लाइन थप्नुहोस्
         </button>
       </div>
 
       {/* Totals */}
       <div className="grid grid-cols-2 gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
         <div>
-          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Total Debit</p>
+          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">कुल डेबिट (Dr)</p>
           <p className="text-sm font-black text-green-700">{fmt(totalDebit)}</p>
         </div>
         <div>
-          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Total Credit</p>
+          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">कुल क्रेडिट (Cr)</p>
           <p className="text-sm font-black text-red-600">{fmt(totalCredit)}</p>
         </div>
       </div>
@@ -249,9 +249,9 @@ export default function ManualJournalForm({ accounts = [], preAccount = null, pr
       {/* Tip */}
       <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
         <p className="text-[10px] text-blue-700 font-semibold leading-relaxed">
-          <span className="font-black">Tip:</span> To <span className="font-black">increase</span> Equity/Revenue/Liability → Credit that account.
-          To <span className="font-black">decrease</span> → Debit it.
-          For Assets/Expenses, it's the opposite.
+          <span className="font-black">सुझाव:</span> Equity/Revenue/Liability बढाउन → <span className="font-black">Credit (Cr)</span> गर्नुहोस्। 
+          घटाउन → <span className="font-black">Debit (Dr)</span>। 
+          Asset/Expense को लागि उल्टो हुन्छ।
         </p>
       </div>
 
@@ -260,7 +260,7 @@ export default function ManualJournalForm({ accounts = [], preAccount = null, pr
         disabled={busy || !balanced}
         className="w-full py-2.5 bg-black text-white text-sm font-black rounded-xl hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
-        {busy ? 'Posting…' : 'Post Journal Entry'}
+        {busy ? 'पोस्ट हुँदैछ…' : '✓ जर्नल प्रविष्टि पोस्ट गर्नुहोस्'}
       </button>
     </form>
   );

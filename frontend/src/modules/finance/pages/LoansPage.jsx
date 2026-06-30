@@ -2,30 +2,25 @@
  * LoansPage — manage loan accounts, pay EMIs, view amortization + history.
  */
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useFinance } from '../context/FinanceContext';
 import PageHeader from '../components/shared/PageHeader';
 import LoanCard from '../components/loans/LoanCard';
 import LoanForm from '../components/loans/LoanForm';
 import EMIModal from '../components/loans/EMIModal';
-import EMIHistory from '../components/loans/EMIHistory';
-import AmortizationTable from '../components/loans/AmortizationTable';
 import DisbursementModal from '../components/loans/DisbursementModal';
 import Modal from '../components/shared/Modal';
 import EmptyState from '../components/shared/EmptyState';
+import { usePlatformBase } from '../../../shared/utils/platformNav';
 
 export default function LoansPage() {
   const { loans, loading } = useFinance();
+  const navigate = useNavigate();
+  const base = usePlatformBase();
   const [showCreate,   setShowCreate]   = useState(false);
   const [editing,      setEditing]      = useState(null);
   const [payingEMI,    setPayingEMI]    = useState(null);
-  const [viewingLoan,  setViewingLoan]  = useState(null);
-  const [detailTab,    setDetailTab]    = useState('history');
   const [disbursing,   setDisbursing]   = useState(null);
-
-  const openDetail = (loan, tab = 'history') => {
-    setViewingLoan(loan);
-    setDetailTab(tab);
-  };
 
   if (loading) {
     return (
@@ -65,7 +60,7 @@ export default function LoansPage() {
               account={loan}
               onPayEMI={setPayingEMI}
               onEdit={setEditing}
-              onDetail={(l) => openDetail(l, 'history')}
+              onDetail={(l) => navigate(`${base}/finance/loans/${l.id}`)}
               onDisburse={setDisbursing}
             />
           ))}
@@ -91,47 +86,6 @@ export default function LoansPage() {
       {disbursing && (
         <DisbursementModal loan={disbursing} onClose={() => setDisbursing(null)} />
       )}
-
-      {/* Loan detail modal — tabbed: Payment History + Amortization Schedule */}
-      <Modal
-        isOpen={!!viewingLoan}
-        onClose={() => setViewingLoan(null)}
-        title={viewingLoan?.name || 'Loan Detail'}
-        maxWidth="max-w-2xl"
-      >
-        {viewingLoan && (
-          <div>
-            {/* Tabs */}
-            <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit mx-6 mt-4">
-              {[
-                { key: 'history',  label: '💳 Payment History' },
-                { key: 'schedule', label: '📅 Schedule' },
-              ].map(({ key, label }) => (
-                <button
-                  key={key}
-                  onClick={() => setDetailTab(key)}
-                  className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                    detailTab === key
-                      ? 'bg-white shadow-sm text-gray-900'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            {/* Tab content */}
-            <div className="p-6">
-              {detailTab === 'history' ? (
-                <EMIHistory loan={viewingLoan} />
-              ) : (
-                <AmortizationTable loan={viewingLoan} />
-              )}
-            </div>
-          </div>
-        )}
-      </Modal>
     </div>
   );
 }

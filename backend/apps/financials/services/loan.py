@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from django.db import transaction
 
-from ..models.journal import EntryType, SourceType
+from ..models.journal import EntryType, SourceType, JournalLine
 from ..models.loan import LoanDisbursement, LoanEMIPayment
 from .ledger import LedgerService
 
@@ -53,6 +53,81 @@ class LoanService:
         )
         disbursement.journal_entry = je
         disbursement.save(update_fields=["journal_entry"])
+
+    @staticmethod
+    @transaction.atomic
+    def update_disbursement(disbursement: LoanDisbursement, user=None) -> None:
+        """
+        Updates a loan disbursement and its associated JournalEntry and JournalLines.
+        """
+        je = disbursement.journal_entry
+        if not je:
+            project_id = disbursement.loan_account.project_id
+            je = LedgerService.post_entry(
+                date=disbursement.date,
+                description=f"Loan Disbursement: {disbursement.loan_account.name}" +
+                            (f" | {disbursement.reference}" if disbursement.reference else ""),
+                source_type=SourceType.LOAN_IN,
+                source_ref=disbursement.reference,
+                project_id=project_id,
+                user=user,
+                lines=[
+                    {
+                        "account_id": disbursement.bank_account_id,
+                        "entry_type": EntryType.DEBIT,
+                        "amount": disbursement.amount,
+                        "note": "Loan proceeds received",
+                    },
+                    {
+                        "account_id": disbursement.loan_account_id,
+                        "entry_type": EntryType.CREDIT,
+                        "amount": disbursement.amount,
+                        "note": "Loan liability created",
+                    },
+                ],
+            )
+            disbursement.journal_entry = je
+            disbursement.save(update_fields=["journal_entry"])
+            return
+
+        # Update JournalEntry header
+        je.date = disbursement.date
+        je.description = f"Loan Disbursement: {disbursement.loan_account.name}" + \
+                         (f" | {disbursement.reference}" if disbursement.reference else "")
+        je.source_ref = disbursement.reference
+        je.save()
+
+        # Regenerate journal lines
+        je.fin_lines.all().delete()
+        JournalLine.objects.bulk_create([
+            JournalLine(
+                journal_entry=je,
+                account_id=disbursement.bank_account_id,
+                entry_type=EntryType.DEBIT,
+                amount=disbursement.amount,
+                note="Loan proceeds received",
+            ),
+            JournalLine(
+                journal_entry=je,
+                account_id=disbursement.loan_account_id,
+                entry_type=EntryType.CREDIT,
+                amount=disbursement.amount,
+                note="Loan liability created",
+            ),
+        ])
+
+    @staticmethod
+    @transaction.atomic
+    def delete_disbursement(disbursement: LoanDisbursement) -> None:
+        """
+        Deletes a loan disbursement and its associated JournalEntry.
+        """
+        je = disbursement.journal_entry
+        disbursement.journal_entry = None
+        disbursement.save(update_fields=["journal_entry"])
+        disbursement.delete()
+        if je:
+            je.delete()
 
     @staticmethod
     @transaction.atomic
@@ -113,3 +188,110 @@ class LoanService:
         )
         emi.journal_entry = je
         emi.save(update_fields=["journal_entry"])
+
+    @staticmethod
+    @transaction.atomic
+    def update_emi(emi: LoanEMIPayment, user=None) -> None:
+        """
+        Updates a loan EMI payment and its associated JournalEntry and JournalLines.
+        """
+        je = emi.journal_entry
+        if not je:
+            project_id = emi.loan_account.project_id
+            interest_acc = LedgerService.get_or_create_system_account(
+                name="Interest Expense",
+                code="5801",
+                account_type="EXPENSE",
+                project_id=project_id,
+            )
+            lines = [
+                {
+                    "account_id": emi.bank_account_id,
+                    "entry_type": EntryType.CREDIT,
+                    "amount": emi.total_emi,
+                    "note": "EMI paid from bank",
+                },
+                {
+                    "account_id": emi.loan_account_id,
+                    "entry_type": EntryType.DEBIT,
+                    "amount": emi.principal_amount,
+                    "note": "Principal portion",
+                },
+            ]
+            if emi.interest_amount > 0:
+                lines.append({
+                    "account_id": interest_acc.id,
+                    "entry_type": EntryType.DEBIT,
+                    "amount": emi.interest_amount,
+                    "note": "Interest portion",
+                })
+            je = LedgerService.post_entry(
+                date=emi.date,
+                description=f"EMI Payment: {emi.loan_account.name}" +
+                            (f" | {emi.reference}" if emi.reference else ""),
+                source_type=SourceType.EMI,
+                source_ref=emi.reference,
+                project_id=project_id,
+                user=user,
+                lines=lines,
+            )
+            emi.journal_entry = je
+            emi.save(update_fields=["journal_entry"])
+            return
+
+        # Update JournalEntry header
+        je.date = emi.date
+        je.description = f"EMI Payment: {emi.loan_account.name}" + \
+                         (f" | {emi.reference}" if emi.reference else "")
+        je.source_ref = emi.reference
+        je.save()
+
+        # Get or create interest account
+        interest_acc = LedgerService.get_or_create_system_account(
+            name="Interest Expense",
+            code="5801",
+            account_type="EXPENSE",
+            project_id=emi.loan_account.project_id,
+        )
+
+        # Regenerate journal lines
+        je.fin_lines.all().delete()
+
+        lines = [
+            JournalLine(
+                journal_entry=je,
+                account_id=emi.bank_account_id,
+                entry_type=EntryType.CREDIT,
+                amount=emi.total_emi,
+                note="EMI paid from bank",
+            ),
+            JournalLine(
+                journal_entry=je,
+                account_id=emi.loan_account_id,
+                entry_type=EntryType.DEBIT,
+                amount=emi.principal_amount,
+                note="Principal portion",
+            ),
+        ]
+        if emi.interest_amount > 0:
+            lines.append(JournalLine(
+                journal_entry=je,
+                account_id=interest_acc.id,
+                entry_type=EntryType.DEBIT,
+                amount=emi.interest_amount,
+                note="Interest portion",
+            ))
+        JournalLine.objects.bulk_create(lines)
+
+    @staticmethod
+    @transaction.atomic
+    def delete_emi(emi: LoanEMIPayment) -> None:
+        """
+        Deletes a loan EMI payment and its associated JournalEntry.
+        """
+        je = emi.journal_entry
+        emi.journal_entry = None
+        emi.save(update_fields=["journal_entry"])
+        emi.delete()
+        if je:
+            je.delete()

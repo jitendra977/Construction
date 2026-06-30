@@ -6,6 +6,8 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useFinance } from '../../context/FinanceContext';
 import financeApi from '../../services/financeApi';
+import DisbursementModal from './DisbursementModal';
+import EMIModal from './EMIModal';
 
 const NPR = (n) =>
   `NPR ${Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
@@ -22,13 +24,15 @@ const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
 export default function EMIHistory({ loan }) {
-  const { projectId } = useFinance();
+  const { projectId, refresh } = useFinance();
   const [payments,       setPayments]       = useState([]);
   const [disbursements,  setDisbursements]  = useState([]);
   const [loading,        setLoading]        = useState(true);
   const [error,          setError]          = useState('');
+  const [editingDisbursement, setEditingDisbursement] = useState(null);
+  const [editingEMI,          setEditingEMI]          = useState(null);
 
-  useEffect(() => {
+  const fetchHistory = () => {
     if (!projectId || !loan?.id) return;
     setLoading(true);
     Promise.all([
@@ -45,7 +49,33 @@ export default function EMIHistory({ loan }) {
       })
       .catch(() => setError('भुक्तानी इतिहास लोड गर्न सकिएन।'))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchHistory();
   }, [projectId, loan?.id]);
+
+  const handleDeleteDisbursement = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this disbursement record? This will also remove the corresponding general ledger transaction.")) return;
+    try {
+      await financeApi.deleteDisbursement(id);
+      refresh();
+      fetchHistory();
+    } catch (ex) {
+      alert("Error: " + (ex?.response?.data?.detail || ex.message));
+    }
+  };
+
+  const handleDeleteEMI = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this EMI payment record? This will also remove the corresponding general ledger transaction.")) return;
+    try {
+      await financeApi.deleteEMIPayment(id);
+      refresh();
+      fetchHistory();
+    } catch (ex) {
+      alert("Error: " + (ex?.response?.data?.detail || ex.message));
+    }
+  };
 
   const totalDisbursed  = useMemo(() =>
     disbursements.reduce((s, d) => s + Number(d.amount || 0), 0), [disbursements]);
@@ -190,7 +220,7 @@ export default function EMIHistory({ loan }) {
             </p>
           </div>
           {disbursements.map((d) => (
-            <div key={d.id} className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 last:border-0">
+            <div key={d.id} className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors group">
               <div className="w-7 h-7 rounded-xl bg-green-50 flex items-center justify-center text-sm shrink-0">🏦</div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-gray-800">{fmtDate(d.date)}</p>
@@ -203,6 +233,10 @@ export default function EMIHistory({ loan }) {
                 <p className="text-sm font-black text-green-700">{NPR(d.amount)}</p>
                 <p className="text-[9px] text-gray-400">{toLakh(d.amount)}</p>
               </div>
+              <div className="flex gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => setEditingDisbursement(d)} className="p-1 hover:bg-gray-100 rounded text-xs" title="Edit">✏️</button>
+                <button onClick={() => handleDeleteDisbursement(d.id)} className="p-1 hover:bg-red-50 rounded text-xs" title="Delete">🗑️</button>
+              </div>
             </div>
           ))}
         </div>
@@ -211,16 +245,17 @@ export default function EMIHistory({ loan }) {
       {/* ── EMI payment list ──────────────────────────────────────────── */}
       {payments.length > 0 && (
         <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-          <div className="grid grid-cols-[1fr_80px_80px_80px] gap-2 px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+          <div className="grid grid-cols-[1fr_80px_80px_80px_60px] gap-2 px-4 py-2.5 bg-gray-50 border-b border-gray-100">
             <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider">EMI भुक्तानी</span>
             <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider text-right">साँवा</span>
             <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider text-right">ब्याज</span>
             <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider text-right">जम्मा</span>
+            <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider text-right"></span>
           </div>
 
           {payments.map((p) => (
             <div key={p.id}
-              className="grid grid-cols-[1fr_80px_80px_80px] gap-2 px-4 py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors"
+              className="grid grid-cols-[1fr_80px_80px_80px_60px] gap-2 px-4 py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors group"
             >
               <div className="min-w-0 flex items-center gap-2">
                 <div className="w-7 h-7 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 text-sm">💳</div>
@@ -235,17 +270,44 @@ export default function EMIHistory({ loan }) {
               <p className="text-xs font-black text-green-600 text-right self-center">{NPR(p.principal_amount)}</p>
               <p className="text-xs font-semibold text-orange-500 text-right self-center">{NPR(p.interest_amount)}</p>
               <p className="text-xs font-black text-gray-800 text-right self-center">{NPR(p.total_emi)}</p>
+              <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity self-center">
+                <button onClick={() => setEditingEMI(p)} className="p-1 hover:bg-gray-100 rounded text-xs" title="Edit">✏️</button>
+                <button onClick={() => handleDeleteEMI(p.id)} className="p-1 hover:bg-red-50 rounded text-xs" title="Delete">🗑️</button>
+              </div>
             </div>
           ))}
 
           {/* Footer totals */}
-          <div className="grid grid-cols-[1fr_80px_80px_80px] gap-2 px-4 py-2.5 bg-gray-50 border-t border-gray-200">
+          <div className="grid grid-cols-[1fr_80px_80px_80px_60px] gap-2 px-4 py-2.5 bg-gray-50 border-t border-gray-200">
             <span className="text-[10px] font-black text-gray-500 self-center">जम्मा ({payments.length})</span>
             <span className="text-xs font-black text-green-700 text-right">{NPR(totalPrincipal)}</span>
             <span className="text-xs font-black text-orange-600 text-right">{NPR(totalInterest)}</span>
             <span className="text-xs font-black text-gray-900 text-right">{NPR(totalEMIPaid)}</span>
+            <span></span>
           </div>
         </div>
+      )}
+
+      {editingDisbursement && (
+        <DisbursementModal
+          loan={loan}
+          disbursement={editingDisbursement}
+          onClose={() => {
+            setEditingDisbursement(null);
+            fetchHistory();
+          }}
+        />
+      )}
+
+      {editingEMI && (
+        <EMIModal
+          loan={loan}
+          emi={editingEMI}
+          onClose={() => {
+            setEditingEMI(null);
+            fetchHistory();
+          }}
+        />
       )}
 
       {/* Empty state */}

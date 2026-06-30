@@ -26,33 +26,36 @@ export default function TaskDetailPage() {
     const tasks = dashboardData?.tasks || [];
     const targetTask = tasks.find(t => t.id === taskId);
 
+    // One step back → phase detail (if task has phase_id), else phases list
     const goBack = () => {
-        if (targetTask && targetTask.phase_id) {
+        if (targetTask?.phase_id) {
             navigate(`${base}/phases/${targetTask.phase_id}`);
+        } else if (targetTask?.phase) {
+            navigate(`${base}/phases/${targetTask.phase}`);
         } else {
             navigate(`${base}/phases`);
         }
     };
 
-    const goPhase = (phase) => {
-        navigate(`${base}/phases/${phase.id}`);
-    };
+    // Breadcrumb root "Phases" link → always go to phases list
+    const goPhasesList = () => navigate(`${base}/phases`);
 
     if (!targetTask) {
         return (
             <div style={{ minHeight: '100vh', background: 'var(--t-bg)' }}>
                 {!isMobile && <ManagementTabs />}
                 <div style={{ padding: 48, textAlign: 'center', color: 'var(--t-text)' }}>
+                    <p style={{ fontSize: 48 }}>🔍</p>
                     <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 800 }}>Task not found</h3>
                     <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--t-text3)' }}>
                         The requested task could not be found or has been deleted.
                     </p>
                     <button onClick={() => navigate(`${base}/phases`)} style={{
-                        padding: '8px 16px', borderRadius: 8, border: 'none',
+                        padding: '8px 20px', borderRadius: 8, border: 'none',
                         background: 'var(--t-primary)', color: '#fff', fontSize: 13, fontWeight: 700,
-                        cursor: 'pointer'
+                        cursor: 'pointer',
                     }}>
-                        Back to Phase List
+                        ← Back to Phases
                     </button>
                 </div>
             </div>
@@ -62,12 +65,11 @@ export default function TaskDetailPage() {
     return (
         <div style={{ minHeight: '100vh', background: 'var(--t-bg)' }}>
             {!isMobile && <ManagementTabs />}
-
             <div style={{ paddingBottom: 96 }}>
                 <TaskDetailPanel
                     taskId={taskId}
                     onBack={goBack}
-                    onPhaseClick={goPhase}
+                    onPhaseClick={goPhasesList}
                 />
             </div>
         </div>

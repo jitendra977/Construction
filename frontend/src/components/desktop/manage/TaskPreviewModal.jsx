@@ -386,19 +386,6 @@ const TaskPreviewModal = ({ isOpen, onClose, task, initialMode = 'read' }) => {
                                 )}
                             </div>
                             <div>
-                                <div className="text-[8px] font-bold text-[var(--t-text3)] uppercase">Due Date</div>
-                                {isEditing ? (
-                                    <input 
-                                        type="date"
-                                        value={formData.due_date || ''}
-                                        onChange={(e) => setFormData({...formData, due_date: e.target.value})}
-                                        className="text-[10px] font-semibold bg-[var(--t-surface)] p-1 rounded border border-[var(--t-border)] w-full"
-                                    />
-                                ) : (
-                                    <div className="text-[11px] font-semibold text-[var(--t-text)]">{formatDate(task.due_date)}</div>
-                                )}
-                            </div>
-                            <div className="col-span-2">
                                 <div className="text-[8px] font-bold text-[var(--t-text3)] uppercase">Completed On</div>
                                 {isEditing ? (
                                     <input 

@@ -40,14 +40,14 @@ const toLakhCrore = (n) => {
 const inp = 'w-full px-3 py-2 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black/10 bg-white';
 const lbl = 'block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1';
 
-export default function DisbursementModal({ loan, onClose }) {
+export default function DisbursementModal({ loan, disbursement = null, onClose }) {
   const { banks, projectId, refresh } = useFinance();
 
-  const [bankId,    setBankId]    = useState('');
-  const [amount,    setAmount]    = useState(loan.total_loan_limit || '');
-  const [date,      setDate]      = useState(today());
-  const [reference, setReference] = useState('');
-  const [notes,     setNotes]     = useState('');
+  const [bankId,    setBankId]    = useState(disbursement?.bank_account || '');
+  const [amount,    setAmount]    = useState(disbursement ? String(disbursement.amount) : (loan.total_loan_limit || ''));
+  const [date,      setDate]      = useState(disbursement?.date || today());
+  const [reference, setReference] = useState(disbursement?.reference || '');
+  const [notes,     setNotes]     = useState(disbursement?.notes || '');
   const [busy,      setBusy]      = useState(false);
   const [err,       setErr]       = useState('');
 
@@ -57,14 +57,19 @@ export default function DisbursementModal({ loan, onClose }) {
     if (!amount || parseFloat(amount) <= 0) { setErr('Enter a valid loan amount.'); return; }
     setBusy(true); setErr('');
     try {
-      await financeApi.createDisbursement({
+      const payload = {
         loan_account: loan.id,
         bank_account: bankId,
         date,
         amount: parseFloat(amount),
         reference,
         notes,
-      });
+      };
+      if (disbursement) {
+        await financeApi.updateDisbursement(disbursement.id, payload);
+      } else {
+        await financeApi.createDisbursement(payload);
+      }
       await refresh();
       onClose();
     } catch (ex) {
@@ -76,7 +81,7 @@ export default function DisbursementModal({ loan, onClose }) {
   };
 
   return (
-    <Modal isOpen onClose={onClose} title="Record Loan Disbursement" maxWidth="max-w-md">
+    <Modal isOpen onClose={onClose} title={disbursement ? "Edit Disbursement" : "Record Loan Disbursement"} maxWidth="max-w-md">
       <form onSubmit={handleSubmit} className="p-6 space-y-4">
 
         {/* Explainer */}
@@ -96,11 +101,11 @@ export default function DisbursementModal({ loan, onClose }) {
 
         {/* Loan info */}
         <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl">
-          <p className="text-[10px] font-bold text-blue-400 uppercase">Loan Account</p>
+          <p className="text-[10px] font-bold text-blue-400 uppercase">ऋण खाता</p>
           <p className="font-black text-sm text-blue-900">{loan.name}</p>
           {loan.total_loan_limit && (
             <p className="text-xs text-blue-500 mt-0.5">
-              Sanctioned limit: {NPR(loan.total_loan_limit)}
+              स्वीकृत सीमा: {NPR(loan.total_loan_limit)}
             </p>
           )}
         </div>
@@ -111,9 +116,9 @@ export default function DisbursementModal({ loan, onClose }) {
 
         {/* Receiving bank account */}
         <div>
-          <label className={lbl}>Bank Account That Received the Money *</label>
+          <label className={lbl}>पैसा प्राप्त हुने बैंक खाता *</label>
           <select className={inp} value={bankId} onChange={(e) => setBankId(e.target.value)} required>
-            <option value="">— Select bank account —</option>
+            <option value="">— बैंक खाता छान्नुहोस् —</option>
             {banks.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.bank_name ? `${b.bank_name} · ` : ''}{b.name} ({NPR(b.balance)})
@@ -180,33 +185,33 @@ export default function DisbursementModal({ loan, onClose }) {
 
         {/* Date */}
         <div>
-          <label className={lbl}>Disbursement Date *</label>
+          <label className={lbl}>वितरण मिति *</label>
           <input type="date" required className={inp}
             value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
 
         {/* Reference */}
         <div>
-          <label className={lbl}>Reference / Voucher No.</label>
-          <input className={inp} placeholder="e.g. LN-2024-001"
+          <label className={lbl}>सन्दर्भ / भौचर नं.</label>
+          <input className={inp} placeholder="उदाहरण: LN-2024-001"
             value={reference} onChange={(e) => setReference(e.target.value)} />
         </div>
 
         {/* Notes */}
         <div>
-          <label className={lbl}>Notes</label>
-          <input className={inp} placeholder="Optional remarks"
+          <label className={lbl}>कैफियत</label>
+          <input className={inp} placeholder="वैकल्पिक टिप्पणी"
             value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
 
         <div className="flex gap-2 pt-1">
           <button type="button" onClick={onClose}
             className="flex-1 py-2.5 border border-gray-200 text-sm font-bold text-gray-600 rounded-xl hover:bg-gray-50 transition-colors">
-            Cancel
+            रद्द गर्नुहोस्
           </button>
           <button type="submit" disabled={busy}
             className="flex-1 py-2.5 bg-green-600 text-white text-sm font-black rounded-xl hover:bg-green-700 disabled:opacity-50 transition-colors">
-            {busy ? 'Recording…' : '✓ Record Disbursement'}
+            {busy ? 'सेभ हुँदैछ…' : disbursement ? '✓ परिवर्तन सुरक्षित' : '✓ वितरण दर्ता गर्नुहोस्'}
           </button>
         </div>
       </form>

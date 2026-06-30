@@ -286,19 +286,12 @@ function TaskRow({ task, phase, onUpdate, onDelete, onTaskClick }) {
                 {task.start_date ? `🛫 ${fmtDate(task.start_date)}` : ''}
             </span>
 
-            {/* Due date */}
+            {/* Finished date */}
             <span style={{
                 fontSize: 10, fontWeight: 700, flexShrink: 0, whiteSpace: 'nowrap',
-                width: 80, textAlign: 'right',
-                color: overdue ? '#ef4444'
-                     : dl !== null && dl <= 3 ? '#f59e0b'
-                     : 'var(--t-text3)',
+                width: 80, textAlign: 'right', color: 'var(--t-text3)',
             }}>
-                {task.due_date
-                    ? (overdue
-                        ? `⚠ ${Math.abs(dl)}d over`
-                        : `📅 ${fmtDate(task.due_date)}`)
-                    : ''}
+                {task.completed_date ? `🏁 ${fmtDate(task.completed_date)}` : ''}
             </span>
 
             {/* Assigned */}
@@ -617,8 +610,8 @@ function MobilePhaseCard({
                             {visibleTasks
                                 .slice()
                                 .sort((a, b) => {
-                                    const da = a.due_date ? new Date(a.due_date).getTime() : 9999999999999;
-                                    const db = b.due_date ? new Date(b.due_date).getTime() : 9999999999999;
+                                    const da = a.start_date ? new Date(a.start_date).getTime() : 9999999999999;
+                                    const db = b.start_date ? new Date(b.start_date).getTime() : 9999999999999;
                                     if (da !== db) return da - db;
                                     if (a.status === 'COMPLETED' && b.status !== 'COMPLETED') return 1;
                                     if (a.status !== 'COMPLETED' && b.status === 'COMPLETED') return -1;
@@ -627,8 +620,6 @@ function MobilePhaseCard({
                                 .map(task => {
                                     const taskAction = getStatusAction('task', task.status);
                                     const isDone = task.status === 'COMPLETED';
-                                    const dl = daysUntilDate(task.due_date);
-                                    const overdue = isTaskOverdue(task, [phase]);
                                     return (
                                         <div key={task.id} style={{
                                             display: 'flex', alignItems: 'flex-start', gap: 10,
@@ -659,20 +650,21 @@ function MobilePhaseCard({
                                                     {task.title}
                                                 </div>
                                                 <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                                                    {task.completed_date && (
+                                                        <span style={{
+                                                            fontSize: 10, fontWeight: 700,
+                                                            color: 'var(--t-text3)',
+                                                        }}>
+                                                            🏁 {fmtDate(task.completed_date)}
+                                                        </span>
+                                                    )}
                                                     {/* priority dot */}
                                                     <span style={{
                                                         fontSize: 9, fontWeight: 800, padding: '1px 6px', borderRadius: 4,
                                                         background: (PRIORITY_COLOR[task.priority] || '#6b7280') + '18',
                                                         color: PRIORITY_COLOR[task.priority] || '#6b7280',
                                                     }}>{task.priority}</span>
-                                                    {task.due_date && (
-                                                        <span style={{
-                                                            fontSize: 10, fontWeight: 700,
-                                                            color: overdue ? '#ef4444' : dl !== null && dl <= 3 ? '#f59e0b' : 'var(--t-text3)',
-                                                        }}>
-                                                            {overdue ? `⚠ ${Math.abs(dl)}d over` : `📅 ${fmtDate(task.due_date)}`}
-                                                        </span>
-                                                    )}
+
                                                     {task.assigned_to_detail?.name && (
                                                         <span style={{ fontSize: 10, color: 'var(--t-text3)' }}>
                                                             👤 {task.assigned_to_detail.name}
@@ -945,9 +937,9 @@ function SortablePhaseAccordion({
                             visibleTasks
                                 .slice()
                                 .sort((a, b) => {
-                                    // 1. Due Date (Ascending) - nulls/TBD at bottom
-                                    const da = a.due_date ? new Date(a.due_date).getTime() : 9999999999999;
-                                    const db = b.due_date ? new Date(b.due_date).getTime() : 9999999999999;
+                                    // 1. Start Date (Ascending) - nulls/TBD at bottom
+                                    const da = a.start_date ? new Date(a.start_date).getTime() : 9999999999999;
+                                    const db = b.start_date ? new Date(b.start_date).getTime() : 9999999999999;
                                     if (da !== db) return da - db;
 
                                     // 2. Status (COMPLETED at bottom)

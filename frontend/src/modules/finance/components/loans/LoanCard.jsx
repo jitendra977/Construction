@@ -194,7 +194,7 @@ export default function LoanCard({ account, onPayEMI, onEdit, onDetail, onDisbur
           </p>
           <button onClick={() => onDisburse?.(account)}
             className="px-2 py-1 bg-amber-500 text-white text-[9px] font-black rounded-lg hover:bg-amber-600 transition-colors shrink-0">
-            + Disburse
+            + वितरण गर्नुहोस्
           </button>
         </div>
       )}
@@ -203,17 +203,17 @@ export default function LoanCard({ account, onPayEMI, onEdit, onDetail, onDisbur
       <div className="flex gap-2 px-5 py-3 border-t border-gray-100">
         <button onClick={() => onPayEMI(account)}
           className="flex-1 py-2 bg-blue-600 text-white text-[11px] font-black rounded-xl hover:bg-blue-700 transition-colors">
-          💳 Pay EMI
+          💳 EMI भुक्तानी
         </button>
         {!loadingSummary && !noDisbursement && onDisburse && (
           <button onClick={() => onDisburse(account)}
             className="px-3 py-2 bg-green-50 text-green-700 text-[11px] font-black rounded-xl hover:bg-green-100 border border-green-200 transition-colors">
-            + Disburse
+            + वितरण
           </button>
         )}
         <button onClick={() => onDetail?.(account)}
           className="px-4 py-2 bg-gray-50 text-gray-600 text-[11px] font-black rounded-xl hover:bg-gray-100 border border-gray-200 transition-colors">
-          View →
+          विवरण हेर्नुहोस् →
         </button>
       </div>
     </div>

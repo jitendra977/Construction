@@ -70,18 +70,30 @@ function Field({ label, children }) {
 }
 
 /* ── TaskMiniRow ── */
-function TaskMiniRow({ task, phase, isSelected, onClick, onTaskClick, canDelete, onDelete }) {
+function TaskMiniRow({ task, phase, isSelected, onClick, onTaskClick, canManage, onStatusChange, onDelete }) {
     const sm = STATUS_COLOR[task.status] || STATUS_COLOR.PENDING;
+    const statusAction = getStatusAction('task', task.status);
     const dl = daysLeft(task.due_date);
     const overdue = isTaskOverdue(task, [phase]);
     const isMobile = useIsMobile();
+    const [changingStatus, setChangingStatus] = useState(false);
+
+    const changeStatus = async (event) => {
+        event.stopPropagation();
+        setChangingStatus(true);
+        try {
+            await onStatusChange(task, statusAction.nextStatus);
+        } finally {
+            setChangingStatus(false);
+        }
+    };
 
     return (
         <div
             onClick={() => onClick(task)}
             style={{
                 display: 'grid', 
-                gridTemplateColumns: isMobile ? '1fr 120px' : '1fr 100px 100px 100px 120px',
+                gridTemplateColumns: isMobile ? 'minmax(0, 1fr) 140px' : 'minmax(0, 1fr) 100px 100px 100px 180px',
                 alignItems: 'center', gap: 8,
                 padding: '8px 12px', borderRadius: 8, cursor: 'pointer',
                 background: isSelected ? 'rgba(249,115,22,0.08)' : 'var(--t-surface2)',
@@ -109,12 +121,12 @@ function TaskMiniRow({ task, phase, isSelected, onClick, onTaskClick, canDelete,
                             fontSize: 9, fontWeight: 800, padding: '1px 6px', borderRadius: 4,
                             background: sm.bg, color: sm.color,
                         }}>{sm.label}</span>
-                        {isMobile && task.due_date && (
+                        {isMobile && task.completed_date && (
                              <span style={{
                                  fontSize: 9, fontWeight: 700,
-                                 color: overdue ? '#ef4444' : 'var(--t-text3)',
+                                 color: 'var(--t-text3)',
                              }}>
-                                 {overdue ? `⚠ ${Math.abs(dl)}d over` : `📅 ${fmtShort(task.due_date)}`}
+                                 🏁 {fmtShort(task.completed_date)}
                              </span>
                         )}
                     </div>
@@ -128,9 +140,9 @@ function TaskMiniRow({ task, phase, isSelected, onClick, onTaskClick, canDelete,
                     </div>
                     <div style={{ 
                         textAlign: 'center', fontSize: 11, fontWeight: 700,
-                        color: overdue ? '#ef4444' : 'var(--t-text2)'
+                        color: 'var(--t-text2)'
                     }}>
-                        {task.due_date ? fmtShort(task.due_date) : '—'}
+                        {task.completed_date ? fmtShort(task.completed_date) : '—'}
                     </div>
                     <div style={{ textAlign: 'center', fontSize: 11, color: '#10b981', fontWeight: 800 }}>
                         {task.estimated_cost > 0 ? `Rs.${Number(task.estimated_cost).toLocaleString()}` : '—'}
@@ -139,12 +151,29 @@ function TaskMiniRow({ task, phase, isSelected, onClick, onTaskClick, canDelete,
             )}
 
             {/* Actions */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'stretch' }}>
+                {canManage && (
+                    <button
+                        onClick={changeStatus}
+                        disabled={changingStatus}
+                        title={`${statusAction.label}: ${statusAction.dateHint}`}
+                        style={{
+                            minHeight: 26, padding: '4px 8px', borderRadius: 6,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                            fontSize: 10, fontWeight: 900, whiteSpace: 'nowrap',
+                            background: statusAction.color + '18', color: statusAction.color,
+                            border: `1px solid ${statusAction.color}40`, cursor: changingStatus ? 'wait' : 'pointer',
+                            opacity: changingStatus ? 0.65 : 1,
+                        }}
+                    >
+                        {changingStatus ? 'Updating...' : `${statusAction.icon} ${statusAction.label}`}
+                    </button>
+                )}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     {task.technical_requirement && (
                         <span title="Technical Specs Available" style={{ fontSize: 12, cursor: 'help' }}>📜</span>
                     )}
-                    {canDelete && (
+                    {canManage && (
                         <button
                             onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
                             style={{
@@ -159,7 +188,7 @@ function TaskMiniRow({ task, phase, isSelected, onClick, onTaskClick, canDelete,
                         style={{
                             padding: '4px 12px', borderRadius: 6, fontSize: 10, fontWeight: 900,
                             background: 'rgba(249,115,22,0.1)', color: '#f97316',
-                            border: '1px solid rgba(249,115,22,0.3)', cursor: 'pointer',
+                            border: '1px solid rgba(249,115,22,0.3)', cursor: 'pointer', flex: 1,
                         }}
                     >Detail →</button>
                 </div>
@@ -288,7 +317,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
         estimated_budget: phase?.estimated_budget || 0,
     });
 
-    const [isEditing,      setIsEditing]      = useState(false);
+    const isEditing = canManage;
     const [saving,         setSaving]         = useState(false);
     const [isDirty,        setIsDirty]        = useState(false);
     const [completing,     setCompleting]     = useState(false);
@@ -346,7 +375,6 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                 estimated_budget: phase.estimated_budget || 0,
             });
             setIsDirty(false);
-            setIsEditing(false);
             fetchPhaseAssignments();
             fetchRoles();
         }
@@ -399,7 +427,6 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
         try {
             await updatePhase(phase.id, localPhase);
             setIsDirty(false);
-            setIsEditing(false);
             refreshData();
         } catch (err) { showError(err?.response?.data?.detail || 'Failed to save phase. Please try again.'); }
         finally { setSaving(false); }
@@ -429,10 +456,12 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
-    const handleTaskToggle = async (task) => {
-        const next = task.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED';
-        try { await constructionService.updateTask(task.id, { status: next }); refreshData(); }
-        catch {}
+    const handleTaskStatusChange = async (task, nextStatus) => {
+        try {
+            await updateTask(task.id, { status: nextStatus });
+        } catch {
+            alert('Failed to update task status. Please try again.');
+        }
     };
 
     const handleAddTask = async (e) => {
@@ -742,6 +771,46 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
         color: 'var(--t-text)', outline: 'none', boxSizing: 'border-box',
     };
 
+    useEffect(() => {
+        const handleBeforeUnload = (e) => {
+            if (isDirty) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [isDirty]);
+
+    const handleNav = (action) => {
+        if (isDirty) {
+            setConfirmCfg({
+                isOpen: true,
+                title: 'Discard Unsaved Changes?',
+                message: 'You have made changes to this phase. Leaving this page will discard all unsaved changes.',
+                confirmText: 'Discard Changes',
+                cancelText: 'Keep Editing',
+                type: 'danger',
+                onConfirm: () => {
+                    setConfirmCfg(c => ({ ...c, isOpen: false }));
+                    setIsDirty(false);
+                    setLocalPhase({
+                        name:        phase?.name        || '',
+                        description: phase?.description || '',
+                        status:      phase?.status      || 'PENDING',
+                        start_date:  phase?.start_date  || '',
+                        end_date:    phase?.end_date    || '',
+                        estimated_budget: phase?.estimated_budget || 0,
+                    });
+                    action();
+                },
+                onCancel: () => setConfirmCfg(c => ({ ...c, isOpen: false })),
+            });
+        } else {
+            action();
+        }
+    };
+
     const sm = STATUS_COLOR[localPhase.status] || STATUS_COLOR.PENDING;
     const phaseStatusAction = getStatusAction('phase', livePhase.status);
 
@@ -757,74 +826,108 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
             )}
             {/* ── Breadcrumb bar ── */}
             <div style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: isMobile ? '12px 14px' : '12px 24px',
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: isMobile ? '10px 14px' : '10px 24px',
                 background: 'var(--t-surface)', borderBottom: '1px solid var(--t-border)',
                 position: 'sticky', top: 0, zIndex: 20,
                 flexWrap: 'wrap',
             }}>
-                <button onClick={onBack} style={{
-                    display: 'flex', alignItems: 'center', gap: 6,
+                {/* One step back → Phases list */}
+                <button onClick={() => handleNav(onBack)} style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
                     padding: '5px 12px', borderRadius: 8, fontSize: 11, fontWeight: 800,
                     background: 'var(--t-surface2)', color: 'var(--t-text)',
                     border: '1px solid var(--t-border)', cursor: 'pointer',
-                }}>
-                    ← Back to Phases
+                    transition: 'all 0.15s',
+                }}
+                    onMouseEnter={e => e.currentTarget.style.transform = 'translateX(-2px)'}
+                    onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                >
+                    ← Back
                 </button>
-                <span style={{ fontSize: 12, color: 'var(--t-text3)' }}>Phase Detail</span>
-                <span style={{ fontSize: 12, color: 'var(--t-text3)' }}>›</span>
-                <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--t-text)' }}>{localPhase.name}</span>
+
+                {/* Breadcrumb trail: Phases › Phase Name */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, minWidth: 0, overflow: 'hidden' }}>
+                    <button
+                        onClick={() => handleNav(onBack)}
+                        style={{
+                            background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                            fontSize: 12, fontWeight: 700, color: 'var(--t-primary)',
+                            whiteSpace: 'nowrap',
+                        }}
+                    >📋 Phases</button>
+                    <span style={{ color: 'var(--t-text3)', fontSize: 14 }}>›</span>
+                    <span style={{
+                        fontSize: 13, fontWeight: 900, color: 'var(--t-text)',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>{localPhase.name}</span>
+                </div>
+
                 <div style={{ flex: 1 }} />
                 {canManage && (
-                    isEditing ? (
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', width: isMobile ? '100%' : 'auto' }}>
-                            <button onClick={handleSave} disabled={saving} style={{
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', width: isMobile ? '100%' : 'auto' }}>
+                        <button
+                            type="button"
+                            onClick={handlePhaseStatusAction}
+                            disabled={completing}
+                            title={`${phaseStatusAction.label}: ${phaseStatusAction.dateHint}`}
+                            style={{
+                                padding: '6px 16px', borderRadius: 8, fontSize: 11, fontWeight: 850,
+                                background: phaseStatusAction.color, color: '#fff', border: 'none',
+                                cursor: completing ? 'wait' : 'pointer', opacity: completing ? 0.65 : 1,
+                                boxShadow: `0 4px 14px ${phaseStatusAction.color}35`,
+                                width: isMobile ? '100%' : 'auto',
+                            }}
+                        >
+                            {completing ? 'Updating…' : `${phaseStatusAction.icon} ${phaseStatusAction.label}`}
+                        </button>
+                        <button 
+                            onClick={handleSave} 
+                            disabled={saving || !isDirty} 
+                            style={{
                                 padding: '6px 18px', borderRadius: 8, fontSize: 11, fontWeight: 800,
-                                background: '#10b981', color: '#fff', border: 'none', cursor: 'pointer',
+                                background: isDirty ? '#10b981' : 'var(--t-surface2)', 
+                                color: isDirty ? '#fff' : 'var(--t-text3)', 
+                                border: isDirty ? 'none' : '1px solid var(--t-border)',
+                                cursor: isDirty ? 'pointer' : 'not-allowed',
                                 opacity: saving ? 0.6 : 1,
-                            }}>{saving ? 'Saving…' : '✓ Save Changes'}</button>
-                            <button onClick={() => { setIsEditing(false); setIsDirty(false); }} style={{
-                                padding: '6px 14px', borderRadius: 8, fontSize: 11, fontWeight: 700,
-                                background: 'var(--t-surface2)', color: 'var(--t-text)',
-                                border: '1px solid var(--t-border)', cursor: 'pointer',
-                            }}>Cancel</button>
-                            <button onClick={handleDeletePhase} style={{
-                                padding: '6px 14px', borderRadius: 8, fontSize: 11, fontWeight: 800,
-                                background: '#ef444410', color: '#ef4444',
-                                border: '1px solid #ef444430', cursor: 'pointer',
-                            }}>🗑 Delete Phase</button>
-                        </div>
-                    ) : (
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', width: isMobile ? '100%' : 'auto' }}>
-                            <button
-                                type="button"
-                                onClick={handlePhaseStatusAction}
-                                disabled={completing}
-                                title={`${phaseStatusAction.label}: ${phaseStatusAction.dateHint}`}
+                                boxShadow: isDirty ? '0 4px 12px rgba(16,185,129,0.2)' : 'none',
+                                transition: 'all 0.2s',
+                                width: isMobile ? '100%' : 'auto',
+                            }}
+                        >
+                            {saving ? 'Saving…' : '✓ Save Changes'}
+                        </button>
+                        {isDirty && (
+                            <button 
+                                onClick={() => { 
+                                    setLocalPhase({
+                                        name:        phase?.name        || '',
+                                        description: phase?.description || '',
+                                        status:      phase?.status      || 'PENDING',
+                                        start_date:  phase?.start_date  || '',
+                                        end_date:    phase?.end_date    || '',
+                                        estimated_budget: phase?.estimated_budget || 0,
+                                    });
+                                    setIsDirty(false); 
+                                }} 
                                 style={{
-                                    padding: '6px 16px', borderRadius: 8, fontSize: 11, fontWeight: 850,
-                                    background: phaseStatusAction.color, color: '#fff', border: 'none',
-                                    cursor: completing ? 'wait' : 'pointer', opacity: completing ? 0.65 : 1,
-                                    boxShadow: `0 4px 14px ${phaseStatusAction.color}35`,
+                                    padding: '6px 14px', borderRadius: 8, fontSize: 11, fontWeight: 750,
+                                    background: 'rgba(239,68,68,0.08)', color: '#ef4444',
+                                    border: '1px solid rgba(239,68,68,0.25)', cursor: 'pointer',
                                     width: isMobile ? '100%' : 'auto',
                                 }}
                             >
-                                {completing ? 'Updating…' : `${phaseStatusAction.icon} ${phaseStatusAction.label}`}
+                                Discard
                             </button>
-                            <button onClick={() => setIsEditing(true)} style={{
-                                padding: '6px 16px', borderRadius: 8, fontSize: 11, fontWeight: 800,
-                                background: 'rgba(249,115,22,0.1)', color: '#f97316',
-                                border: '1px solid rgba(249,115,22,0.3)', cursor: 'pointer',
-                                width: isMobile ? '100%' : 'auto',
-                            }}>✏️ Edit Phase</button>
-                            <button onClick={handleDeletePhase} style={{
-                                padding: '6px 14px', borderRadius: 8, fontSize: 11, fontWeight: 800,
-                                background: '#ef444410', color: '#ef4444',
-                                border: '1px solid #ef444430', cursor: 'pointer',
-                                width: isMobile ? '100%' : 'auto',
-                            }}>🗑 Delete Phase</button>
-                        </div>
-                    )
+                        )}
+                        <button onClick={handleDeletePhase} style={{
+                            padding: '6px 14px', borderRadius: 8, fontSize: 11, fontWeight: 800,
+                            background: '#ef444410', color: '#ef4444',
+                            border: '1px solid #ef444430', cursor: 'pointer',
+                            width: isMobile ? '100%' : 'auto',
+                        }}>🗑 Delete Phase</button>
+                    </div>
                 )}
             </div>
 
@@ -1083,7 +1186,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                                     {/* Column headers */}
                                     <div style={{
                                         display: 'grid', 
-                                        gridTemplateColumns: isMobile ? '1fr 120px' : '1fr 100px 100px 100px 120px',
+                                        gridTemplateColumns: isMobile ? 'minmax(0, 1fr) 140px' : 'minmax(0, 1fr) 100px 100px 100px 180px',
                                         padding: '0 12px 6px',
                                         fontSize: 9, fontWeight: 900, color: 'var(--t-text3)',
                                         textTransform: 'uppercase', letterSpacing: '0.1em',
@@ -1092,7 +1195,7 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                                         {!isMobile && (
                                             <>
                                                 <span style={{ textAlign: 'center' }}>Start</span>
-                                                <span style={{ textAlign: 'center' }}>Due</span>
+                                                <span style={{ textAlign: 'center' }}>Finished</span>
                                                 <span style={{ textAlign: 'center' }}>Budget</span>
                                             </>
                                         )}
@@ -1100,9 +1203,9 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                                     </div>
 
                                     {[...phaseTasks].sort((a, b) => {
-                                        // 1. Due Date (Ascending) - nulls/TBD at bottom
-                                        const da = a.due_date ? new Date(a.due_date).getTime() : 9999999999999;
-                                        const db = b.due_date ? new Date(b.due_date).getTime() : 9999999999999;
+                                        // 1. Start Date (Ascending) - nulls/TBD at bottom
+                                        const da = a.start_date ? new Date(a.start_date).getTime() : 9999999999999;
+                                        const db = b.start_date ? new Date(b.start_date).getTime() : 9999999999999;
                                         if (da !== db) return da - db;
 
                                         // 2. Status (COMPLETED at bottom)
@@ -1119,7 +1222,8 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                                             isSelected={selectedTaskId === task.id}
                                             onClick={t => setSelectedTaskId(t.id === selectedTaskId ? null : t.id)}
                                             onTaskClick={onTaskClick}
-                                            canDelete={canManage}
+                                            canManage={canManage}
+                                            onStatusChange={handleTaskStatusChange}
                                             onDelete={handleDeleteTask}
                                         />
                                     ))}
@@ -1834,9 +1938,10 @@ export default function PhaseDetailPanel({ phase, onBack, onTaskClick }) {
                 title={confirmCfg.title}
                 message={confirmCfg.message}
                 confirmText={confirmCfg.confirmText}
+                cancelText={confirmCfg.cancelText}
                 type={confirmCfg.type}
                 onConfirm={confirmCfg.onConfirm}
-                onCancel={() => setConfirmCfg(c => ({ ...c, isOpen: false }))}
+                onCancel={confirmCfg.onCancel || (() => setConfirmCfg(c => ({ ...c, isOpen: false })))}
             />
         </div>
     );

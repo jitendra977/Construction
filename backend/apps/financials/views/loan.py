@@ -23,7 +23,6 @@ def _pid(request):
 class LoanDisbursementViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class  = LoanDisbursementSerializer
-    http_method_names = ["get", "post", "head", "options"]
 
     def get_queryset(self):
         qs  = LoanDisbursement.objects.select_related("loan_account", "bank_account").order_by("-date")
@@ -43,11 +42,22 @@ class LoanDisbursementViewSet(viewsets.ModelViewSet):
                 user=self.request.user if self.request.user.is_authenticated else None,
             )
 
+    def perform_update(self, serializer):
+        with transaction.atomic():
+            disbursement = serializer.save()
+            LoanService.update_disbursement(
+                disbursement,
+                user=self.request.user if self.request.user.is_authenticated else None,
+            )
+
+    def perform_destroy(self, instance):
+        with transaction.atomic():
+            LoanService.delete_disbursement(instance)
+
 
 class LoanEMIPaymentViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class  = LoanEMIPaymentSerializer
-    http_method_names = ["get", "post", "head", "options"]
 
     def get_queryset(self):
         qs  = LoanEMIPayment.objects.select_related("loan_account", "bank_account").order_by("-date")
@@ -66,3 +76,15 @@ class LoanEMIPaymentViewSet(viewsets.ModelViewSet):
                 emi,
                 user=self.request.user if self.request.user.is_authenticated else None,
             )
+
+    def perform_update(self, serializer):
+        with transaction.atomic():
+            emi = serializer.save()
+            LoanService.update_emi(
+                emi,
+                user=self.request.user if self.request.user.is_authenticated else None,
+            )
+
+    def perform_destroy(self, instance):
+        with transaction.atomic():
+            LoanService.delete_emi(instance)

@@ -37,19 +37,25 @@ function calcSplit(loan, totalEmi) {
   return { principal: principalPart, interest: interestPart };
 }
 
-export default function EMIModal({ loan, onClose }) {
+export default function EMIModal({ loan, emi = null, onClose }) {
   const { banks, refresh } = useFinance();
 
-  const defaultEmi = Number(loan.emi_amount || 0);
+  const defaultEmi = emi ? Number(emi.total_emi) : Number(loan.emi_amount || 0);
 
   // Pre-calculate split so the form opens ready-to-submit
-  const defaultSplit = useMemo(() => calcSplit(loan, defaultEmi), [loan, defaultEmi]);
+  const defaultSplit = useMemo(() => {
+    if (emi) {
+      return { principal: Number(emi.principal_amount), interest: Number(emi.interest_amount) };
+    }
+    return calcSplit(loan, defaultEmi);
+  }, [loan, defaultEmi, emi]);
 
-  const [bankId,      setBankId]      = useState('');
+  const [bankId,      setBankId]      = useState(emi?.bank_account || '');
   const [totalEmi,    setTotalEmi]    = useState(defaultEmi.toFixed(2));
   const [principal,   setPrincipal]   = useState(defaultSplit.principal.toFixed(2));
-  const [description, setDescription] = useState('');
-  const [reference,   setReference]   = useState('');
+  const [description, setDescription] = useState(emi?.description || '');
+  const [reference,   setReference]   = useState(emi?.reference || '');
+  const [date,        setDate]        = useState(emi?.date || new Date().toISOString().slice(0, 10));
   const [busy,        setBusy]        = useState(false);
   const [err,         setErr]         = useState('');
 
@@ -86,14 +92,20 @@ export default function EMIModal({ loan, onClose }) {
 
     setBusy(true); setErr('');
     try {
-      await financeApi.payEMI(loan.id, {
+      const payload = {
         bank_account:     bankId,
         total_emi:        total.toFixed(2),
         principal_amount: prin.toFixed(2),
         interest_amount:  intAmt.toFixed(2),
         description:      description || `EMI payment — ${loan.name}`,
         reference,
-      });
+        date,
+      };
+      if (emi) {
+        await financeApi.updateEMIPayment(emi.id, payload);
+      } else {
+        await financeApi.payEMI(loan.id, payload);
+      }
       await refresh();
       onClose();
     } catch (ex) {
@@ -107,22 +119,22 @@ export default function EMIModal({ loan, onClose }) {
   const outstanding = Math.abs(Number(loan.balance || 0));
 
   return (
-    <Modal isOpen onClose={onClose} title="Pay EMI" maxWidth="max-w-md">
+    <Modal isOpen onClose={onClose} title={emi ? "Edit EMI Payment" : "Pay EMI"} maxWidth="max-w-md">
       <form onSubmit={handleSubmit} className="p-6 space-y-4">
 
         {/* Loan info */}
         <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-2xl">
-          <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Loan</p>
+          <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">ऋण</p>
           <p className="font-black text-sm text-blue-900 mt-0.5">{loan.name}</p>
           <div className="flex gap-4 mt-2">
             <div>
-              <p className="text-[9px] text-blue-400 font-bold uppercase">Outstanding</p>
+              <p className="text-[9px] text-blue-400 font-bold uppercase">बाँकी ऋण</p>
               <p className="text-sm font-black text-blue-700">{NPR(outstanding)}</p>
             </div>
             {loan.interest_rate && (
               <div>
-                <p className="text-[9px] text-blue-400 font-bold uppercase">Rate</p>
-                <p className="text-sm font-black text-blue-700">{loan.interest_rate}% p.a.</p>
+                <p className="text-[9px] text-blue-400 font-bold uppercase">ब्याज दर</p>
+                <p className="text-sm font-black text-blue-700">{loan.interest_rate}% प्रति वर्ष</p>
               </div>
             )}
             {loan.emi_amount && (
@@ -140,9 +152,9 @@ export default function EMIModal({ loan, onClose }) {
 
         {/* Bank account */}
         <div>
-          <label className={lbl}>Pay From Bank Account *</label>
+          <label className={lbl}>जुन बैंकबाट भुक्तानी गर्ने *</label>
           <select className={inp} value={bankId} onChange={(e) => setBankId(e.target.value)} required>
-            <option value="">— Select bank —</option>
+            <option value="">— बैंक छान्नुहोस् —</option>
             {banks.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.bank_name ? `${b.bank_name} · ` : ''}{b.name} ({NPR(b.balance)})
@@ -154,10 +166,10 @@ export default function EMIModal({ loan, onClose }) {
         {/* Total EMI */}
         <div>
           <div className="flex items-center justify-between mb-1">
-            <label className={lbl}>Total EMI (NPR)</label>
+            <label className={lbl}>कुल EMI रकम (NPR)</label>
             <button type="button" onClick={autoSplit}
               className="text-[9px] font-black text-blue-500 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-lg border border-blue-200 transition-colors">
-              ↻ Auto-split
+              ↻ स्वत: विभाजन
             </button>
           </div>
           <input type="number" step="0.01" min="0.01" required className={`${inp} font-semibold`}
@@ -170,28 +182,28 @@ export default function EMIModal({ loan, onClose }) {
         {/* Principal + Interest — always in sync */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className={lbl}>Principal</label>
+            <label className={lbl}>साँवा (Principal)</label>
             <input type="number" step="0.01" min="0" required className={inp}
               value={principal}
               onChange={(e) => setPrincipal(e.target.value)}
             />
-            <p className="text-[9px] text-gray-400 mt-0.5">Reduces loan balance</p>
+            <p className="text-[9px] text-gray-400 mt-0.5">ऋण संतुलन घटाउँछ</p>
           </div>
           <div>
-            <label className={lbl}>Interest (auto)</label>
+            <label className={lbl}>ब्याज (स्वत: गणना)</label>
             <input type="number" step="0.01" readOnly className={`${inp} bg-gray-50 text-gray-500 cursor-not-allowed`}
               value={interest.toFixed(2)} />
-            <p className="text-[9px] text-gray-400 mt-0.5">= Total − Principal</p>
+            <p className="text-[9px] text-gray-400 mt-0.5">= कुल − साँवा</p>
           </div>
         </div>
 
         {/* Split summary bar */}
         <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
           <div className="flex justify-between text-[10px] font-black mb-2">
-            <span className="text-green-700">Principal: {NPR(principal)}</span>
-            <span className="text-orange-600">Interest: {NPR(interest)}</span>
+            <span className="text-green-700">साँवा: {NPR(principal)}</span>
+            <span className="text-orange-600">ब्याज: {NPR(interest)}</span>
             <span className={isBalanced ? 'text-gray-500' : 'text-red-500'}>
-              Total: {NPR(totalEmi)} {isBalanced ? '✓' : '⚠'}
+              कुल: {NPR(totalEmi)} {isBalanced ? '✓' : '⚠'}
             </span>
           </div>
           {parseFloat(totalEmi) > 0 && (
@@ -205,28 +217,35 @@ export default function EMIModal({ loan, onClose }) {
           )}
         </div>
 
+        {/* Date */}
+        <div>
+          <label className={lbl}>भुक्तानी मिति *</label>
+          <input type="date" required className={inp}
+            value={date} onChange={(e) => setDate(e.target.value)} />
+        </div>
+
         {/* Description */}
         <div>
-          <label className={lbl}>Description</label>
-          <input className={inp} placeholder={`EMI payment — ${loan.name}`}
+          <label className={lbl}>विवरण</label>
+          <input className={inp} placeholder={`EMI भुक्तानी — ${loan.name}`}
             value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
 
         {/* Reference */}
         <div>
-          <label className={lbl}>Reference</label>
-          <input className={inp} placeholder="Voucher / receipt no."
+          <label className={lbl}>सन्दर्भ / भौचर</label>
+          <input className={inp} placeholder="भौचर / रसिद नं."
             value={reference} onChange={(e) => setReference(e.target.value)} />
         </div>
 
         <div className="flex gap-2 pt-1">
           <button type="button" onClick={onClose}
             className="flex-1 py-2.5 border border-gray-200 text-sm font-bold text-gray-600 rounded-xl hover:bg-gray-50 transition-colors">
-            Cancel
+            रद्द गर्नुहोस्
           </button>
           <button type="submit" disabled={busy}
             className="flex-1 py-2.5 bg-blue-600 text-white text-sm font-black rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors">
-            {busy ? 'Processing…' : 'Pay EMI'}
+            {busy ? 'सेभ हुँदैछ…' : emi ? '✓ परिवर्तन सुरक्षित' : 'EMI भुक्तानी गर्नुहोस्'}
           </button>
         </div>
       </form>

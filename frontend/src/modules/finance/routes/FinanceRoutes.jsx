@@ -24,6 +24,7 @@ import FinanceLayout      from '../components/layout/FinanceLayout';
 import FinanceDashboard   from '../pages/FinanceDashboard';
 import BankingPage        from '../pages/BankingPage';
 import LoansPage          from '../pages/LoansPage';
+import LoanDetailPage     from '../pages/LoanDetailPage';
 import TransfersPage      from '../pages/TransfersPage';
 import LedgerPage         from '../pages/LedgerPage';
 import BillsPage          from '../pages/BillsPage';
@@ -41,6 +42,7 @@ export default function FinanceRoutes({ projectId }) {
           <Route path="banking"           element={<BankingPage />} />
           <Route path="banking/:id"       element={<BankAccountDetailPage />} />
           <Route path="loans"         element={<LoansPage />} />
+          <Route path="loans/:id"     element={<LoanDetailPage />} />
           <Route path="transfers"     element={<TransfersPage />} />
           <Route path="ledger"        element={<LedgerPage />} />
           <Route path="bills"         element={<BillsPage />} />
