@@ -6,6 +6,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useFinance } from '../../context/FinanceContext';
 import financeApi from '../../services/financeApi';
+import ConfirmModal from '../../../../components/common/ConfirmModal';
 import DisbursementModal from './DisbursementModal';
 import EMIModal from './EMIModal';
 
@@ -31,6 +32,7 @@ export default function EMIHistory({ loan }) {
   const [error,          setError]          = useState('');
   const [editingDisbursement, setEditingDisbursement] = useState(null);
   const [editingEMI,          setEditingEMI]          = useState(null);
+  const [confirmCfg,          setConfirmCfg]          = useState({ isOpen: false });
 
   const fetchHistory = () => {
     if (!projectId || !loan?.id) return;
@@ -55,26 +57,46 @@ export default function EMIHistory({ loan }) {
     fetchHistory();
   }, [projectId, loan?.id]);
 
-  const handleDeleteDisbursement = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this disbursement record? This will also remove the corresponding general ledger transaction.")) return;
-    try {
-      await financeApi.deleteDisbursement(id);
-      refresh();
-      fetchHistory();
-    } catch (ex) {
-      alert("Error: " + (ex?.response?.data?.detail || ex.message));
-    }
+  const handleDeleteDisbursement = (id) => {
+    setConfirmCfg({
+      isOpen: true,
+      title: 'Disbursement हटाउने?',
+      message: 'तपाईं यो disbursement रेकर्ड हटाउन निश्चित हुनुहुन्छ? यसले सम्बन्धित खाता प्रविष्टि (Ledger entry) पनि हटाउनेछ।',
+      confirmText: 'हटाउनुहोस्',
+      cancelText: 'रद्द गर्नुहोस्',
+      type: 'danger',
+      onConfirm: async () => {
+        setConfirmCfg(c => ({ ...c, isOpen: false }));
+        try {
+          await financeApi.deleteDisbursement(id);
+          refresh();
+          fetchHistory();
+        } catch (ex) {
+          alert("त्रुटि: " + (ex?.response?.data?.detail || ex.message));
+        }
+      }
+    });
   };
 
-  const handleDeleteEMI = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this EMI payment record? This will also remove the corresponding general ledger transaction.")) return;
-    try {
-      await financeApi.deleteEMIPayment(id);
-      refresh();
-      fetchHistory();
-    } catch (ex) {
-      alert("Error: " + (ex?.response?.data?.detail || ex.message));
-    }
+  const handleDeleteEMI = (id) => {
+    setConfirmCfg({
+      isOpen: true,
+      title: 'EMI भुक्तानी हटाउने?',
+      message: 'तपाईं यो EMI भुक्तानी रेकर्ड हटाउन निश्चित हुनुहुन्छ? यसले सम्बन्धित खाता प्रविष्टि (Ledger entry) पनि हटाउनेछ।',
+      confirmText: 'हटाउनुहोस्',
+      cancelText: 'रद्द गर्नुहोस्',
+      type: 'danger',
+      onConfirm: async () => {
+        setConfirmCfg(c => ({ ...c, isOpen: false }));
+        try {
+          await financeApi.deleteEMIPayment(id);
+          refresh();
+          fetchHistory();
+        } catch (ex) {
+          alert("त्रुटि: " + (ex?.response?.data?.detail || ex.message));
+        }
+      }
+    });
   };
 
   const totalDisbursed  = useMemo(() =>
@@ -318,6 +340,17 @@ export default function EMIHistory({ loan }) {
           <p className="text-xs mt-1">पहिले ऋण वितरण दर्ता गर्नुहोस्</p>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={confirmCfg.isOpen}
+        title={confirmCfg.title}
+        message={confirmCfg.message}
+        confirmText={confirmCfg.confirmText}
+        cancelText={confirmCfg.cancelText}
+        type={confirmCfg.type}
+        onConfirm={confirmCfg.onConfirm}
+        onCancel={() => setConfirmCfg(c => ({ ...c, isOpen: false }))}
+      />
     </div>
   );
 }
